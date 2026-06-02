@@ -1,15 +1,14 @@
 import { useMemo, useState } from 'react'
 import { Edit3, Filter, MessageSquarePlus } from 'lucide-react'
 import { useDelayedCars } from '../Context/DelayedCarsContext'
-import { stationNumbers } from '../Data/options'
 import type { CriticalityLevel, DelayedCar, DelayStatus, TrackingFilters } from '../Types/car'
 import { criticalityLabel, formatDateTime, getDelayHours, statusLabel } from '../Utils/formatters'
 import { CriticalityBadge, StatusBadge } from './StatusBadge'
 
 const nextStatus: Record<DelayStatus, DelayStatus> = {
   waiting: 'shipping',
-  shipping: 'installed',
-  installed: 'closed',
+  shipping: 'received_installed',
+  received_installed: 'closed',
   closed: 'waiting'
 }
 
@@ -24,6 +23,10 @@ export function TrackingGrid() {
   const [editingCar, setEditingCar] = useState<DelayedCar | null>(null)
   const [noteCar, setNoteCar] = useState<DelayedCar | null>(null)
   const [noteText, setNoteText] = useState('')
+
+  const stationOptions = useMemo(() => {
+    return Array.from(new Set(cars.map(car => car.stationNumber).filter(Boolean))).sort()
+  }, [cars])
 
   const filteredCars = useMemo(() => {
     return cars
@@ -80,7 +83,7 @@ export function TrackingGrid() {
             onChange={event => setFilters(prev => ({ ...prev, stationNumber: event.target.value }))}
           >
             <option value="">كل المحطات</option>
-            {stationNumbers.map(station => <option key={station} value={station}>{station}</option>)}
+            {stationOptions.map(station => <option key={station} value={station}>{station}</option>)}
           </select>
           <select
             className="input-dark"

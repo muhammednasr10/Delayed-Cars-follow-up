@@ -39,7 +39,7 @@ export const initialDelayedCars: DelayedCar[] = [
     isDrItem: true,
     assignedEngineer: 'Quality Engineer 1',
     notes: 'Do not release without DR confirmation.',
-    status: 'installed',
+    status: 'received_installed',
     createdAt: new Date(Date.now() - 1000 * 60 * 60 * 20).toISOString(),
     updatedAt: new Date().toISOString(),
     resolvedAt: new Date().toISOString()

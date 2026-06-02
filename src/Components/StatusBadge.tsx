@@ -19,7 +19,7 @@ export function StatusBadge({ status }: { status: DelayStatus }) {
   const classes: Record<DelayStatus, string> = {
     waiting: 'bg-slate-500/15 text-slate-200 ring-slate-400/30',
     shipping: 'bg-cyan-500/15 text-cyan-300 ring-cyan-400/30',
-    installed: 'bg-emerald-500/15 text-emerald-300 ring-emerald-400/30',
+    received_installed: 'bg-emerald-500/15 text-emerald-300 ring-emerald-400/30',
     closed: 'bg-zinc-500/15 text-zinc-300 ring-zinc-400/30'
   }
 

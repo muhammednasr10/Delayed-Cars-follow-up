@@ -2,10 +2,13 @@ import { createContext, useContext, useEffect, useMemo, useState, type ReactNode
 import { supabase } from '../lib/supabase'
 import { initialDelayedCars } from '../Data/mockCars'
 import type { DelayedCar, DelayedCarInput, DelayStatus } from '../Types/car'
+import { createDelayedCar, getDelayedCars, updateDelayedCar, updateDelayedCarStatus } from '../services/delayedCarsService'
 
 type DelayedCarsContextValue = {
   cars: DelayedCar[]
   loading: boolean
+  error: string
+  refreshCars: () => Promise<void>
   addCar: (input: DelayedCarInput) => Promise<{ ok: boolean; message?: string }>
   updateStatus: (id: string, status: DelayStatus) => Promise<void>
   updateCar: (id: string, patch: Partial<DelayedCar>) => Promise<void>
@@ -17,34 +20,33 @@ const DelayedCarsContext = createContext<DelayedCarsContextValue | undefined>(un
 export function DelayedCarsProvider({ children }: { children: ReactNode }) {
   const [cars, setCars] = useState<DelayedCar[]>(supabase ? [] : initialDelayedCars)
   const [loading, setLoading] = useState(true)
+  const [error, setError] = useState('')
 
-  useEffect(() => {
+  async function refreshCars() {
+    setLoading(true)
+    setError('')
+
     if (!supabase) {
+      setCars(initialDelayedCars)
       setLoading(false)
       return
     }
 
-    async function loadCars() {
-      const client = supabase
-      if (!client) {
-        setCars(initialDelayedCars)
-        setLoading(false)
-        return
-      }
-
-      const { data, error } = await client.from('delayed_cars').select('*')
-      if (error) {
-        console.warn('Unable to load delayed cars from Supabase:', error.message)
-        setCars(initialDelayedCars)
-      } else if (data) {
-        setCars(
-          data.sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime())
-        )
-      }
+    try {
+      const data = await getDelayedCars()
+      setCars(data)
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Unable to load delayed cars from Supabase'
+      console.error('Unable to load delayed cars from Supabase:', err)
+      setError(message)
+      setCars(initialDelayedCars)
+    } finally {
       setLoading(false)
     }
+  }
 
-    loadCars()
+  useEffect(() => {
+    refreshCars()
   }, [])
 
   async function addCar(input: DelayedCarInput) {
@@ -57,55 +59,44 @@ export function DelayedCarsProvider({ children }: { children: ReactNode }) {
     }
 
     const now = new Date().toISOString()
+
+    if (supabase) {
+      try {
+        const created = await createDelayedCar(input)
+        setCars(prev => [created, ...prev])
+        return { ok: true }
+      } catch (err) {
+        const message = err instanceof Error ? err.message : 'حدث خطأ أثناء حفظ السيارة على Supabase.'
+        console.error('Supabase insert failed:', err)
+        return { ok: false, message }
+      }
+    }
+
     const newCar: DelayedCar = {
       ...input,
       id: crypto.randomUUID(),
       status: 'waiting',
       createdAt: now,
-      updatedAt: now
+      updatedAt: now,
+      resolvedAt: null
     }
-
-    if (supabase) {
-      const client = supabase
-      const { data, error } = await client.from('delayed_cars').insert(newCar).select().single()
-      if (error) {
-        console.error('Supabase insert failed:', error.message)
-        return { ok: false, message: 'حدث خطأ أثناء حفظ السيارة على Supabase.' }
-      }
-      if (data) {
-        setCars(prev => [data, ...prev])
-        return { ok: true }
-      }
-    }
-
     setCars(prev => [newCar, ...prev])
     return { ok: true }
   }
 
   async function updateStatus(id: string, status: DelayStatus) {
     const now = new Date().toISOString()
+    const resolvedAt = status === 'received_installed' || status === 'closed' ? now : null
+
     setCars(prev =>
-      prev.map(car => {
-        if (car.id !== id) return car
-        return {
-          ...car,
-          status,
-          updatedAt: now,
-          resolvedAt: status === 'installed' || status === 'closed' ? now : car.resolvedAt
-        }
-      })
+      prev.map(car => (car.id === id ? { ...car, status, updatedAt: now, resolvedAt } : car))
     )
 
     if (supabase) {
-      const client = supabase
-      const patch = {
-        status,
-        updatedAt: now,
-        resolvedAt: status === 'installed' || status === 'closed' ? now : null
-      }
-      const { error } = await client.from('delayed_cars').update(patch).eq('id', id)
-      if (error) {
-        console.error('Supabase updateStatus failed:', error.message)
+      try {
+        await updateDelayedCarStatus(id, status)
+      } catch (err) {
+        console.error('Supabase updateStatus failed:', err)
       }
     }
   }
@@ -117,42 +108,23 @@ export function DelayedCarsProvider({ children }: { children: ReactNode }) {
     )
 
     if (supabase) {
-      const client = supabase
-      const { error } = await client.from('delayed_cars').update({ ...patch, updatedAt: now }).eq('id', id)
-      if (error) {
-        console.error('Supabase updateCar failed:', error.message)
+      try {
+        await updateDelayedCar(id, patch)
+      } catch (err) {
+        console.error('Supabase updateCar failed:', err)
       }
     }
   }
 
   async function addNote(id: string, note: string) {
-    const now = new Date().toISOString()
-    let updatedNotes = ''
-
-    setCars(prev =>
-      prev.map(car => {
-        if (car.id !== id) return car
-        updatedNotes = car.notes ? `${car.notes}\n${note}` : note
-        return {
-          ...car,
-          notes: updatedNotes,
-          updatedAt: now
-        }
-      })
-    )
-
-    if (supabase) {
-      const client = supabase
-      const { error } = await client.from('delayed_cars').update({ notes: updatedNotes, updatedAt: now }).eq('id', id)
-      if (error) {
-        console.error('Supabase addNote failed:', error.message)
-      }
-    }
+    const car = cars.find(item => item.id === id)
+    const updatedNotes = car?.notes ? `${car.notes}\n${note}` : note
+    await updateCar(id, { notes: updatedNotes })
   }
 
   const value = useMemo(
-    () => ({ cars, loading, addCar, updateStatus, updateCar, addNote }),
-    [cars, loading]
+    () => ({ cars, loading, error, refreshCars, addCar, updateStatus, updateCar, addNote }),
+    [cars, loading, error]
   )
 
   return <DelayedCarsContext.Provider value={value}>{children}</DelayedCarsContext.Provider>

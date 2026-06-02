@@ -8,7 +8,7 @@ export function Dashboard() {
   const { cars } = useDelayedCars()
 
   const today = new Date().toDateString()
-  const openCars = cars.filter(car => car.status !== 'installed' && car.status !== 'closed')
+  const openCars = cars.filter(car => car.status !== 'received_installed' && car.status !== 'closed')
   const criticalShortage = openCars.filter(car => car.criticality === 'critical')
   const resolvedToday = cars.filter(car => car.resolvedAt && new Date(car.resolvedAt).toDateString() === today)
 
