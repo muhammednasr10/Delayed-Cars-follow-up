@@ -28,46 +28,49 @@ npm run dev
 npm run build
 ```
 
-## Supabase Integration
+## Architecture
 
-تم ربط التطبيق بـ Supabase للقراءة والكتابة في جدول `delayed_cars` بشكل مباشر.
+The app is built around a normalized factory domain enforced in PostgreSQL, not
+in the browser. The vehicle is a first-class entity that can have many missing
+parts, QC inspections, and stock movements. Critical business rules (unique +
+immutable VIN, no negative stock, no closing a part before it is installed and
+QC-approved, no completing/delivering a vehicle with open shortages or failed
+QC) are enforced by database constraints, triggers, and `SECURITY DEFINER` RPCs.
 
-### ماذا تحتاج
+### Database migrations
 
-- أنشئ ملف `.env.local`
-- انسخ قيم المشروع التالية من Supabase:
-  - `VITE_SUPABASE_URL`
-  - `VITE_SUPABASE_ANON_KEY`
+Run the SQL files in `supabase/migrations` in order (Supabase SQL editor or CLI):
 
-تجد مثالًا في `.env.example`.
+1. `0001_factory_core_schema.sql` — enums, tables, indexes, constraints, guard triggers
+2. `0002_rls_and_rpcs.sql` — Row Level Security + role permissions + transactional RPCs
+3. `0003_reporting_views.sql` — dashboard / report views
+4. `0004_auth_profile_bootstrap.sql` — auto-create a profile per auth user
 
-### الطريقة
+### Environment
 
-- `src/lib/supabase.ts` ينشئ عميل Supabase
-- `src/Context/DelayedCarsContext.tsx` يجلب البيانات من `delayed_cars`
-- الإضافات والتحديثات والملاحظات تُرسل إلى Supabase عند توفر المتغيرات
+Create `.env.local` with:
 
-### جدول Supabase المقترح
+- `VITE_SUPABASE_URL`
+- `VITE_SUPABASE_ANON_KEY`
 
-أنشئ جدولًا باسم `delayed_cars` مع الحقول التالية:
+### Auth & roles
 
-- `id` (text, primary key)
-- `chassisNumber` (text)
-- `model` (text)
-- `stationNumber` (text)
-- `missingPart` (text)
-- `criticality` (text)
-- `isDrItem` (boolean)
-- `assignedEngineer` (text)
-- `notes` (text)
-- `status` (text)
-- `createdAt` (timestamp)
-- `updatedAt` (timestamp)
-- `resolvedAt` (timestamp, nullable)
+The app requires Supabase Auth (email/password). New users default to the
+least-privileged `viewer` role. After signing up, promote your first admin:
 
-Example Firebase idea:
-
-```ts
-await addDoc(collection(db, 'delayed_cars'), newCar)
-await updateDoc(doc(db, 'delayed_cars', id), { status })
+```sql
+update profiles set role = 'admin' where email = 'you@example.com';
 ```
+
+Roles: `admin`, `production`, `warehouse`, `purchasing`, `quality`, `viewer`.
+
+### Key tables
+
+`profiles`, `production_orders`, `vehicles`, `items`, `warehouses`,
+`inventory_stock`, `bom_lines`, `missing_parts`, `stock_movements`,
+`qc_inspections`, `qc_defects`, `missing_part_comments`, `attachments`,
+`audit_log`, plus the existing settings tables (`vehicle_models`, `work_areas`,
+`stations`, `vehicle_colors`).
+
+> The legacy `delayed_cars` table and its components remain in the repo for
+> reference but are no longer wired into the app.

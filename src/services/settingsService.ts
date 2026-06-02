@@ -41,6 +41,11 @@ export async function deactivateVehicleModel(id: string): Promise<void> {
   if (error) handleError('Failed to deactivate vehicle model:', error)
 }
 
+export async function deleteVehicleModel(id: string): Promise<void> {
+  const { error } = await requireClient().from('vehicle_models').delete().eq('id', id)
+  if (error) handleError('Failed to delete vehicle model:', error)
+}
+
 export async function getWorkAreas(): Promise<WorkArea[]> {
   const { data, error } = await requireClient().from('work_areas').select('*').eq('is_active', true).order('name')
   if (error) handleError('Failed to load work areas:', error)
@@ -66,6 +71,11 @@ export async function updateWorkArea(id: string, input: Partial<Pick<WorkArea, '
 export async function deactivateWorkArea(id: string): Promise<void> {
   const { error } = await requireClient().from('work_areas').update({ is_active: false }).eq('id', id)
   if (error) handleError('Failed to deactivate work area:', error)
+}
+
+export async function deleteWorkArea(id: string): Promise<void> {
+  const { error } = await requireClient().from('work_areas').delete().eq('id', id)
+  if (error) handleError('Failed to delete work area:', error)
 }
 
 export async function getStations(): Promise<Station[]> {
@@ -104,6 +114,11 @@ export async function deactivateStation(id: string): Promise<void> {
   if (error) handleError('Failed to deactivate station:', error)
 }
 
+export async function deleteStation(id: string): Promise<void> {
+  const { error } = await requireClient().from('stations').delete().eq('id', id)
+  if (error) handleError('Failed to delete station:', error)
+}
+
 export async function getVehicleColors(): Promise<VehicleColor[]> {
   const { data, error } = await requireClient().from('vehicle_colors').select('*').eq('is_active', true).order('name')
   if (error) handleError('Failed to load vehicle colors:', error)
@@ -131,6 +146,11 @@ export async function deactivateVehicleColor(id: string): Promise<void> {
   if (error) handleError('Failed to deactivate vehicle color:', error)
 }
 
+export async function deleteVehicleColor(id: string): Promise<void> {
+  const { error } = await requireClient().from('vehicle_colors').delete().eq('id', id)
+  if (error) handleError('Failed to delete vehicle color:', error)
+}
+
 export async function getAppUsers(): Promise<AppUser[]> {
   const { data, error } = await requireClient().from('app_users').select('*').eq('is_active', true).order('name')
   if (error) handleError('Failed to load app users:', error)
@@ -156,4 +176,9 @@ export async function updateAppUser(id: string, input: Partial<Pick<AppUser, 'na
 export async function deactivateAppUser(id: string): Promise<void> {
   const { error } = await requireClient().from('app_users').update({ is_active: false }).eq('id', id)
   if (error) handleError('Failed to deactivate app user:', error)
+}
+
+export async function deleteAppUser(id: string): Promise<void> {
+  const { error } = await requireClient().from('app_users').delete().eq('id', id)
+  if (error) handleError('Failed to delete app user:', error)
 }
