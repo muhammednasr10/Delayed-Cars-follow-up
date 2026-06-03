@@ -105,9 +105,6 @@ begin
   if new.created_by is null then
     new.created_by := auth.uid();
   end if;
-  if to_jsonb(new) ? 'updated_by' and new.updated_by is null then
-    new.updated_by := auth.uid();
-  end if;
   return new;
 end;
 $$;

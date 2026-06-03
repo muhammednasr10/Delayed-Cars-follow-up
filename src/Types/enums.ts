@@ -49,6 +49,54 @@ export type MissingPartStatus =
 
 export type QcResult = 'pass' | 'fail'
 
+// Replaces the legacy "DR item" flag. line_stopper = can halt the whole line;
+// car_stopper = blocks only this vehicle's completion/delivery.
+export type StopperType = 'line_stopper' | 'car_stopper'
+
+// Factory hierarchy level (org structure). Distinct from UserRole, which is the
+// system/auth permission level.
+export type JobRole =
+  | 'general_manager'
+  | 'manager'
+  | 'engineer'
+  | 'supervisor'
+  | 'assistant_supervisor'
+  | 'technician'
+
+export const JOB_ROLES: JobRole[] = [
+  'general_manager',
+  'manager',
+  'engineer',
+  'supervisor',
+  'assistant_supervisor',
+  'technician'
+]
+
+// Which job roles a given role may report to (hierarchy rules). Empty = top.
+export const ALLOWED_MANAGER_ROLES: Record<JobRole, JobRole[]> = {
+  general_manager: [],
+  manager: ['general_manager'],
+  engineer: ['manager', 'general_manager'],
+  supervisor: ['engineer', 'manager'],
+  assistant_supervisor: ['supervisor'],
+  technician: ['supervisor', 'assistant_supervisor']
+}
+
+// Training matrix
+export type TrainingLevel = 'level_0' | 'level_1' | 'level_2' | 'level_3' | 'level_4'
+export type TrainingStatus = 'not_trained' | 'in_training' | 'qualified' | 'expired' | 'suspended'
+
+export const TRAINING_LEVELS: TrainingLevel[] = ['level_0', 'level_1', 'level_2', 'level_3', 'level_4']
+export const TRAINING_STATUSES: TrainingStatus[] = ['not_trained', 'in_training', 'qualified', 'expired', 'suspended']
+
+export function trainingLevelRank(level: TrainingLevel): number {
+  return TRAINING_LEVELS.indexOf(level)
+}
+
+// Manpower / station operations
+export type StationType = 'main_line' | 'side_assembly' | 'offline_prep'
+export const STATION_TYPES: StationType[] = ['main_line', 'side_assembly', 'offline_prep']
+
 // ---- Display labels (Arabic UI, matching the existing app language) --------
 
 export const productionStatusLabel: Record<VehicleProductionStatus, string> = {

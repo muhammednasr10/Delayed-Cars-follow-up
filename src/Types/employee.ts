@@ -1,0 +1,43 @@
+import type { JobRole, ResponsibleDepartment } from './enums'
+import type { EmploymentStatus } from './permissions'
+
+// Row shape returned from the `employees` table (with embedded names resolved
+// by the service). Manager name is resolved client-side from the loaded list.
+export type Employee = {
+  id: string
+  employeeCode: string
+  fullName: string
+  jobRole: JobRole
+  department: ResponsibleDepartment | null
+  workAreaId: string | null
+  workAreaName: string | null
+  stationId: string | null
+  stationLabel: string | null
+  lineName: string | null
+  directManagerId: string | null
+  directManagerName: string | null
+  profileId: string | null
+  phone: string | null
+  email: string | null
+  notes: string | null
+  isActive: boolean
+  employmentStatus: EmploymentStatus
+  stoppedReason: string | null
+  createdAt: string
+  updatedAt: string
+}
+
+export type EmployeeInput = {
+  employeeCode: string
+  fullName: string
+  jobRole: JobRole
+  department: ResponsibleDepartment | null
+  workAreaId: string | null
+  stationId: string | null
+  lineName: string | null
+  directManagerId: string | null
+  phone: string | null
+  email: string | null
+  notes: string | null
+  isActive: boolean
+}

@@ -1,5 +1,10 @@
 import { supabase } from '../lib/supabase'
-import type { MissingPartDetail, ReportMissingPartInput } from '../Types/missingPart'
+import type {
+  MissingPartDetail,
+  ReportMissingPartInput,
+  ReportMissingPartsBatchInput,
+  ReportMissingPartsBatchResult
+} from '../Types/missingPart'
 
 function requireClient() {
   if (!supabase) throw new Error('Supabase غير مهيأ. تحقق من ملف .env')
@@ -19,6 +24,7 @@ type DetailRow = {
   status: MissingPartDetail['status']
   qc_approved: boolean
   is_dr_item: boolean
+  stopper_type: MissingPartDetail['stopperType']
   notes: string | null
   vin: string
   model_name: string | null
@@ -26,6 +32,10 @@ type DetailRow = {
   color_hex: string | null
   station_number: string | null
   station_name: string | null
+  station_line_name: string | null
+  station_area: string | null
+  station_department: MissingPartDetail['stationDepartment']
+  station_person: string | null
   created_by: string | null
   created_by_name: string | null
   created_by_email: string | null
@@ -47,6 +57,7 @@ function mapDetail(row: DetailRow): MissingPartDetail {
     status: row.status,
     qcApproved: row.qc_approved,
     isDrItem: row.is_dr_item,
+    stopperType: row.stopper_type ?? 'car_stopper',
     notes: row.notes,
     vin: row.vin,
     modelName: row.model_name ?? '',
@@ -54,6 +65,10 @@ function mapDetail(row: DetailRow): MissingPartDetail {
     colorHex: row.color_hex,
     stationNumber: row.station_number,
     stationName: row.station_name,
+    stationLineName: row.station_line_name,
+    stationArea: row.station_area,
+    stationDepartment: row.station_department,
+    stationPerson: row.station_person,
     createdBy: row.created_by,
     createdByName: row.created_by_name,
     createdByEmail: row.created_by_email,
@@ -72,6 +87,31 @@ export async function getMissingParts(): Promise<MissingPartDetail[]> {
   return ((data ?? []) as DetailRow[]).map(mapDetail)
 }
 
+// Mark a part as installed (fully or by quantity). Advances toward qc_pending.
+export async function installMissingPart(missingPartId: string, quantity: number): Promise<void> {
+  const { error } = await requireClient().rpc('install_part', {
+    p_missing_part_id: missingPartId,
+    p_quantity: quantity
+  })
+  if (error) throw new Error(error.message)
+}
+
+// Record a QC decision on a part. 'pass' approves (and the RPC closes it when
+// fully installed); 'fail' reopens it for rework.
+export async function recordQc(vehicleId: string, result: 'pass' | 'fail', missingPartId: string): Promise<void> {
+  const { error } = await requireClient().rpc('record_qc_inspection', {
+    p_vehicle_id: vehicleId,
+    p_result: result,
+    p_missing_part_id: missingPartId
+  })
+  if (error) throw new Error(error.message)
+}
+
+export async function cancelMissingPart(missingPartId: string): Promise<void> {
+  const { error } = await requireClient().from('missing_parts').update({ status: 'cancelled' }).eq('id', missingPartId)
+  if (error) throw new Error(error.message)
+}
+
 // Atomic RPC: finds/creates the vehicle by VIN, then records the shortage.
 export async function reportMissingPart(input: ReportMissingPartInput): Promise<string> {
   const { data, error } = await requireClient().rpc('report_missing_part', {
@@ -84,10 +124,43 @@ export async function reportMissingPart(input: ReportMissingPartInput): Promise<
     p_reason: input.reason,
     p_department: input.department,
     p_priority: input.priority,
-    p_is_dr_item: input.isDrItem,
+    p_stopper_type: input.stopperType,
     p_notes: input.notes || null
   })
 
   if (error) throw new Error(error.message)
   return data as string
+}
+
+export async function reportMissingPartsBatch(
+  input: ReportMissingPartsBatchInput
+): Promise<ReportMissingPartsBatchResult> {
+  const vins = input.vins.map(v => v.trim()).filter(Boolean)
+  const parts = input.parts
+    .map(p => ({
+      part_description: p.partDescription.trim(),
+      required_qty: Math.max(1, p.requiredQty)
+    }))
+    .filter(p => p.part_description)
+
+  const { data, error } = await requireClient().rpc('report_missing_parts_batch', {
+    p_vins: vins,
+    p_model_id: input.modelId,
+    p_parts: parts,
+    p_color_id: input.colorId || null,
+    p_station_id: input.stationId || null,
+    p_reason: input.reason,
+    p_department: input.department,
+    p_priority: input.priority,
+    p_stopper_type: input.stopperType,
+    p_notes: input.notes || null
+  })
+
+  if (error) throw new Error(error.message)
+  const row = data as ReportMissingPartsBatchResult
+  return {
+    vehicle_count: row.vehicle_count ?? vins.length,
+    part_line_count: row.part_line_count ?? parts.length,
+    missing_part_count: row.missing_part_count ?? vins.length * parts.length
+  }
 }

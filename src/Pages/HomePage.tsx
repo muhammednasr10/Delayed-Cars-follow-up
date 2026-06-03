@@ -8,15 +8,18 @@ import {
   ShieldAlert,
   Boxes,
   BarChart3,
+  Users,
+  GraduationCap,
+  Layers,
   Settings as SettingsIcon
 } from 'lucide-react'
 import { useVehicles } from '../Context/VehiclesContext'
-import { useAuth } from '../Context/AuthContext'
 import { useLang } from '../i18n/LanguageContext'
+import { useCanReportMissingPart } from '../hooks/useCanReportMissingPart'
 import { StatCard } from '../Components/StatCard'
 import { ReportMissingPartModal } from '../Components/ReportMissingPartModal'
 
-type NavTarget = 'missing' | 'vehicles' | 'settings'
+type NavTarget = 'missing' | 'vehicles' | 'org' | 'training' | 'bom' | 'settings'
 
 type ModuleCard = {
   key: string
@@ -29,6 +32,9 @@ type ModuleCard = {
 const moduleCards: ModuleCard[] = [
   { key: 'missingParts', icon: AlertTriangle, tone: 'text-red-300 bg-red-500/15', target: 'missing' },
   { key: 'vehicles', icon: Car, tone: 'text-cyan-300 bg-cyan-500/15', target: 'vehicles' },
+  { key: 'org', icon: Users, tone: 'text-purple-300 bg-purple-500/15', target: 'org' },
+  { key: 'training', icon: GraduationCap, tone: 'text-blue-300 bg-blue-500/15', target: 'training' },
+  { key: 'bom', icon: Layers, tone: 'text-violet-300 bg-violet-500/15', target: 'bom' },
   { key: 'settings', icon: SettingsIcon, tone: 'text-emerald-300 bg-emerald-500/15', target: 'settings' },
   { key: 'productionOrders', icon: ClipboardList, tone: 'text-amber-300 bg-amber-500/15', soon: true },
   { key: 'inventory', icon: Boxes, tone: 'text-purple-300 bg-purple-500/15', soon: true },
@@ -38,11 +44,9 @@ const moduleCards: ModuleCard[] = [
 
 export function HomePage({ onNavigate }: { onNavigate: (page: NavTarget) => void }) {
   const { vehicles, setupRequired } = useVehicles()
-  const { hasRole } = useAuth()
+  const { canReport } = useCanReportMissingPart()
   const { t, dir } = useLang()
   const [reportOpen, setReportOpen] = useState(false)
-
-  const canReport = hasRole('admin', 'production', 'warehouse', 'quality')
 
   const counts = useMemo(() => ({
     total: vehicles.length,
@@ -103,7 +107,7 @@ export function HomePage({ onNavigate }: { onNavigate: (page: NavTarget) => void
         </div>
       </div>
 
-      <ReportMissingPartModal open={reportOpen} onClose={() => setReportOpen(false)} />
+      <ReportMissingPartModal open={reportOpen} onClose={() => setReportOpen(false)} onReported={() => {}} />
     </section>
   )
 }

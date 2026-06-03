@@ -11,11 +11,14 @@
   "dependencies": {
     "@supabase/supabase-js": "latest",
     "lucide-react": "latest",
+    "papaparse": "^5.5.3",
     "react": "^19.2.7",
     "react-dom": "^19.2.7",
-    "typescript": "latest"
+    "typescript": "latest",
+    "xlsx": "^0.18.5"
   },
   "devDependencies": {
+    "@types/papaparse": "^5.5.2",
     "@types/react": "latest",
     "@types/react-dom": "latest",
     "@vitejs/plugin-react": "^6.0.2",

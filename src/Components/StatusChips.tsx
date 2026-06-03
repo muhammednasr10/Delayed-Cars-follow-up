@@ -1,7 +1,16 @@
 import { useLang } from '../i18n/LanguageContext'
-import type { MissingPartStatus, PriorityLevel } from '../Types/enums'
+import type { MissingPartStatus, PriorityLevel, StopperType } from '../Types/enums'
 
 const base = 'inline-flex rounded-full px-3 py-1 text-xs font-bold ring-1 whitespace-nowrap'
+
+export function StopperChip({ type }: { type: StopperType }) {
+  const { t } = useLang()
+  const classes: Record<StopperType, string> = {
+    line_stopper: 'bg-red-500/15 text-red-300 ring-red-400/30',
+    car_stopper: 'bg-amber-500/15 text-amber-300 ring-amber-400/30'
+  }
+  return <span className={`${base} ${classes[type]}`}>{t(`stopper.${type}`)}</span>
+}
 
 export function PriorityChip({ level }: { level: PriorityLevel }) {
   const { t } = useLang()

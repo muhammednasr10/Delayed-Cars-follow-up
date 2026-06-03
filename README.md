@@ -9,7 +9,7 @@ SPA web app built with React + Vite + Tailwind CSS for tracking delayed cars and
 - Add delayed car form with validation
 - Unique chassis number validation
 - Criticality levels
-- DR Item flag
+- Stopper Type classification (Line Stopper / Car Stopper)
 - Tracking grid with filters
 - Change status workflow
 - Edit data and add notes

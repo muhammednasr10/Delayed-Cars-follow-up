@@ -4,7 +4,7 @@ import { useAuth } from '../Context/AuthContext'
 import { useLang } from '../i18n/LanguageContext'
 
 export function LoginPage() {
-  const { signIn } = useAuth()
+  const { signIn, accessDeniedMessage } = useAuth()
   const { t, lang, toggle } = useLang()
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
@@ -41,6 +41,10 @@ export function LoginPage() {
             {lang === 'ar' ? 'EN' : 'عربي'}
           </button>
         </div>
+
+        {accessDeniedMessage && (
+          <div className="mb-4 rounded-xl border border-amber-500/40 bg-amber-500/10 p-3 text-sm text-amber-200">{accessDeniedMessage}</div>
+        )}
 
         <form onSubmit={handleSubmit} className="space-y-4">
           <label className="block space-y-2">

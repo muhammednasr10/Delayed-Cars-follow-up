@@ -3,7 +3,7 @@ import type { ReactNode } from 'react'
 type StatCardProps = {
   title: string
   value: number | string
-  subtitle: string
+  subtitle?: string
   icon: ReactNode
   tone?: 'red' | 'orange' | 'green' | 'cyan'
 }
@@ -25,7 +25,7 @@ export function StatCard({ title, value, subtitle, icon, tone = 'cyan' }: StatCa
         </div>
         <div className="rounded-xl bg-white/10 p-3">{icon}</div>
       </div>
-      <p className="mt-3 text-xs text-slate-400">{subtitle}</p>
+      {subtitle ? <p className="mt-3 text-xs text-slate-400">{subtitle}</p> : null}
     </div>
   )
 }

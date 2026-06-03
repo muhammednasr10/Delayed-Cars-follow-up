@@ -1,18 +1,32 @@
 import { useState } from 'react'
-import { AlertTriangle, Car, Database, Home, Languages, LogOut, MonitorCog, Settings } from 'lucide-react'
+import { AlertTriangle, Car, Database, GraduationCap, Home, Languages, Layers, LogOut, MonitorCog, Settings, Users } from 'lucide-react'
 import { AuthProvider, useAuth } from './Context/AuthContext'
+import { PermissionsProvider, usePermissions } from './Context/PermissionsContext'
 import { VehiclesProvider } from './Context/VehiclesContext'
 import { LanguageProvider, useLang } from './i18n/LanguageContext'
 import { HomePage } from './Pages/HomePage'
 import { MissingPartsPage } from './Pages/MissingPartsPage'
 import { VehiclesPage } from './Pages/VehiclesPage'
+import { OrgStructurePage } from './Pages/OrgStructurePage'
+import { TrainingMatrixPage } from './Pages/TrainingMatrixPage'
 import { SettingsPage } from './Pages/SettingsPage'
+import { BomPage } from './Pages/BomPage'
 import { LoginPage } from './Pages/LoginPage'
 
-export type Page = 'home' | 'missing' | 'vehicles' | 'settings'
+export type Page = 'home' | 'missing' | 'vehicles' | 'org' | 'training' | 'bom' | 'settings'
+
+const NAV_PERMISSIONS: Partial<Record<Page, string>> = {
+  missing: 'missing_parts',
+  vehicles: 'production',
+  org: 'organizational_structure',
+  training: 'training_matrix',
+  bom: 'bom',
+  settings: 'settings'
+}
 
 function Shell() {
   const { configured, loading, session, profile, role, signOut } = useAuth()
+  const { canViewModule, loading: permsLoading } = usePermissions()
   const { t, lang, toggle } = useLang()
   const [page, setPage] = useState<Page>('home')
 
@@ -37,12 +51,21 @@ function Shell() {
 
   if (!session) return <LoginPage />
 
-  const navItems: { key: Page; label: string; icon: typeof Home }[] = [
+  const allNavItems: { key: Page; label: string; icon: typeof Home }[] = [
     { key: 'home', label: t('nav.home'), icon: Home },
     { key: 'missing', label: t('nav.missingParts'), icon: AlertTriangle },
     { key: 'vehicles', label: t('nav.vehicles'), icon: Car },
+    { key: 'org', label: t('nav.org'), icon: Users },
+    { key: 'training', label: t('nav.training'), icon: GraduationCap },
+    { key: 'bom', label: t('nav.bom'), icon: Layers },
     { key: 'settings', label: t('nav.settings'), icon: Settings }
   ]
+  const navItems = allNavItems.filter(item => {
+    if (item.key === 'home') return true
+    const mod = NAV_PERMISSIONS[item.key]
+    if (!mod || permsLoading) return true
+    return canViewModule(mod)
+  })
 
   return (
     <VehiclesProvider>
@@ -92,6 +115,9 @@ function Shell() {
           {page === 'home' && <HomePage onNavigate={setPage} />}
           {page === 'missing' && <MissingPartsPage />}
           {page === 'vehicles' && <VehiclesPage />}
+          {page === 'org' && <OrgStructurePage />}
+          {page === 'training' && <TrainingMatrixPage />}
+          {page === 'bom' && <BomPage />}
           {page === 'settings' && <SettingsPage />}
         </div>
       </main>
@@ -103,7 +129,9 @@ function App() {
   return (
     <LanguageProvider>
       <AuthProvider>
-        <Shell />
+        <PermissionsProvider>
+          <Shell />
+        </PermissionsProvider>
       </AuthProvider>
     </LanguageProvider>
   )
