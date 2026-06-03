@@ -37,11 +37,48 @@ export type MissingPartDetail = {
   createdByEmail: string | null
   createdAt: string
   updatedAt: string
+  shortageResolvedAt: string | null
+  reportGroupId: string | null
+  stationId: string | null
+}
+
+export type UpdateMissingPartInput = {
+  partDescription: string
+  requiredQty: number
+  reason: MissingPartReason
+  department: ResponsibleDepartment
+  priority: PriorityLevel
+  stopperType: StopperType
+  notes?: string
 }
 
 export type MissingPartLineInput = {
   partDescription: string
   requiredQty: number
+  reason: MissingPartReason
+  department: ResponsibleDepartment
+  stationId: string | null
+  vins: string[]
+}
+
+/** One reported issue spanning one or more VINs (same report_group_id). */
+export type ReportGroupContext = {
+  reportGroupId: string
+  modelName: string
+  colorName: string | null
+  colorHex: string | null
+  stationId: string | null
+  parts: MissingPartDetail[]
+}
+
+/** Shared context when editing or updating all open issues on one vehicle. */
+export type VehicleIssuesContext = {
+  vehicleId: string
+  vin: string
+  modelName: string
+  colorName: string | null
+  colorHex: string | null
+  parts: MissingPartDetail[]
 }
 
 export type ReportMissingPartInput = {

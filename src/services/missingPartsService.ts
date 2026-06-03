@@ -3,7 +3,8 @@ import type {
   MissingPartDetail,
   ReportMissingPartInput,
   ReportMissingPartsBatchInput,
-  ReportMissingPartsBatchResult
+  ReportMissingPartsBatchResult,
+  UpdateMissingPartInput
 } from '../Types/missingPart'
 
 function requireClient() {
@@ -41,6 +42,9 @@ type DetailRow = {
   created_by_email: string | null
   created_at: string
   updated_at: string
+  shortage_resolved_at: string | null
+  report_group_id: string | null
+  station_id: string | null
 }
 
 function mapDetail(row: DetailRow): MissingPartDetail {
@@ -73,8 +77,35 @@ function mapDetail(row: DetailRow): MissingPartDetail {
     createdByName: row.created_by_name,
     createdByEmail: row.created_by_email,
     createdAt: row.created_at,
-    updatedAt: row.updated_at
+    updatedAt: row.updated_at,
+    shortageResolvedAt: row.shortage_resolved_at,
+    reportGroupId: row.report_group_id,
+    stationId: row.station_id
   }
+}
+
+export async function updateMissingPartRecord(id: string, input: UpdateMissingPartInput): Promise<void> {
+  const { error } = await requireClient().rpc('update_missing_part_record', {
+    p_id: id,
+    p_part_description: input.partDescription.trim(),
+    p_required_qty: input.requiredQty,
+    p_reason: input.reason,
+    p_department: input.department,
+    p_priority: input.priority,
+    p_stopper_type: input.stopperType,
+    p_notes: input.notes?.trim() || null
+  })
+  if (error) throw new Error(error.message)
+}
+
+export async function deleteMissingPartRecord(id: string): Promise<void> {
+  const { error } = await requireClient().rpc('delete_missing_part_record', { p_id: id })
+  if (error) throw new Error(error.message)
+}
+
+export async function completeVehicleShortage(vehicleId: string): Promise<void> {
+  const { error } = await requireClient().rpc('complete_vehicle_shortage', { p_vehicle_id: vehicleId })
+  if (error) throw new Error(error.message)
 }
 
 export async function getMissingParts(): Promise<MissingPartDetail[]> {
@@ -104,6 +135,11 @@ export async function recordQc(vehicleId: string, result: 'pass' | 'fail', missi
     p_result: result,
     p_missing_part_id: missingPartId
   })
+  if (error) throw new Error(error.message)
+}
+
+export async function setVehicleStation(vehicleId: string, stationId: string | null): Promise<void> {
+  const { error } = await requireClient().from('vehicles').update({ current_station_id: stationId }).eq('id', vehicleId)
   if (error) throw new Error(error.message)
 }
 
@@ -139,7 +175,10 @@ export async function reportMissingPartsBatch(
   const parts = input.parts
     .map(p => ({
       part_description: p.partDescription.trim(),
-      required_qty: Math.max(1, p.requiredQty)
+      required_qty: Math.max(1, p.requiredQty),
+      reason: p.reason,
+      department: p.department,
+      station_id: p.stationId || null
     }))
     .filter(p => p.part_description)
 
