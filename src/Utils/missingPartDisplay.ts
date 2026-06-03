@@ -56,6 +56,24 @@ export function primaryItem(row: MissingPartDisplayRow): MissingPartDetail {
   return row.kind === 'group' ? row.items[0] : row.item
 }
 
+export function vehicleIdsFromDisplayRow(row: MissingPartDisplayRow): string[] {
+  if (row.kind === 'group') {
+    return [...new Set(row.items.map(i => i.vehicleId))]
+  }
+  return [row.item.vehicleId]
+}
+
+export function openPartsForDisplayRow(row: MissingPartDisplayRow, pool: MissingPartDetail[]): MissingPartDetail[] {
+  const vehicleIds = new Set(vehicleIdsFromDisplayRow(row))
+  return pool.filter(
+    p => vehicleIds.has(p.vehicleId) && p.status !== 'closed' && p.status !== 'cancelled'
+  )
+}
+
+export function hasPendingInstall(parts: MissingPartDetail[]): boolean {
+  return parts.some(p => p.installedQty < p.requiredQty)
+}
+
 export function aggregateQty(items: MissingPartDetail[]) {
   const installed = items.reduce((s, p) => s + p.installedQty, 0)
   const required = items.reduce((s, p) => s + p.requiredQty, 0)

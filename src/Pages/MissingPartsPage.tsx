@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState, type ReactNode } from 'react'
-import { AlertTriangle, Archive, CheckCircle2, MessageSquare, Pencil, PlusCircle, RefreshCcw, Settings2, Trash2 } from 'lucide-react'
+import { AlertTriangle, Archive, CheckCircle2, MessageSquare, PackageCheck, Pencil, PlusCircle, RefreshCcw, Settings2, Trash2 } from 'lucide-react'
 import { useLang } from '../i18n/LanguageContext'
 import { useMpLookups } from '../hooks/useMpLookups'
 import { mpLookupLabel } from '../Utils/mpLookupLabel'
@@ -14,16 +14,20 @@ import { VinListModal } from '../Components/VinListModal'
 import type { ReportGroupContext, VehicleIssuesContext } from '../Types/missingPart'
 import {
   aggregateQty,
+  hasPendingInstall,
   isReportGroup,
+  openPartsForDisplayRow,
   primaryItem,
   reportGroupMembers,
   toDisplayRows,
+  vehicleIdsFromDisplayRow,
   type MissingPartDisplayRow
 } from '../Utils/missingPartDisplay'
 import { MissingPartDetailModal } from '../Components/MissingPartDetailModal'
 import { VehicleNotesModal } from '../Components/VehicleNotesModal'
 import type { VehicleNoteTarget } from '../Types/vehicleNote'
 import {
+  bulkInstallVehiclesToFull,
   completeVehicleShortage,
   deleteMissingPartRecord,
   getMissingParts
@@ -32,7 +36,7 @@ import type { MissingPartDetail, MissingPartFilters } from '../Types/missingPart
 
 type ListTab = 'active' | 'history'
 
-const ACTIVE_COLS = ['vin', 'model', 'color', 'station', 'qty', 'reason', 'reasonClass', 'department', 'dateTime', 'actions'] as const
+const ACTIVE_COLS = ['select', 'vin', 'model', 'color', 'station', 'qty', 'reason', 'reasonClass', 'department', 'dateTime', 'actions'] as const
 const HISTORY_COLS = ['vin', 'model', 'color', 'station', 'qty', 'reason', 'reasonClass', 'department', 'dateTime', 'resolvedAt'] as const
 
 const cell = 'table-cell-compact whitespace-nowrap text-center align-middle'
@@ -68,8 +72,9 @@ function applyFilters(items: MissingPartDetail[], filters: MissingPartFilters) {
 
 function canCompleteVehicle(vehicleId: string, parts: MissingPartDetail[]): boolean {
   const lines = parts.filter(p => p.vehicleId === vehicleId)
-  if (lines.length === 0) return false
-  return lines.every(p => p.installedQty >= p.requiredQty)
+  return lines.some(
+    p => !p.shortageResolvedAt && p.status !== 'closed' && p.status !== 'cancelled'
+  )
 }
 
 function isFirstVehicleRow(list: MissingPartDetail[], index: number, vehicleId: string): boolean {
@@ -90,7 +95,8 @@ export function MissingPartsPage() {
   const { t, lang } = useLang()
   const { reasons, departments } = useMpLookups()
   const { canReport, role } = useCanReportMissingPart()
-  const { canEdit, canDelete, canUpdateStatus, canComplete } = useCanManageMissingPart()
+  const { canEdit, canDelete, canInstall, canUpdateStatus, canComplete } = useCanManageMissingPart()
+  const canBulkInstall = canInstall && canUpdateStatus
 
   const [items, setItems] = useState<MissingPartDetail[]>([])
   const [loading, setLoading] = useState(true)
@@ -107,6 +113,8 @@ export function MissingPartsPage() {
   const [notesTarget, setNotesTarget] = useState<VehicleNoteTarget | null>(null)
   const [success, setSuccess] = useState('')
   const [completingVehicleId, setCompletingVehicleId] = useState<string | null>(null)
+  const [selectedVehicleIds, setSelectedVehicleIds] = useState<Set<string>>(new Set())
+  const [bulkInstalling, setBulkInstalling] = useState(false)
 
   function vehicleContext(row: MissingPartDetail): VehicleIssuesContext {
     const parts = filtered.filter(
@@ -197,6 +205,10 @@ export function MissingPartsPage() {
     load()
   }, [])
 
+  useEffect(() => {
+    setSelectedVehicleIds(new Set())
+  }, [listTab, filters])
+
   const stationOptions = useMemo(
     () => Array.from(new Set(items.map(i => i.stationNumber).filter(Boolean))).sort() as string[],
     [items]
@@ -229,6 +241,76 @@ export function MissingPartsPage() {
   const hasActiveFilter = Boolean(
     filters.search.trim() || filters.stationNumber || filters.modelName || filters.department
   )
+
+  const selectableVehicleIds = useMemo(() => {
+    if (!canBulkInstall) return new Set<string>()
+    const ids = new Set<string>()
+    for (const row of displayRows) {
+      if (hasPendingInstall(openPartsForDisplayRow(row, filtered))) {
+        for (const id of vehicleIdsFromDisplayRow(row)) ids.add(id)
+      }
+    }
+    return ids
+  }, [displayRows, filtered, canBulkInstall])
+
+  const allSelectableSelected =
+    selectableVehicleIds.size > 0 && [...selectableVehicleIds].every(id => selectedVehicleIds.has(id))
+  const someSelectableSelected = [...selectableVehicleIds].some(id => selectedVehicleIds.has(id))
+
+  function toggleRowSelection(displayRow: MissingPartDisplayRow) {
+    const ids = vehicleIdsFromDisplayRow(displayRow).filter(id => selectableVehicleIds.has(id))
+    if (ids.length === 0) return
+    setSelectedVehicleIds(prev => {
+      const next = new Set(prev)
+      const allOn = ids.every(id => next.has(id))
+      if (allOn) ids.forEach(id => next.delete(id))
+      else ids.forEach(id => next.add(id))
+      return next
+    })
+  }
+
+  function toggleSelectAllVisible() {
+    if (allSelectableSelected) {
+      setSelectedVehicleIds(new Set())
+      return
+    }
+    setSelectedVehicleIds(new Set(selectableVehicleIds))
+  }
+
+  async function bulkInstallSelected() {
+    if (!canBulkInstall || selectedVehicleIds.size === 0) return
+    const ids = [...selectedVehicleIds]
+    const pendingLines = filtered.filter(
+      p =>
+        ids.includes(p.vehicleId) &&
+        p.status !== 'closed' &&
+        p.status !== 'cancelled' &&
+        p.installedQty < p.requiredQty
+    )
+    if (pendingLines.length === 0) {
+      setError(t('mp.bulk.nothingToInstall'))
+      return
+    }
+    if (
+      !window.confirm(
+        t('mp.bulk.installConfirm', { vehicles: ids.length, lines: pendingLines.length })
+      )
+    ) {
+      return
+    }
+    setBulkInstalling(true)
+    setError('')
+    try {
+      const result = await bulkInstallVehiclesToFull(ids, filtered)
+      setSelectedVehicleIds(new Set())
+      showSuccess(t('mp.bulk.installSuccess', { vehicles: result.vehicles, lines: result.lines }))
+      await load()
+    } catch (err) {
+      setError(err instanceof Error ? err.message : t('common.error'))
+    } finally {
+      setBulkInstalling(false)
+    }
+  }
 
   function showSuccess(msg: string) {
     setSuccess(msg)
@@ -275,9 +357,9 @@ export function MissingPartsPage() {
   function renderActions(i: MissingPartDetail, displayRow: MissingPartDisplayRow) {
     const rowOpen = i.status !== 'closed' && i.status !== 'cancelled'
     const isGroup = displayRow.kind === 'group'
-    const vehicleReady = canCompleteVehicle(i.vehicleId, filtered)
+    const canArchiveVehicle = canCompleteVehicle(i.vehicleId, filtered)
     const showCompleteBtn =
-      listTab === 'active' && canComplete && !isGroup && isFirstVehicleRow(filtered, filtered.indexOf(i), i.vehicleId)
+      listTab === 'active' && canComplete && canArchiveVehicle && !isGroup && isFirstVehicleRow(filtered, filtered.indexOf(i), i.vehicleId)
     const issueCount = isGroup ? displayRow.items.length : vehicleIssueCount(i.vehicleId)
 
     return (
@@ -311,9 +393,9 @@ export function MissingPartsPage() {
           )}
           {rowOpen && showCompleteBtn && (
             <IconBtn
-              title={vehicleReady ? t('mp.complete') : t('mp.completeDisabledHint')}
-              onClick={() => vehicleReady && void completeVehicle(i)}
-              className={`text-emerald-400 hover:bg-emerald-500/20 ${!vehicleReady || completingVehicleId === i.vehicleId ? 'opacity-35' : ''}`}
+              title={t('mp.complete')}
+              onClick={() => void completeVehicle(i)}
+              className={`text-emerald-400 hover:bg-emerald-500/20 ${completingVehicleId === i.vehicleId ? 'opacity-35' : ''}`}
             >
               <CheckCircle2 className={iconSize} />
             </IconBtn>
@@ -410,10 +492,36 @@ export function MissingPartsPage() {
               ? t('mp.filterVehicleCountFiltered', { n: filteredVehicleCount, total: tabVehicleCount })
               : t('mp.filterVehicleCount', { n: filteredVehicleCount })}
           </p>
+          {listTab === 'active' && (
+            <p className="mt-2 text-xs text-slate-500">{t('mp.completeSeparateHint')}</p>
+          )}
         </div>
 
         {success && <div className="m-4 rounded-xl border border-emerald-500/30 bg-emerald-500/10 p-3 text-sm text-emerald-200">{success}</div>}
         {error && !setupRequired && <div className="m-4 rounded-xl border border-red-500/30 bg-red-500/10 p-3 text-sm text-red-200">{error}</div>}
+
+        {listTab === 'active' && canBulkInstall && selectedVehicleIds.size > 0 && (
+          <div className="flex flex-wrap items-center gap-3 border-b border-slate-800 px-4 py-3 sm:px-5">
+            <span className="text-sm font-bold text-slate-300">{t('mp.bulk.selected', { n: selectedVehicleIds.size })}</span>
+            <button
+              type="button"
+              disabled={bulkInstalling}
+              onClick={() => void bulkInstallSelected()}
+              className="inline-flex items-center gap-2 rounded-xl bg-emerald-600 px-4 py-2 text-sm font-black text-white hover:bg-emerald-500 disabled:opacity-50"
+            >
+              <PackageCheck className="h-4 w-4" />
+              {t('mp.bulk.installSelected')}
+            </button>
+            <button
+              type="button"
+              disabled={bulkInstalling}
+              onClick={() => setSelectedVehicleIds(new Set())}
+              className="rounded-xl bg-slate-800 px-4 py-2 text-sm font-bold text-slate-300 hover:bg-slate-700 disabled:opacity-50"
+            >
+              {t('mp.bulk.clearSelection')}
+            </button>
+          </div>
+        )}
 
         <div className="overflow-x-auto">
           <table className="w-full text-center">
@@ -425,7 +533,23 @@ export function MissingPartsPage() {
                     className={`${c === 'actions' ? actionsCell : cell} font-black uppercase text-slate-400`}
                     style={c === 'actions' ? { insetInlineEnd: 0 } : undefined}
                   >
-                    {c === 'actions' ? '' : t(`mp.cols.${c === 'dateTime' ? 'dateTime' : c}`)}
+                    {c === 'select' && canBulkInstall ? (
+                      <input
+                        type="checkbox"
+                        checked={allSelectableSelected}
+                        ref={el => {
+                          if (el) el.indeterminate = someSelectableSelected && !allSelectableSelected
+                        }}
+                        onChange={toggleSelectAllVisible}
+                        disabled={selectableVehicleIds.size === 0 || bulkInstalling}
+                        title={t('mp.bulk.selectAll')}
+                        className="h-4 w-4 cursor-pointer rounded border-slate-600 bg-slate-800 text-cyan-500"
+                      />
+                    ) : c === 'actions' || c === 'select' ? (
+                      ''
+                    ) : (
+                      t(`mp.cols.${c === 'dateTime' ? 'dateTime' : c}`)
+                    )}
                   </th>
                 ))}
               </tr>
@@ -442,9 +566,29 @@ export function MissingPartsPage() {
                     : i.stationNumber
                   : '-'
                 const { date, time } = formatDateTime(i.createdAt, lang)
+                const rowVehicleIds = vehicleIdsFromDisplayRow(displayRow)
+                const rowSelectable = canBulkInstall && hasPendingInstall(openPartsForDisplayRow(displayRow, filtered))
+                const rowChecked =
+                  rowSelectable && rowVehicleIds.filter(id => selectableVehicleIds.has(id)).every(id => selectedVehicleIds.has(id))
 
                 return (
-                  <tr key={displayRow.key} className="bg-slate-900/30 hover:bg-slate-800/40">
+                  <tr
+                    key={displayRow.key}
+                    className={`bg-slate-900/30 hover:bg-slate-800/40 ${rowChecked ? 'ring-1 ring-inset ring-cyan-500/40' : ''}`}
+                  >
+                    {listTab === 'active' && (
+                      <td className={cell}>
+                        {canBulkInstall && (
+                          <input
+                            type="checkbox"
+                            checked={rowChecked}
+                            disabled={!rowSelectable || bulkInstalling}
+                            onChange={() => toggleRowSelection(displayRow)}
+                            className="h-4 w-4 cursor-pointer rounded border-slate-600 bg-slate-800 text-cyan-500 disabled:cursor-not-allowed disabled:opacity-40"
+                          />
+                        )}
+                      </td>
+                    )}
                     <td className={`${cell} font-bold text-white`}>
                       {groupVins.length > 1 ? (
                         <button

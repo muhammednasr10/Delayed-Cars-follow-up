@@ -52,7 +52,6 @@ export function UpdateMissingPartModal({ vehicle, onClose, onChanged }: Props) {
   if (!vehicle) return null
 
   const canEditQty = canInstall && canUpdateStatus
-  const allFull = openParts.length > 0 && openParts.every(p => p.installedQty >= p.requiredQty)
   const pendingSaves = lines.filter(l => l.target > l.part.installedQty)
 
   function setTarget(partId: string, target: number) {
@@ -123,9 +122,6 @@ export function UpdateMissingPartModal({ vehicle, onClose, onChanged }: Props) {
               </span>
             )}
           </div>
-          {allFull && (
-            <p className="mt-2 text-xs font-bold text-emerald-300">{t('mp.act.readyCompleteVehicle')}</p>
-          )}
         </div>
 
         {openParts.length === 0 && (
@@ -199,6 +195,7 @@ export function UpdateMissingPartModal({ vehicle, onClose, onChanged }: Props) {
         </div>
 
         {!canEditQty && <p className="text-center text-xs text-amber-300">{t('mp.act.noInstallPerm')}</p>}
+        {canEditQty && <p className="text-center text-xs text-slate-500">{t('mp.act.installOnlyHint')}</p>}
 
         {error && <div className="rounded-xl border border-red-500/30 bg-red-500/10 p-3 text-sm text-red-200">{error}</div>}
       </div>

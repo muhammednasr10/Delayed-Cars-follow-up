@@ -118,13 +118,33 @@ export async function getMissingParts(): Promise<MissingPartDetail[]> {
   return ((data ?? []) as DetailRow[]).map(mapDetail)
 }
 
-// Mark a part as installed (fully or by quantity). Advances toward qc_pending.
+// Mark a part as installed (fully or by quantity). Does not archive the vehicle.
 export async function installMissingPart(missingPartId: string, quantity: number): Promise<void> {
   const { error } = await requireClient().rpc('install_part', {
     p_missing_part_id: missingPartId,
     p_quantity: quantity
   })
   if (error) throw new Error(error.message)
+}
+
+/** Set installed qty to required for all open lines on the given vehicles. */
+export async function bulkInstallVehiclesToFull(
+  vehicleIds: string[],
+  pool: MissingPartDetail[]
+): Promise<{ vehicles: number; lines: number }> {
+  const vehicleSet = new Set(vehicleIds)
+  const targets = pool.filter(
+    p =>
+      vehicleSet.has(p.vehicleId) &&
+      p.status !== 'closed' &&
+      p.status !== 'cancelled' &&
+      p.installedQty < p.requiredQty
+  )
+  for (const p of targets) {
+    const delta = p.requiredQty - p.installedQty
+    await installMissingPart(p.id, delta)
+  }
+  return { vehicles: vehicleSet.size, lines: targets.length }
 }
 
 // Record a QC decision on a part. 'pass' approves (and the RPC closes it when
