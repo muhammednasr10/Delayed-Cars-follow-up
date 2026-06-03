@@ -184,18 +184,36 @@ export async function getAllVehicleColors(): Promise<VehicleColor[]> {
   return data ?? []
 }
 
-export async function createVehicleColor(input: { name: string; hex_code: string }): Promise<VehicleColor> {
+function colorCodeFromName(name: string, explicit?: string): string {
+  const raw = (explicit?.trim() || name.trim()).toLowerCase()
+  const slug = raw.replace(/[^a-z0-9]+/g, '_').replace(/^_|_$/g, '')
+  return slug || `c_${Date.now()}`
+}
+
+export async function createVehicleColor(input: { name: string; code?: string; hex_code: string }): Promise<VehicleColor> {
   const { data, error } = await requireClient()
     .from('vehicle_colors')
-    .insert({ name: input.name.trim(), hex_code: input.hex_code || '#ffffff', is_active: true })
+    .insert({
+      name: input.name.trim(),
+      code: colorCodeFromName(input.name, input.code),
+      hex_code: input.hex_code || '#ffffff',
+      is_active: true
+    })
     .select('*')
     .single()
   if (error) handleError('Failed to create vehicle color:', error)
   return data
 }
 
-export async function updateVehicleColor(id: string, input: Partial<Pick<VehicleColor, 'name' | 'hex_code' | 'is_active'>>): Promise<VehicleColor> {
-  const { data, error } = await requireClient().from('vehicle_colors').update(input).eq('id', id).select('*').single()
+export async function updateVehicleColor(
+  id: string,
+  input: Partial<Pick<VehicleColor, 'name' | 'code' | 'hex_code' | 'is_active'>>
+): Promise<VehicleColor> {
+  const patch = { ...input }
+  if (patch.code !== undefined && patch.code !== null) {
+    patch.code = colorCodeFromName(patch.name ?? '', patch.code)
+  }
+  const { data, error } = await requireClient().from('vehicle_colors').update(patch).eq('id', id).select('*').single()
   if (error) handleError('Failed to update vehicle color:', error)
   return data
 }

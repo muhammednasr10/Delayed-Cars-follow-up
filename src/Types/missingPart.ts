@@ -117,6 +117,11 @@ export type ReportMissingPartsBatchResult = {
 export type MissingPartFilters = {
   search: string
   stationNumber: string
-  priority: '' | PriorityLevel
-  status: '' | MissingPartStatus
+  modelName: string
+  department: string
+}
+
+export type DepartmentVehicleCount = {
+  department: string
+  vehicleCount: number
 }

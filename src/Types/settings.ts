@@ -38,6 +38,7 @@ export type Station = {
 export type VehicleColor = {
   id: string
   name: string
+  code: string | null
   hex_code: string
   is_active: boolean
   created_at?: string

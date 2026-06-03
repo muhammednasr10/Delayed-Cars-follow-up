@@ -20,6 +20,10 @@ export const translations = {
       modules: 'الوحدات', soon: 'قريباً',
       total: 'إجمالي السيارات', totalSub: 'جميع السيارات المسجلة',
       withMissing: 'بها نواقص', withMissingSub: 'سيارات بنواقص مفتوحة',
+      deptReportTitle: 'السيارات حسب القسم المسؤول',
+      deptReportSubtitle: 'عدد السيارات ذات نواقص مفتوحة لكل قسم (سيارة تُحسب مرة لكل قسم لها فيها مشكلة).',
+      deptReportEmpty: 'لا توجد نواقص مفتوحة حالياً.',
+      deptReportVehicles: '{n} سيارة',
       blocked: 'محظورة من التسليم', blockedSub: 'لا يمكن تسليمها الآن'
     },
     modules: {
@@ -104,7 +108,9 @@ export const translations = {
       errVinIndex: 'شاسيه رقم {n}: يجب 6 أحرف على الأقل.',
       errOnePart: 'أضف قطعة ناقصة واحدة على الأقل.',
       errOneIssue: 'أضف مشكلة واحدة على الأقل (وصف السبب).',
-      filterStation: 'كل المحطات', filterPriority: 'كل الأولويات', filterStatus: 'كل الحالات',
+      filterStation: 'كل المحطات', filterModel: 'كل الموديلات', filterDepartment: 'كل الأقسام',
+      filterVehicleCount: 'عدد السيارات: {n}',
+      filterVehicleCountFiltered: 'نتيجة الفلتر: {n} سيارة من {total}',
       searchPlaceholder: 'بحث VIN / القطعة',
       tabs: { active: 'قائمة النواقص', history: 'الأرشيف / منتهية' },
       actionsHint: 'الأزرار بجانب الشاسيه: «انتهاء من السيارة» | عمود «إجراءات»: تعديل · تحديث · حذف. تأكد أنك في تبويب «قائمة النواقص» وليس الأرشيف.',
@@ -380,6 +386,10 @@ export const translations = {
       modules: 'Modules', soon: 'Soon',
       total: 'Total vehicles', totalSub: 'All registered vehicles',
       withMissing: 'With shortages', withMissingSub: 'Vehicles with open shortages',
+      deptReportTitle: 'Vehicles by responsible department',
+      deptReportSubtitle: 'Open-shortage vehicle count per department (a vehicle counts once per department it has an issue in).',
+      deptReportEmpty: 'No open shortages right now.',
+      deptReportVehicles: '{n} vehicles',
       blocked: 'Delivery blocked', blockedSub: 'Cannot be delivered now'
     },
     modules: {
@@ -458,7 +468,9 @@ export const translations = {
       errVinIndex: 'VIN #{n}: must be at least 6 characters.',
       errOnePart: 'Add at least one missing part.',
       errOneIssue: 'Add at least one issue (reason description).',
-      filterStation: 'All stations', filterPriority: 'All priorities', filterStatus: 'All statuses',
+      filterStation: 'All stations', filterModel: 'All models', filterDepartment: 'All departments',
+      filterVehicleCount: 'Vehicles: {n}',
+      filterVehicleCountFiltered: 'Filter result: {n} of {total} vehicles',
       searchPlaceholder: 'Search VIN / part',
       tabs: { active: 'Active shortages', history: 'Archive / completed' },
       actionsHint: 'Next to VIN: «Complete vehicle». In «Actions»: Edit · Update · Delete. Use the Active tab, not Archive.',

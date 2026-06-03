@@ -29,10 +29,6 @@ import {
   getMissingParts
 } from '../services/missingPartsService'
 import type { MissingPartDetail, MissingPartFilters } from '../Types/missingPart'
-import type { MissingPartStatus, PriorityLevel } from '../Types/enums'
-
-const PRIORITIES: PriorityLevel[] = ['low', 'normal', 'high', 'critical']
-const STATUSES: MissingPartStatus[] = ['open', 'waiting_purchase', 'available_in_stock', 'issued_to_production', 'installed', 'qc_pending', 'closed', 'cancelled']
 
 type ListTab = 'active' | 'history'
 
@@ -51,8 +47,8 @@ function isSchemaMissing(message: string): boolean {
 function applyFilters(items: MissingPartDetail[], filters: MissingPartFilters) {
   const base = items
     .filter(i => !filters.stationNumber || i.stationNumber === filters.stationNumber)
-    .filter(i => !filters.priority || i.priority === filters.priority)
-    .filter(i => !filters.status || i.status === filters.status)
+    .filter(i => !filters.modelName || i.modelName === filters.modelName)
+    .filter(i => !filters.department || i.department === filters.department)
 
   const q = filters.search.trim().toLowerCase()
   if (!q) return base
@@ -101,7 +97,7 @@ export function MissingPartsPage() {
   const [error, setError] = useState('')
   const [setupRequired, setSetupRequired] = useState(false)
   const [listTab, setListTab] = useState<ListTab>('active')
-  const [filters, setFilters] = useState<MissingPartFilters>({ search: '', stationNumber: '', priority: '', status: '' })
+  const [filters, setFilters] = useState<MissingPartFilters>({ search: '', stationNumber: '', modelName: '', department: '' })
   const [showReport, setShowReport] = useState(false)
   const [updateVehicle, setUpdateVehicle] = useState<UpdateVehicleContext | null>(null)
   const [editVehicle, setEditVehicle] = useState<VehicleIssuesContext | null>(null)
@@ -202,9 +198,23 @@ export function MissingPartsPage() {
   }, [])
 
   const stationOptions = useMemo(
-    () => Array.from(new Set(items.map(i => i.stationNumber).filter(Boolean))) as string[],
+    () => Array.from(new Set(items.map(i => i.stationNumber).filter(Boolean))).sort() as string[],
     [items]
   )
+
+  const modelOptions = useMemo(
+    () => Array.from(new Set(items.map(i => i.modelName).filter(Boolean))).sort(),
+    [items]
+  )
+
+  const departmentFilterCodes = useMemo(() => {
+    const codes = new Set<string>()
+    for (const d of departments) codes.add(d.code)
+    for (const i of items) {
+      if (i.department) codes.add(i.department)
+    }
+    return Array.from(codes).sort()
+  }, [departments, items])
 
   const activeItems = useMemo(() => items.filter(i => !i.shortageResolvedAt), [items])
   const historyItems = useMemo(() => items.filter(i => !!i.shortageResolvedAt), [items])
@@ -213,6 +223,12 @@ export function MissingPartsPage() {
 
   const filtered = useMemo(() => applyFilters(tabSource, filters), [tabSource, filters])
   const displayRows = useMemo(() => toDisplayRows(filtered), [filtered])
+
+  const tabVehicleCount = useMemo(() => new Set(tabSource.map(i => i.vehicleId)).size, [tabSource])
+  const filteredVehicleCount = useMemo(() => new Set(filtered.map(i => i.vehicleId)).size, [filtered])
+  const hasActiveFilter = Boolean(
+    filters.search.trim() || filters.stationNumber || filters.modelName || filters.department
+  )
 
   function showSuccess(msg: string) {
     setSuccess(msg)
@@ -377,15 +393,23 @@ export function MissingPartsPage() {
               <option value="">{t('mp.filterStation')}</option>
               {stationOptions.map(s => <option key={s} value={s}>{s}</option>)}
             </select>
-            <select className="input-dark" value={filters.priority} onChange={e => setFilters(p => ({ ...p, priority: e.target.value as MissingPartFilters['priority'] }))}>
-              <option value="">{t('mp.filterPriority')}</option>
-              {PRIORITIES.map(p => <option key={p} value={p}>{t(`priority.${p}`)}</option>)}
+            <select className="input-dark" value={filters.modelName} onChange={e => setFilters(p => ({ ...p, modelName: e.target.value }))}>
+              <option value="">{t('mp.filterModel')}</option>
+              {modelOptions.map(m => <option key={m} value={m}>{m}</option>)}
             </select>
-            <select className="input-dark" value={filters.status} onChange={e => setFilters(p => ({ ...p, status: e.target.value as MissingPartFilters['status'] }))}>
-              <option value="">{t('mp.filterStatus')}</option>
-              {STATUSES.map(s => <option key={s} value={s}>{t(`mpStatus.${s}`)}</option>)}
+            <select className="input-dark" value={filters.department} onChange={e => setFilters(p => ({ ...p, department: e.target.value }))}>
+              <option value="">{t('mp.filterDepartment')}</option>
+              {departmentFilterCodes.map(code => (
+                <option key={code} value={code}>{mpLookupLabel(departments, code, lang)}</option>
+              ))}
             </select>
           </div>
+
+          <p className="mt-3 text-sm font-bold text-cyan-300">
+            {hasActiveFilter
+              ? t('mp.filterVehicleCountFiltered', { n: filteredVehicleCount, total: tabVehicleCount })
+              : t('mp.filterVehicleCount', { n: filteredVehicleCount })}
+          </p>
         </div>
 
         {success && <div className="m-4 rounded-xl border border-emerald-500/30 bg-emerald-500/10 p-3 text-sm text-emerald-200">{success}</div>}

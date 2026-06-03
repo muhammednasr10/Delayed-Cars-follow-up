@@ -1,6 +1,7 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import {
   AlertTriangle,
+  Building2,
   Car,
   ClipboardList,
   PlusCircle,
@@ -16,8 +17,13 @@ import {
 import { useVehicles } from '../Context/VehiclesContext'
 import { useLang } from '../i18n/LanguageContext'
 import { useCanReportMissingPart } from '../hooks/useCanReportMissingPart'
+import { useMpLookups } from '../hooks/useMpLookups'
 import { StatCard } from '../Components/StatCard'
 import { ReportMissingPartModal } from '../Components/ReportMissingPartModal'
+import { getMissingParts } from '../services/missingPartsService'
+import { countActiveVehiclesByDepartment } from '../Utils/missingPartStats'
+import { mpLookupLabel } from '../Utils/mpLookupLabel'
+import type { DepartmentVehicleCount } from '../Types/missingPart'
 
 type NavTarget = 'missing' | 'vehicles' | 'org' | 'training' | 'bom' | 'settings'
 
@@ -45,14 +51,36 @@ const moduleCards: ModuleCard[] = [
 export function HomePage({ onNavigate }: { onNavigate: (page: NavTarget) => void }) {
   const { vehicles, setupRequired } = useVehicles()
   const { canReport } = useCanReportMissingPart()
-  const { t, dir } = useLang()
+  const { departments } = useMpLookups()
+  const { t, dir, lang } = useLang()
   const [reportOpen, setReportOpen] = useState(false)
+  const [deptCounts, setDeptCounts] = useState<DepartmentVehicleCount[]>([])
+  const [deptLoading, setDeptLoading] = useState(false)
 
   const counts = useMemo(() => ({
     total: vehicles.length,
     withMissing: vehicles.filter(v => v.openMissingCount > 0).length,
     blocked: vehicles.filter(v => v.deliveryBlocked).length
   }), [vehicles])
+
+  const deptMax = useMemo(() => Math.max(1, ...deptCounts.map(d => d.vehicleCount)), [deptCounts])
+
+  async function loadDeptReport() {
+    if (setupRequired) return
+    setDeptLoading(true)
+    try {
+      const items = await getMissingParts()
+      setDeptCounts(countActiveVehiclesByDepartment(items))
+    } catch {
+      setDeptCounts([])
+    } finally {
+      setDeptLoading(false)
+    }
+  }
+
+  useEffect(() => {
+    loadDeptReport()
+  }, [setupRequired])
 
   return (
     <section className="space-y-6">
@@ -76,6 +104,48 @@ export function HomePage({ onNavigate }: { onNavigate: (page: NavTarget) => void
           <StatCard title={t('home.total')} value={counts.total} subtitle={t('home.totalSub')} tone="cyan" icon={<Car className="h-6 w-6" />} />
           <StatCard title={t('home.withMissing')} value={counts.withMissing} subtitle={t('home.withMissingSub')} tone="orange" icon={<AlertTriangle className="h-6 w-6" />} />
           <StatCard title={t('home.blocked')} value={counts.blocked} subtitle={t('home.blockedSub')} tone="red" icon={<ShieldAlert className="h-6 w-6" />} />
+        </div>
+      )}
+
+      {!setupRequired && (
+        <div className="card-industrial p-5 sm:p-6">
+          <div className="mb-4 flex items-start gap-3">
+            <div className="rounded-xl bg-amber-500/15 p-3 text-amber-300">
+              <Building2 className="h-6 w-6" />
+            </div>
+            <div>
+              <h3 className="text-lg font-black text-white">{t('home.deptReportTitle')}</h3>
+              <p className="mt-1 text-sm text-slate-400">{t('home.deptReportSubtitle')}</p>
+            </div>
+          </div>
+          {deptLoading ? (
+            <p className="text-sm text-slate-500">{t('common.loading')}</p>
+          ) : deptCounts.length === 0 ? (
+            <p className="text-sm text-slate-500">{t('home.deptReportEmpty')}</p>
+          ) : (
+            <ul className="space-y-3">
+              {deptCounts.map(row => {
+                const pct = Math.round((row.vehicleCount / deptMax) * 100)
+                const label = mpLookupLabel(departments, row.department, lang)
+                return (
+                  <li key={row.department}>
+                    <div className="mb-1 flex items-center justify-between gap-2 text-sm">
+                      <span className="font-bold text-slate-200">{label}</span>
+                      <span className="shrink-0 font-black text-cyan-300">
+                        {t('home.deptReportVehicles', { n: row.vehicleCount })}
+                      </span>
+                    </div>
+                    <div className={`h-2.5 overflow-hidden rounded-full bg-slate-800 ${dir === 'rtl' ? 'flex justify-end' : ''}`}>
+                      <div
+                        className="h-full rounded-full bg-gradient-to-r from-cyan-500 to-cyan-400 transition-all"
+                        style={{ width: `${pct}%` }}
+                      />
+                    </div>
+                  </li>
+                )
+              })}
+            </ul>
+          )}
         </div>
       )}
 
@@ -107,7 +177,13 @@ export function HomePage({ onNavigate }: { onNavigate: (page: NavTarget) => void
         </div>
       </div>
 
-      <ReportMissingPartModal open={reportOpen} onClose={() => setReportOpen(false)} onReported={() => {}} />
+      <ReportMissingPartModal
+        open={reportOpen}
+        onClose={() => setReportOpen(false)}
+        onReported={() => {
+          void loadDeptReport()
+        }}
+      />
     </section>
   )
 }

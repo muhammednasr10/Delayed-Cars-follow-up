@@ -137,16 +137,21 @@ export function SettingsPage() {
           </button>
         </div>
 
-        <div className="mt-5 flex flex-wrap gap-2">
-          {tabConfig.map(tab => (
-            <button
-              key={tab.key}
-              onClick={() => setActiveTab(tab.key)}
-              className={`flex items-center gap-2 rounded-xl px-4 py-2 text-sm font-black ${activeTab === tab.key ? 'bg-cyan-500 text-slate-950' : 'bg-slate-800 text-slate-300 hover:bg-slate-700'}`}
-            >
-              {tab.icon} {t(`settings.tabs.${tab.key}`)}
-            </button>
-          ))}
+        <div className="-mx-1 mt-5 overflow-x-auto pb-1">
+          <div className="flex min-w-max gap-2 px-1">
+            {tabConfig.map(tab => (
+              <button
+                key={tab.key}
+                type="button"
+                onClick={() => setActiveTab(tab.key)}
+                className={`flex shrink-0 items-center gap-2 whitespace-nowrap rounded-xl px-4 py-2 text-sm font-black ${
+                  activeTab === tab.key ? 'bg-cyan-500 text-slate-950' : 'bg-slate-800 text-slate-300 hover:bg-slate-700'
+                }`}
+              >
+                {tab.icon} {t(`settings.tabs.${tab.key}`)}
+              </button>
+            ))}
+          </div>
         </div>
       </div>
 
@@ -244,17 +249,27 @@ export function SettingsPage() {
           getLabel={c => c.name}
           fields={[
             { key: 'name', label: t('settings.fields.colorName'), required: true },
+            { key: 'code', label: t('settings.fields.code'), placeholder: 'blue' },
             { key: 'hex_code', label: t('settings.fields.color'), type: 'color', defaultValue: '#ffffff' }
           ]}
           columns={[
             { header: t('settings.cols.color'), render: c => <span className="inline-block h-5 w-5 rounded-full ring-1 ring-slate-500" style={{ backgroundColor: c.hex_code }} /> },
             { header: t('settings.cols.name'), render: c => c.name },
+            { header: t('settings.fields.code'), render: c => <span className="font-mono text-xs text-slate-300">{c.code ?? '—'}</span> },
             { header: t('settings.cols.hex'), render: c => c.hex_code },
             { header: t('settings.cols.active'), render: c => (c.is_active ? t('common.yes') : t('common.no')) }
           ]}
-          toValues={c => ({ name: c.name, hex_code: c.hex_code })}
-          onCreate={v => runAction(async () => { await createVehicleColor({ name: v.name, hex_code: v.hex_code }) }, t('settings.added'))}
-          onUpdate={(id, v) => runAction(async () => { await updateVehicleColor(id, { name: v.name, hex_code: v.hex_code }) }, t('settings.updated'))}
+          toValues={c => ({ name: c.name, code: c.code ?? '', hex_code: c.hex_code })}
+          onCreate={v =>
+            runAction(async () => {
+              await createVehicleColor({ name: v.name, code: v.code, hex_code: v.hex_code })
+            }, t('settings.added'))
+          }
+          onUpdate={(id, v) =>
+            runAction(async () => {
+              await updateVehicleColor(id, { name: v.name, code: v.code, hex_code: v.hex_code })
+            }, t('settings.updated'))
+          }
           onDelete={id => runAction(() => deleteVehicleColor(id), t('settings.deleted'))}
         />
       )}
