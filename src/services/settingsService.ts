@@ -178,6 +178,12 @@ export async function getVehicleColors(): Promise<VehicleColor[]> {
   return data ?? []
 }
 
+export async function getAllVehicleColors(): Promise<VehicleColor[]> {
+  const { data, error } = await requireClient().from('vehicle_colors').select('*').order('name')
+  if (error) handleError('Failed to load vehicle colors:', error)
+  return data ?? []
+}
+
 export async function createVehicleColor(input: { name: string; hex_code: string }): Promise<VehicleColor> {
   const { data, error } = await requireClient()
     .from('vehicle_colors')

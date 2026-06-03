@@ -18,22 +18,11 @@ export type VehicleQcStatus = 'pending' | 'passed' | 'failed' | 'not_required'
 
 export type VehicleDeliveryStatus = 'blocked' | 'ready' | 'delivered'
 
-export type MissingPartReason =
-  | 'stock_shortage'
-  | 'supplier_delay'
-  | 'damaged_part'
-  | 'qc_rejection'
-  | 'wrong_part'
-  | 'production_mistake'
-  | 'other'
+/** Configurable via Settings → missing-part lookups (stored as code in DB). */
+export type MissingPartReason = string
 
-export type ResponsibleDepartment =
-  | 'warehouse'
-  | 'purchasing'
-  | 'production'
-  | 'quality'
-  | 'supplier'
-  | 'management'
+/** Configurable via Settings → missing-part lookups (stored as code in DB). */
+export type ResponsibleDepartment = string
 
 export type PriorityLevel = 'low' | 'normal' | 'high' | 'critical'
 

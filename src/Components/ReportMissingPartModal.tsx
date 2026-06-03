@@ -7,11 +7,12 @@ import { StationAutocomplete } from './StationAutocomplete'
 import { reportMissingPartsBatch } from '../services/missingPartsService'
 import { getVehicleColors, getVehicleModels } from '../services/settingsService'
 import type { MissingPartLineInput } from '../Types/missingPart'
-import type { MissingPartReason, PriorityLevel, ResponsibleDepartment, StopperType } from '../Types/enums'
+import type { PriorityLevel, StopperType } from '../Types/enums'
 import type { Station, VehicleColor, VehicleModel } from '../Types/settings'
+import { useMpLookups } from '../hooks/useMpLookups'
+import { MpLookupSelect } from './MpLookupSelect'
+import { defaultDepartmentCode, defaultReasonCode } from '../Utils/mpLookupLabel'
 
-const REASONS: MissingPartReason[] = ['stock_shortage', 'supplier_delay', 'damaged_part', 'qc_rejection', 'wrong_part', 'production_mistake', 'other']
-const DEPARTMENTS: ResponsibleDepartment[] = ['warehouse', 'purchasing', 'production', 'quality', 'supplier', 'management']
 const PRIORITIES: PriorityLevel[] = ['low', 'normal', 'high', 'critical']
 const STOPPER_TYPES: StopperType[] = ['line_stopper', 'car_stopper']
 
@@ -33,8 +34,8 @@ function newIssueLine(): IssueLineDraft {
     key: crypto.randomUUID(),
     partDescription: '',
     requiredQty: 1,
-    reason: 'stock_shortage',
-    department: 'warehouse',
+    reason: '',
+    department: '',
     stationId: null,
     station: null,
     vehicleCount: 1,
@@ -66,6 +67,7 @@ type Props = {
 
 export function ReportMissingPartModal({ open, onClose, onReported }: Props) {
   const { t } = useLang()
+  const { reasons, departments } = useMpLookups()
   const { hasRole } = useAuth()
   const canCreateStation = hasRole('admin', 'production', 'warehouse')
   const [models, setModels] = useState<VehicleModel[]>([])
@@ -76,8 +78,25 @@ export function ReportMissingPartModal({ open, onClose, onReported }: Props) {
   const [submitting, setSubmitting] = useState(false)
 
   useEffect(() => {
+    if (!open || reasons.length === 0 || departments.length === 0) return
+    setIssues(prev =>
+      prev.map(l => ({
+        ...l,
+        reason: l.reason || defaultReasonCode(reasons),
+        department: l.department || defaultDepartmentCode(departments)
+      }))
+    )
+  }, [open, reasons, departments])
+
+  useEffect(() => {
     if (!open) return
-    setIssues([newIssueLine()])
+    setIssues([
+      {
+        ...newIssueLine(),
+        reason: defaultReasonCode(reasons),
+        department: defaultDepartmentCode(departments)
+      }
+    ])
     setVehicle(emptyVehicle)
     setFormError('')
     Promise.all([getVehicleModels(), getVehicleColors()])
@@ -116,7 +135,14 @@ export function ReportMissingPartModal({ open, onClose, onReported }: Props) {
   }
 
   function addIssue() {
-    setIssues(prev => [...prev, newIssueLine()])
+    setIssues(prev => [
+      ...prev,
+      {
+        ...newIssueLine(),
+        reason: defaultReasonCode(reasons),
+        department: defaultDepartmentCode(departments)
+      }
+    ])
   }
 
   function removeIssue(key: string) {
@@ -295,22 +321,10 @@ export function ReportMissingPartModal({ open, onClose, onReported }: Props) {
                     />
                   </Field>
                   <Field label={t('mp.cols.reasonClass')}>
-                    <select className="input-dark" value={line.reason} onChange={e => patchIssue(line.key, { reason: e.target.value as MissingPartReason })}>
-                      {REASONS.map(r => (
-                        <option key={r} value={r}>
-                          {t(`reason.${r}`)}
-                        </option>
-                      ))}
-                    </select>
+                    <MpLookupSelect options={reasons} value={line.reason} onChange={code => patchIssue(line.key, { reason: code })} />
                   </Field>
                   <Field label={t('mp.cols.department')}>
-                    <select className="input-dark" value={line.department} onChange={e => patchIssue(line.key, { department: e.target.value as ResponsibleDepartment })}>
-                      {DEPARTMENTS.map(d => (
-                        <option key={d} value={d}>
-                          {t(`department.${d}`)}
-                        </option>
-                      ))}
-                    </select>
+                    <MpLookupSelect options={departments} value={line.department} onChange={code => patchIssue(line.key, { department: code })} />
                   </Field>
                 </div>
 

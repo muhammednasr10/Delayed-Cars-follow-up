@@ -74,3 +74,5 @@ Roles: `admin`, `production`, `warehouse`, `purchasing`, `quality`, `viewer`.
 
 > The legacy `delayed_cars` table and its components remain in the repo for
 > reference but are no longer wired into the app.
+
+Vercel redeploy trigger

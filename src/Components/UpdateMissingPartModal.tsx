@@ -1,6 +1,8 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Minus, Plus, Settings2 } from 'lucide-react'
 import { useLang } from '../i18n/LanguageContext'
+import { useMpLookups } from '../hooks/useMpLookups'
+import { mpLookupLabel } from '../Utils/mpLookupLabel'
 import { useCanManageMissingPart } from '../hooks/useCanManageMissingPart'
 import { Modal } from './Modal'
 import { MissingStatusChip } from './StatusChips'
@@ -21,7 +23,8 @@ type LineDraft = {
 }
 
 export function UpdateMissingPartModal({ vehicle, onClose, onChanged }: Props) {
-  const { t } = useLang()
+  const { t, lang } = useLang()
+  const { reasons, departments } = useMpLookups()
   const { canInstall, canUpdateStatus } = useCanManageMissingPart()
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
@@ -150,7 +153,7 @@ export function UpdateMissingPartModal({ vehicle, onClose, onChanged }: Props) {
                     )}
                     <p className="font-bold text-slate-100">{part.partDescription}</p>
                     <p className="mt-0.5 text-xs text-slate-400">
-                      {t(`reason.${part.reason}`)} · {t(`department.${part.department}`)}
+                      {mpLookupLabel(reasons, part.reason, lang)} · {mpLookupLabel(departments, part.department, lang)}
                     </p>
                   </div>
                   <MissingStatusChip status={part.status} />

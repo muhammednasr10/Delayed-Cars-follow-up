@@ -1,6 +1,8 @@
 import { useEffect, useMemo, useState, type ReactNode } from 'react'
 import { AlertTriangle, Archive, CheckCircle2, MessageSquare, Pencil, PlusCircle, RefreshCcw, Settings2, Trash2 } from 'lucide-react'
 import { useLang } from '../i18n/LanguageContext'
+import { useMpLookups } from '../hooks/useMpLookups'
+import { mpLookupLabel } from '../Utils/mpLookupLabel'
 import { useCanReportMissingPart } from '../hooks/useCanReportMissingPart'
 import { useCanManageMissingPart } from '../hooks/useCanManageMissingPart'
 import { SetupRequired } from '../Components/SetupRequired'
@@ -90,6 +92,7 @@ function formatDateTime(iso: string, lang: string) {
 
 export function MissingPartsPage() {
   const { t, lang } = useLang()
+  const { reasons, departments } = useMpLookups()
   const { canReport, role } = useCanReportMissingPart()
   const { canEdit, canDelete, canUpdateStatus, canComplete } = useCanManageMissingPart()
 
@@ -468,10 +471,10 @@ export function MissingPartsPage() {
                         className="mx-auto block max-w-[120px] truncate text-cyan-300 hover:text-cyan-200 hover:underline"
                         title={t('mp.detail.title')}
                       >
-                        {t(`reason.${i.reason}`)}
+                        {mpLookupLabel(reasons, i.reason, lang)}
                       </button>
                     </td>
-                    <td className={cell}>{t(`department.${i.department}`)}</td>
+                    <td className={cell}>{mpLookupLabel(departments, i.department, lang)}</td>
                     <td className={`${cell} text-slate-400`}>
                       <div className="leading-tight">
                         <div>{date}</div>

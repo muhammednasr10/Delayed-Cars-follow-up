@@ -9,10 +9,9 @@ import { getStations } from '../services/stationService'
 import type { Station } from '../Types/settings'
 import type { VehicleIssuesContext } from '../Types/missingPart'
 import type { MissingPartDetail } from '../Types/missingPart'
-import type { MissingPartReason, PriorityLevel, ResponsibleDepartment, StopperType } from '../Types/enums'
-
-const REASONS: MissingPartReason[] = ['stock_shortage', 'supplier_delay', 'damaged_part', 'qc_rejection', 'wrong_part', 'production_mistake', 'other']
-const DEPARTMENTS: ResponsibleDepartment[] = ['warehouse', 'purchasing', 'production', 'quality', 'supplier', 'management']
+import type { PriorityLevel, StopperType } from '../Types/enums'
+import { useMpLookups } from '../hooks/useMpLookups'
+import { MpLookupSelect } from './MpLookupSelect'
 const PRIORITIES: PriorityLevel[] = ['low', 'normal', 'high', 'critical']
 const STOPPER_TYPES: StopperType[] = ['line_stopper', 'car_stopper']
 
@@ -27,8 +26,8 @@ type LineDraft = {
   station: Station | null
   partDescription: string
   requiredQty: number
-  reason: MissingPartReason
-  department: ResponsibleDepartment
+  reason: string
+  department: string
   priority: PriorityLevel
   stopperType: StopperType
   notes: string
@@ -50,6 +49,7 @@ function lineChanged(d: LineDraft): boolean {
 
 export function EditMissingPartModal({ vehicle, onClose, onSaved }: Props) {
   const { t } = useLang()
+  const { reasons, departments } = useMpLookups()
   const { hasRole } = useAuth()
   const canCreateStation = hasRole('admin', 'production', 'warehouse')
   const [lines, setLines] = useState<LineDraft[]>([])
@@ -204,31 +204,21 @@ export function EditMissingPartModal({ vehicle, onClose, onSaved }: Props) {
               <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
                 <div>
                   <label className="mb-1 block text-xs font-bold text-slate-400">{t('mp.cols.reasonClass')}</label>
-                  <select
+                  <MpLookupSelect
                     className="input-dark w-full"
+                    options={reasons}
                     value={line.reason}
-                    onChange={e => patchLine(line.part.id, { reason: e.target.value as MissingPartReason })}
-                  >
-                    {REASONS.map(r => (
-                      <option key={r} value={r}>
-                        {t(`reason.${r}`)}
-                      </option>
-                    ))}
-                  </select>
+                    onChange={code => patchLine(line.part.id, { reason: code })}
+                  />
                 </div>
                 <div>
                   <label className="mb-1 block text-xs font-bold text-slate-400">{t('mp.cols.department')}</label>
-                  <select
+                  <MpLookupSelect
                     className="input-dark w-full"
+                    options={departments}
                     value={line.department}
-                    onChange={e => patchLine(line.part.id, { department: e.target.value as ResponsibleDepartment })}
-                  >
-                    {DEPARTMENTS.map(d => (
-                      <option key={d} value={d}>
-                        {t(`department.${d}`)}
-                      </option>
-                    ))}
-                  </select>
+                    onChange={code => patchLine(line.part.id, { department: code })}
+                  />
                 </div>
               </div>
               <label className="block text-xs font-bold text-slate-400">{t('mp.cols.qty')}</label>

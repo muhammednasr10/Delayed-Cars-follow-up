@@ -7,11 +7,11 @@ import { StationAutocomplete } from './StationAutocomplete'
 import { setVehicleStation, updateMissingPartRecord } from '../services/missingPartsService'
 import { getStations } from '../services/stationService'
 import type { ReportGroupContext } from '../Types/missingPart'
-import type { MissingPartReason, PriorityLevel, ResponsibleDepartment, StopperType } from '../Types/enums'
+import type { PriorityLevel, StopperType } from '../Types/enums'
 import type { Station } from '../Types/settings'
+import { useMpLookups } from '../hooks/useMpLookups'
+import { MpLookupSelect } from './MpLookupSelect'
 
-const REASONS: MissingPartReason[] = ['stock_shortage', 'supplier_delay', 'damaged_part', 'qc_rejection', 'wrong_part', 'production_mistake', 'other']
-const DEPARTMENTS: ResponsibleDepartment[] = ['warehouse', 'purchasing', 'production', 'quality', 'supplier', 'management']
 const PRIORITIES: PriorityLevel[] = ['low', 'normal', 'high', 'critical']
 const STOPPER_TYPES: StopperType[] = ['line_stopper', 'car_stopper']
 
@@ -23,12 +23,13 @@ type Props = {
 
 export function EditReportGroupModal({ group, onClose, onSaved }: Props) {
   const { t } = useLang()
+  const { reasons, departments } = useMpLookups()
   const { hasRole } = useAuth()
   const canCreateStation = hasRole('admin', 'production', 'warehouse')
   const [station, setStation] = useState<Station | null>(null)
   const [partDescription, setPartDescription] = useState('')
-  const [reason, setReason] = useState<MissingPartReason>('stock_shortage')
-  const [department, setDepartment] = useState<ResponsibleDepartment>('warehouse')
+  const [reason, setReason] = useState('')
+  const [department, setDepartment] = useState('')
   const [priority, setPriority] = useState<PriorityLevel>('normal')
   const [stopperType, setStopperType] = useState<StopperType>('car_stopper')
   const [notes, setNotes] = useState('')
@@ -148,23 +149,11 @@ export function EditReportGroupModal({ group, onClose, onSaved }: Props) {
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
           <div>
             <label className="mb-1 block text-xs font-bold text-slate-400">{t('mp.cols.reasonClass')}</label>
-            <select className="input-dark w-full" value={reason} onChange={e => setReason(e.target.value as MissingPartReason)}>
-              {REASONS.map(r => (
-                <option key={r} value={r}>
-                  {t(`reason.${r}`)}
-                </option>
-              ))}
-            </select>
+            <MpLookupSelect className="input-dark w-full" options={reasons} value={reason} onChange={setReason} />
           </div>
           <div>
             <label className="mb-1 block text-xs font-bold text-slate-400">{t('mp.cols.department')}</label>
-            <select className="input-dark w-full" value={department} onChange={e => setDepartment(e.target.value as ResponsibleDepartment)}>
-              {DEPARTMENTS.map(d => (
-                <option key={d} value={d}>
-                  {t(`department.${d}`)}
-                </option>
-              ))}
-            </select>
+            <MpLookupSelect className="input-dark w-full" options={departments} value={department} onChange={setDepartment} />
           </div>
         </div>
 

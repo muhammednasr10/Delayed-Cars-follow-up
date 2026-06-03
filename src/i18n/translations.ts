@@ -51,8 +51,11 @@ export const translations = {
     },
     settings: {
       title: 'الإعدادات',
-      subtitle: 'إدارة الموديلات، المستخدمين، الألوان، أماكن العمل والمحطات.',
-      tabs: { models: 'الموديلات', areas: 'أماكن العمل', stations: 'المحطات', colors: 'ألوان السيارات', users: 'المستخدمون والصلاحيات' },
+      subtitle: 'إدارة الموديلات، الألوان، تصنيف السبب، الأقسام المسؤولة، المحطات والمستخدمين.',
+      tabs: {
+        models: 'الموديلات', areas: 'أماكن العمل', stations: 'المحطات', colors: 'ألوان السيارات',
+        reasons: 'تصنيف السبب', departments: 'القسم المسؤول', users: 'المستخدمون والصلاحيات'
+      },
       addTitle: 'إضافة - {title}', editTitle: 'تعديل - {title}',
       deleteTitle: 'تأكيد الحذف', deleteMsg: 'هل أنت متأكد من حذف «{name}»؟ لا يمكن التراجع.',
       added: 'تمت الإضافة.', updated: 'تم التعديل.', deleted: 'تم الحذف.',
@@ -65,12 +68,13 @@ export const translations = {
       fields: {
         modelName: 'اسم الموديل', areaName: 'اسم المكان', description: 'الوصف',
         stationNumber: 'رقم المحطة', stationName: 'اسم المحطة', workArea: 'مكان العمل',
-        stationNameEn: 'اسم المحطة (إنجليزي)', stationType: 'نوع المحطة', sortOrder: 'الترتيب',
+        stationNameEn: 'اسم المحطة (إنجليزي)', stationType: 'نوع المحطة',
+        code: 'الكود', labelAr: 'الاسم (عربي)', labelEn: 'الاسم (إنجليزي)', sortOrder: 'الترتيب',
         colorName: 'اسم اللون', color: 'اللون', name: 'الاسم', email: 'البريد الإلكتروني', role: 'الدور'
       },
       cols: {
         name: 'الاسم', description: 'الوصف', number: 'الرقم', workArea: 'مكان العمل',
-        color: 'اللون', hex: 'Hex', email: 'البريد', role: 'الدور'
+        color: 'اللون', hex: 'Hex', email: 'البريد', role: 'الدور', active: 'نشط'
       }
     },
     mp: {
@@ -407,8 +411,11 @@ export const translations = {
     },
     settings: {
       title: 'Settings',
-      subtitle: 'Manage models, users, colors, work areas and stations.',
-      tabs: { models: 'Models', areas: 'Work Areas', stations: 'Stations', colors: 'Vehicle Colors', users: 'Users & Permissions' },
+      subtitle: 'Manage models, colors, reason classes, departments, stations and users.',
+      tabs: {
+        models: 'Models', areas: 'Work Areas', stations: 'Stations', colors: 'Vehicle Colors',
+        reasons: 'Reason class', departments: 'Responsible dept.', users: 'Users & Permissions'
+      },
       addTitle: 'Add - {title}', editTitle: 'Edit - {title}',
       deleteTitle: 'Confirm delete', deleteMsg: 'Are you sure you want to delete “{name}”? This cannot be undone.',
       added: 'Added.', updated: 'Updated.', deleted: 'Deleted.',
@@ -422,11 +429,12 @@ export const translations = {
         modelName: 'Model name', areaName: 'Area name', description: 'Description',
         stationNameEn: 'Station name (EN)', stationType: 'Station type', sortOrder: 'Sort order',
         stationNumber: 'Station number', stationName: 'Station name', workArea: 'Work area',
+        code: 'Code', labelAr: 'Label (Arabic)', labelEn: 'Label (English)',
         colorName: 'Color name', color: 'Color', name: 'Name', email: 'Email', role: 'Role'
       },
       cols: {
         name: 'Name', description: 'Description', number: 'Number', workArea: 'Work Area',
-        color: 'Color', hex: 'Hex', email: 'Email', role: 'Role'
+        color: 'Color', hex: 'Hex', email: 'Email', role: 'Role', active: 'Active'
       }
     },
     mp: {

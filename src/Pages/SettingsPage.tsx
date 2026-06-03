@@ -1,5 +1,5 @@
 import { useEffect, useState, type ReactNode } from 'react'
-import { Boxes, Car, MapPin, Palette, Pencil, Plus, RefreshCcw, Settings, Trash2, Users } from 'lucide-react'
+import { Boxes, Car, ListChecks, MapPin, Palette, Pencil, Plus, RefreshCcw, Settings, Trash2, Users, Building2 } from 'lucide-react'
 import {
   createStation,
   createVehicleColor,
@@ -10,7 +10,7 @@ import {
   deleteVehicleModel,
   deleteWorkArea,
   getStations,
-  getVehicleColors,
+  getAllVehicleColors,
   getVehicleModels,
   getWorkAreas,
   updateStation,
@@ -20,13 +20,24 @@ import {
 } from '../services/settingsService'
 import type { Station, VehicleColor, VehicleModel, WorkArea } from '../Types/settings'
 import { UsersPermissionsPanel } from '../Components/permissions/UsersPermissionsPanel'
+import {
+  createMpDepartmentOption,
+  createMpReasonOption,
+  deleteMpDepartmentOption,
+  deleteMpReasonOption,
+  getMpDepartmentOptions,
+  getMpReasonOptions,
+  updateMpDepartmentOption,
+  updateMpReasonOption
+} from '../services/mpLookupService'
+import type { MpLookupOption } from '../Types/mpLookup'
 import { supabase } from '../lib/supabase'
 import { Modal } from '../Components/Modal'
 import { ConfirmDialog } from '../Components/ConfirmDialog'
 import { StationWizardModal } from '../Components/StationWizardModal'
 import { useLang } from '../i18n/LanguageContext'
 
-type TabKey = 'models' | 'areas' | 'stations' | 'colors' | 'users'
+type TabKey = 'models' | 'areas' | 'stations' | 'colors' | 'reasons' | 'departments' | 'users'
 type Values = Record<string, string>
 
 const STATION_DEPARTMENTS = ['warehouse', 'purchasing', 'production', 'quality', 'supplier', 'management'] as const
@@ -36,6 +47,8 @@ const tabConfig: { key: TabKey; icon: ReactNode }[] = [
   { key: 'areas', icon: <Boxes className="h-4 w-4" /> },
   { key: 'stations', icon: <MapPin className="h-4 w-4" /> },
   { key: 'colors', icon: <Palette className="h-4 w-4" /> },
+  { key: 'reasons', icon: <ListChecks className="h-4 w-4" /> },
+  { key: 'departments', icon: <Building2 className="h-4 w-4" /> },
   { key: 'users', icon: <Users className="h-4 w-4" /> }
 ]
 
@@ -50,6 +63,8 @@ export function SettingsPage() {
   const [areas, setAreas] = useState<WorkArea[]>([])
   const [stations, setStations] = useState<Station[]>([])
   const [colors, setColors] = useState<VehicleColor[]>([])
+  const [reasonOptions, setReasonOptions] = useState<MpLookupOption[]>([])
+  const [departmentOptions, setDepartmentOptions] = useState<MpLookupOption[]>([])
 
   async function loadAll() {
     if (!supabase) {
@@ -59,16 +74,20 @@ export function SettingsPage() {
     setLoading(true)
     setError('')
     try {
-      const [modelsData, areasData, stationsData, colorsData] = await Promise.all([
+      const [modelsData, areasData, stationsData, colorsData, reasonsData, departmentsData] = await Promise.all([
         getVehicleModels(),
         getWorkAreas(),
         getStations(),
-        getVehicleColors()
+        getAllVehicleColors(),
+        getMpReasonOptions(false),
+        getMpDepartmentOptions(false)
       ])
       setModels(modelsData)
       setAreas(areasData)
       setStations(stationsData)
       setColors(colorsData)
+      setReasonOptions(reasonsData)
+      setDepartmentOptions(departmentsData)
     } catch (err) {
       setError(err instanceof Error ? err.message : t('common.error'))
     } finally {
@@ -230,12 +249,135 @@ export function SettingsPage() {
           columns={[
             { header: t('settings.cols.color'), render: c => <span className="inline-block h-5 w-5 rounded-full ring-1 ring-slate-500" style={{ backgroundColor: c.hex_code }} /> },
             { header: t('settings.cols.name'), render: c => c.name },
-            { header: t('settings.cols.hex'), render: c => c.hex_code }
+            { header: t('settings.cols.hex'), render: c => c.hex_code },
+            { header: t('settings.cols.active'), render: c => (c.is_active ? t('common.yes') : t('common.no')) }
           ]}
           toValues={c => ({ name: c.name, hex_code: c.hex_code })}
           onCreate={v => runAction(async () => { await createVehicleColor({ name: v.name, hex_code: v.hex_code }) }, t('settings.added'))}
           onUpdate={(id, v) => runAction(async () => { await updateVehicleColor(id, { name: v.name, hex_code: v.hex_code }) }, t('settings.updated'))}
           onDelete={id => runAction(() => deleteVehicleColor(id), t('settings.deleted'))}
+        />
+      )}
+
+      {activeTab === 'reasons' && (
+        <CrudSection
+          title={t('settings.tabs.reasons')}
+          icon={<ListChecks className="h-5 w-5" />}
+          items={reasonOptions}
+          busy={loading}
+          getId={r => r.id}
+          getLabel={r => r.labelAr}
+          fields={[
+            { key: 'code', label: t('settings.fields.code'), required: true, placeholder: 'stock_shortage' },
+            { key: 'label_ar', label: t('settings.fields.labelAr'), required: true },
+            { key: 'label_en', label: t('settings.fields.labelEn'), required: true },
+            { key: 'sort_order', label: t('settings.fields.sortOrder'), defaultValue: '0' },
+            {
+              key: 'is_active',
+              label: t('settings.cols.active'),
+              type: 'select',
+              options: [
+                { value: 'true', label: t('common.yes') },
+                { value: 'false', label: t('common.no') }
+              ],
+              defaultValue: 'true'
+            }
+          ]}
+          columns={[
+            { header: t('settings.fields.code'), render: r => <span className="font-mono text-xs">{r.code}</span> },
+            { header: t('settings.fields.labelAr'), render: r => r.labelAr },
+            { header: t('settings.fields.labelEn'), render: r => r.labelEn },
+            { header: t('settings.cols.active'), render: r => (r.isActive ? t('common.yes') : t('common.no')) }
+          ]}
+          toValues={r => ({
+            code: r.code,
+            label_ar: r.labelAr,
+            label_en: r.labelEn,
+            sort_order: String(r.sortOrder),
+            is_active: r.isActive ? 'true' : 'false'
+          })}
+          onCreate={v =>
+            runAction(async () => {
+              await createMpReasonOption({
+                code: v.code,
+                label_ar: v.label_ar,
+                label_en: v.label_en,
+                sort_order: Number(v.sort_order) || 0
+              })
+            }, t('settings.added'))
+          }
+          onUpdate={(id, v) =>
+            runAction(async () => {
+              await updateMpReasonOption(id, {
+                label_ar: v.label_ar,
+                label_en: v.label_en,
+                sort_order: Number(v.sort_order) || 0,
+                is_active: v.is_active === 'true'
+              })
+            }, t('settings.updated'))
+          }
+          onDelete={id => runAction(() => deleteMpReasonOption(id), t('settings.deleted'))}
+        />
+      )}
+
+      {activeTab === 'departments' && (
+        <CrudSection
+          title={t('settings.tabs.departments')}
+          icon={<Building2 className="h-5 w-5" />}
+          items={departmentOptions}
+          busy={loading}
+          getId={d => d.id}
+          getLabel={d => d.labelAr}
+          fields={[
+            { key: 'code', label: t('settings.fields.code'), required: true, placeholder: 'warehouse' },
+            { key: 'label_ar', label: t('settings.fields.labelAr'), required: true },
+            { key: 'label_en', label: t('settings.fields.labelEn'), required: true },
+            { key: 'sort_order', label: t('settings.fields.sortOrder'), defaultValue: '0' },
+            {
+              key: 'is_active',
+              label: t('settings.cols.active'),
+              type: 'select',
+              options: [
+                { value: 'true', label: t('common.yes') },
+                { value: 'false', label: t('common.no') }
+              ],
+              defaultValue: 'true'
+            }
+          ]}
+          columns={[
+            { header: t('settings.fields.code'), render: d => <span className="font-mono text-xs">{d.code}</span> },
+            { header: t('settings.fields.labelAr'), render: d => d.labelAr },
+            { header: t('settings.fields.labelEn'), render: d => d.labelEn },
+            { header: t('settings.cols.active'), render: d => (d.isActive ? t('common.yes') : t('common.no')) }
+          ]}
+          toValues={d => ({
+            code: d.code,
+            label_ar: d.labelAr,
+            label_en: d.labelEn,
+            sort_order: String(d.sortOrder),
+            is_active: d.isActive ? 'true' : 'false'
+          })}
+          onCreate={v =>
+            runAction(async () => {
+              await createMpDepartmentOption({
+                code: v.code,
+                label_ar: v.label_ar,
+                label_en: v.label_en,
+                sort_order: Number(v.sort_order) || 0
+              })
+            }, t('settings.added'))
+          }
+          onUpdate={(id, v) =>
+            runAction(async () => {
+              await updateMpDepartmentOption(id, {
+                label_ar: v.label_ar,
+                label_en: v.label_en,
+                sort_order: Number(v.sort_order) || 0,
+                is_active: v.is_active === 'true'
+              })
+            }, t('settings.updated'))
+          }
+          onDelete={id => runAction(() => deleteMpDepartmentOption(id), t('settings.deleted'))}
         />
       )}
 

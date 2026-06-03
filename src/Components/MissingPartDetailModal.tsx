@@ -1,5 +1,7 @@
 import { FileText } from 'lucide-react'
 import { useLang } from '../i18n/LanguageContext'
+import { useMpLookups } from '../hooks/useMpLookups'
+import { mpLookupLabel } from '../Utils/mpLookupLabel'
 import { Modal } from './Modal'
 import type { MissingPartDetail } from '../Types/missingPart'
 
@@ -9,7 +11,8 @@ type Props = {
 }
 
 export function MissingPartDetailModal({ part, onClose }: Props) {
-  const { t } = useLang()
+  const { t, lang } = useLang()
+  const { reasons, departments } = useMpLookups()
   if (!part) return null
 
   return (
@@ -23,8 +26,8 @@ export function MissingPartDetailModal({ part, onClose }: Props) {
     >
       <dl className="space-y-3 text-sm">
         <Row label={t('mp.f.part')} value={part.partDescription} />
-        <Row label={t('mp.cols.reason')} value={t(`reason.${part.reason}`)} />
-        <Row label={t('mp.cols.department')} value={t(`department.${part.department}`)} />
+        <Row label={t('mp.cols.reasonClass')} value={mpLookupLabel(reasons, part.reason, lang)} />
+        <Row label={t('mp.cols.department')} value={mpLookupLabel(departments, part.department, lang)} />
         <Row label={t('mp.detail.stopper')} value={t(`stopper.${part.stopperType}`)} />
         <Row label={t('mp.f.notes')} value={part.notes?.trim() || '—'} multiline />
       </dl>
