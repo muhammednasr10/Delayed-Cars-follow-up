@@ -1,11 +1,13 @@
 import { createContext, useContext, useEffect, useMemo, useState, type ReactNode } from 'react'
 import { supabase } from '../lib/supabase'
-import type { VehicleInput, VehicleOverview } from '../Types/vehicle'
+import type { VehicleInput, VehicleOverview, VehicleUpdateInput } from '../Types/vehicle'
 import {
   createVehicle,
   getVehicles,
   markVehicleDelivered,
-  releaseVehicleForDelivery
+  releaseVehicleForDelivery,
+  softDeleteVehicle,
+  updateVehicle as updateVehicleRow
 } from '../services/vehiclesService'
 
 type Result = { ok: boolean; message?: string }
@@ -17,6 +19,8 @@ type VehiclesContextValue = {
   setupRequired: boolean
   refresh: () => Promise<void>
   addVehicle: (input: VehicleInput) => Promise<Result>
+  updateVehicle: (id: string, input: VehicleUpdateInput) => Promise<Result>
+  removeVehicle: (id: string) => Promise<Result>
   release: (id: string) => Promise<Result>
   deliver: (id: string) => Promise<Result>
 }
@@ -74,6 +78,26 @@ export function VehiclesProvider({ children }: { children: ReactNode }) {
     }
   }
 
+  async function updateVehicle(id: string, input: VehicleUpdateInput): Promise<Result> {
+    try {
+      await updateVehicleRow(id, input)
+      await refresh()
+      return { ok: true }
+    } catch (err) {
+      return { ok: false, message: err instanceof Error ? err.message : 'فشل تعديل السيارة.' }
+    }
+  }
+
+  async function removeVehicle(id: string): Promise<Result> {
+    try {
+      await softDeleteVehicle(id)
+      await refresh()
+      return { ok: true }
+    } catch (err) {
+      return { ok: false, message: err instanceof Error ? err.message : 'فشل حذف السيارة.' }
+    }
+  }
+
   // Critical actions re-fetch from the DB so the UI reflects rules enforced
   // server-side (a rejected release must NOT look successful).
   async function release(id: string): Promise<Result> {
@@ -97,7 +121,7 @@ export function VehiclesProvider({ children }: { children: ReactNode }) {
   }
 
   const value = useMemo(
-    () => ({ vehicles, loading, error, setupRequired, refresh, addVehicle, release, deliver }),
+    () => ({ vehicles, loading, error, setupRequired, refresh, addVehicle, updateVehicle, removeVehicle, release, deliver }),
     [vehicles, loading, error, setupRequired]
   )
 

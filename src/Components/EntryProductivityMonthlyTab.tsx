@@ -1,0 +1,284 @@
+import { useCallback, useEffect, useMemo, useState } from 'react'
+import { CalendarDays, RefreshCcw, Save } from 'lucide-react'
+import { useAuth } from '../Context/AuthContext'
+import { useVehicles } from '../Context/VehiclesContext'
+import { useLang } from '../i18n/LanguageContext'
+import { inputCls } from '../Components/FormField'
+import {
+  buildModelColumns,
+  buildMonthGrid,
+  bulkUpsertEntryProductivity,
+  getEntryProductivityMonth,
+  gridToInputs,
+  listDatesInMonth,
+  productivityModelRows,
+  sumVariantForMonth,
+  sumVariantsForDay,
+  tallyVehiclesByModelDay,
+  type ModelColumn
+} from '../services/entryProductivityService'
+import { getVehicleModels } from '../services/settingsService'
+
+const cell = 'table-cell text-center align-middle'
+const stickyCell = `${cell} sticky start-0 z-10 bg-slate-900`
+const stickyHead = `${cell} sticky start-0 z-20 bg-slate-950`
+
+function currentYm(): { year: number; month: number } {
+  const d = new Date()
+  return { year: d.getFullYear(), month: d.getMonth() + 1 }
+}
+
+function columnKey(col: ModelColumn): string {
+  return col.kind === 'family' ? `family:${col.familyId}` : `variant:${col.model.id}`
+}
+
+export function EntryProductivityMonthlyTab() {
+  const { t } = useLang()
+  const { hasRole } = useAuth()
+  const { vehicles } = useVehicles()
+  const canManage = hasRole('admin', 'production')
+
+  const init = currentYm()
+  const [year, setYear] = useState(init.year)
+  const [month, setMonth] = useState(init.month)
+  const [models, setModels] = useState<Awaited<ReturnType<typeof getVehicleModels>>>([])
+  const [grid, setGrid] = useState<Map<string, number>>(new Map())
+  const [loading, setLoading] = useState(false)
+  const [saving, setSaving] = useState(false)
+  const [error, setError] = useState('')
+  const [success, setSuccess] = useState('')
+
+  const monthValue = `${year}-${String(month).padStart(2, '0')}`
+  const dates = useMemo(() => listDatesInMonth(year, month), [year, month])
+  const modelRows = useMemo(() => productivityModelRows(models), [models])
+  const columns = useMemo(() => buildModelColumns(models), [models])
+
+  const load = useCallback(async () => {
+    setLoading(true)
+    setError('')
+    setSuccess('')
+    try {
+      const [modelList, records] = await Promise.all([getVehicleModels(), getEntryProductivityMonth(year, month)])
+      setModels(modelList)
+      setGrid(buildMonthGrid(modelList, year, month, records))
+    } catch (e) {
+      setError(e instanceof Error ? e.message : t('common.error'))
+    } finally {
+      setLoading(false)
+    }
+  }, [year, month, t])
+
+  useEffect(() => {
+    void load()
+  }, [load])
+
+  function setCell(modelId: string, workDate: string, quantity: number) {
+    const key = `${modelId}|${workDate}`
+    setGrid(prev => {
+      const next = new Map(prev)
+      next.set(key, Math.max(0, quantity))
+      return next
+    })
+  }
+
+  function syncFromDaily() {
+    const tallies = tallyVehiclesByModelDay(vehicles, year, month)
+    setGrid(prev => {
+      const next = new Map(prev)
+      for (const model of modelRows) {
+        for (const workDate of dates) {
+          const key = `${model.id}|${workDate}`
+          const count = tallies.get(key)
+          if (count !== undefined) next.set(key, count)
+        }
+      }
+      return next
+    })
+    setSuccess(t('productivity.monthly.syncedFromDaily'))
+  }
+
+  async function save() {
+    setSaving(true)
+    setError('')
+    setSuccess('')
+    try {
+      await bulkUpsertEntryProductivity(gridToInputs(models, year, month, grid))
+      setSuccess(t('common.saved'))
+      await load()
+    } catch (e) {
+      setError(e instanceof Error ? e.message : t('common.error'))
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  function dayRowTotal(workDate: string): number {
+    return modelRows.reduce((sum, model) => sum + (grid.get(`${model.id}|${workDate}`) ?? 0), 0)
+  }
+
+  function columnMonthTotal(col: ModelColumn): number {
+    if (col.kind === 'family') {
+      return dates.reduce((sum, workDate) => sum + sumVariantsForDay(grid, col.variantIds, workDate), 0)
+    }
+    return sumVariantForMonth(grid, col.model.id, dates)
+  }
+
+  const monthGrandTotal = useMemo(() => {
+    return dates.reduce((sum, workDate) => sum + dayRowTotal(workDate), 0)
+  }, [dates, grid, modelRows])
+
+  function renderColumnValue(col: ModelColumn, workDate: string) {
+    if (col.kind === 'family') {
+      const value = sumVariantsForDay(grid, col.variantIds, workDate)
+      return <span className="font-black text-violet-300">{value || '—'}</span>
+    }
+    const value = grid.get(`${col.model.id}|${workDate}`) ?? 0
+    if (canManage) {
+      return (
+        <input
+          type="number"
+          min={0}
+          className="w-12 rounded-lg border border-slate-700 bg-slate-950 px-1 py-1 text-center text-sm font-bold text-white"
+          value={value || ''}
+          onChange={e => setCell(col.model.id, workDate, Number(e.target.value) || 0)}
+        />
+      )
+    }
+    return <span className="font-bold text-slate-200">{value || '—'}</span>
+  }
+
+  return (
+    <section className="space-y-4">
+      <div className="card-industrial p-4 sm:p-5">
+        <div className="mb-4 flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
+          <div className="flex items-start gap-3">
+            <div className="rounded-xl bg-cyan-500/15 p-3 text-cyan-300">
+              <CalendarDays className="h-6 w-6" />
+            </div>
+            <div>
+              <h2 className="text-lg font-black text-white">{t('productivity.monthly.title')}</h2>
+              <p className="text-sm text-slate-400">{t('productivity.monthly.subtitle')}</p>
+            </div>
+          </div>
+          <div className="flex flex-wrap items-end gap-2">
+            <label className="block">
+              <span className="mb-1 block text-xs font-bold text-slate-400">{t('productivity.monthly.month')}</span>
+              <input
+                type="month"
+                className={inputCls()}
+                value={monthValue}
+                onChange={e => {
+                  const [y, m] = e.target.value.split('-').map(Number)
+                  if (y && m) {
+                    setYear(y)
+                    setMonth(m)
+                  }
+                }}
+              />
+            </label>
+            <button
+              type="button"
+              onClick={() => void load()}
+              className="rounded-xl bg-slate-800 px-3 py-2 text-sm font-bold text-slate-200 hover:bg-slate-700"
+            >
+              <RefreshCcw className="mr-1 inline h-4 w-4" /> {t('common.refresh')}
+            </button>
+            {canManage && (
+              <>
+                <button
+                  type="button"
+                  onClick={syncFromDaily}
+                  className="rounded-xl border border-cyan-500/40 bg-cyan-500/10 px-4 py-2 text-sm font-bold text-cyan-200 hover:bg-cyan-500/20"
+                >
+                  {t('productivity.monthly.syncFromDaily')}
+                </button>
+                <button
+                  type="button"
+                  disabled={saving}
+                  onClick={() => void save()}
+                  className="rounded-xl bg-cyan-500 px-4 py-2 text-sm font-black text-slate-950 disabled:opacity-50"
+                >
+                  <Save className="mr-1 inline h-4 w-4" /> {saving ? t('common.saving') : t('common.save')}
+                </button>
+              </>
+            )}
+          </div>
+        </div>
+
+        {success && <div className="mb-3 rounded-xl border border-emerald-500/30 bg-emerald-500/10 p-3 text-sm text-emerald-200">{success}</div>}
+        {error && <div className="mb-3 rounded-xl border border-red-500/30 bg-red-500/10 p-3 text-sm text-red-200">{error}</div>}
+        <p className="text-xs text-slate-500">{t('productivity.monthly.hint')}</p>
+      </div>
+
+      <div className="card-industrial overflow-x-auto">
+        <table className="w-full min-w-[900px] text-sm">
+          <thead className="bg-slate-950/90">
+            <tr>
+              <th className={`${stickyHead} min-w-[72px] text-xs font-black uppercase text-cyan-300`}>
+                {t('productivity.monthly.total')}
+              </th>
+              <th className={`${stickyHead} start-[72px] min-w-[72px] border-s border-slate-800 text-xs font-black uppercase text-slate-400`}>
+                {t('productivity.monthly.date')}
+              </th>
+              {columns.map(col => (
+                <th
+                  key={columnKey(col)}
+                  className={`${cell} min-w-[56px] text-xs font-black ${
+                    col.kind === 'family' ? 'bg-violet-500/10 text-violet-200' : 'text-slate-400'
+                  }`}
+                >
+                  {col.label}
+                  {col.kind === 'family' && (
+                    <span className="mt-0.5 block text-[9px] font-bold text-violet-300/80">
+                      {t('productivity.monthly.familyTotal')}
+                    </span>
+                  )}
+                </th>
+              ))}
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-slate-800">
+            {dates.map(workDate => {
+              const rowTotal = dayRowTotal(workDate)
+              return (
+                <tr key={workDate} className="bg-slate-900/30 hover:bg-slate-800/40">
+                  <td className={`${stickyCell} font-black text-cyan-300`}>{rowTotal || '—'}</td>
+                  <td className={`${stickyCell} start-[72px] border-s border-slate-800 font-mono font-bold text-slate-200`}>
+                    {workDate.slice(8)}
+                  </td>
+                  {columns.map(col => (
+                    <td
+                      key={`${workDate}-${columnKey(col)}`}
+                      className={`${cell} ${col.kind === 'family' ? 'bg-violet-500/5' : ''}`}
+                    >
+                      {renderColumnValue(col, workDate)}
+                    </td>
+                  ))}
+                </tr>
+              )
+            })}
+            <tr className="bg-slate-950/80 font-black">
+              <td className={`${stickyCell} text-cyan-300`}>{monthGrandTotal || '—'}</td>
+              <td className={`${stickyCell} start-[72px] border-s border-slate-800 text-slate-300`}>
+                {t('productivity.monthly.total')}
+              </td>
+              {columns.map(col => (
+                <td
+                  key={`total-${columnKey(col)}`}
+                  className={`${cell} ${col.kind === 'family' ? 'text-violet-300' : 'text-emerald-300'}`}
+                >
+                  {columnMonthTotal(col) || '—'}
+                </td>
+              ))}
+            </tr>
+          </tbody>
+        </table>
+
+        {loading && <p className="p-8 text-center text-slate-400">{t('common.loading')}</p>}
+        {!loading && modelRows.length === 0 && (
+          <p className="p-8 text-center text-slate-500">{t('productivity.monthly.noModels')}</p>
+        )}
+      </div>
+    </section>
+  )
+}

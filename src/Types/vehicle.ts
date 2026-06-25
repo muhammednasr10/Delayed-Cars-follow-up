@@ -17,6 +17,11 @@ export type VehicleOverview = {
   openMissingCount: number
   completionPercent: number
   modelName: string
+  modelId?: string | null
+  vehicleColorId?: string | null
+  colorName?: string | null
+  colorHex?: string | null
+  productionOrderId?: string | null
   productionOrderNumber: string
   createdAt: string
   updatedAt: string
@@ -24,11 +29,18 @@ export type VehicleOverview = {
 
 export type VehicleInput = {
   vin: string
-  productionOrderId: string
+  productionOrderId?: string | null
   modelId: string
   vehicleColorId?: string | null
   currentStationId?: string | null
   notes?: string
+}
+
+export type VehicleUpdateInput = {
+  vin?: string
+  modelId?: string
+  vehicleColorId?: string | null
+  productionOrderId?: string | null
 }
 
 export type VehicleFilters = {

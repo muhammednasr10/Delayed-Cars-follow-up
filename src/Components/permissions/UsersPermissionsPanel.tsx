@@ -1,66 +1,103 @@
 import { useEffect, useMemo, useState } from 'react'
-import { Shield, Users } from 'lucide-react'
+import { KeyRound, Pencil, Plus, Shield, Trash2, Users } from 'lucide-react'
 import { useLang } from '../../i18n/LanguageContext'
 import { usePermissions } from '../../Context/PermissionsContext'
 import {
+  deleteSystemRole,
+  getAllSystemRoles,
   getRolePermissions,
   getSystemPermissions,
-  getSystemRoles,
   permissionKey,
   setRolePermission,
   setUserPermissionOverride
 } from '../../services/permissionsService'
 import {
   blockUser,
+  deactivateUserAccount,
   getUserAccounts,
-  linkUserToEmployee,
+  getUserOverrides,
+  removeUserPermissionOverride,
   unblockUser
 } from '../../services/userAccountsService'
+import { countOpenUserSupportRequests } from '../../services/userRequestsService'
 import { getEmployees } from '../../services/employeesService'
 import type { UserAccountDetail } from '../../Types/permissions'
+import type { SystemRole } from '../../Types/permissions'
 import type { Employee } from '../../Types/employee'
 import { Modal } from '../Modal'
+import { ConfirmDialog } from '../ConfirmDialog'
 import { Field, inputCls } from '../FormField'
+import { UserAccountFormModal } from './UserAccountFormModal'
+import { UserRequestsTab } from './UserRequestsTab'
+import { UserPasswordModal } from './UserPasswordModal'
+import { SystemRoleFormModal } from './SystemRoleFormModal'
+import {
+  formatPermissionLabel,
+  permissionModuleLabel,
+  sortModuleKeys
+} from '../../Utils/permissionLabels'
 
-type SubTab = 'users' | 'roles' | 'matrix' | 'overrides' | 'blocked'
+type SubTab = 'users' | 'roles' | 'matrix' | 'overrides' | 'blocked' | 'requests'
 
 const MATRIX_ACTIONS = ['view', 'create', 'update', 'delete', 'approve', 'import', 'export', 'manage'] as const
 
 export function UsersPermissionsPanel({ notify }: { notify: (m: string, err?: boolean) => void }) {
-  const { t } = useLang()
+  const { t, lang } = useLang()
   const { hasPermission, reload: reloadPerms } = usePermissions()
   const canManage = hasPermission('users', 'manage')
 
   const [subTab, setSubTab] = useState<SubTab>('users')
   const [users, setUsers] = useState<UserAccountDetail[]>([])
-  const [roles, setRoles] = useState<Awaited<ReturnType<typeof getSystemRoles>>>([])
+  const [roles, setRoles] = useState<SystemRole[]>([])
   const [permissions, setPermissions] = useState<Awaited<ReturnType<typeof getSystemPermissions>>>([])
   const [employees, setEmployees] = useState<Employee[]>([])
   const [loading, setLoading] = useState(true)
   const [selectedRoleId, setSelectedRoleId] = useState('')
   const [rolePerms, setRolePerms] = useState<Map<string, boolean>>(new Map())
-  const [linkModal, setLinkModal] = useState<UserAccountDetail | null>(null)
+  const [userForm, setUserForm] = useState<{ mode: 'create' | 'edit'; user: UserAccountDetail | null } | null>(null)
+  const [roleForm, setRoleForm] = useState<SystemRole | null | 'new'>(null)
+  const [deleteUser, setDeleteUser] = useState<UserAccountDetail | null>(null)
+  const [deleteRole, setDeleteRole] = useState<SystemRole | null>(null)
+  const [passwordUser, setPasswordUser] = useState<UserAccountDetail | null>(null)
   const [blockModal, setBlockModal] = useState<UserAccountDetail | null>(null)
   const [blockReason, setBlockReason] = useState('')
-  const [linkEmployeeId, setLinkEmployeeId] = useState('')
-  const [linkRoleId, setLinkRoleId] = useState('')
   const [overrideUserId, setOverrideUserId] = useState('')
   const [overridePermId, setOverridePermId] = useState('')
   const [overrideAllowed, setOverrideAllowed] = useState(true)
   const [overrideReason, setOverrideReason] = useState('')
+  const [userOverrides, setUserOverrides] = useState<Awaited<ReturnType<typeof getUserOverrides>>>([])
   const [busy, setBusy] = useState(false)
+  const [openRequestCount, setOpenRequestCount] = useState(0)
 
-  const modules = useMemo(() => [...new Set(permissions.map(p => p.module_key))].sort(), [permissions])
+  const modules = useMemo(
+    () => sortModuleKeys([...new Set(permissions.map(p => p.module_key))], t, lang === 'ar' ? 'ar' : 'en'),
+    [permissions, t, lang]
+  )
+
+  async function reloadOpenRequestCount() {
+    try {
+      const n = await countOpenUserSupportRequests()
+      setOpenRequestCount(n)
+    } catch {
+      setOpenRequestCount(0)
+    }
+  }
 
   async function reload() {
     setLoading(true)
     try {
-      const [u, r, p, e] = await Promise.all([getUserAccounts(), getSystemRoles(), getSystemPermissions(), getEmployees()])
+      const [u, r, p, e] = await Promise.all([
+        getUserAccounts(),
+        getAllSystemRoles(true),
+        getSystemPermissions(),
+        getEmployees()
+      ])
       setUsers(u)
       setRoles(r)
       setPermissions(p)
       setEmployees(e)
       if (!selectedRoleId && r[0]) setSelectedRoleId(r[0].id)
+      await reloadOpenRequestCount()
     } catch (err) {
       notify(err instanceof Error ? err.message : t('common.error'), true)
     } finally {
@@ -77,6 +114,16 @@ export function UsersPermissionsPanel({ notify }: { notify: (m: string, err?: bo
     getRolePermissions(selectedRoleId).then(setRolePerms).catch(() => setRolePerms(new Map()))
   }, [selectedRoleId])
 
+  useEffect(() => {
+    if (!overrideUserId) {
+      setUserOverrides([])
+      return
+    }
+    getUserOverrides(overrideUserId)
+      .then(setUserOverrides)
+      .catch(() => setUserOverrides([]))
+  }, [overrideUserId])
+
   function userStatus(u: UserAccountDetail): { label: string; cls: string } {
     if (u.is_blocked) return { label: t('permissions.statusBlocked'), cls: 'text-red-300' }
     if (!u.is_active) return { label: t('permissions.statusInactive'), cls: 'text-slate-400' }
@@ -84,21 +131,6 @@ export function UsersPermissionsPanel({ notify }: { notify: (m: string, err?: bo
     if (u.employment_status && u.employment_status !== 'active')
       return { label: t('permissions.statusEmployeeStopped'), cls: 'text-orange-300' }
     return { label: t('permissions.statusActive'), cls: 'text-emerald-300' }
-  }
-
-  async function saveLink() {
-    if (!linkModal) return
-    setBusy(true)
-    try {
-      await linkUserToEmployee(linkModal.id, linkEmployeeId || null, linkRoleId || linkModal.system_role_id)
-      await reload()
-      setLinkModal(null)
-      notify(t('settings.updated'))
-    } catch (e) {
-      notify(e instanceof Error ? e.message : t('common.error'), true)
-    } finally {
-      setBusy(false)
-    }
   }
 
   async function confirmBlock() {
@@ -117,8 +149,39 @@ export function UsersPermissionsPanel({ notify }: { notify: (m: string, err?: bo
     }
   }
 
-  const subTabs: { key: SubTab; label: string }[] = [
+  async function confirmDeactivateUser() {
+    if (!deleteUser) return
+    setBusy(true)
+    try {
+      await deactivateUserAccount(deleteUser.id)
+      await reload()
+      setDeleteUser(null)
+      notify(t('permissions.userDeactivated'))
+    } catch (e) {
+      notify(e instanceof Error ? e.message : t('common.error'), true)
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  async function confirmDeleteRole() {
+    if (!deleteRole) return
+    setBusy(true)
+    try {
+      await deleteSystemRole(deleteRole.id)
+      await reload()
+      setDeleteRole(null)
+      notify(t('settings.deleted'))
+    } catch (e) {
+      notify(e instanceof Error ? e.message : t('common.error'), true)
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  const subTabs: { key: SubTab; label: string; badge?: number }[] = [
     { key: 'users', label: t('permissions.tabs.users') },
+    { key: 'requests', label: t('permissions.tabs.requests'), badge: openRequestCount },
     { key: 'roles', label: t('permissions.tabs.roles') },
     { key: 'matrix', label: t('permissions.tabs.matrix') },
     { key: 'overrides', label: t('permissions.tabs.overrides') },
@@ -140,6 +203,9 @@ export function UsersPermissionsPanel({ notify }: { notify: (m: string, err?: bo
             className={`rounded-xl px-3 py-2 text-xs font-black ${subTab === st.key ? 'bg-violet-500 text-slate-950' : 'bg-slate-800 text-slate-300'}`}
           >
             {st.label}
+            {st.badge ? (
+              <span className="ms-1.5 rounded-full bg-red-500 px-1.5 py-0.5 text-[10px] text-white">{st.badge}</span>
+            ) : null}
           </button>
         ))}
       </div>
@@ -147,73 +213,149 @@ export function UsersPermissionsPanel({ notify }: { notify: (m: string, err?: bo
       {loading ? (
         <p className="text-slate-400">{t('common.loading')}</p>
       ) : subTab === 'users' ? (
-        <div className="card-industrial overflow-x-auto">
-          <table className="w-full min-w-[900px] text-sm">
-            <thead>
-              <tr className="border-b border-slate-800 text-[10px] font-black uppercase text-slate-500">
-                <th className="table-cell">{t('permissions.userEmail')}</th>
-                <th className="table-cell">{t('permissions.linkedEmployee')}</th>
-                <th className="table-cell">{t('permissions.jobRole')}</th>
-                <th className="table-cell">{t('permissions.systemRole')}</th>
-                <th className="table-cell">{t('permissions.status')}</th>
-                <th className="table-cell">{t('common.actions')}</th>
-              </tr>
-            </thead>
-            <tbody>
-              {users.map(u => {
-                const st = userStatus(u)
-                return (
-                  <tr key={u.id} className="border-b border-slate-800/80">
-                    <td className="table-cell">{u.email}</td>
-                    <td className="table-cell">
-                      {u.employee_full_name ? `${u.employee_code} — ${u.employee_full_name}` : '—'}
-                    </td>
-                    <td className="table-cell">{u.job_role ? t(`jobRole.${u.job_role}`) : '—'}</td>
-                    <td className="table-cell">{u.system_role_name_ar || '—'}</td>
-                    <td className={`table-cell font-bold ${st.cls}`}>{st.label}</td>
-                    <td className="table-cell">
-                      <div className="flex flex-wrap gap-1">
-                        <button type="button" className="text-xs text-cyan-400" onClick={() => { setLinkModal(u); setLinkEmployeeId(u.employee_id ?? ''); setLinkRoleId(u.system_role_id ?? '') }}>
-                          {t('permissions.link')}
-                        </button>
-                        {!u.is_blocked ? (
-                          <button type="button" className="text-xs text-red-400" onClick={() => setBlockModal(u)}>
-                            {t('permissions.blockUser')}
-                          </button>
-                        ) : (
+        <>
+          <div className="flex justify-end">
+            <button
+              type="button"
+              onClick={() => setUserForm({ mode: 'create', user: null })}
+              className="inline-flex items-center gap-2 rounded-xl bg-cyan-500 px-4 py-2 text-sm font-black text-slate-950"
+            >
+              <Plus className="h-4 w-4" />
+              {t('permissions.addUser')}
+            </button>
+          </div>
+          <div className="card-industrial overflow-x-auto">
+            <table className="w-full min-w-[900px] text-sm">
+              <thead>
+                <tr className="border-b border-slate-800 text-[10px] font-black uppercase text-slate-500">
+                  <th className="table-cell">{t('permissions.userEmail')}</th>
+                  <th className="table-cell">{t('permissions.linkedEmployee')}</th>
+                  <th className="table-cell">{t('permissions.jobRole')}</th>
+                  <th className="table-cell">{t('permissions.systemRole')}</th>
+                  <th className="table-cell">{t('permissions.status')}</th>
+                  <th className="table-cell">{t('common.actions')}</th>
+                </tr>
+              </thead>
+              <tbody>
+                {users.map(u => {
+                  const st = userStatus(u)
+                  return (
+                    <tr key={u.id} className="border-b border-slate-800/80">
+                      <td className="table-cell">{u.email}</td>
+                      <td className="table-cell">
+                        {u.employee_full_name ? `${u.employee_code} — ${u.employee_full_name}` : '—'}
+                      </td>
+                      <td className="table-cell">{u.job_role ? t(`jobRole.${u.job_role}`) : '—'}</td>
+                      <td className="table-cell">{u.system_role_name_ar || '—'}</td>
+                      <td className={`table-cell font-bold ${st.cls}`}>{st.label}</td>
+                      <td className="table-cell">
+                        <div className="flex flex-wrap items-center gap-2">
                           <button
                             type="button"
-                            className="text-xs text-emerald-400"
-                            onClick={() => void unblockUser(u.id).then(() => reload().then(() => notify(t('permissions.userUnblocked'))))}
+                            title={t('common.edit')}
+                            className="rounded-lg p-1.5 text-cyan-400 hover:bg-slate-800"
+                            onClick={() => setUserForm({ mode: 'edit', user: u })}
                           >
-                            {t('permissions.unblockUser')}
+                            <Pencil className="h-4 w-4" />
                           </button>
-                        )}
-                      </div>
-                    </td>
-                  </tr>
-                )
-              })}
-            </tbody>
-          </table>
-        </div>
+                          <button
+                            type="button"
+                            title={t('permissions.managePassword')}
+                            className="rounded-lg p-1.5 text-amber-300 hover:bg-slate-800"
+                            onClick={() => setPasswordUser(u)}
+                          >
+                            <KeyRound className="h-4 w-4" />
+                          </button>
+                          {u.is_active && (
+                            <button
+                              type="button"
+                              title={t('common.delete')}
+                              className="rounded-lg p-1.5 text-red-400 hover:bg-slate-800"
+                              onClick={() => setDeleteUser(u)}
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </button>
+                          )}
+                          {!u.is_blocked ? (
+                            <button type="button" className="text-xs text-red-400" onClick={() => setBlockModal(u)}>
+                              {t('permissions.blockUser')}
+                            </button>
+                          ) : (
+                            <button
+                              type="button"
+                              className="text-xs text-emerald-400"
+                              onClick={() =>
+                                void unblockUser(u.id).then(() => reload().then(() => notify(t('permissions.userUnblocked'))))
+                              }
+                            >
+                              {t('permissions.unblockUser')}
+                            </button>
+                          )}
+                        </div>
+                      </td>
+                    </tr>
+                  )
+                })}
+              </tbody>
+            </table>
+          </div>
+        </>
+      ) : subTab === 'requests' ? (
+        <UserRequestsTab
+          users={users}
+          notify={notify}
+          onChanged={() => void reloadOpenRequestCount()}
+        />
       ) : subTab === 'roles' ? (
-        <div className="card-industrial p-4">
-          <ul className="space-y-2">
-            {roles.map(r => (
-              <li key={r.id} className="flex justify-between rounded-lg border border-slate-800 px-3 py-2">
-                <span className="font-bold text-white">{r.role_name_ar}</span>
-                <span className="font-mono text-xs text-slate-500" dir="ltr">
-                  {r.role_code}
-                </span>
-              </li>
-            ))}
-          </ul>
-        </div>
+        <>
+          <div className="flex justify-end">
+            <button
+              type="button"
+              onClick={() => setRoleForm('new')}
+              className="inline-flex items-center gap-2 rounded-xl bg-cyan-500 px-4 py-2 text-sm font-black text-slate-950"
+            >
+              <Plus className="h-4 w-4" />
+              {t('permissions.addRole')}
+            </button>
+          </div>
+          <div className="card-industrial p-4">
+            <ul className="space-y-2">
+              {roles.map(r => (
+                <li key={r.id} className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-slate-800 px-3 py-2">
+                  <div>
+                    <span className="font-bold text-white">{r.role_name_ar}</span>
+                    {!r.is_active && <span className="ms-2 text-xs text-slate-500">({t('permissions.inactive')})</span>}
+                    <p className="font-mono text-xs text-slate-500" dir="ltr">
+                      {r.role_code}
+                    </p>
+                  </div>
+                  <div className="flex gap-2">
+                    <button
+                      type="button"
+                      className="rounded-lg p-1.5 text-cyan-400 hover:bg-slate-800"
+                      onClick={() => setRoleForm(r)}
+                    >
+                      <Pencil className="h-4 w-4" />
+                    </button>
+                    {!r.is_system && (
+                      <button
+                        type="button"
+                        className="rounded-lg p-1.5 text-red-400 hover:bg-slate-800"
+                        onClick={() => setDeleteRole(r)}
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </button>
+                    )}
+                  </div>
+                </li>
+              ))}
+            </ul>
+          </div>
+        </>
       ) : subTab === 'matrix' ? (
         <div className="space-y-3">
           <select className={inputCls()} value={selectedRoleId} onChange={e => setSelectedRoleId(e.target.value)}>
-            {roles.map(r => (
+            {roles.filter(r => r.is_active).map(r => (
               <option key={r.id} value={r.id}>
                 {r.role_name_ar}
               </option>
@@ -234,7 +376,7 @@ export function UsersPermissionsPanel({ notify }: { notify: (m: string, err?: bo
               <tbody>
                 {modules.map(mod => (
                   <tr key={mod} className="border-t border-slate-800">
-                    <td className="p-2 font-bold text-slate-300">{mod}</td>
+                    <td className="p-2 font-bold text-slate-200">{permissionModuleLabel(mod, t)}</td>
                     {MATRIX_ACTIONS.map(action => {
                       const perm = permissions.find(p => p.module_key === mod && p.permission_key === action)
                       if (!perm)
@@ -266,47 +408,97 @@ export function UsersPermissionsPanel({ notify }: { notify: (m: string, err?: bo
           </div>
         </div>
       ) : subTab === 'overrides' ? (
-        <div className="card-industrial grid gap-3 p-4 sm:grid-cols-2">
-          <Field label={t('permissions.user')}>
-            <select className={inputCls()} value={overrideUserId} onChange={e => setOverrideUserId(e.target.value)}>
-              <option value="">—</option>
-              {users.map(u => (
-                <option key={u.id} value={u.id}>
-                  {u.email}
-                </option>
-              ))}
-            </select>
-          </Field>
-          <Field label={t('permissions.permission')}>
-            <select className={inputCls()} value={overridePermId} onChange={e => setOverridePermId(e.target.value)}>
-              <option value="">—</option>
-              {permissions.map(p => (
-                <option key={p.id} value={p.id}>
-                  {p.module_key}.{p.permission_key}
-                </option>
-              ))}
-            </select>
-          </Field>
-          <label className="flex items-center gap-2 text-sm">
-            <input type="checkbox" checked={overrideAllowed} onChange={e => setOverrideAllowed(e.target.checked)} />
-            {t('permissions.allow')}
-          </label>
-          <Field label={t('permissions.reason')}>
-            <input className={inputCls()} value={overrideReason} onChange={e => setOverrideReason(e.target.value)} />
-          </Field>
-          <button
-            type="button"
-            disabled={!overrideUserId || !overridePermId}
-            className="rounded-xl bg-cyan-500 px-4 py-2 font-black text-slate-950 disabled:opacity-40 sm:col-span-2"
-            onClick={() =>
-              void setUserPermissionOverride(overrideUserId, overridePermId, overrideAllowed, overrideReason).then(() => {
-                notify(t('settings.updated'))
-                void reloadPerms()
-              })
-            }
-          >
-            {t('permissions.savePermissions')}
-          </button>
+        <div className="space-y-4">
+          <div className="card-industrial grid gap-3 p-4 sm:grid-cols-2">
+            <Field label={t('permissions.user')}>
+              <select className={inputCls()} value={overrideUserId} onChange={e => setOverrideUserId(e.target.value)}>
+                <option value="">—</option>
+                {users.map(u => (
+                  <option key={u.id} value={u.id}>
+                    {u.email}
+                  </option>
+                ))}
+              </select>
+            </Field>
+            <Field label={t('permissions.permission')}>
+              <select className={inputCls()} value={overridePermId} onChange={e => setOverridePermId(e.target.value)}>
+                <option value="">—</option>
+                {permissions.map(p => (
+                  <option key={p.id} value={p.id}>
+                    {formatPermissionLabel(p.module_key, p.permission_key, t)}
+                  </option>
+                ))}
+              </select>
+            </Field>
+            <label className="flex items-center gap-2 text-sm">
+              <input type="checkbox" checked={overrideAllowed} onChange={e => setOverrideAllowed(e.target.checked)} />
+              {t('permissions.allow')}
+            </label>
+            <Field label={t('permissions.reason')}>
+              <input className={inputCls()} value={overrideReason} onChange={e => setOverrideReason(e.target.value)} />
+            </Field>
+            <button
+              type="button"
+              disabled={!overrideUserId || !overridePermId}
+              className="rounded-xl bg-cyan-500 px-4 py-2 font-black text-slate-950 disabled:opacity-40 sm:col-span-2"
+              onClick={() =>
+                void setUserPermissionOverride(overrideUserId, overridePermId, overrideAllowed, overrideReason).then(
+                  () => {
+                    notify(t('settings.updated'))
+                    void reloadPerms()
+                    return getUserOverrides(overrideUserId).then(setUserOverrides)
+                  }
+                )
+              }
+            >
+              {t('permissions.savePermissions')}
+            </button>
+          </div>
+          {overrideUserId && (
+            <div className="card-industrial p-4">
+              <h4 className="mb-2 text-sm font-black text-slate-300">{t('permissions.existingOverrides')}</h4>
+              {userOverrides.length === 0 ? (
+                <p className="text-sm text-slate-500">{t('common.noData')}</p>
+              ) : (
+                <ul className="space-y-2">
+                  {userOverrides.map(row => {
+                    const sp = row.system_permissions as
+                      | { module_key: string; permission_key: string }
+                      | { module_key: string; permission_key: string }[]
+                      | null
+                    const perm = Array.isArray(sp) ? sp[0] : sp
+                    return (
+                      <li
+                        key={row.id as string}
+                        className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-slate-800 px-3 py-2 text-sm"
+                      >
+                        <span>
+                          {perm ? formatPermissionLabel(perm.module_key, perm.permission_key, t) : '—'} —{' '}
+                          <span className={row.allowed ? 'text-emerald-400' : 'text-red-400'}>
+                            {row.allowed ? t('permissions.allow') : t('permissions.deny')}
+                          </span>
+                          {row.reason ? <span className="text-slate-500"> ({row.reason})</span> : null}
+                        </span>
+                        <button
+                          type="button"
+                          className="text-xs text-red-400"
+                          onClick={() =>
+                            void removeUserPermissionOverride(overrideUserId, row.permission_id as string).then(() => {
+                              notify(t('settings.deleted'))
+                              void reloadPerms()
+                              return getUserOverrides(overrideUserId).then(setUserOverrides)
+                            })
+                          }
+                        >
+                          {t('common.delete')}
+                        </button>
+                      </li>
+                    )
+                  })}
+                </ul>
+              )}
+            </div>
+          )}
         </div>
       ) : (
         <div className="card-industrial p-4">
@@ -315,50 +507,68 @@ export function UsersPermissionsPanel({ notify }: { notify: (m: string, err?: bo
               <li key={u.id} className="rounded-lg border border-red-500/30 bg-red-500/5 p-3 text-sm">
                 <p className="font-bold text-white">{u.email}</p>
                 <p className="text-red-200">{u.blocked_reason}</p>
+                <button
+                  type="button"
+                  className="mt-2 text-xs text-emerald-400"
+                  onClick={() => void unblockUser(u.id).then(() => reload().then(() => notify(t('permissions.userUnblocked'))))}
+                >
+                  {t('permissions.unblockUser')}
+                </button>
               </li>
             ))}
           </ul>
         </div>
       )}
 
-      <Modal
-        open={Boolean(linkModal)}
-        title={t('permissions.linkUserEmployee')}
-        icon={<Users className="h-5 w-5" />}
-        onClose={() => setLinkModal(null)}
-        footer={
-          <>
-            <button onClick={() => setLinkModal(null)} className="rounded-xl bg-slate-800 px-4 py-2 font-bold">
-              {t('common.cancel')}
-            </button>
-            <button disabled={busy} onClick={() => void saveLink()} className="rounded-xl bg-cyan-500 px-4 py-2 font-black text-slate-950">
-              {t('common.save')}
-            </button>
-          </>
-        }
-      >
-        <div className="space-y-3">
-          <Field label={t('permissions.employee')}>
-            <select className={inputCls()} value={linkEmployeeId} onChange={e => setLinkEmployeeId(e.target.value)}>
-              <option value="">{t('permissions.noEmployee')}</option>
-              {employees.map(e => (
-                <option key={e.id} value={e.id}>
-                  {e.employeeCode} — {e.fullName}
-                </option>
-              ))}
-            </select>
-          </Field>
-          <Field label={t('permissions.systemRole')}>
-            <select className={inputCls()} value={linkRoleId} onChange={e => setLinkRoleId(e.target.value)}>
-              {roles.map(r => (
-                <option key={r.id} value={r.id}>
-                  {r.role_name_ar}
-                </option>
-              ))}
-            </select>
-          </Field>
-        </div>
-      </Modal>
+      <UserAccountFormModal
+        open={Boolean(userForm)}
+        mode={userForm?.mode ?? 'create'}
+        user={userForm?.user ?? null}
+        roles={roles.filter(r => r.is_active)}
+        employees={employees}
+        onClose={() => setUserForm(null)}
+        onSaved={() => {
+          notify(t('settings.updated'))
+          void reload()
+        }}
+      />
+
+      <UserPasswordModal
+        open={Boolean(passwordUser)}
+        user={passwordUser}
+        onClose={() => setPasswordUser(null)}
+        onSaved={() => notify(t('permissions.passwordResetSuccess'))}
+      />
+
+      <SystemRoleFormModal
+        open={roleForm !== null}
+        role={roleForm === 'new' || roleForm === null ? null : roleForm}
+        onClose={() => setRoleForm(null)}
+        onSaved={() => {
+          notify(t('settings.updated'))
+          void reload()
+        }}
+      />
+
+      <ConfirmDialog
+        open={Boolean(deleteUser)}
+        title={t('permissions.deactivateUserTitle')}
+        message={t('permissions.deactivateUserMsg', { email: deleteUser?.email ?? '' })}
+        confirmLabel={t('common.confirm')}
+        busy={busy}
+        onCancel={() => setDeleteUser(null)}
+        onConfirm={() => void confirmDeactivateUser()}
+      />
+
+      <ConfirmDialog
+        open={Boolean(deleteRole)}
+        title={t('permissions.deleteRoleTitle')}
+        message={t('permissions.deleteRoleMsg', { name: deleteRole?.role_name_ar ?? '' })}
+        confirmLabel={t('common.delete')}
+        busy={busy}
+        onCancel={() => setDeleteRole(null)}
+        onConfirm={() => void confirmDeleteRole()}
+      />
 
       <Modal
         open={Boolean(blockModal)}
@@ -370,7 +580,11 @@ export function UsersPermissionsPanel({ notify }: { notify: (m: string, err?: bo
             <button onClick={() => setBlockModal(null)} className="rounded-xl bg-slate-800 px-4 py-2 font-bold">
               {t('common.cancel')}
             </button>
-            <button disabled={busy || !blockReason.trim()} onClick={() => void confirmBlock()} className="rounded-xl bg-red-500 px-4 py-2 font-black text-white">
+            <button
+              disabled={busy || !blockReason.trim()}
+              onClick={() => void confirmBlock()}
+              className="rounded-xl bg-red-500 px-4 py-2 font-black text-white disabled:opacity-50"
+            >
               {t('common.confirm')}
             </button>
           </>

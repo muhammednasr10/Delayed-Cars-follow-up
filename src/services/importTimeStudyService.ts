@@ -3,6 +3,7 @@ import { operationCodeFor } from '../Utils/timeStudyParser'
 import type { ParseResult } from '../Types/timeStudy'
 import { getTiggo8FamilyId, getFamilyMembers } from './modelFamiliesService'
 import { getVehicleModels } from './settingsService'
+import { createDraftTimeStudyFromImport } from './timeStudyService'
 
 function client() {
   if (!supabase) throw new Error('Supabase is not configured')
@@ -21,6 +22,7 @@ export type ImportSummary = {
   hardwareRows: number
   routesCreated: number
   skillsLinked: number
+  timeStudiesDrafted: number
   errors: string[]
 }
 
@@ -82,6 +84,7 @@ export async function runTimeStudyImport(
     hardwareRows: 0,
     routesCreated: 0,
     skillsLinked: 0,
+    timeStudiesDrafted: 0,
     errors: []
   }
 
@@ -261,6 +264,29 @@ export async function runTimeStudyImport(
         is_active: true
       })
       if (!skErr) summary.skillsLinked++
+    }
+
+    if (op.standardTimeSeconds && op.standardTimeSeconds > 0) {
+      try {
+        let modelIdForStudy: string | null = null
+        if (!isCommon && op.vehicleModelName) {
+          modelIdForStudy = modelByName.get(op.vehicleModelName.toLowerCase()) ?? null
+        } else if (!isCommon && op.operationType) {
+          modelIdForStudy = modelByName.get(op.operationType.toLowerCase()) ?? null
+        }
+        const studyId = await createDraftTimeStudyFromImport({
+          operationId,
+          stationId: st.id,
+          vehicleModelId: modelIdForStudy,
+          observedSeconds: op.standardTimeSeconds,
+          importBatchId: batch.id
+        })
+        if (studyId) summary.timeStudiesDrafted++
+      } catch (e) {
+        summary.errors.push(
+          `Time study draft ${op.operationNameAr}: ${e instanceof Error ? e.message : 'error'}`
+        )
+      }
     }
   }
 

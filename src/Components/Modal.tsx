@@ -21,7 +21,7 @@ export function Modal({ open, title, subtitle, icon, onClose, children, footer, 
 
   const node = (
     <div
-      className="fixed inset-0 z-[100] flex items-center justify-center overflow-y-auto bg-black/70 p-4 backdrop-blur-sm"
+      className="fixed inset-0 z-[100] flex items-center justify-center overflow-hidden bg-black/70 p-4 backdrop-blur-sm"
       onClick={onClose}
     >
       <div
@@ -41,7 +41,7 @@ export function Modal({ open, title, subtitle, icon, onClose, children, footer, 
           </button>
         </div>
 
-        <div className="flex-1 overflow-y-auto p-5">{children}</div>
+        <div className="min-h-0 flex-1 overflow-y-auto p-5">{children}</div>
 
         {footer && (
           <div className="flex shrink-0 justify-end gap-2 border-t border-slate-800 bg-slate-900/95 p-4">

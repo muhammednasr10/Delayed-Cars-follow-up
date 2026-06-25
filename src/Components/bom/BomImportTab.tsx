@@ -5,7 +5,7 @@ import { useAuth } from '../../Context/AuthContext'
 import { usePermissions } from '../../Context/PermissionsContext'
 import { parseSpreadsheetFile, listSpreadsheetSheets, pickDefaultBomSheet } from '../../Utils/parseSpreadsheet'
 import { parseBomSpreadsheetRows } from '../../Utils/bomImportParser'
-import { runBomImport } from '../../services/bomImportService'
+import { runBomImport, type BomImportProgress } from '../../services/bomImportService'
 import type { BomImportSummary, BomImportValidation } from '../../Types/bom'
 import { BomExcelPreviewTable } from './BomExcelPreviewTable'
 
@@ -22,7 +22,14 @@ export function BomImportTab({ notify }: { notify: (m: string, err?: boolean) =>
   const [sheet, setSheet] = useState('')
   const [validation, setValidation] = useState<BomImportValidation | null>(null)
   const [busy, setBusy] = useState(false)
+  const [importProgress, setImportProgress] = useState<BomImportProgress | null>(null)
   const [summary, setSummary] = useState<BomImportSummary | null>(null)
+
+  function phaseLabel(p: BomImportProgress): string {
+    if (p.phase === 'parts') return t('bom.importPhaseParts')
+    if (p.phase === 'bom') return t('bom.importPhaseBom')
+    return t('bom.importPhaseFinish')
+  }
 
   async function onPick(f: File) {
     setFile(f)
@@ -33,7 +40,7 @@ export function BomImportTab({ notify }: { notify: (m: string, err?: boolean) =>
       const def = pickDefaultBomSheet(names)
       setSheet(def)
       const rows = await parseSpreadsheetFile(f, def)
-      setValidation(parseBomSpreadsheetRows(rows))
+      setValidation(parseBomSpreadsheetRows(rows, def))
       setStep('preview')
     } catch (e) {
       notify(e instanceof Error ? e.message : t('common.error'), true)
@@ -48,7 +55,7 @@ export function BomImportTab({ notify }: { notify: (m: string, err?: boolean) =>
     setBusy(true)
     try {
       const rows = await parseSpreadsheetFile(file, name)
-      setValidation(parseBomSpreadsheetRows(rows))
+      setValidation(parseBomSpreadsheetRows(rows, name))
     } catch (e) {
       notify(e instanceof Error ? e.message : t('common.error'), true)
     } finally {
@@ -59,12 +66,17 @@ export function BomImportTab({ notify }: { notify: (m: string, err?: boolean) =>
   async function confirm() {
     if (!file || !validation?.rows.length) return
     setBusy(true)
+    setImportProgress({ phase: 'parts', done: 0, total: validation.rows.length })
     try {
-      const sum = await runBomImport(validation.rows, {
-        fileName: file.name,
-        sheetName: sheet,
-        sourceFile: file.name
-      })
+      const sum = await runBomImport(
+        validation.rows,
+        {
+          fileName: file.name,
+          sheetName: sheet,
+          sourceFile: file.name
+        },
+        setImportProgress
+      )
       setSummary(sum)
       setStep('done')
       notify(t('bom.importDone'))
@@ -72,6 +84,7 @@ export function BomImportTab({ notify }: { notify: (m: string, err?: boolean) =>
       notify(e instanceof Error ? e.message : t('common.error'), true)
     } finally {
       setBusy(false)
+      setImportProgress(null)
     }
   }
 
@@ -111,6 +124,8 @@ export function BomImportTab({ notify }: { notify: (m: string, err?: boolean) =>
             <span className="text-xs text-slate-500">
               {t('bom.previewStats', {
                 total: validation.stats.total,
+                source: validation.stats.sourceRows ?? validation.stats.total,
+                skipped: validation.stats.skippedNoQty ?? 0,
                 errors: validation.errors.length,
                 dup: validation.stats.duplicateKeys
               })}
@@ -130,6 +145,15 @@ export function BomImportTab({ notify }: { notify: (m: string, err?: boolean) =>
             <button type="button" onClick={() => setStep('upload')} className="rounded-xl bg-slate-800 px-4 py-2 font-bold">
               {t('common.back')}
             </button>
+            {busy && importProgress && (
+              <p className="flex-1 text-xs text-cyan-300/90">
+                {t('bom.importProgress', {
+                  done: importProgress.done,
+                  total: importProgress.total,
+                  phase: phaseLabel(importProgress)
+                })}
+              </p>
+            )}
             <button
               type="button"
               disabled={busy || validation.rows.length === 0}

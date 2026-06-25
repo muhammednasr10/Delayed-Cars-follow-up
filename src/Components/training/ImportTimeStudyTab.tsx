@@ -1,7 +1,6 @@
 import { useEffect, useState } from 'react'
 import { FileUp, CheckCircle2, AlertTriangle } from 'lucide-react'
 import { useLang } from '../../i18n/LanguageContext'
-import { useAuth } from '../../Context/AuthContext'
 import { parseSpreadsheetFile } from '../../Utils/parseSpreadsheet'
 import { parseTimeStudyRows } from '../../Utils/timeStudyParser'
 import { buildImportDiff, runTimeStudyImport, type ImportSummary } from '../../services/importTimeStudyService'
@@ -12,10 +11,14 @@ import type { VehicleModel } from '../../Types/settings'
 
 type Step = 'upload' | 'families' | 'preview' | 'diff' | 'done'
 
-export function ImportTimeStudyTab({ notify }: { notify: (msg: string, isError?: boolean) => void }) {
+type Props = {
+  notify: (msg: string, isError?: boolean) => void
+  canManage: boolean
+  onImported?: () => void
+}
+
+export function ImportTimeStudyTab({ notify, canManage, onImported }: Props) {
   const { t } = useLang()
-  const { hasRole } = useAuth()
-  const canManage = hasRole('admin')
 
   const [step, setStep] = useState<Step>('upload')
   const [parse, setParse] = useState<ParseResult | null>(null)
@@ -88,6 +91,7 @@ export function ImportTimeStudyTab({ notify }: { notify: (msg: string, isError?:
       const sum = await runTimeStudyImport(parse, { mode: importMode, tiggo8ModelIds: [...tiggo8Members] })
       setSummary(sum)
       setStep('done')
+      onImported?.()
       notify(t('import.completed'))
     } catch (e) {
       notify(e instanceof Error ? e.message : t('common.error'), true)
@@ -208,6 +212,7 @@ export function ImportTimeStudyTab({ notify }: { notify: (msg: string, isError?:
             <li>{t('import.sum.hardware', { n: summary.hardwareRows })}</li>
             <li>{t('import.sum.routes', { n: summary.routesCreated })}</li>
             <li>{t('import.sum.skills', { n: summary.skillsLinked })}</li>
+            <li>{t('import.sum.timeStudies', { n: summary.timeStudiesDrafted })}</li>
           </ul>
           {summary.errors.length > 0 && (
             <div className="mt-3 text-xs text-red-300">{summary.errors.slice(0, 10).join(' · ')}</div>

@@ -1,15 +1,27 @@
 import { useLang } from '../../i18n/LanguageContext'
 import { BOM_PARTS_DISPLAY_COLUMNS } from '../../Utils/bomPartsColumns'
+import { normalizeSupplySource, partKindLabel } from '../../Utils/bomDisplayFormat'
+import { resolvePartNameEn } from '../../Utils/partNameEn'
 import type { ParsedBomRow } from '../../Types/bom'
 
-function previewCell(row: ParsedBomRow, col: (typeof BOM_PARTS_DISPLAY_COLUMNS)[number]): string {
+function previewCell(
+  row: ParsedBomRow,
+  col: (typeof BOM_PARTS_DISPLAY_COLUMNS)[number],
+  t: (k: string) => string
+): string {
   switch (col) {
     case 'part_number':
       return row.partNumber
     case 'part_name_ar':
       return row.partNameAr
     case 'part_name_en':
-      return row.partNameEn
+      return resolvePartNameEn({
+        part_name_ar: row.partNameAr,
+        part_name_en: row.partNameEn,
+        raw_data: row.raw
+      })
+    case 'vehicle_model':
+      return row.applicableModels.join(', ') || row.qtyByModel[0]?.model || ''
     case 'bom_classification':
       return row.bomClassification
     case 'station_code':
@@ -17,9 +29,11 @@ function previewCell(row: ParsedBomRow, col: (typeof BOM_PARTS_DISPLAY_COLUMNS)[
     case 'qty_by_model':
       return row.qtyByModelRaw || row.qtyByModel.map(q => `${q.model}=${q.qty}`).join('; ')
     case 'part_kind':
-      return row.partKind
-    case 'part_class':
-      return row.stationCategory
+      return partKindLabel(row.partKind, t)
+    case 'supply_source':
+      return normalizeSupplySource(row.supplySource) || '—'
+    case 'operation':
+      return ''
     default:
       return ''
   }
@@ -34,10 +48,9 @@ export function BomExcelPreviewTable({ rows, maxRows = 40 }: { rows: ParsedBomRo
       <table className="w-full min-w-[1000px]">
         <thead>
           <tr className="text-slate-500">
-            <th className="p-2">{t('bom.model')}</th>
             {BOM_PARTS_DISPLAY_COLUMNS.map(c => (
               <th key={c} className="p-2 text-start whitespace-nowrap">
-                {t(`bom.col.${c}`)}
+                {c === 'vehicle_model' ? t('bom.model') : t(`bom.col.${c}`)}
               </th>
             ))}
           </tr>
@@ -45,10 +58,15 @@ export function BomExcelPreviewTable({ rows, maxRows = 40 }: { rows: ParsedBomRo
         <tbody>
           {slice.map((r, i) => (
             <tr key={i} className="border-t border-slate-800">
-              <td className="p-2 font-bold text-violet-200">{r.qtyByModel[0]?.model || '—'}</td>
               {BOM_PARTS_DISPLAY_COLUMNS.map(c => (
-                <td key={c} className="max-w-[160px] truncate p-2 text-slate-300" dir={c === 'part_number' || c === 'station_code' ? 'ltr' : undefined}>
-                  {previewCell(r, c) || '—'}
+                <td
+                  key={c}
+                  className={`max-w-[160px] truncate p-2 text-slate-300 ${
+                    c === 'vehicle_model' ? 'font-bold text-violet-200' : ''
+                  }`}
+                  dir={c === 'part_number' || c === 'station_code' || c === 'part_name_en' ? 'ltr' : undefined}
+                >
+                  {previewCell(r, c, t) || '—'}
                 </td>
               ))}
             </tr>

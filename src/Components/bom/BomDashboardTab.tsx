@@ -1,11 +1,13 @@
-import { AlertTriangle, Boxes, Clock, Layers, Package } from 'lucide-react'
+import { AlertTriangle, Boxes, Clock, Layers, Package, Wrench } from 'lucide-react'
 import { useLang } from '../../i18n/LanguageContext'
 import { useBomDashboard } from '../../hooks/useBomDashboard'
+import { useEngineeringDashboard } from '../../hooks/useEngineeringDashboard'
 import { StatCard } from '../StatCard'
 
 export function BomDashboardTab() {
   const { t } = useLang()
   const { stats, loading, error } = useBomDashboard()
+  const eng = useEngineeringDashboard()
 
   if (loading) return <p className="text-slate-400">{t('common.loading')}</p>
   if (error) return <p className="text-red-300">{error}</p>
@@ -27,6 +29,20 @@ export function BomDashboardTab() {
           icon={<Clock className="h-5 w-5" />}
         />
       </div>
+      {eng.stats && !eng.loading && (
+        <div className="card-industrial p-4">
+          <h3 className="mb-3 flex items-center gap-2 text-sm font-black text-white">
+            <Wrench className="h-4 w-4 text-cyan-300" />
+            {t('engineering.dashTitle')}
+          </h3>
+          <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+            <StatCard title={t('engineering.dashOps')} value={String(eng.stats.operations_total)} icon={<Wrench className="h-5 w-5" />} />
+            <StatCard title={t('engineering.dashOpsNoParts')} value={String(eng.stats.operations_without_parts)} icon={<AlertTriangle className="h-5 w-5" />} tone="orange" />
+            <StatCard title={t('engineering.dashTsApproved')} value={String(eng.stats.time_studies_approved)} icon={<Clock className="h-5 w-5" />} />
+            <StatCard title={t('engineering.dashOpsNoTime')} value={String(eng.stats.operations_without_standard_time)} icon={<Clock className="h-5 w-5" />} tone="orange" />
+          </div>
+        </div>
+      )}
       <div className="grid gap-4 lg:grid-cols-2">
         <div className="card-industrial p-4">
           <h3 className="mb-3 text-sm font-black text-white">{t('bom.byCategory')}</h3>

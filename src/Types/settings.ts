@@ -1,6 +1,9 @@
 export type VehicleModel = {
   id: string
   name: string
+  model_kind: 'family' | 'variant'
+  parent_model_id: string | null
+  parent_name?: string | null
   is_active: boolean
   created_at?: string
   updated_at?: string
@@ -22,6 +25,7 @@ export type Station = {
   station_name_en?: string | null
   station_type?: string | null
   sort_order?: number | null
+  parent_station_id?: string | null
   work_area_id?: string | null
   line_name?: string | null
   responsible_department?: string | null

@@ -1,5 +1,5 @@
 import { supabase } from '../lib/supabase'
-import type { VehicleInput, VehicleOverview } from '../Types/vehicle'
+import type { VehicleInput, VehicleOverview, VehicleUpdateInput } from '../Types/vehicle'
 
 function requireClient() {
   if (!supabase) throw new Error('Supabase غير مهيأ. تحقق من ملف .env')
@@ -9,6 +9,9 @@ function requireClient() {
 type VehicleOverviewRow = {
   id: string
   vin: string
+  model_id?: string | null
+  vehicle_color_id?: string | null
+  production_order_id?: string | null
   production_status: VehicleOverview['productionStatus']
   completion_status: VehicleOverview['completionStatus']
   qc_status: VehicleOverview['qcStatus']
@@ -17,6 +20,8 @@ type VehicleOverviewRow = {
   open_missing_count: number
   completion_percent: number | string
   model_name: string | null
+  color_name?: string | null
+  color_hex?: string | null
   production_order_number: string | null
   created_at: string
   updated_at: string
@@ -34,6 +39,11 @@ function mapOverview(row: VehicleOverviewRow): VehicleOverview {
     openMissingCount: row.open_missing_count,
     completionPercent: Number(row.completion_percent ?? 0),
     modelName: row.model_name ?? '',
+    modelId: row.model_id ?? null,
+    vehicleColorId: row.vehicle_color_id ?? null,
+    colorName: row.color_name ?? null,
+    colorHex: row.color_hex ?? null,
+    productionOrderId: row.production_order_id ?? null,
     productionOrderNumber: row.production_order_number ?? '',
     createdAt: row.created_at,
     updatedAt: row.updated_at
@@ -55,7 +65,7 @@ export async function createVehicle(input: VehicleInput): Promise<string> {
     .from('vehicles')
     .insert({
       vin: input.vin.trim().toUpperCase(),
-      production_order_id: input.productionOrderId,
+      production_order_id: input.productionOrderId ?? null,
       model_id: input.modelId,
       vehicle_color_id: input.vehicleColorId || null,
       current_station_id: input.currentStationId || null,
@@ -79,5 +89,21 @@ export async function markVehicleDelivered(vehicleId: string): Promise<void> {
     .from('vehicles')
     .update({ delivery_status: 'delivered' })
     .eq('id', vehicleId)
+  if (error) throw new Error(error.message)
+}
+
+export async function updateVehicle(vehicleId: string, input: VehicleUpdateInput): Promise<void> {
+  const patch: Record<string, unknown> = {}
+  if (input.vin !== undefined) patch.vin = input.vin.trim().toUpperCase()
+  if (input.modelId !== undefined) patch.model_id = input.modelId
+  if (input.vehicleColorId !== undefined) patch.vehicle_color_id = input.vehicleColorId || null
+  if (input.productionOrderId !== undefined) patch.production_order_id = input.productionOrderId || null
+
+  const { error } = await requireClient().from('vehicles').update(patch).eq('id', vehicleId)
+  if (error) throw new Error(error.message)
+}
+
+export async function softDeleteVehicle(vehicleId: string): Promise<void> {
+  const { error } = await requireClient().from('vehicles').update({ is_deleted: true }).eq('id', vehicleId)
   if (error) throw new Error(error.message)
 }

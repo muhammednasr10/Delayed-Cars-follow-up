@@ -9,7 +9,7 @@ import { BomDashboardTab } from '../Components/bom/BomDashboardTab'
 
 type Tab = 'parts' | 'compare' | 'categories' | 'import' | 'dashboard'
 
-export function BomPage() {
+export function BomPage({ embedded = false }: { embedded?: boolean }) {
   const { t } = useLang()
   const [tab, setTab] = useState<Tab>('parts')
   const [msg, setMsg] = useState('')
@@ -31,15 +31,17 @@ export function BomPage() {
 
   return (
     <div className="space-y-4">
-      <div className="card-industrial flex flex-wrap items-center gap-3 p-4">
-        <div className="rounded-2xl bg-violet-500/20 p-3 text-violet-300">
-          <Layers className="h-7 w-7" />
+      {!embedded && (
+        <div className="card-industrial flex flex-wrap items-center gap-3 p-4">
+          <div className="rounded-2xl bg-violet-500/20 p-3 text-violet-300">
+            <Layers className="h-7 w-7" />
+          </div>
+          <div>
+            <h2 className="text-xl font-black text-white">{t('bom.title')}</h2>
+            <p className="text-xs text-slate-500">{t('bom.subtitle')}</p>
+          </div>
         </div>
-        <div>
-          <h2 className="text-xl font-black text-white">{t('bom.title')}</h2>
-          <p className="text-xs text-slate-500">{t('bom.subtitle')}</p>
-        </div>
-      </div>
+      )}
 
       {msg && (
         <div

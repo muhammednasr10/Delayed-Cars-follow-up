@@ -82,3 +82,35 @@ export async function setUserPermissionOverride(
   })
   if (error) throw new Error(error.message)
 }
+
+export type SystemRoleInput = {
+  roleCode: string
+  roleNameAr: string
+  roleNameEn?: string
+  description?: string
+}
+
+export async function upsertSystemRole(roleId: string | null, input: SystemRoleInput): Promise<string> {
+  const { data, error } = await client().rpc('upsert_system_role', {
+    p_role_id: roleId,
+    p_role_code: input.roleCode.trim(),
+    p_role_name_ar: input.roleNameAr.trim(),
+    p_role_name_en: input.roleNameEn?.trim() ?? null,
+    p_description: input.description?.trim() ?? null
+  })
+  if (error) throw new Error(error.message)
+  return data as string
+}
+
+export async function deleteSystemRole(roleId: string): Promise<void> {
+  const { error } = await client().rpc('delete_system_role', { p_role_id: roleId })
+  if (error) throw new Error(error.message)
+}
+
+export async function getAllSystemRoles(includeInactive = false): Promise<SystemRole[]> {
+  let q = client().from('system_roles').select('*').order('role_name_ar')
+  if (!includeInactive) q = q.eq('is_active', true)
+  const { data, error } = await q
+  if (error) throw new Error(error.message)
+  return (data ?? []) as SystemRole[]
+}

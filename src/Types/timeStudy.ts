@@ -88,11 +88,18 @@ export type StationOperationDetail = {
   operationNameAr: string
   operationNameEn: string | null
   operationType: string
+  parentModelId: string | null
+  parentModelName: string | null
   technicianPosition: string | null
   toolSpec: string | null
+  standardTimeSeconds: number | null
   standardTimeMinutes: number | null
   workerTimeMinutes: number | null
+  stationTimeMinutes: number | null
   requiredManpowerCount: number
+  taskPrecedence: string | null
+  rankedPositionalWeight: number | null
+  zoningConstraints: string | null
   sequenceNo: number
   isCritical: boolean
   isActive: boolean

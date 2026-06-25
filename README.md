@@ -64,6 +64,24 @@ update profiles set role = 'admin' where email = 'you@example.com';
 
 Roles: `admin`, `production`, `warehouse`, `purchasing`, `quality`, `viewer`.
 
+### Users & permissions (Settings → Users & Permissions)
+
+Admins with `users.manage` can edit roles, the permission matrix, user accounts, and overrides.
+
+**Create users from the app:** run migration `0043_admin_create_user_rpc.sql` in the Supabase SQL Editor (no Edge Function required). Also apply `0042_user_accounts_admin_crud.sql` after `0014` / `0015` if not already applied.
+
+Optional fallback: `supabase functions deploy admin-users` if you prefer Edge Functions over the SQL RPC.
+
+### Wipe stations + engineering BOM (fresh import)
+
+To clear **all stations** and **engineering BOM** data (parts, BOM lines, import
+batches) while keeping models, colors, work areas, vehicles, and missing-parts
+records, run once in the Supabase SQL Editor:
+
+`supabase/migrations/0033_wipe_stations_and_bom.sql`
+
+Then re-import stations from **Settings → Stations** and BOM from **Settings → BOM**.
+
 ### Key tables
 
 `profiles`, `production_orders`, `vehicles`, `items`, `warehouses`,

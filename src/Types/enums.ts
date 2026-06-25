@@ -49,7 +49,9 @@ export type JobRole =
   | 'manager'
   | 'engineer'
   | 'supervisor'
+  | 'data_entry'
   | 'assistant_supervisor'
+  | 'leader'
   | 'technician'
 
 export const JOB_ROLES: JobRole[] = [
@@ -57,7 +59,9 @@ export const JOB_ROLES: JobRole[] = [
   'manager',
   'engineer',
   'supervisor',
+  'data_entry',
   'assistant_supervisor',
+  'leader',
   'technician'
 ]
 
@@ -67,8 +71,10 @@ export const ALLOWED_MANAGER_ROLES: Record<JobRole, JobRole[]> = {
   manager: ['general_manager'],
   engineer: ['manager', 'general_manager'],
   supervisor: ['engineer', 'manager'],
+  data_entry: ['supervisor', 'engineer', 'manager'],
   assistant_supervisor: ['supervisor'],
-  technician: ['supervisor', 'assistant_supervisor']
+  leader: ['supervisor', 'assistant_supervisor'],
+  technician: ['supervisor', 'assistant_supervisor', 'leader']
 }
 
 // Training matrix

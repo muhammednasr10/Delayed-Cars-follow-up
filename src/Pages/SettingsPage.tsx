@@ -1,24 +1,18 @@
-import { useEffect, useState, type ReactNode } from 'react'
-import { Boxes, Car, ListChecks, MapPin, Palette, Pencil, Plus, RefreshCcw, Settings, Trash2, Users, Building2 } from 'lucide-react'
+import { useEffect, useRef, useState, type ReactNode } from 'react'
+import { Boxes, Car, ListChecks, MapPin, Palette, RefreshCcw, Settings, Users, Building2 } from 'lucide-react'
+import { useCanAccessSettings } from '../hooks/useCanAccessSettings'
 import {
-  createStation,
   createVehicleColor,
-  createVehicleModel,
   createWorkArea,
-  deleteStation,
   deleteVehicleColor,
-  deleteVehicleModel,
   deleteWorkArea,
-  getStations,
   getAllVehicleColors,
   getVehicleModels,
   getWorkAreas,
-  updateStation,
   updateVehicleColor,
-  updateVehicleModel,
   updateWorkArea
 } from '../services/settingsService'
-import type { Station, VehicleColor, VehicleModel, WorkArea } from '../Types/settings'
+import type { VehicleColor, VehicleModel, WorkArea } from '../Types/settings'
 import { UsersPermissionsPanel } from '../Components/permissions/UsersPermissionsPanel'
 import {
   createMpDepartmentOption,
@@ -32,21 +26,19 @@ import {
 } from '../services/mpLookupService'
 import type { MpLookupOption } from '../Types/mpLookup'
 import { supabase } from '../lib/supabase'
-import { Modal } from '../Components/Modal'
-import { ConfirmDialog } from '../Components/ConfirmDialog'
-import { StationWizardModal } from '../Components/StationWizardModal'
+import { CrudSection, type CrudValues } from '../Components/CrudSection'
+import { ModelsHierarchySection } from '../Components/ModelsHierarchySection'
+import { StationsSection, type StationsSectionHandle } from '../Components/StationsSection'
 import { useLang } from '../i18n/LanguageContext'
 
-type TabKey = 'models' | 'areas' | 'stations' | 'colors' | 'reasons' | 'departments' | 'users'
-type Values = Record<string, string>
-
-const STATION_DEPARTMENTS = ['warehouse', 'purchasing', 'production', 'quality', 'supplier', 'management'] as const
+type TabKey = 'models' | 'stations' | 'colors' | 'areas' | 'reasons' | 'departments' | 'users'
+type Values = CrudValues
 
 const tabConfig: { key: TabKey; icon: ReactNode }[] = [
   { key: 'models', icon: <Car className="h-4 w-4" /> },
-  { key: 'areas', icon: <Boxes className="h-4 w-4" /> },
   { key: 'stations', icon: <MapPin className="h-4 w-4" /> },
   { key: 'colors', icon: <Palette className="h-4 w-4" /> },
+  { key: 'areas', icon: <Boxes className="h-4 w-4" /> },
   { key: 'reasons', icon: <ListChecks className="h-4 w-4" /> },
   { key: 'departments', icon: <Building2 className="h-4 w-4" /> },
   { key: 'users', icon: <Users className="h-4 w-4" /> }
@@ -54,6 +46,8 @@ const tabConfig: { key: TabKey; icon: ReactNode }[] = [
 
 export function SettingsPage() {
   const { t } = useLang()
+  const { canAccess: canAccessSettings } = useCanAccessSettings()
+  const stationsRef = useRef<StationsSectionHandle>(null)
   const [activeTab, setActiveTab] = useState<TabKey>('models')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
@@ -61,7 +55,6 @@ export function SettingsPage() {
 
   const [models, setModels] = useState<VehicleModel[]>([])
   const [areas, setAreas] = useState<WorkArea[]>([])
-  const [stations, setStations] = useState<Station[]>([])
   const [colors, setColors] = useState<VehicleColor[]>([])
   const [reasonOptions, setReasonOptions] = useState<MpLookupOption[]>([])
   const [departmentOptions, setDepartmentOptions] = useState<MpLookupOption[]>([])
@@ -74,17 +67,15 @@ export function SettingsPage() {
     setLoading(true)
     setError('')
     try {
-      const [modelsData, areasData, stationsData, colorsData, reasonsData, departmentsData] = await Promise.all([
+      const [modelsData, areasData, colorsData, reasonsData, departmentsData] = await Promise.all([
         getVehicleModels(),
         getWorkAreas(),
-        getStations(),
         getAllVehicleColors(),
         getMpReasonOptions(false),
         getMpDepartmentOptions(false)
       ])
       setModels(modelsData)
       setAreas(areasData)
-      setStations(stationsData)
       setColors(colorsData)
       setReasonOptions(reasonsData)
       setDepartmentOptions(departmentsData)
@@ -121,6 +112,22 @@ export function SettingsPage() {
     }
   }
 
+  if (!canAccessSettings) {
+    return (
+      <section className="card-industrial p-8 text-center">
+        <p className="text-lg font-black text-white">{t('settings.adminOnlyTitle')}</p>
+        <p className="mt-2 text-sm text-slate-400">{t('settings.adminOnly')}</p>
+      </section>
+    )
+  }
+
+  const crudTabs: TabKey[] = ['models', 'stations', 'areas', 'colors', 'reasons', 'departments']
+
+  function refreshActiveTab() {
+    if (activeTab === 'stations') void stationsRef.current?.reload()
+    else void loadAll()
+  }
+
   return (
     <section className="space-y-5">
       <div className="card-industrial p-4 sm:p-5">
@@ -132,9 +139,11 @@ export function SettingsPage() {
               <p className="text-sm text-slate-400">{t('settings.subtitle')}</p>
             </div>
           </div>
-          <button onClick={loadAll} className="rounded-xl bg-slate-800 px-4 py-2 text-sm font-bold text-slate-100 hover:bg-slate-700">
-            <RefreshCcw className="mr-1 inline h-4 w-4" /> {t('common.refresh')}
-          </button>
+          {crudTabs.includes(activeTab) && (
+            <button onClick={refreshActiveTab} className="rounded-xl bg-slate-800 px-4 py-2 text-sm font-bold text-slate-100 hover:bg-slate-700">
+              <RefreshCcw className="mr-1 inline h-4 w-4" /> {t('common.refresh')}
+            </button>
+          )}
         </div>
 
         <div className="-mx-1 mt-5 overflow-x-auto pb-1">
@@ -155,23 +164,30 @@ export function SettingsPage() {
         </div>
       </div>
 
-      {error && <div className="rounded-xl border border-red-500/30 bg-red-500/10 p-3 text-sm text-red-200">{error}</div>}
-      {success && <div className="rounded-xl border border-emerald-500/30 bg-emerald-500/10 p-3 text-sm text-emerald-200">{success}</div>}
+      {error && crudTabs.includes(activeTab) && (
+        <div className="rounded-xl border border-red-500/30 bg-red-500/10 p-3 text-sm text-red-200">{error}</div>
+      )}
+      {success && crudTabs.includes(activeTab) && (
+        <div className="rounded-xl border border-emerald-500/30 bg-emerald-500/10 p-3 text-sm text-emerald-200">{success}</div>
+      )}
 
       {activeTab === 'models' && (
-        <CrudSection
-          title={t('settings.tabs.models')}
-          icon={<Car className="h-5 w-5" />}
-          items={models}
+        <ModelsHierarchySection
+          models={models}
           busy={loading}
-          getId={m => m.id}
-          getLabel={m => m.name}
-          fields={[{ key: 'name', label: t('settings.fields.modelName'), required: true }]}
-          columns={[{ header: t('settings.cols.name'), render: m => m.name }]}
-          toValues={m => ({ name: m.name })}
-          onCreate={v => runAction(async () => { await createVehicleModel({ name: v.name }) }, t('settings.added'))}
-          onUpdate={(id, v) => runAction(async () => { await updateVehicleModel(id, { name: v.name }) }, t('settings.updated'))}
-          onDelete={id => runAction(() => deleteVehicleModel(id), t('settings.deleted'))}
+          onChanged={loadAll}
+          onError={setError}
+          onSuccess={showSuccess}
+        />
+      )}
+
+      {activeTab === 'stations' && (
+        <StationsSection
+          ref={stationsRef}
+          canManage
+          sectionTitle={t('settings.tabs.stations')}
+          onError={setError}
+          onSuccess={showSuccess}
         />
       )}
 
@@ -195,47 +211,6 @@ export function SettingsPage() {
           onCreate={v => runAction(async () => { await createWorkArea({ name: v.name, description: v.description }) }, t('settings.added'))}
           onUpdate={(id, v) => runAction(async () => { await updateWorkArea(id, { name: v.name, description: v.description }) }, t('settings.updated'))}
           onDelete={id => runAction(() => deleteWorkArea(id), t('settings.deleted'))}
-        />
-      )}
-
-      {activeTab === 'stations' && (
-        <CrudSection
-          title={t('settings.tabs.stations')}
-          icon={<MapPin className="h-5 w-5" />}
-          items={stations}
-          busy={loading}
-          getId={s => s.id}
-          getLabel={s => `${s.station_number} - ${s.station_name}`}
-          fields={[
-            { key: 'station_number', label: t('settings.fields.stationNumber'), required: true, placeholder: 'ST-01' },
-            { key: 'station_name', label: t('settings.fields.stationName'), required: true },
-            { key: 'work_area_id', label: t('settings.fields.workArea'), type: 'select', options: areas.map(a => ({ value: a.id, label: a.name })) },
-            { key: 'line_name', label: t('station.line') },
-            { key: 'responsible_department', label: t('station.department'), type: 'select', options: STATION_DEPARTMENTS.map(d => ({ value: d, label: t(`department.${d}`) })) },
-            { key: 'responsible_person', label: t('station.person') }
-          ]}
-          columns={[
-            { header: t('settings.cols.number'), render: s => s.station_number },
-            { header: t('settings.cols.name'), render: s => s.station_name },
-            { header: t('settings.fields.stationType'), render: s => t(`stationType.${s.station_type || 'main_line'}`) },
-            { header: t('settings.cols.workArea'), render: s => s.work_areas?.name || '-' },
-            { header: t('station.line'), render: s => s.line_name || '-' }
-          ]}
-          toValues={s => ({ station_number: s.station_number, station_name: s.station_name, station_name_en: s.station_name_en || '', station_type: s.station_type || 'main_line', sort_order: s.sort_order != null ? String(s.sort_order) : '0', work_area_id: s.work_area_id || '', line_name: s.line_name || '', responsible_department: s.responsible_department || '', responsible_person: s.responsible_person || '', is_active: s.is_active === false ? 'false' : 'true' })}
-          onCreate={v => runAction(async () => { await createStation({ station_number: v.station_number, station_name: v.station_name, station_name_en: v.station_name_en || null, station_type: v.station_type || 'main_line', sort_order: v.sort_order ? Number(v.sort_order) : 0, work_area_id: v.work_area_id || null, line_name: v.line_name || null, responsible_department: v.responsible_department || null, responsible_person: v.responsible_person || null, is_active: v.is_active !== 'false' }) }, t('settings.added'))}
-          onUpdate={(id, v) => runAction(async () => { await updateStation(id, { station_number: v.station_number, station_name: v.station_name, station_name_en: v.station_name_en || null, station_type: v.station_type || 'main_line', sort_order: v.sort_order ? Number(v.sort_order) : 0, work_area_id: v.work_area_id || null, line_name: v.line_name || null, responsible_department: v.responsible_department || null, responsible_person: v.responsible_person || null, is_active: v.is_active !== 'false' }) }, t('settings.updated'))}
-          onDelete={id => runAction(() => deleteStation(id), t('settings.deleted'))}
-          renderWizard={p => (
-            <StationWizardModal
-              open={p.open}
-              mode={p.mode}
-              initialValues={p.initialValues}
-              busy={p.busy}
-              areas={areas.map(a => ({ value: a.id, label: a.name }))}
-              onClose={p.onClose}
-              onSubmit={p.onSubmit}
-            />
-          )}
         />
       )}
 
@@ -408,247 +383,5 @@ export function SettingsPage() {
         />
       )}
     </section>
-  )
-}
-
-// ---------------------------------------------------------------------------
-// Reusable CRUD section: list + centered add/edit card modal + delete confirm.
-// ---------------------------------------------------------------------------
-
-type CrudField = {
-  key: string
-  label: string
-  type?: 'text' | 'color' | 'select'
-  options?: { value: string; label: string }[]
-  required?: boolean
-  placeholder?: string
-  defaultValue?: string
-}
-
-type CrudColumn<T> = { header: string; render: (item: T) => ReactNode }
-
-type CrudSectionProps<T> = {
-  title: string
-  icon: ReactNode
-  items: T[]
-  busy: boolean
-  fields: CrudField[]
-  columns: CrudColumn<T>[]
-  getId: (item: T) => string
-  getLabel: (item: T) => string
-  toValues: (item: T) => Values
-  onCreate: (values: Values) => Promise<boolean>
-  onUpdate: (id: string, values: Values) => Promise<boolean>
-  onDelete: (id: string) => Promise<boolean>
-  // Optional custom add/edit form (e.g. multi-step wizard). When provided it
-  // replaces the built-in single-card form modal.
-  renderWizard?: (args: {
-    open: boolean
-    mode: 'create' | 'edit'
-    initialValues: Values
-    busy: boolean
-    onClose: () => void
-    onSubmit: (values: Values) => Promise<boolean>
-  }) => ReactNode
-}
-
-function emptyValues(fields: CrudField[]): Values {
-  return fields.reduce<Values>((acc, field) => {
-    acc[field.key] = field.defaultValue ?? ''
-    return acc
-  }, {})
-}
-
-function CrudSection<T>({
-  title,
-  icon,
-  items,
-  busy,
-  fields,
-  columns,
-  getId,
-  getLabel,
-  toValues,
-  onCreate,
-  onUpdate,
-  onDelete,
-  renderWizard
-}: CrudSectionProps<T>) {
-  const { t } = useLang()
-  const [formOpen, setFormOpen] = useState(false)
-  const [editingId, setEditingId] = useState<string | null>(null)
-  const [values, setValues] = useState<Values>(emptyValues(fields))
-  const [formError, setFormError] = useState('')
-  const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({})
-  const [deleteTarget, setDeleteTarget] = useState<T | null>(null)
-
-  function openAdd() {
-    setEditingId(null)
-    setValues(emptyValues(fields))
-    setFormError('')
-    setFieldErrors({})
-    setFormOpen(true)
-  }
-
-  function openEdit(item: T) {
-    setEditingId(getId(item))
-    setValues(toValues(item))
-    setFormError('')
-    setFieldErrors({})
-    setFormOpen(true)
-  }
-
-  function setField(key: string, value: string) {
-    setValues(prev => ({ ...prev, [key]: value }))
-    setFieldErrors(prev => {
-      if (!prev[key]) return prev
-      const next = { ...prev }
-      delete next[key]
-      return next
-    })
-  }
-
-  async function submitForm() {
-    const errors: Record<string, string> = {}
-    for (const field of fields) {
-      if (field.required && !values[field.key]?.trim()) {
-        errors[field.key] = `«${field.label}» ${t('common.required')}`
-      }
-    }
-    if (Object.keys(errors).length > 0) {
-      setFieldErrors(errors)
-      setFormError('')
-      return
-    }
-    setFieldErrors({})
-    const ok = editingId ? await onUpdate(editingId, values) : await onCreate(values)
-    if (ok) setFormOpen(false)
-    else setFormError(t('common.error'))
-  }
-
-  async function submitWizard(wizardValues: Values): Promise<boolean> {
-    const ok = editingId ? await onUpdate(editingId, wizardValues) : await onCreate(wizardValues)
-    if (ok) setFormOpen(false)
-    return ok
-  }
-
-  async function confirmDelete() {
-    if (!deleteTarget) return
-    const ok = await onDelete(getId(deleteTarget))
-    if (ok) setDeleteTarget(null)
-  }
-
-  return (
-    <div className="card-industrial overflow-hidden">
-      <div className="flex items-center justify-between border-b border-slate-800 p-4 sm:p-5">
-        <div className="flex items-center gap-3">
-          <div className="rounded-xl bg-cyan-500/15 p-2.5 text-cyan-300">{icon}</div>
-          <div>
-            <h3 className="text-lg font-black text-white">{title}</h3>
-            <p className="text-xs text-slate-400">{t('common.items', { n: items.length })}</p>
-          </div>
-        </div>
-        <button onClick={openAdd} className="rounded-xl bg-cyan-500 px-4 py-2 text-sm font-black text-slate-950 hover:bg-cyan-400">
-          <Plus className="mr-1 inline h-4 w-4" /> {t('common.add')}
-        </button>
-      </div>
-
-      <div className="overflow-x-auto">
-        <table className="w-full min-w-[600px] text-start">
-          <thead className="bg-slate-950">
-            <tr>
-              {columns.map(col => (
-                <th key={col.header} className="table-cell text-xs font-black uppercase text-slate-400">{col.header}</th>
-              ))}
-              <th className="table-cell text-xs font-black uppercase text-slate-400">{t('common.actions')}</th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-slate-800">
-            {items.length === 0 ? (
-              <tr><td className="table-cell text-slate-400" colSpan={columns.length + 1}>{t('common.noData')}</td></tr>
-            ) : (
-              items.map(item => (
-                <tr key={getId(item)} className="bg-slate-900/30 hover:bg-slate-800/40">
-                  {columns.map(col => <td key={col.header} className="table-cell">{col.render(item)}</td>)}
-                  <td className="table-cell">
-                    <div className="flex gap-2">
-                      <button onClick={() => openEdit(item)} title={t('common.edit')} className="rounded-lg bg-orange-500/15 p-2 text-orange-200 hover:bg-orange-500/25">
-                        <Pencil className="h-4 w-4" />
-                      </button>
-                      <button onClick={() => setDeleteTarget(item)} title={t('common.delete')} className="rounded-lg bg-red-500/15 p-2 text-red-200 hover:bg-red-500/25">
-                        <Trash2 className="h-4 w-4" />
-                      </button>
-                    </div>
-                  </td>
-                </tr>
-              ))
-            )}
-          </tbody>
-        </table>
-      </div>
-
-      {renderWizard ? (
-        renderWizard({
-          open: formOpen,
-          mode: editingId ? 'edit' : 'create',
-          initialValues: values,
-          busy,
-          onClose: () => setFormOpen(false),
-          onSubmit: submitWizard
-        })
-      ) : (
-      <Modal
-        open={formOpen}
-        title={editingId ? t('settings.editTitle', { title }) : t('settings.addTitle', { title })}
-        icon={icon}
-        onClose={() => setFormOpen(false)}
-        footer={
-          <>
-            <button disabled={busy} onClick={() => setFormOpen(false)} className="rounded-xl bg-slate-800 px-4 py-2 font-bold text-slate-200 hover:bg-slate-700 disabled:opacity-50">{t('common.cancel')}</button>
-            <button disabled={busy} onClick={submitForm} className="rounded-xl bg-cyan-500 px-5 py-2 font-black text-slate-950 hover:bg-cyan-400 disabled:opacity-50">
-              {busy ? t('common.saving') : editingId ? t('common.saveEdit') : t('common.add')}
-            </button>
-          </>
-        }
-      >
-        <div className="space-y-4">
-          {fields.map(field => {
-            const fieldError = fieldErrors[field.key]
-            return (
-              <label key={field.key} className="block space-y-2">
-                <span className="text-sm font-bold text-slate-300">{field.label}{field.required && <span className="text-red-400"> *</span>}</span>
-                {field.type === 'select' ? (
-                  <select className={`input-dark ${fieldError ? 'border-red-500/60' : ''}`} value={values[field.key] ?? ''} onChange={e => setField(field.key, e.target.value)}>
-                    <option value="">—</option>
-                    {field.options?.map(opt => <option key={opt.value} value={opt.value}>{opt.label}</option>)}
-                  </select>
-                ) : field.type === 'color' ? (
-                  <div className="flex items-center gap-3">
-                    <input type="color" className="h-10 w-16 cursor-pointer rounded-lg border border-slate-700 bg-slate-950" value={values[field.key] || '#ffffff'} onChange={e => setField(field.key, e.target.value)} />
-                    <span className="font-mono text-sm text-slate-300">{values[field.key]}</span>
-                  </div>
-                ) : (
-                  <input className={`input-dark ${fieldError ? 'border-red-500/60' : ''}`} placeholder={field.placeholder} value={values[field.key] ?? ''} onChange={e => setField(field.key, e.target.value)} />
-                )}
-                {fieldError && <span className="block text-xs font-semibold text-red-400">{fieldError}</span>}
-              </label>
-            )
-          })}
-          {formError && <div className="rounded-xl border border-red-500/30 bg-red-500/10 p-3 text-sm text-red-200">{formError}</div>}
-        </div>
-      </Modal>
-      )}
-
-      <ConfirmDialog
-        open={Boolean(deleteTarget)}
-        title={t('settings.deleteTitle')}
-        message={deleteTarget ? t('settings.deleteMsg', { name: getLabel(deleteTarget) }) : ''}
-        confirmLabel={t('common.delete')}
-        cancelLabel={t('common.cancel')}
-        busy={busy}
-        onConfirm={confirmDelete}
-        onCancel={() => setDeleteTarget(null)}
-      />
-    </div>
   )
 }

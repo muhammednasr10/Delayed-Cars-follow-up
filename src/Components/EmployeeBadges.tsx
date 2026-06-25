@@ -8,7 +8,9 @@ const ROLE_CLASSES: Record<JobRole, string> = {
   manager: 'bg-blue-500/15 text-blue-200 ring-blue-400/30',
   engineer: 'bg-cyan-500/15 text-cyan-200 ring-cyan-400/30',
   supervisor: 'bg-emerald-500/15 text-emerald-200 ring-emerald-400/30',
+  data_entry: 'bg-teal-500/15 text-teal-200 ring-teal-400/30',
   assistant_supervisor: 'bg-amber-500/15 text-amber-200 ring-amber-400/30',
+  leader: 'bg-orange-500/15 text-orange-200 ring-orange-400/30',
   technician: 'bg-slate-500/15 text-slate-200 ring-slate-400/30'
 }
 

@@ -1,5 +1,8 @@
 import { supabase } from '../lib/supabase'
 import type { BomDashboardStats, BomItemCreateInput, BomItemDetail, BomItemUpdateInput } from '../Types/bom'
+import type { VehicleModel } from '../Types/settings'
+import { cardsCanConsolidate, consolidatedPayload, type ModelCardDraft } from '../Utils/bomModelCards'
+import { effectivePartKind, effectiveSupplySource } from '../Utils/bomDefaults'
 import { bomImportLineKey, classificationToCategoryCode, normalizePartNumber } from '../Utils/partNumberNormalize'
 import { BOM_FILTER_DB_FIELD, type BomFilterColumn } from '../Utils/bomFilterFields'
 import { upsertPart } from './partsService'
@@ -21,6 +24,10 @@ export type BomListFilters = {
   classification?: string
   uncategorizedOnly?: boolean
   needsReviewOnly?: boolean
+  isCriticalOnly?: boolean
+  stopperType?: 'line_stopper' | 'car_stopper' | 'non_stopper'
+  hasOperationOnly?: boolean
+  noOperationOnly?: boolean
   sourceFile?: string
   excel?: BomExcelColumnFilters
   page?: number
@@ -44,6 +51,16 @@ function applyBomFilters(q: any, filters: BomListFilters) {
   if (filters.classification) q = q.ilike('bom_classification', `%${filters.classification}%`)
   if (filters.uncategorizedOnly) q = q.or('category_code.is.null,category_code.eq.UNCATEGORIZED')
   if (filters.needsReviewOnly) q = q.eq('needs_review', true)
+  if (filters.isCriticalOnly) q = q.eq('is_critical', true)
+  if (filters.stopperType === 'line_stopper') {
+    q = q.or('stopper_type.eq.line_stopper,operation_is_line_stopper.eq.true')
+  } else if (filters.stopperType === 'car_stopper') {
+    q = q.or('stopper_type.eq.car_stopper,operation_is_car_stopper.eq.true')
+  } else if (filters.stopperType) {
+    q = q.eq('stopper_type', filters.stopperType)
+  }
+  if (filters.hasOperationOnly) q = q.not('operation_id', 'is', null)
+  if (filters.noOperationOnly) q = q.is('operation_id', null)
   if (filters.sourceFile) q = q.ilike('source_file', `%${filters.sourceFile}%`)
 
   const excel = filters.excel
@@ -185,7 +202,7 @@ export async function updateBomItem(id: string, input: BomItemUpdateInput): Prom
         ...(input.alternative_part_no != null
           ? { alternative_part_no: input.alternative_part_no.trim() || null }
           : {}),
-        ...(input.part_kind != null ? { part_type: input.part_kind.trim() || null } : {})
+        ...(input.part_kind != null ? { part_type: effectivePartKind(input.part_kind) } : {})
       })
       .eq('id', row.part_id)
     if (error) throw new Error(error.message)
@@ -200,6 +217,8 @@ export async function updateBomItem(id: string, input: BomItemUpdateInput): Prom
   if (vehicleModelId) {
     const { data: vm } = await client().from('vehicle_models').select('name').eq('id', vehicleModelId).maybeSingle()
     modelName = (vm?.name as string) ?? ''
+  } else if (input.applicable_models_text) {
+    modelName = '_'
   }
 
   const norm = normalizePartNumber(partNumber)
@@ -224,11 +243,15 @@ export async function updateBomItem(id: string, input: BomItemUpdateInput): Prom
       ? { applicable_models_text: input.applicable_models_text }
       : {}),
     ...(input.station_category !== undefined ? { station_category: input.station_category } : {}),
+    ...(input.supply_source !== undefined
+      ? { supply_source: effectiveSupplySource(input.supply_source) }
+      : {}),
     ...(input.bom_classification !== undefined ? { bom_classification: input.bom_classification } : {}),
     ...(input.qty_by_model_raw !== undefined ? { qty_by_model_raw: input.qty_by_model_raw } : {}),
     ...(input.notes !== undefined ? { notes: input.notes } : {}),
     ...(input.needs_review !== undefined ? { needs_review: input.needs_review } : {}),
-    ...(input.is_active !== undefined ? { is_active: input.is_active } : {})
+    ...(input.is_active !== undefined ? { is_active: input.is_active } : {}),
+    ...(input.stopper_type !== undefined ? { stopper_type: input.stopper_type } : {})
   }
 
   if (input.bom_classification != null) {
@@ -250,7 +273,8 @@ export async function updateBomItem(id: string, input: BomItemUpdateInput): Prom
 export async function createBomItem(input: BomItemCreateInput): Promise<string> {
   const partNumber = input.part_number.trim()
   if (!partNumber) throw new Error('Part number is required')
-  if (!input.vehicle_model_id) throw new Error('Vehicle model is required')
+  const hasModels = Boolean(input.applicable_models_text?.trim() || input.vehicle_model_id)
+  if (!hasModels) throw new Error('Vehicle model is required')
 
   let categoryId: string | null = null
   if (input.bom_classification) {
@@ -276,13 +300,21 @@ export async function createBomItem(input: BomItemCreateInput): Promise<string> 
     part_name_ar: input.part_name_ar,
     part_name_en: input.part_name_en,
     category_id: categoryId,
-    part_type: input.part_kind,
+    part_type: effectivePartKind(input.part_kind),
     part_number_new: input.part_number_new,
     alternative_part_no: input.alternative_part_no
   })
 
-  const { data: vm } = await client().from('vehicle_models').select('name').eq('id', input.vehicle_model_id).maybeSingle()
-  const modelName = (vm?.name as string) ?? ''
+  let modelName = ''
+  if (input.vehicle_model_id) {
+    const { data: vm } = await client()
+      .from('vehicle_models')
+      .select('name')
+      .eq('id', input.vehicle_model_id)
+      .maybeSingle()
+    modelName = (vm?.name as string) ?? ''
+  }
+
   const stationCode = input.station_code_text?.trim() ?? ''
   const norm = normalizePartNumber(partNumber)
   const lineKey = bomImportLineKey({
@@ -300,19 +332,21 @@ export async function createBomItem(input: BomItemCreateInput): Promise<string> 
     part_number: partNumber,
     part_name: input.part_name_ar?.trim() || input.part_name_en?.trim() || null,
     quantity: input.quantity,
-    vehicle_model_id: input.vehicle_model_id,
+    vehicle_model_id: input.vehicle_model_id ?? null,
     station_id: input.station_id ?? null,
     station_code_text: stationCode || null,
     model_family: input.model_family?.trim() || null,
     applicable_models_text: input.applicable_models_text?.trim() || modelName || null,
     station_category: input.station_category?.trim() || null,
+    supply_source: effectiveSupplySource(input.supply_source),
     bom_classification: input.bom_classification?.trim() || null,
     qty_by_model_raw: qtyRaw,
     import_line_key: lineKey,
     needs_review: !input.station_id && !stationCode,
     notes: input.notes?.trim() || null,
     source_sheet: 'manual',
-    is_active: true
+    is_active: true,
+    stopper_type: input.stopper_type ?? 'non_stopper'
   }
 
   const { data: existing } = await client()
@@ -330,6 +364,77 @@ export async function createBomItem(input: BomItemCreateInput): Promise<string> 
   const { data, error } = await client().from('bom_items').insert(payload).select('id').single()
   if (error) throw new Error(error.message)
   return data.id as string
+}
+
+export async function saveBomFromModelCards(
+  editItemId: string | undefined,
+  familyIds: string[],
+  cards: ModelCardDraft[],
+  names: {
+    part_name_ar?: string
+    part_name_en?: string
+    notes?: string
+    stopper_type?: 'line_stopper' | 'car_stopper' | 'non_stopper'
+  },
+  allModels: VehicleModel[]
+): Promise<string> {
+  const active = cards.filter(c => {
+    const q = Number(c.qty)
+    return c.part_number.trim() && c.modelId && Number.isFinite(q) && q > 0
+  })
+  if (active.length === 0) throw new Error('At least one model with part number and qty is required')
+
+  if (cardsCanConsolidate(active)) {
+    const payload = consolidatedPayload(allModels, familyIds, active, names)
+    if (editItemId) {
+      await updateBomItem(editItemId, payload)
+      return editItemId
+    }
+    const id = await createBomItem({
+      ...payload,
+      vehicle_model_id: active.length === 1 ? active[0].modelId : null
+    })
+    return id
+  }
+
+  let primaryId = editItemId ?? ''
+  for (let i = 0; i < active.length; i++) {
+    const c = active[i]
+    const variant = allModels.find(m => m.id === c.modelId)
+    const familyName =
+      allModels.find(m => m.id === variant?.parent_model_id)?.name ??
+      allModels.find(m => familyIds.includes(m.id))?.name ??
+      undefined
+    const payload: BomItemCreateInput = {
+      part_number: c.part_number.trim(),
+      part_number_new: c.part_number_new.trim() || undefined,
+      alternative_part_no: c.alternative_part_no.trim() || undefined,
+      part_name_ar: names.part_name_ar,
+      part_name_en: names.part_name_en,
+      part_kind: effectivePartKind(c.part_kind),
+      quantity: Number(c.qty),
+      vehicle_model_id: c.modelId,
+      station_id: c.station_id || null,
+      station_code_text: c.station_code_text,
+      station_category: c.station_category || undefined,
+      supply_source: effectiveSupplySource(c.supply_source),
+      model_family: familyName,
+      applicable_models_text: c.modelName,
+      bom_classification: c.bom_classification || undefined,
+      qty_by_model_raw: `${c.modelName}=${c.qty}`,
+      notes: names.notes,
+      stopper_type: names.stopper_type ?? 'non_stopper'
+    }
+    if (i === 0 && editItemId) {
+      await updateBomItem(editItemId, payload)
+      primaryId = editItemId
+    } else {
+      const id = await createBomItem(payload)
+      if (!primaryId) primaryId = id
+    }
+  }
+  if (!primaryId) throw new Error('Failed to save BOM item')
+  return primaryId
 }
 
 export async function deleteBomItem(id: string): Promise<void> {

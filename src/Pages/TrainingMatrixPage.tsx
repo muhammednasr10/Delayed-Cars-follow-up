@@ -2,25 +2,32 @@ import { useEffect, useState } from 'react'
 import { GraduationCap } from 'lucide-react'
 import { useLang } from '../i18n/LanguageContext'
 import { useAuth } from '../Context/AuthContext'
+import { usePermissions } from '../Context/PermissionsContext'
 import { useEmployees } from '../hooks/useEmployees'
 import { useEmployeeTrainingRecords, useStationRequiredSkills, useTrainingSkills } from '../hooks/useTraining'
-import { useStationOperations } from '../hooks/useStationOperations'
-import { getStations, getVehicleModels, getWorkAreas } from '../services/settingsService'
-import { StationOperationsTab } from '../Components/training/StationOperationsTab'
+import { getStations, getVehicleModels } from '../services/settingsService'
+import { OrgStructurePage } from './OrgStructurePage'
+import { WorkforceAttendanceSection } from '../Components/WorkforceAttendanceSection'
+import { WorkforceManpowerSection } from '../Components/WorkforceManpowerSection'
 import { StationRequiredSkillsTab } from '../Components/training/StationRequiredSkillsTab'
 import { EmployeeTrainingMatrixTab } from '../Components/training/EmployeeTrainingMatrixTab'
 import { StationQualificationTab } from '../Components/training/StationQualificationTab'
 import { TrainingExpiryDashboard } from '../Components/training/TrainingExpiryDashboard'
-import { ImportTimeStudyTab } from '../Components/training/ImportTimeStudyTab'
-import type { Station, VehicleModel, WorkArea } from '../Types/settings'
+import { OperationQualificationTab } from '../Components/training/OperationQualificationTab'
+import type { Station, VehicleModel } from '../Types/settings'
 
-type Tab = 'operations' | 'stationSkills' | 'matrix' | 'qualification' | 'expiry' | 'import'
-const TABS: Tab[] = ['operations', 'stationSkills', 'matrix', 'qualification', 'expiry', 'import']
+type Tab = 'org' | 'attendance' | 'manpower' | 'operations' | 'stationSkills' | 'matrix' | 'qualification' | 'expiry'
+const TABS: Tab[] = ['org', 'attendance', 'manpower', 'operations', 'stationSkills', 'matrix', 'qualification', 'expiry']
 
 export function TrainingMatrixPage() {
   const { t } = useLang()
   const { hasRole } = useAuth()
-  const canManage = hasRole('admin')
+  const { hasPermission } = usePermissions()
+  const canManage =
+    hasPermission('training_matrix', 'manage') ||
+    hasPermission('training_matrix', 'update') ||
+    hasPermission('training_matrix', 'create')
+  const canManageEmployees = hasRole('admin') || hasPermission('employees', 'update')
 
   const { employees } = useEmployees()
   const { skills, reload: reloadSkills } = useTrainingSkills()
@@ -28,17 +35,13 @@ export function TrainingMatrixPage() {
   const { records, reload: reloadRecords } = useEmployeeTrainingRecords()
   const [stations, setStations] = useState<Station[]>([])
   const [models, setModels] = useState<VehicleModel[]>([])
-  const [workAreas, setWorkAreas] = useState<WorkArea[]>([])
-  const { parentGroups: operationParents, loading: opsLoading, error: opsError, reload: reloadOperations } = useStationOperations()
-
-  const [tab, setTab] = useState<Tab>('operations')
+  const [tab, setTab] = useState<Tab>('org')
   const [success, setSuccess] = useState('')
   const [error, setError] = useState('')
 
   useEffect(() => {
     getStations().then(setStations).catch(() => setStations([]))
     getVehicleModels().then(setModels).catch(() => setModels([]))
-    getWorkAreas().then(setWorkAreas).catch(() => setWorkAreas([]))
   }, [])
 
   function notify(msg: string, isError = false) {
@@ -69,23 +72,18 @@ export function TrainingMatrixPage() {
       {success && <div className="rounded-xl border border-emerald-500/30 bg-emerald-500/10 p-3 text-sm text-emerald-200">{success}</div>}
       {error && <div className="rounded-xl border border-red-500/30 bg-red-500/10 p-3 text-sm text-red-200">{error}</div>}
 
-      {tab === 'operations' && (
-        <StationOperationsTab
-          parentGroups={operationParents}
-          models={models}
-          workAreas={workAreas}
-          loading={opsLoading}
-          loadError={opsError}
-          canManage={canManage}
-          onReload={reloadOperations}
-          notify={notify}
-        />
+      {tab === 'org' && <OrgStructurePage embedded />}
+      {tab === 'attendance' && (
+        <WorkforceAttendanceSection employees={employees} canManage={canManageEmployees} />
       )}
+      {tab === 'manpower' && (
+        <WorkforceManpowerSection stations={stations} employees={employees} canManage={canManageEmployees} />
+      )}
+      {tab === 'operations' && <OperationQualificationTab stations={stations} />}
       {tab === 'stationSkills' && <StationRequiredSkillsTab required={required} stations={stations} skills={skills} canManage={canManage} onChanged={reloadRequired} notify={notify} />}
       {tab === 'matrix' && <EmployeeTrainingMatrixTab employees={employees} skills={skills} records={records} canManage={canManage} onChanged={reloadRecords} notify={notify} />}
       {tab === 'qualification' && <StationQualificationTab employees={employees} required={required} records={records} stations={stations} />}
       {tab === 'expiry' && <TrainingExpiryDashboard employees={employees} records={records} />}
-      {tab === 'import' && <ImportTimeStudyTab notify={notify} />}
     </section>
   )
 }

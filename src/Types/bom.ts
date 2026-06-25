@@ -36,6 +36,7 @@ export type BomItemDetail = {
   applicable_models_text: string | null
   station_code_text: string | null
   station_category: string | null
+  supply_source: string | null
   bom_classification: string | null
   qty_by_model_raw: string | null
   source_file: string | null
@@ -43,6 +44,15 @@ export type BomItemDetail = {
   source_row_number: number | null
   import_line_key: string | null
   needs_review: boolean
+  is_critical?: boolean
+  stopper_type?: string | null
+  operation_id?: string | null
+  operation_code?: string | null
+  operation_name?: string | null
+  operation_is_line_stopper?: boolean | null
+  operation_is_car_stopper?: boolean | null
+  operation_zoning_constraints?: string | null
+  station_sort_order?: number | null
   notes: string | null
   raw_data: Record<string, string> | null
   is_active: boolean
@@ -68,15 +78,17 @@ export type BomItemCreateInput = {
   alternative_part_no?: string
   part_kind?: string
   quantity: number
-  vehicle_model_id: string
+  vehicle_model_id?: string | null
   station_id?: string | null
   station_code_text?: string
   model_family?: string
   applicable_models_text?: string
   station_category?: string
+  supply_source?: string | null
   bom_classification?: string
   qty_by_model_raw?: string
   notes?: string
+  stopper_type?: 'line_stopper' | 'car_stopper' | 'non_stopper'
 }
 
 export type BomItemUpdateInput = {
@@ -93,11 +105,13 @@ export type BomItemUpdateInput = {
   model_family?: string | null
   applicable_models_text?: string | null
   station_category?: string | null
+  supply_source?: string | null
   bom_classification?: string | null
   qty_by_model_raw?: string | null
   notes?: string | null
   needs_review?: boolean
   is_active?: boolean
+  stopper_type?: 'line_stopper' | 'car_stopper' | 'non_stopper' | null
 }
 
 export type PartNumberComparison = {
@@ -136,6 +150,7 @@ export type ParsedBomRow = {
   applicableModels: string[]
   stationCode: string
   stationCategory: string
+  supplySource: string
   partNumber: string
   partNumberNew: string
   alternativePartNo: string
@@ -160,6 +175,8 @@ export type BomImportValidation = {
     missingPartNumber: number
     duplicateKeys: number
     needsReview: number
+    sourceRows?: number
+    skippedNoQty?: number
   }
 }
 

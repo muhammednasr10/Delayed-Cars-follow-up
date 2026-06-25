@@ -18,7 +18,7 @@ export function EmployeeTable({ employees, canManage, onEdit, onToggleActive }: 
       <table className="w-full min-w-[1000px] text-start">
         <thead className="bg-slate-950/90">
           <tr>
-            {['code', 'name', 'role', 'department', 'workArea', 'manager', 'contact', 'status'].map(c => (
+            {['code', 'name', 'role', 'assignmentStatus', 'department', 'workArea', 'manager', 'contact', 'status'].map(c => (
               <th key={c} className="table-cell text-xs font-black uppercase text-slate-400">{t(`org.f.${c === 'contact' ? 'phone' : c}`)}</th>
             ))}
             {canManage && <th className="table-cell text-xs font-black uppercase text-slate-400">{t('common.actions')}</th>}
@@ -30,6 +30,9 @@ export function EmployeeTable({ employees, canManage, onEdit, onToggleActive }: 
               <td className="table-cell font-black text-white" dir="ltr">{e.employeeCode}</td>
               <td className="table-cell font-bold text-slate-100">{e.fullName}</td>
               <td className="table-cell"><JobRoleBadge role={e.jobRole} /></td>
+              <td className="table-cell text-slate-300">
+                {e.assignmentStatus ? t(`org.assignmentStatus.${e.assignmentStatus}`) : '-'}
+              </td>
               <td className="table-cell text-slate-300">{e.department ? t(`department.${e.department}`) : '-'}</td>
               <td className="table-cell text-slate-300">{e.workAreaName ?? '-'}</td>
               <td className="table-cell text-slate-300">{e.directManagerName ?? t('org.f.noManager')}</td>

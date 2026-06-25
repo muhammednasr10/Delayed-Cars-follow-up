@@ -1,6 +1,7 @@
 import { supabase } from '../lib/supabase'
+import type { AssignmentStatus } from '../Types/employee'
 import type { Employee, EmployeeInput } from '../Types/employee'
-import type { JobRole, ResponsibleDepartment } from '../Types/enums'
+import { JOB_ROLES, type JobRole, type ResponsibleDepartment } from '../Types/enums'
 
 function requireClient() {
   if (!supabase) throw new Error('Supabase is not configured. Check .env')
@@ -21,6 +22,7 @@ type EmployeeRow = {
   phone: string | null
   email: string | null
   notes: string | null
+  assignment_status: string | null
   is_active: boolean
   employment_status?: string
   stopped_reason?: string | null
@@ -31,6 +33,20 @@ type EmployeeRow = {
 }
 
 const SELECT = '*, work_areas(name), stations(station_number, station_name)'
+
+const JOB_ROLE_RANK = new Map<JobRole, number>(JOB_ROLES.map((role, index) => [role, index]))
+
+/** Factory hierarchy first, then employee code (numeric-aware). */
+export function compareEmployees(a: Employee, b: Employee): number {
+  const ra = JOB_ROLE_RANK.get(a.jobRole) ?? JOB_ROLES.length
+  const rb = JOB_ROLE_RANK.get(b.jobRole) ?? JOB_ROLES.length
+  if (ra !== rb) return ra - rb
+  return a.employeeCode.localeCompare(b.employeeCode, undefined, { numeric: true, sensitivity: 'base' })
+}
+
+function sortEmployees(list: Employee[]): Employee[] {
+  return [...list].sort(compareEmployees)
+}
 
 function mapRow(row: EmployeeRow, byId: Map<string, EmployeeRow>): Employee {
   const manager = row.direct_manager_id ? byId.get(row.direct_manager_id) : null
@@ -52,6 +68,7 @@ function mapRow(row: EmployeeRow, byId: Map<string, EmployeeRow>): Employee {
     phone: row.phone,
     email: row.email,
     notes: row.notes,
+    assignmentStatus: (row.assignment_status as AssignmentStatus | null) ?? null,
     isActive: row.is_active,
     employmentStatus: (row.employment_status as Employee['employmentStatus']) ?? 'active',
     stoppedReason: row.stopped_reason ?? null,
@@ -61,15 +78,12 @@ function mapRow(row: EmployeeRow, byId: Map<string, EmployeeRow>): Employee {
 }
 
 export async function getEmployees(): Promise<Employee[]> {
-  const { data, error } = await requireClient()
-    .from('employees')
-    .select(SELECT)
-    .order('full_name')
+  const { data, error } = await requireClient().from('employees').select(SELECT)
 
   if (error) throw new Error(error.message)
   const rows = (data ?? []) as EmployeeRow[]
   const byId = new Map(rows.map(r => [r.id, r]))
-  return rows.map(r => mapRow(r, byId))
+  return sortEmployees(rows.map(r => mapRow(r, byId)))
 }
 
 function toPayload(input: EmployeeInput): Record<string, unknown> {
@@ -85,6 +99,7 @@ function toPayload(input: EmployeeInput): Record<string, unknown> {
     phone: input.phone?.trim() || null,
     email: input.email?.trim() || null,
     notes: input.notes?.trim() || null,
+    assignment_status: input.assignmentStatus?.trim() || null,
     is_active: input.isActive
   }
 }
@@ -92,6 +107,24 @@ function toPayload(input: EmployeeInput): Record<string, unknown> {
 export async function createEmployee(input: EmployeeInput): Promise<void> {
   const { error } = await requireClient().from('employees').insert(toPayload(input))
   if (error) throw new Error(translateError(error))
+}
+
+export async function bulkCreateEmployees(
+  inputs: EmployeeInput[]
+): Promise<{ imported: number; errors: string[] }> {
+  const errors: string[] = []
+  let imported = 0
+  const batchSize = 50
+  for (let i = 0; i < inputs.length; i += batchSize) {
+    const batch = inputs.slice(i, i + batchSize).map(toPayload)
+    const { error } = await requireClient().from('employees').insert(batch)
+    if (error) {
+      errors.push(translateError(error))
+      break
+    }
+    imported += batch.length
+  }
+  return { imported, errors }
 }
 
 export async function updateEmployee(id: string, input: EmployeeInput): Promise<void> {

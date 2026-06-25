@@ -208,7 +208,10 @@ begin
   loop
     execute format('drop trigger if exists trg_%1$s_updated_at on %1$s;', tbl);
     execute format('create trigger trg_%1$s_updated_at before update on %1$s for each row execute function set_updated_at();', tbl);
-    if tbl <> 'vehicle_model_family_members' and tbl <> 'operation_hardware_requirements' and tbl <> 'import_batches' then
+    if tbl not in (
+      'vehicle_model_families', 'vehicle_model_family_members',
+      'operation_hardware_requirements', 'import_batches'
+    ) then
       execute format('drop trigger if exists trg_%1$s_stamp on %1$s;', tbl);
       execute format('create trigger trg_%1$s_stamp before insert or update on %1$s for each row execute function employees_stamp_actor();', tbl);
     end if;

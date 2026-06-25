@@ -10,6 +10,7 @@ export const BOM_EXCEL_COLUMNS = [
   'part_name_ar',
   'part_name_en',
   'part_kind',
+  'supply_source',
   'bom_classification',
   'qty_by_model',
   'source_sheet',

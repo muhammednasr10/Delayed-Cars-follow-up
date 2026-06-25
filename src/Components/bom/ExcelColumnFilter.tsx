@@ -83,6 +83,11 @@ export function ExcelColumnFilter({ column, label, baseFilters, selected, onAppl
 
   function displayLabel(v: string) {
     if (v === '__BLANK__') return t('bom.excel.blank')
+    if (column === 'operation') {
+      if (v === 'line_stopper') return t('stopper.line_stopper')
+      if (v === 'car_stopper') return t('stopper.car_stopper')
+      if (v === 'non_stopper') return t('bom.stopperNone')
+    }
     return v
   }
 

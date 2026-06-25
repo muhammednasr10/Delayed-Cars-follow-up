@@ -3,9 +3,13 @@ import { operationCodeFor } from '../Utils/timeStudyParser'
 import {
   formatStationDisplayCode,
   inferParentStationCode,
+  normalizeStationReferenceCode,
+  normalizeStationBaseCode,
+  composeStationNumber,
   workerIndexFromStationCode
 } from '../Utils/stationHierarchy'
-import { createStation, deactivateStation } from './settingsService'
+import { createStation, deactivateStation, updateStation } from './settingsService'
+import type { Station } from '../Types/settings'
 import type {
   OperationHardware,
   ParentStationOperationsGroup,
@@ -13,6 +17,7 @@ import type {
   StationOperationsGroup,
   WorkerOperationsGroup
 } from '../Types/timeStudy'
+import { countWorkerLines, resolveMasterStationRecord } from '../Utils/stationMaster'
 
 function client() {
   if (!supabase) throw new Error('Supabase is not configured')
@@ -36,12 +41,17 @@ type OpRow = {
   operation_name_ar: string
   operation_name_en: string | null
   operation_type: string
+  parent_model_id?: string | null
   technician_position: string | null
   tool_spec: string | null
+  standard_time_seconds: number | null
   standard_time_minutes: number | null
   worker_time_minutes: number | null
   station_time_minutes: number | null
   required_manpower_count: number
+  task_precedence: string | null
+  ranked_positional_weight: number | null
+  zoning_constraints: string | null
   sequence_no: number
   is_critical: boolean
   is_active: boolean
@@ -63,7 +73,7 @@ type StationMeta = {
   avgStationTimeMinutes: number | null
 }
 
-function mapOp(r: OpRow, hardware: OperationHardware[]): StationOperationDetail {
+function mapOp(r: OpRow, hardware: OperationHardware[], parentModelName?: string | null): StationOperationDetail {
   const st = r.stations
   return {
     id: r.id,
@@ -74,11 +84,18 @@ function mapOp(r: OpRow, hardware: OperationHardware[]): StationOperationDetail 
     operationNameAr: r.operation_name_ar,
     operationNameEn: r.operation_name_en,
     operationType: r.operation_type,
+    parentModelId: r.parent_model_id ?? null,
+    parentModelName: parentModelName ?? null,
     technicianPosition: r.technician_position,
     toolSpec: r.tool_spec,
-    standardTimeMinutes: r.standard_time_minutes,
-    workerTimeMinutes: r.worker_time_minutes,
+    standardTimeSeconds: r.standard_time_seconds != null ? Number(r.standard_time_seconds) : null,
+    standardTimeMinutes: r.standard_time_minutes != null ? Number(r.standard_time_minutes) : null,
+    workerTimeMinutes: r.worker_time_minutes != null ? Number(r.worker_time_minutes) : null,
+    stationTimeMinutes: r.station_time_minutes != null ? Number(r.station_time_minutes) : null,
     requiredManpowerCount: r.required_manpower_count,
+    taskPrecedence: r.task_precedence,
+    rankedPositionalWeight: r.ranked_positional_weight != null ? Number(r.ranked_positional_weight) : null,
+    zoningConstraints: r.zoning_constraints,
     sequenceNo: r.sequence_no,
     isCritical: r.is_critical,
     isActive: r.is_active,
@@ -87,12 +104,127 @@ function mapOp(r: OpRow, hardware: OperationHardware[]): StationOperationDetail 
   }
 }
 
-function opMinutes(op: StationOperationDetail): number {
-  return op.workerTimeMinutes ?? op.standardTimeMinutes ?? 0
+function operationStandardMinutes(op: StationOperationDetail): number {
+  if (op.standardTimeMinutes != null && Number.isFinite(op.standardTimeMinutes)) return op.standardTimeMinutes
+  if (op.standardTimeSeconds != null && Number.isFinite(op.standardTimeSeconds)) return op.standardTimeSeconds / 60
+  return 0
 }
 
 function sumWorkerMinutes(ops: StationOperationDetail[]): number {
-  return ops.reduce((s, o) => s + opMinutes(o), 0)
+  return ops.reduce((s, o) => s + operationStandardMinutes(o), 0)
+}
+
+function isParentContainerRow(meta: StationMeta, allMeta: Map<string, StationMeta>): boolean {
+  if (inferParentStationCode(meta.station_number)) return false
+  for (const other of allMeta.values()) {
+    if (other.parent_station_id === meta.id) return true
+  }
+  return false
+}
+
+function makeWorkerGroup(
+  childId: string,
+  meta: StationMeta | null,
+  stNum: string,
+  childOps: StationOperationDetail[]
+): WorkerOperationsGroup {
+  return {
+    stationId: childId,
+    stationNumber: stNum,
+    displayCode: stNum,
+    workerIndex: workerIndexFromStationCode(stNum),
+    stationName: meta?.station_name ?? childOps[0]?.stationName ?? stNum,
+    worker1OperationsSummary: meta?.worker1_operations_summary ?? null,
+    sortOrder: meta?.sort_order ?? 0,
+    totalWorkerTimeMinutes: sumWorkerMinutes(childOps),
+    operations: [...childOps].sort((a, b) => a.sequenceNo - b.sequenceNo)
+  }
+}
+
+type ParentBucket = { parent: StationMeta | null; parentCode: string; workers: WorkerOperationsGroup[] }
+
+function hasChildWorkerLines(parentId: string, stationMeta: Map<string, StationMeta>): boolean {
+  for (const meta of stationMeta.values()) {
+    if (meta.parent_station_id === parentId) return true
+  }
+  return false
+}
+
+function appendWorkerToBuckets(
+  parentBuckets: Map<string, ParentBucket>,
+  stationMeta: Map<string, StationMeta>,
+  childId: string,
+  meta: StationMeta | undefined,
+  childOps: StationOperationDetail[]
+): void {
+  const stNum = meta?.station_number ?? childOps[0]?.stationNumber ?? childId
+  const parentId = meta?.parent_station_id ?? null
+  const inferredCode = inferParentStationCode(stNum)
+  const parentMeta = parentId ? stationMeta.get(parentId) ?? null : null
+  const parentCode = parentMeta?.station_number ?? inferredCode ?? stNum
+  const bucketKey = normalizeStationReferenceCode(
+    parentMeta?.station_number ?? inferredCode ?? normalizeStationReferenceCode(stNum)
+  )
+  const worker = makeWorkerGroup(childId, meta ?? null, stNum, childOps)
+
+  if (meta && hasChildWorkerLines(meta.id, stationMeta) && !/-L\d+$/i.test(meta.station_number)) {
+    return
+  }
+
+  const bucket = parentBuckets.get(bucketKey)
+  if (bucket) {
+    bucket.workers.push(worker)
+    if (!bucket.parent && parentMeta) bucket.parent = parentMeta
+  } else {
+    parentBuckets.set(bucketKey, { parent: parentMeta, parentCode, workers: [worker] })
+  }
+}
+
+function findMasterStationMeta(baseCode: string, stationMeta: Map<string, StationMeta>): StationMeta | null {
+  const norm = normalizeStationReferenceCode(baseCode)
+  for (const meta of stationMeta.values()) {
+    if (meta.parent_station_id) continue
+    if (/-L\d+$/i.test(meta.station_number)) continue
+    if (normalizeStationReferenceCode(meta.station_number) === norm) return meta
+  }
+  return null
+}
+
+function enrichWorkersForHeadcount(
+  group: ParentStationOperationsGroup,
+  stationMeta: Map<string, StationMeta>
+): void {
+  const base = normalizeStationReferenceCode(group.stationNumber)
+  const masterMeta = findMasterStationMeta(base, stationMeta)
+  const target =
+    masterMeta?.headcountWorkers ?? group.headcountWorkersOverride ?? group.totalWorkers ?? 0
+  if (target < 1) return
+
+  if (masterMeta?.headcountWorkers != null) {
+    group.headcountWorkersOverride = masterMeta.headcountWorkers
+    group.totalWorkers = masterMeta.headcountWorkers
+  }
+  if (masterMeta?.id) group.stationId = masterMeta.id
+
+  const known = new Set(
+    group.workers
+      .map(w => w.workerIndex ?? workerIndexFromStationCode(w.stationNumber))
+      .filter((n): n is number => n != null)
+  )
+
+  for (const meta of stationMeta.values()) {
+    const idx = workerIndexFromStationCode(meta.station_number)
+    if (idx == null || idx < 1 || idx > target || known.has(idx)) continue
+    const inferred = inferParentStationCode(meta.station_number)
+    if (!inferred) continue
+    if (normalizeStationBaseCode(inferred) !== normalizeStationBaseCode(base)) continue
+    group.workers.push(makeWorkerGroup(meta.id, meta, meta.station_number, []))
+    known.add(idx)
+  }
+
+  group.workers.sort(
+    (a, b) => a.sortOrder - b.sortOrder || (a.workerIndex ?? 99) - (b.workerIndex ?? 99)
+  )
 }
 
 async function loadOperationsRows(): Promise<OpRow[]> {
@@ -111,6 +243,12 @@ async function loadOperationsRows(): Promise<OpRow[]> {
     res = await client()
       .from('station_operations')
       .select('*, stations(station_number, station_name, worker1_operations_summary, sort_order, work_areas(name))')
+      .eq('is_active', true)
+      .order('sequence_no')
+  } else if (res.error && String(res.error.message).includes('parent_model_id')) {
+    res = await client()
+      .from('station_operations')
+      .select('*, stations(station_number, station_name, worker1_operations_summary, sort_order, parent_station_id, line_name, work_areas(name))')
       .eq('is_active', true)
       .order('sequence_no')
   }
@@ -165,82 +303,81 @@ function buildHierarchy(
   ops: OpRow[],
   hwMap: Map<string, OperationHardware[]>,
   stationMeta: Map<string, StationMeta>,
-  filterIds: Set<string> | null
+  filterIds: Set<string> | null,
+  parentModelNames: Map<string, string>
 ): ParentStationOperationsGroup[] {
   const byChild = new Map<string, StationOperationDetail[]>()
   for (const row of ops) {
-    const op = mapOp(row, hwMap.get(row.id) ?? [])
+    const modelName = row.parent_model_id ? parentModelNames.get(row.parent_model_id) ?? null : null
+    const op = mapOp(row, hwMap.get(row.id) ?? [], modelName)
     if (filterIds && !filterIds.has(op.id)) continue
     const list = byChild.get(row.station_id) ?? []
     list.push(op)
     byChild.set(row.station_id, list)
   }
 
-  const parentBuckets = new Map<string, { parent: StationMeta | null; parentCode: string; workers: WorkerOperationsGroup[] }>()
+  const parentBuckets = new Map<string, ParentBucket>()
 
   for (const [childId, childOps] of byChild) {
-    const meta = stationMeta.get(childId)
-    const stNum = meta?.station_number ?? childOps[0]?.stationNumber ?? childId
-    const parentId = meta?.parent_station_id ?? null
-    const inferredCode = inferParentStationCode(stNum)
-    const parentMeta = parentId ? stationMeta.get(parentId) : null
-    const parentCode = parentMeta?.station_number ?? inferredCode ?? stNum
-    const bucketKey = parentId ?? parentCode
+    appendWorkerToBuckets(parentBuckets, stationMeta, childId, stationMeta.get(childId), childOps)
+  }
 
-    const worker: WorkerOperationsGroup = {
-      stationId: childId,
-      stationNumber: stNum,
-      displayCode: stNum,
-      workerIndex: workerIndexFromStationCode(stNum),
-      stationName: meta?.station_name ?? childOps[0]?.stationName ?? stNum,
-      worker1OperationsSummary: meta?.worker1_operations_summary ?? null,
-      sortOrder: meta?.sort_order ?? 0,
-      totalWorkerTimeMinutes: sumWorkerMinutes(childOps),
-      operations: childOps.sort((a, b) => a.sequenceNo - b.sequenceNo)
-    }
-
-    const bucket = parentBuckets.get(bucketKey)
-    if (bucket) bucket.workers.push(worker)
-    else {
-      parentBuckets.set(bucketKey, {
-        parent: parentMeta ?? (parentId ? stationMeta.get(parentId) ?? null : null),
-        parentCode,
-        workers: [worker]
-      })
+  // Stations saved without operations yet still appear in the list.
+  if (!filterIds) {
+    for (const [stationId, meta] of stationMeta) {
+      if (byChild.has(stationId)) continue
+      if (isParentContainerRow(meta, stationMeta)) continue
+      appendWorkerToBuckets(parentBuckets, stationMeta, stationId, meta, [])
     }
   }
 
   const parents: ParentStationOperationsGroup[] = []
   for (const [, bucket] of parentBuckets) {
     const p = bucket.parent
-    const parentCode = bucket.parentCode
     const workers = bucket.workers.sort((a, b) => a.sortOrder - b.sortOrder || (a.workerIndex ?? 99) - (b.workerIndex ?? 99))
+    const workerMeta = workers[0] ? stationMeta.get(workers[0].stationId) : null
+    const codeSource = p?.station_number ?? workerMeta?.station_number ?? bucket.parentCode
+    const resolvedCode = normalizeStationReferenceCode(codeSource)
+    const masterMeta = findMasterStationMeta(resolvedCode, stationMeta)
+    const commonName =
+      p?.station_name?.trim() ||
+      masterMeta?.station_name?.trim() ||
+      workerMeta?.station_name?.trim() ||
+      resolvedCode
     const workerTotals = workers.map(w => w.totalWorkerTimeMinutes).filter(t => t > 0)
-    const displayName = p?.station_name && p.station_name.trim() !== parentCode
-      ? p.station_name
-      : parentCode
-
     const computedWorkers = workers.length
     const computedAvg = workerTotals.length
       ? workerTotals.reduce((s, t) => s + t, 0) / workerTotals.length
       : null
+    const headcount =
+      masterMeta?.headcountWorkers ?? p?.headcountWorkers ?? workerMeta?.headcountWorkers ?? null
 
-    parents.push({
-      stationId: p?.id ?? null,
-      stationNumber: parentCode,
-      displayCode: formatStationDisplayCode(parentCode),
-      stationName: displayName,
-      worker1OperationsSummary: p?.worker1_operations_summary ?? null,
-      workAreaId: p?.workAreaId ?? null,
-      workAreaName: p?.workAreaName ?? (workers[0] ? stationMeta.get(workers[0].stationId)?.workAreaName ?? null : null),
-      lineName: p?.line_name ?? null,
-      headcountWorkersOverride: p?.headcountWorkers ?? null,
-      avgStationTimeOverride: p?.avgStationTimeMinutes ?? null,
-      totalWorkers: p?.headcountWorkers ?? computedWorkers,
-      avgStationTimeMinutes: p?.avgStationTimeMinutes ?? computedAvg,
-      sortOrder: p?.sort_order ?? workers[0]?.sortOrder ?? 0,
+    const group: ParentStationOperationsGroup = {
+      stationId: masterMeta?.id ?? p?.id ?? workerMeta?.id ?? null,
+      stationNumber: resolvedCode,
+      displayCode: formatStationDisplayCode(resolvedCode),
+      stationName: commonName,
+      worker1OperationsSummary:
+        p?.worker1_operations_summary ??
+        masterMeta?.worker1_operations_summary ??
+        workerMeta?.worker1_operations_summary ??
+        null,
+      workAreaId: p?.workAreaId ?? masterMeta?.workAreaId ?? workerMeta?.workAreaId ?? null,
+      workAreaName:
+        p?.workAreaName ??
+        masterMeta?.workAreaName ??
+        workerMeta?.workAreaName ??
+        (workers[0] ? stationMeta.get(workers[0].stationId)?.workAreaName ?? null : null),
+      lineName: p?.line_name ?? masterMeta?.line_name ?? workerMeta?.line_name ?? null,
+      headcountWorkersOverride: headcount,
+      avgStationTimeOverride: p?.avgStationTimeMinutes ?? masterMeta?.avgStationTimeMinutes ?? workerMeta?.avgStationTimeMinutes ?? null,
+      totalWorkers: headcount ?? computedWorkers,
+      avgStationTimeMinutes: p?.avgStationTimeMinutes ?? masterMeta?.avgStationTimeMinutes ?? workerMeta?.avgStationTimeMinutes ?? computedAvg,
+      sortOrder: p?.sort_order ?? masterMeta?.sort_order ?? workers[0]?.sortOrder ?? 0,
       workers
-    })
+    }
+    enrichWorkersForHeadcount(group, stationMeta)
+    parents.push(group)
   }
 
   return parents.sort((a, b) => a.sortOrder - b.sortOrder || a.stationNumber.localeCompare(b.stationNumber))
@@ -271,7 +408,17 @@ export async function getParentStationOperationsGroups(
     })
   }
   const stationMeta = await loadStationMeta()
-  return buildHierarchy(ops, hwMap, stationMeta, filterIds)
+  const parentIds = [...new Set(ops.map(o => o.parent_model_id).filter(Boolean))] as string[]
+  const parentModelNames = new Map<string, string>()
+  if (parentIds.length > 0) {
+    const { data: modelRows, error: modelErr } = await client()
+      .from('vehicle_models')
+      .select('id, name')
+      .in('id', parentIds)
+    if (modelErr && !String(modelErr.message).includes('parent_model_id')) throw new Error(modelErr.message)
+    ;(modelRows ?? []).forEach(r => parentModelNames.set(r.id as string, String(r.name)))
+  }
+  return buildHierarchy(ops, hwMap, stationMeta, filterIds, parentModelNames)
 }
 
 /** Flat per-child-station groups (legacy) */
@@ -333,29 +480,93 @@ export async function updateStationWorker1Summary(stationId: string, summary: st
   if (error) throw new Error(error.message)
 }
 
+export type OperationHardwareInput = {
+  hardwareName: string
+  hardwareQty: number | null
+  hardwareType: string | null
+  hardwareSize: string | null
+}
+
 export type StationOperationUpdate = {
+  toolSpec: string | null
   operationNameAr: string
   operationNameEn: string | null
   operationType: string
+  parentModelId: string | null
+  standardTimeSeconds: number | null
   standardTimeMinutes: number | null
   workerTimeMinutes: number | null
   requiredManpowerCount: number
+  technicianPosition: string | null
+  taskPrecedence: string | null
+  rankedPositionalWeight: number | null
+  zoningConstraints: string | null
   notes: string | null
   isCritical: boolean
+  hardware: OperationHardwareInput[]
+}
+
+async function replaceOperationHardware(operationId: string, hardware: OperationHardwareInput[]): Promise<void> {
+  const { error: delErr } = await client()
+    .from('operation_hardware_requirements')
+    .delete()
+    .eq('operation_id', operationId)
+  if (delErr) throw new Error(delErr.message)
+
+  const rows = hardware.filter(h => h.hardwareName.trim())
+  if (rows.length === 0) return
+
+  const { error } = await client().from('operation_hardware_requirements').insert(
+    rows.map((h, i) => ({
+      operation_id: operationId,
+      hardware_name: h.hardwareName.trim(),
+      hardware_qty: h.hardwareQty,
+      hardware_type: h.hardwareType?.trim() || null,
+      hardware_size: h.hardwareSize?.trim() || null,
+      sort_order: i
+    }))
+  )
+  if (error) throw new Error(error.message)
 }
 
 export async function updateStationOperation(id: string, input: StationOperationUpdate): Promise<void> {
-  const { error } = await client().from('station_operations').update({
+  let { error } = await client().from('station_operations').update({
+    tool_spec: input.toolSpec?.trim() || null,
     operation_name_ar: input.operationNameAr.trim(),
     operation_name_en: input.operationNameEn?.trim() || null,
     operation_type: input.operationType,
+    parent_model_id: input.parentModelId || null,
+    technician_position: input.technicianPosition?.trim() || null,
+    task_precedence: input.taskPrecedence?.trim() || null,
+    ranked_positional_weight: input.rankedPositionalWeight,
+    zoning_constraints: input.zoningConstraints?.trim() || null,
+    standard_time_seconds: input.standardTimeSeconds,
     standard_time_minutes: input.standardTimeMinutes,
     worker_time_minutes: input.workerTimeMinutes,
     required_manpower_count: input.requiredManpowerCount,
     notes: input.notes?.trim() || null,
     is_critical: input.isCritical
   }).eq('id', id)
+  if (error && String(error.message).includes('parent_model_id')) {
+    ;({ error } = await client().from('station_operations').update({
+      tool_spec: input.toolSpec?.trim() || null,
+      operation_name_ar: input.operationNameAr.trim(),
+      operation_name_en: input.operationNameEn?.trim() || null,
+      operation_type: input.operationType,
+      technician_position: input.technicianPosition?.trim() || null,
+      task_precedence: input.taskPrecedence?.trim() || null,
+      ranked_positional_weight: input.rankedPositionalWeight,
+      zoning_constraints: input.zoningConstraints?.trim() || null,
+      standard_time_seconds: input.standardTimeSeconds,
+      standard_time_minutes: input.standardTimeMinutes,
+      worker_time_minutes: input.workerTimeMinutes,
+      required_manpower_count: input.requiredManpowerCount,
+      notes: input.notes?.trim() || null,
+      is_critical: input.isCritical
+    }).eq('id', id))
+  }
   if (error) throw new Error(error.message)
+  await replaceOperationHardware(id, input.hardware)
 }
 
 export async function createStationOperation(stationId: string, input: StationOperationUpdate): Promise<void> {
@@ -371,12 +582,19 @@ export async function createStationOperation(stationId: string, input: StationOp
   const seq = ((last?.[0]?.sequence_no as number) ?? 0) + 1
   const code = operationCodeFor(String(st.station_number), seq, input.operationNameAr.trim())
 
-  const { error } = await client().from('station_operations').insert({
+  const payload: Record<string, unknown> = {
     station_id: stationId,
     operation_code: code,
+    tool_spec: input.toolSpec?.trim() || null,
     operation_name_ar: input.operationNameAr.trim(),
     operation_name_en: input.operationNameEn?.trim() || null,
     operation_type: input.operationType,
+    parent_model_id: input.parentModelId || null,
+    technician_position: input.technicianPosition?.trim() || null,
+    task_precedence: input.taskPrecedence?.trim() || null,
+    ranked_positional_weight: input.rankedPositionalWeight,
+    zoning_constraints: input.zoningConstraints?.trim() || null,
+    standard_time_seconds: input.standardTimeSeconds,
     standard_time_minutes: input.standardTimeMinutes,
     worker_time_minutes: input.workerTimeMinutes,
     required_manpower_count: input.requiredManpowerCount,
@@ -384,8 +602,206 @@ export async function createStationOperation(stationId: string, input: StationOp
     is_critical: input.isCritical,
     sequence_no: seq,
     is_active: true
-  })
+  }
+
+  let insertRes = await client().from('station_operations').insert(payload).select('id').single()
+  if (insertRes.error && String(insertRes.error.message).includes('parent_model_id')) {
+    const { parent_model_id: _drop, ...fallback } = payload
+    insertRes = await client().from('station_operations').insert(fallback).select('id').single()
+  }
+  if (insertRes.error) throw new Error(insertRes.error.message)
+
+  const operationId = insertRes.data?.id as string
+  if (operationId) await replaceOperationHardware(operationId, input.hardware)
+}
+
+function resolveHeadcountTarget(master: Station, headcount?: number | null): number {
+  if (headcount != null && Number.isFinite(headcount) && headcount >= 1) return Math.floor(headcount)
+  if (master.headcount_workers != null && master.headcount_workers >= 1) return Math.floor(master.headcount_workers)
+  return 1
+}
+
+async function countActiveOperations(stationId: string): Promise<number> {
+  const { count, error } = await client()
+    .from('station_operations')
+    .select('*', { count: 'exact', head: true })
+    .eq('station_id', stationId)
+    .eq('is_active', true)
   if (error) throw new Error(error.message)
+  return count ?? 0
+}
+
+async function resolveMasterStationRow(masterOrWorker: Station): Promise<Station> {
+  if (!/-L\d+$/i.test(masterOrWorker.station_number)) return masterOrWorker
+
+  if (masterOrWorker.parent_station_id) {
+    const { data, error } = await client()
+      .from('stations')
+      .select('*')
+      .eq('id', masterOrWorker.parent_station_id)
+      .maybeSingle()
+    if (error) throw new Error(error.message)
+    if (data) return data as Station
+  }
+
+  const base = normalizeStationReferenceCode(masterOrWorker.station_number)
+  const { data, error } = await client().from('stations').select('*').eq('is_active', true)
+  if (error) throw new Error(error.message)
+  const found = (data ?? []).find(
+    s =>
+      normalizeStationReferenceCode(s.station_number) === base &&
+      !/-L\d+$/i.test(s.station_number) &&
+      !s.parent_station_id
+  ) as Station | undefined
+  return found ?? masterOrWorker
+}
+
+/** يضمن أن خطوط العمال L1..Ln تطابق إجمالي عدد العمال على المحطة المرجعية */
+export async function syncWorkerLinesToHeadcount(
+  masterOrWorker: Station,
+  headcount?: number | null
+): Promise<Station[]> {
+  const master = await resolveMasterStationRow(masterOrWorker)
+  const target = resolveHeadcountTarget(master, headcount)
+  const base = normalizeStationReferenceCode(master.station_number)
+  const linkParentId = /-L\d+$/i.test(master.station_number) ? null : master.id
+
+  let children: Record<string, unknown>[] = []
+  if (linkParentId) {
+    const { data, error: childErr } = await client()
+      .from('stations')
+      .select('*')
+      .eq('parent_station_id', linkParentId)
+      .order('station_number')
+    if (childErr) throw new Error(childErr.message)
+    children = (data ?? []) as Record<string, unknown>[]
+  }
+
+  const { data: bySuffix, error: suffixErr } = await client()
+    .from('stations')
+    .select('*')
+    .ilike('station_number', `${base}-L%`)
+    .order('station_number')
+  if (suffixErr) throw new Error(suffixErr.message)
+
+  const workersByIndex = new Map<number, Station>()
+  const register = (row: Record<string, unknown>) => {
+    const st = row as Station
+    const idx = workerIndexFromStationCode(st.station_number)
+    if (idx == null) return
+    const existing = workersByIndex.get(idx)
+    if (
+      !existing ||
+      (linkParentId && st.parent_station_id === linkParentId && existing.parent_station_id !== linkParentId)
+    ) {
+      workersByIndex.set(idx, st)
+    }
+  }
+  for (const row of children ?? []) register(row)
+  for (const row of bySuffix ?? []) register(row)
+
+  const ensured: Station[] = []
+  for (let i = 1; i <= target; i++) {
+    const workerNum = composeStationNumber(base, `L${i}`)
+    let worker = workersByIndex.get(i)
+
+    if (worker) {
+      if (!worker.is_active) {
+        worker = await updateStation(worker.id, {
+          is_active: true,
+          ...(linkParentId ? { parent_station_id: linkParentId } : {})
+        })
+      } else if (linkParentId && worker.parent_station_id !== linkParentId) {
+        worker = await updateStation(worker.id, { parent_station_id: linkParentId })
+      }
+      workersByIndex.set(i, worker)
+      ensured.push(worker)
+      continue
+    }
+
+    const { data: existing, error: existErr } = await client()
+      .from('stations')
+      .select('*')
+      .eq('station_number', workerNum)
+      .maybeSingle()
+    if (existErr) throw new Error(existErr.message)
+
+    if (existing) {
+      worker = existing.is_active
+        ? ((linkParentId && existing.parent_station_id !== linkParentId
+            ? await updateStation(existing.id as string, { parent_station_id: linkParentId })
+            : existing) as Station)
+        : await updateStation(existing.id as string, {
+            is_active: true,
+            ...(linkParentId ? { parent_station_id: linkParentId } : {})
+          })
+    } else {
+      worker = await createStation({
+        station_number: workerNum,
+        station_name: master.station_name,
+        parent_station_id: linkParentId,
+        work_area_id: master.work_area_id ?? null,
+        line_name: master.line_name ?? null,
+        station_type: master.station_type ?? 'main_line',
+        sort_order: (master.sort_order ?? 0) + i,
+        is_active: master.is_active !== false
+      })
+    }
+
+    workersByIndex.set(i, worker)
+    ensured.push(worker)
+  }
+
+  const l1 = workersByIndex.get(1)
+  if (l1) {
+    const moveFromIds = new Set<string>()
+    if (linkParentId) moveFromIds.add(linkParentId)
+    if (masterOrWorker.id !== l1.id) moveFromIds.add(masterOrWorker.id)
+    if (master.id !== l1.id && master.id !== masterOrWorker.id) moveFromIds.add(master.id)
+    for (const fromId of moveFromIds) {
+      const { error: moveErr } = await client()
+        .from('station_operations')
+        .update({ station_id: l1.id })
+        .eq('station_id', fromId)
+        .eq('is_active', true)
+      if (moveErr) throw new Error(moveErr.message)
+    }
+  }
+
+  for (const [idx, worker] of workersByIndex) {
+    if (idx <= target || !worker.is_active) continue
+    const opCount = await countActiveOperations(worker.id)
+    if (opCount === 0) await deactivateStation(worker.id)
+  }
+
+  return ensured.sort(
+    (a, b) =>
+      (workerIndexFromStationCode(a.station_number) ?? 0) -
+      (workerIndexFromStationCode(b.station_number) ?? 0)
+  )
+}
+
+/** يضمن وجود خطوط العمال حسب إجمالي عدد العمال (أو L1 على الأقل) */
+export async function ensureFirstWorkerLine(master: Station): Promise<Station> {
+  const lines = await syncWorkerLinesToHeadcount(master)
+  return lines.find(l => workerIndexFromStationCode(l.station_number) === 1) ?? lines[0] ?? master
+}
+
+/** مزامنة خطوط العمال لكل المحطات التي يقل فيها عدد الخطوط عن إجمالي العمال */
+export async function syncAllWorkerHeadcountsFromGroups(
+  parentGroups: ParentStationOperationsGroup[],
+  allStations: Station[]
+): Promise<boolean> {
+  let changed = false
+  for (const parent of parentGroups) {
+    const target = parent.headcountWorkersOverride ?? parent.totalWorkers ?? 0
+    if (target < 1 || countWorkerLines(parent) >= target) continue
+    const master = resolveMasterStationRecord(parent, allStations)
+    if (!master) continue
+    await syncWorkerLinesToHeadcount(master, target)
+    changed = true
+  }
+  return changed
 }
 
 export async function deactivateStationOperation(id: string): Promise<void> {

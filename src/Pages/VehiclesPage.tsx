@@ -1,32 +1,56 @@
-import { useMemo, useState } from 'react'
-import { AlertTriangle, CheckCircle2, Car, PlusCircle, RefreshCcw, ShieldAlert, Truck } from 'lucide-react'
+import { useEffect, useMemo, useState } from 'react'
+import { AlertTriangle, CheckCircle2, Car, Pencil, RefreshCcw, ShieldAlert, Trash2, Truck } from 'lucide-react'
 import { useVehicles } from '../Context/VehiclesContext'
 import { useAuth } from '../Context/AuthContext'
 import { useLang } from '../i18n/LanguageContext'
 import { StatCard } from '../Components/StatCard'
-import { NewVehicleModal } from '../Components/NewVehicleModal'
+import { NewVehicleEntryForm } from '../Components/NewVehicleEntryForm'
+import { EditVehicleEntryModal } from '../Components/EditVehicleEntryModal'
 import { SetupRequired } from '../Components/SetupRequired'
 import {
-  CompletionBar,
-  DeliveryBadge,
-  ProductionStatusBadge,
-  QcBadge
+  DeliveryBadge
 } from '../Components/VehicleBadges'
+import { getProductionOrders } from '../services/productionOrdersService'
+import { vinInChassisRange } from '../Utils/chassisRange'
+import type { ProductionOrder } from '../Types/production'
 import type { VehicleFilters, VehicleOverview } from '../Types/vehicle'
 
 const emptyFilters: VehicleFilters = { search: '', deliveryStatus: '', qcStatus: '', blockedOnly: false }
 
-export function VehiclesPage() {
-  const { vehicles, loading, error, setupRequired, refresh, release, deliver } = useVehicles()
+const entryCell = 'table-cell text-center align-middle'
+
+export type VehiclesPageMode = 'entry' | 'exit'
+
+type Props = {
+  mode?: VehiclesPageMode
+}
+
+function resolveProductionOrderLabel(v: VehicleOverview, orders: ProductionOrder[]): string {
+  if (v.productionOrderNumber) return v.productionOrderNumber
+  const match = orders.find(
+    o => o.chassisStart && o.chassisEnd && vinInChassisRange(v.vin, o.chassisStart, o.chassisEnd)
+  )
+  return match?.orderNumber ?? '—'
+}
+
+export function VehiclesPage({ mode = 'exit' }: Props) {
+  const { vehicles, loading, error, setupRequired, refresh, release, deliver, removeVehicle } = useVehicles()
   const { hasRole } = useAuth()
   const { t } = useLang()
   const [filters, setFilters] = useState<VehicleFilters>(emptyFilters)
-  const [showNew, setShowNew] = useState(false)
   const [actionError, setActionError] = useState('')
   const [busyId, setBusyId] = useState<string | null>(null)
+  const [productionOrders, setProductionOrders] = useState<ProductionOrder[]>([])
+  const [editingVehicle, setEditingVehicle] = useState<VehicleOverview | null>(null)
 
-  const canCreate = hasRole('admin', 'production')
+  const canManage = hasRole('admin', 'production')
   const canRelease = hasRole('admin', 'production')
+
+  useEffect(() => {
+    getProductionOrders()
+      .then(setProductionOrders)
+      .catch(() => setProductionOrders([]))
+  }, [])
 
   const counts = useMemo(() => {
     const total = vehicles.length
@@ -38,15 +62,25 @@ export function VehiclesPage() {
 
   const filtered = useMemo(() => {
     return vehicles
+      .filter(v => v.deliveryStatus !== 'delivered')
       .filter(v => !filters.deliveryStatus || v.deliveryStatus === filters.deliveryStatus)
       .filter(v => !filters.qcStatus || v.qcStatus === filters.qcStatus)
       .filter(v => !filters.blockedOnly || v.deliveryBlocked)
       .filter(v => {
         const q = filters.search.trim().toLowerCase()
         if (!q) return true
-        return [v.vin, v.modelName, v.productionOrderNumber].join(' ').toLowerCase().includes(q)
+        const poLabel = resolveProductionOrderLabel(v, productionOrders)
+        return [v.vin, v.modelName, v.colorName, v.productionOrderNumber, poLabel]
+          .filter(Boolean)
+          .join(' ')
+          .toLowerCase()
+          .includes(q)
       })
-  }, [vehicles, filters])
+  }, [vehicles, filters, mode, productionOrders])
+
+  const pageTitle = mode === 'entry' ? t('productivity.entryTitle') : t('productivity.exitTitle')
+  const pageSubtitle = mode === 'entry' ? t('productivity.entrySubtitle') : t('productivity.exitSubtitle')
+  const exitTableCols = ['model', 'color', 'vin', 'po', 'delivery'] as const
 
   async function handleRelease(v: VehicleOverview) {
     setActionError('')
@@ -64,6 +98,15 @@ export function VehiclesPage() {
     if (!result.ok) setActionError(result.message || t('common.error'))
   }
 
+  async function handleDelete(v: VehicleOverview) {
+    if (!window.confirm(t('vehicles.deleteEntryConfirm', { vin: v.vin }))) return
+    setActionError('')
+    setBusyId(v.id)
+    const result = await removeVehicle(v.id)
+    setBusyId(null)
+    if (!result.ok) setActionError(result.message || t('common.error'))
+  }
+
   if (setupRequired) return <SetupRequired detail={error} />
 
   return (
@@ -75,22 +118,19 @@ export function VehiclesPage() {
         <StatCard title={t('vehicles.qcFailed')} value={counts.qcFailed} subtitle="QC" tone="red" icon={<ShieldAlert className="h-6 w-6" />} />
       </div>
 
+      {mode === 'entry' && canManage && <NewVehicleEntryForm onSaved={() => void refresh()} />}
+
       <div className="card-industrial overflow-hidden">
         <div className="border-b border-slate-800 p-4 sm:p-5">
           <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <div>
-              <h2 className="text-lg font-black text-white">{t('vehicles.title')}</h2>
-              <p className="text-sm text-slate-400">{t('vehicles.subtitle')}</p>
+              <h2 className="text-lg font-black text-white">{pageTitle}</h2>
+              <p className="text-sm text-slate-400">{pageSubtitle}</p>
             </div>
             <div className="flex gap-2">
               <button onClick={refresh} className="rounded-xl bg-slate-800 px-3 py-2 text-sm font-bold text-slate-200 hover:bg-slate-700">
                 <RefreshCcw className="mr-1 inline h-4 w-4" /> {t('common.refresh')}
               </button>
-              {canCreate && (
-                <button onClick={() => setShowNew(true)} className="rounded-xl bg-cyan-500 px-4 py-2 text-sm font-black text-slate-950 hover:bg-cyan-400">
-                  <PlusCircle className="mr-1 inline h-4 w-4" /> {t('vehicles.newVehicle')}
-                </button>
-              )}
             </div>
           </div>
 
@@ -101,25 +141,6 @@ export function VehiclesPage() {
               value={filters.search}
               onChange={e => setFilters(prev => ({ ...prev, search: e.target.value }))}
             />
-            <select className="input-dark" value={filters.deliveryStatus} onChange={e => setFilters(prev => ({ ...prev, deliveryStatus: e.target.value as VehicleFilters['deliveryStatus'] }))}>
-              <option value="">{t('common.all')}</option>
-              <option value="blocked">{t('deliveryStatus.blocked')}</option>
-              <option value="ready">{t('deliveryStatus.ready')}</option>
-              <option value="delivered">{t('deliveryStatus.delivered')}</option>
-            </select>
-            <select className="input-dark" value={filters.qcStatus} onChange={e => setFilters(prev => ({ ...prev, qcStatus: e.target.value as VehicleFilters['qcStatus'] }))}>
-              <option value="">{t('common.all')}</option>
-              <option value="pending">{t('qcStatus.pending')}</option>
-              <option value="passed">{t('qcStatus.passed')}</option>
-              <option value="failed">{t('qcStatus.failed')}</option>
-              <option value="not_required">{t('qcStatus.not_required')}</option>
-            </select>
-            <button
-              onClick={() => setFilters(prev => ({ ...prev, blockedOnly: !prev.blockedOnly }))}
-              className={`rounded-xl px-4 py-2 text-sm font-black transition ${filters.blockedOnly ? 'bg-red-500 text-white' : 'bg-slate-800 text-slate-300 hover:bg-slate-700'}`}
-            >
-              {filters.blockedOnly ? t('deliveryStatus.blocked') : t('common.all')}
-            </button>
           </div>
         </div>
 
@@ -127,57 +148,146 @@ export function VehiclesPage() {
         {actionError && <div className="m-4 rounded-xl border border-red-500/30 bg-red-500/10 p-3 text-sm text-red-200">{actionError}</div>}
 
         <div className="overflow-x-auto">
-          <table className="w-full min-w-[1100px] text-start">
-            <thead className="bg-slate-950/90">
-              <tr>
-                {['vin', 'model', 'po', 'missing', 'completion', 'production', 'qc', 'delivery'].map(c => (
-                  <th key={c} className="table-cell text-xs font-black uppercase text-slate-400">{t(`vehicles.cols.${c}`)}</th>
-                ))}
-                <th className="table-cell text-xs font-black uppercase text-slate-400">{t('common.actions')}</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-slate-800">
-              {filtered.map(v => (
-                <tr key={v.id} className={`hover:bg-slate-800/40 ${v.deliveryBlocked ? 'bg-red-500/5' : 'bg-slate-900/30'}`}>
-                  <td className="table-cell font-black text-white">{v.vin}</td>
-                  <td className="table-cell">{v.modelName}</td>
-                  <td className="table-cell">{v.productionOrderNumber || '-'}</td>
-                  <td className="table-cell">
-                    {v.openMissingCount > 0
-                      ? <span className="font-black text-red-300">{v.openMissingCount}</span>
-                      : <span className="text-emerald-300">0</span>}
-                  </td>
-                  <td className="table-cell"><CompletionBar percent={v.completionPercent} /></td>
-                  <td className="table-cell"><ProductionStatusBadge status={v.productionStatus} /></td>
-                  <td className="table-cell"><QcBadge status={v.qcStatus} /></td>
-                  <td className="table-cell"><DeliveryBadge status={v.deliveryStatus} /></td>
-                  <td className="table-cell">
-                    <div className="flex flex-wrap gap-2">
-                      {canRelease && v.deliveryStatus === 'blocked' && (
-                        <button
-                          disabled={busyId === v.id || v.deliveryBlocked}
-                          onClick={() => handleRelease(v)}
-                          title={v.deliveryBlocked ? t('vehicles.blockedHint') : t('vehicles.release')}
-                          className="rounded-lg bg-cyan-500/15 px-3 py-2 text-xs font-black text-cyan-200 hover:bg-cyan-500/25 disabled:cursor-not-allowed disabled:opacity-40"
-                        >
-                          <CheckCircle2 className="inline h-3 w-3" /> {t('vehicles.release')}
-                        </button>
-                      )}
-                      {canRelease && v.deliveryStatus === 'ready' && (
-                        <button
-                          disabled={busyId === v.id}
-                          onClick={() => handleDeliver(v)}
-                          className="rounded-lg bg-emerald-500/15 px-3 py-2 text-xs font-black text-emerald-200 hover:bg-emerald-500/25 disabled:opacity-40"
-                        >
-                          <Truck className="inline h-3 w-3" /> {t('vehicles.deliver')}
-                        </button>
-                      )}
-                    </div>
-                  </td>
+          {mode === 'entry' ? (
+            <table className="w-full min-w-[720px] text-sm">
+              <thead className="bg-slate-950/90">
+                <tr>
+                  <th className={`${entryCell} text-xs font-black uppercase text-slate-400`}>{t('vehicles.cols.model')}</th>
+                  <th className={`${entryCell} text-xs font-black uppercase text-slate-400`}>{t('vehicles.cols.color')}</th>
+                  <th className={`${entryCell} text-xs font-black uppercase text-slate-400`}>{t('vehicles.cols.vin')}</th>
+                  <th className={`${entryCell} text-xs font-black uppercase text-slate-400`}>{t('vehicles.cols.po')}</th>
+                  {canManage && (
+                    <th className={`${entryCell} text-xs font-black uppercase text-slate-400`}>{t('common.actions')}</th>
+                  )}
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody className="divide-y divide-slate-800">
+                {filtered.map(v => (
+                  <tr key={v.id} className="bg-slate-900/30 hover:bg-slate-800/40">
+                    <td className={entryCell}>{v.modelName || '—'}</td>
+                    <td className={entryCell}>
+                      {v.colorName ? (
+                        <span className="inline-flex items-center justify-center gap-2">
+                          <span
+                            className="inline-block h-4 w-4 rounded-full ring-1 ring-slate-500"
+                            style={{ backgroundColor: v.colorHex ?? '#fff' }}
+                          />
+                          {v.colorName}
+                        </span>
+                      ) : (
+                        '—'
+                      )}
+                    </td>
+                    <td className={`${entryCell} font-mono font-black text-white`} dir="ltr">
+                      {v.vin}
+                    </td>
+                    <td className={`${entryCell} font-mono`} dir="ltr">
+                      {resolveProductionOrderLabel(v, productionOrders)}
+                    </td>
+                    {canManage && (
+                      <td className={entryCell}>
+                        <div className="flex items-center justify-center gap-2">
+                          <button
+                            type="button"
+                            title={t('common.edit')}
+                            disabled={busyId === v.id}
+                            onClick={() => setEditingVehicle(v)}
+                            className="rounded-lg bg-orange-500/15 p-2 text-orange-200 hover:bg-orange-500/25 disabled:opacity-40"
+                          >
+                            <Pencil className="h-4 w-4" />
+                          </button>
+                          <button
+                            type="button"
+                            title={t('common.delete')}
+                            disabled={busyId === v.id}
+                            onClick={() => void handleDelete(v)}
+                            className="rounded-lg bg-red-500/15 p-2 text-red-200 hover:bg-red-500/25 disabled:opacity-40"
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </button>
+                        </div>
+                      </td>
+                    )}
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          ) : (
+            <table className="w-full min-w-[720px] text-sm">
+              <thead className="bg-slate-950/90">
+                <tr>
+                  {exitTableCols.map(c => (
+                    <th key={c} className={`${entryCell} text-xs font-black uppercase text-slate-400`}>
+                      {t(`vehicles.cols.${c}`)}
+                    </th>
+                  ))}
+                  {canRelease && (
+                    <th className={`${entryCell} text-xs font-black uppercase text-slate-400`}>{t('common.actions')}</th>
+                  )}
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-800">
+                {filtered.map(v => (
+                  <tr
+                    key={v.id}
+                    className={`bg-slate-900/30 hover:bg-slate-800/40 ${v.deliveryBlocked ? 'bg-red-500/5' : ''}`}
+                  >
+                    <td className={entryCell}>{v.modelName || '—'}</td>
+                    <td className={entryCell}>
+                      {v.colorName ? (
+                        <span className="inline-flex items-center justify-center gap-2">
+                          <span
+                            className="inline-block h-4 w-4 rounded-full ring-1 ring-slate-500"
+                            style={{ backgroundColor: v.colorHex ?? '#fff' }}
+                          />
+                          {v.colorName}
+                        </span>
+                      ) : (
+                        '—'
+                      )}
+                    </td>
+                    <td className={`${entryCell} font-mono font-black text-white`} dir="ltr">
+                      {v.vin}
+                    </td>
+                    <td className={`${entryCell} font-mono`} dir="ltr">
+                      {resolveProductionOrderLabel(v, productionOrders)}
+                    </td>
+                    <td className={entryCell}>
+                      <DeliveryBadge status={v.deliveryStatus} />
+                    </td>
+                    {canRelease && (
+                      <td className={entryCell}>
+                        <div className="flex items-center justify-center gap-2">
+                          {v.deliveryStatus === 'blocked' && (
+                            <button
+                              type="button"
+                              title={v.deliveryBlocked ? t('vehicles.blockedHint') : t('vehicles.release')}
+                              disabled={busyId === v.id || v.deliveryBlocked}
+                              onClick={() => handleRelease(v)}
+                              className="rounded-lg bg-cyan-500/15 p-2 text-cyan-200 hover:bg-cyan-500/25 disabled:cursor-not-allowed disabled:opacity-40"
+                            >
+                              <CheckCircle2 className="h-4 w-4" />
+                            </button>
+                          )}
+                          {v.deliveryStatus === 'ready' && (
+                            <button
+                              type="button"
+                              title={t('vehicles.deliver')}
+                              disabled={busyId === v.id}
+                              onClick={() => handleDeliver(v)}
+                              className="rounded-lg bg-emerald-500/15 p-2 text-emerald-200 hover:bg-emerald-500/25 disabled:opacity-40"
+                            >
+                              <Truck className="h-4 w-4" />
+                            </button>
+                          )}
+                        </div>
+                      </td>
+                    )}
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )}
         </div>
 
         {loading && <div className="p-8 text-center text-slate-400">{t('common.loading')}</div>}
@@ -186,7 +296,7 @@ export function VehiclesPage() {
         )}
       </div>
 
-      {showNew && <NewVehicleModal onClose={() => setShowNew(false)} />}
+      <EditVehicleEntryModal vehicle={editingVehicle} onClose={() => setEditingVehicle(null)} />
     </section>
   )
 }

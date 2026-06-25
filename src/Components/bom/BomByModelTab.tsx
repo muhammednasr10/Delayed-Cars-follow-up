@@ -1,12 +1,14 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import { Pencil, Plus, RefreshCcw, Search, Trash2, X } from 'lucide-react'
+import { Plus, RefreshCcw, Search, X } from 'lucide-react'
 import { useLang } from '../../i18n/LanguageContext'
 import { usePermissions } from '../../Context/PermissionsContext'
 import { useAuth } from '../../Context/AuthContext'
 import { getVehicleModels } from '../../services/settingsService'
-import { deleteBomItem, getBomCountForModel, getBomItems, type BomExcelColumnFilters, type BomListFilters } from '../../services/bomService'
-import { BOM_PARTS_DISPLAY_COLUMNS, T4_VARIANT_MODELS } from '../../Utils/bomPartsColumns'
-import { bomPartsCellValue } from '../../Utils/bomPartsCellValue'
+import { deleteBomItem, getBomItems, type BomExcelColumnFilters, type BomListFilters } from '../../services/bomService'
+import { BOM_PARTS_DISPLAY_COLUMNS, BOM_TABLE_COL_WIDTH } from '../../Utils/bomPartsColumns'
+import { groupBomItemsForDisplay, type BomDisplayGroup } from '../../Utils/bomRowGroups'
+import { buildModelFamilyGroups, isAssignableModel } from '../../Utils/vehicleModelHierarchy'
+import { BomGroupedTableRow } from './BomGroupedTableRow'
 import type { BomFilterColumn } from '../../Utils/bomFilterFields'
 import { BomFormModal } from './BomFormModal'
 import { ExcelColumnFilter } from './ExcelColumnFilter'
@@ -26,8 +28,11 @@ export function BomByModelTab({ notify }: { notify: (m: string, err?: boolean) =
   const canDelete = hasRole('admin') || hasPermission('bom', 'delete') || canUpdate
 
   const [models, setModels] = useState<VehicleModel[]>([])
-  const [modelId, setModelId] = useState('')
+  const [modelName, setModelName] = useState('')
   const [search, setSearch] = useState('')
+  const [stopperType, setStopperType] = useState('')
+  const [criticalOnly, setCriticalOnly] = useState(false)
+  const [noOperationOnly, setNoOperationOnly] = useState(false)
   const [excelFilters, setExcelFilters] = useState<BomExcelColumnFilters>({})
   const [page, setPage] = useState(1)
   const [items, setItems] = useState<BomItemDetail[]>([])
@@ -36,21 +41,24 @@ export function BomByModelTab({ notify }: { notify: (m: string, err?: boolean) =
   const [loading, setLoading] = useState(false)
   const [formMode, setFormMode] = useState<'create' | 'edit' | null>(null)
   const [editId, setEditId] = useState<string | null>(null)
-  const [deleteTarget, setDeleteTarget] = useState<BomItemDetail | null>(null)
+  const [editIds, setEditIds] = useState<string[]>([])
+  const [deleteTarget, setDeleteTarget] = useState<{ group: BomDisplayGroup } | null>(null)
   const [deleting, setDeleting] = useState(false)
+  const [expandedKeys, setExpandedKeys] = useState<Set<string>>(new Set())
 
-  const t4Models = useMemo(
-    () => models.filter(m => T4_VARIANT_MODELS.some(v => m.name.toUpperCase() === v)),
-    [models]
-  )
+  const modelPicker = useMemo(() => buildModelFamilyGroups(models), [models])
+  const displayGroups = useMemo(() => groupBomItemsForDisplay(items), [items])
 
-  const showModelCol = !modelId
+  const colCount = BOM_PARTS_DISPLAY_COLUMNS.length + (canUpdate || canDelete ? 1 : 0)
 
   const baseFilters = useMemo((): Omit<BomListFilters, 'page' | 'pageSize'> => {
     const f: Omit<BomListFilters, 'page' | 'pageSize'> = { search, excel: excelFilters }
-    if (modelId) f.vehicleModelId = modelId
+    if (modelName) f.modelName = modelName
+    if (stopperType) f.stopperType = stopperType as BomListFilters['stopperType']
+    if (criticalOnly) f.isCriticalOnly = true
+    if (noOperationOnly) f.noOperationOnly = true
     return f
-  }, [search, modelId, excelFilters])
+  }, [search, modelName, excelFilters, stopperType, criticalOnly, noOperationOnly])
 
   const activeExcelFilterCount = Object.values(excelFilters).filter(v => v && v.length > 0).length
 
@@ -60,14 +68,13 @@ export function BomByModelTab({ notify }: { notify: (m: string, err?: boolean) =
       const list = await getBomItems({ ...baseFilters, page, pageSize: PAGE_SIZE })
       setItems(list.items)
       setTotal(list.total)
-      if (modelId) setFilteredCount(await getBomCountForModel(modelId))
-      else setFilteredCount(list.total)
+      setFilteredCount(list.total)
     } catch (e) {
       notify(e instanceof Error ? e.message : t('common.error'), true)
     } finally {
       setLoading(false)
     }
-  }, [baseFilters, page, modelId, notify, t])
+  }, [baseFilters, page, notify, t])
 
   useEffect(() => {
     getVehicleModels()
@@ -104,7 +111,9 @@ export function BomByModelTab({ notify }: { notify: (m: string, err?: boolean) =
     if (!deleteTarget) return
     setDeleting(true)
     try {
-      await deleteBomItem(deleteTarget.id)
+      for (const id of deleteTarget.group.allIds) {
+        await deleteBomItem(id)
+      }
       setDeleteTarget(null)
       reload(t('settings.deleted'))
     } catch (e) {
@@ -114,48 +123,35 @@ export function BomByModelTab({ notify }: { notify: (m: string, err?: boolean) =
     }
   }
 
-  const selectedName = modelId ? models.find(m => m.id === modelId)?.name ?? '' : t('bom.allModels')
+  function toggleExpanded(key: string) {
+    setExpandedKeys(prev => {
+      const next = new Set(prev)
+      if (next.has(key)) next.delete(key)
+      else next.add(key)
+      return next
+    })
+  }
+
+  const selectedName = modelName || t('bom.allModels')
 
   return (
     <div className="space-y-4">
-      <div className="card-industrial space-y-3 p-4">
-        <div className="flex flex-wrap items-end justify-between gap-3">
-          <div className="grid flex-1 grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
-            <label className="block">
-              <span className="mb-1 block text-[10px] font-bold uppercase text-violet-300">{t('bom.filterModel')}</span>
-              <select
-                className={inputCls()}
-                value={modelId}
-                onChange={e => {
-                  setModelId(e.target.value)
-                  setPage(1)
-                }}
-              >
-                <option value="">{t('bom.allModels')}</option>
-                {models.map(m => (
-                  <option key={m.id} value={m.id}>
-                    {m.name}
-                  </option>
-                ))}
-              </select>
-            </label>
-            <label className="block sm:col-span-2">
-              <span className="mb-1 block text-[10px] font-bold uppercase text-slate-500">{t('bom.search')}</span>
-              <div className="relative">
-                <Search className="absolute start-3 top-2.5 h-4 w-4 text-slate-500" />
-                <input
-                  className={`${inputCls()} ps-9`}
-                  value={search}
-                  onChange={e => {
-                    setSearch(e.target.value)
-                    setPage(1)
-                  }}
-                  placeholder={t('bom.searchPh')}
-                />
-              </div>
-            </label>
-          </div>
-          <div className="flex flex-wrap gap-2">
+      <div className="card-industrial p-4">
+        <div className="flex flex-col gap-3 lg:flex-row lg:items-center">
+          <label className="relative min-w-0 flex-1">
+            <span className="sr-only">{t('bom.search')}</span>
+            <Search className="pointer-events-none absolute start-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-500" />
+            <input
+              className={`${inputCls()} w-full ps-9`}
+              value={search}
+              onChange={e => {
+                setSearch(e.target.value)
+                setPage(1)
+              }}
+              placeholder={t('bom.searchPh')}
+            />
+          </label>
+          <div className="flex flex-wrap items-center gap-2 lg:shrink-0">
             {activeExcelFilterCount > 0 && (
               <button
                 type="button"
@@ -165,7 +161,11 @@ export function BomByModelTab({ notify }: { notify: (m: string, err?: boolean) =
                 <X className="inline h-3 w-3" /> {t('bom.excel.clearAllFilters', { n: activeExcelFilterCount })}
               </button>
             )}
-            <button type="button" onClick={() => reload()} className="rounded-xl bg-slate-800 px-3 py-2 text-sm font-bold text-slate-200 hover:bg-slate-700">
+            <button
+              type="button"
+              onClick={() => reload()}
+              className="rounded-xl bg-slate-800 px-3 py-2 text-sm font-bold text-slate-200 hover:bg-slate-700"
+            >
               <RefreshCcw className="inline h-4 w-4" /> {t('common.refresh')}
             </button>
             {canCreate && (
@@ -174,6 +174,7 @@ export function BomByModelTab({ notify }: { notify: (m: string, err?: boolean) =
                 onClick={() => {
                   setFormMode('create')
                   setEditId(null)
+                  setEditIds([])
                 }}
                 className="rounded-xl bg-cyan-500 px-4 py-2 text-sm font-black text-slate-950 hover:bg-cyan-400"
               >
@@ -183,70 +184,110 @@ export function BomByModelTab({ notify }: { notify: (m: string, err?: boolean) =
           </div>
         </div>
 
-        {t4Models.length > 0 && (
-          <div className="flex flex-wrap items-center gap-2">
-            <span className="text-[10px] font-bold uppercase text-cyan-400">{t('bom.t4QuickFilter')}</span>
-            <button
-              type="button"
-              onClick={() => {
-                setModelId('')
+        <div className="mt-3 grid grid-cols-1 gap-3 border-t border-slate-800/80 pt-3 sm:grid-cols-2 lg:grid-cols-4">
+          <label className="block">
+            <span className="mb-1 block text-[10px] font-bold uppercase text-violet-300">{t('bom.filterModel')}</span>
+            <select
+              className={inputCls()}
+              value={modelName}
+              onChange={e => {
+                setModelName(e.target.value)
                 setPage(1)
               }}
-              className={`rounded-lg px-3 py-1 text-xs font-bold ${!modelId ? 'bg-cyan-500 text-slate-950' : 'bg-slate-800 text-slate-300'}`}
             >
-              T4 {t('bom.all')}
-            </button>
-            {t4Models.map(m => (
-              <button
-                key={m.id}
-                type="button"
-                onClick={() => {
-                  setModelId(m.id)
+              <option value="">{t('bom.allModels')}</option>
+              {modelPicker.groups.map(g => (
+                <optgroup key={g.family.id} label={g.family.name}>
+                  {g.variants.filter(isAssignableModel).map(m => (
+                    <option key={m.id} value={m.name}>
+                      {m.name}
+                    </option>
+                  ))}
+                </optgroup>
+              ))}
+              {modelPicker.orphanVariants.filter(isAssignableModel).map(m => (
+                <option key={m.id} value={m.name}>
+                  {m.name}
+                </option>
+              ))}
+            </select>
+          </label>
+          <label className="block">
+            <span className="mb-1 block text-[10px] font-bold uppercase text-slate-500">{t('bom.stopperType')}</span>
+            <select
+              className={inputCls()}
+              value={stopperType}
+              onChange={e => {
+                setStopperType(e.target.value)
+                setPage(1)
+              }}
+            >
+              <option value="">{t('common.all')}</option>
+              <option value="line_stopper">{t('bom.stopperLine')}</option>
+              <option value="car_stopper">{t('bom.stopperCar')}</option>
+              <option value="non_stopper">{t('bom.stopperNone')}</option>
+            </select>
+          </label>
+          <div className="flex flex-wrap items-end gap-x-5 gap-y-2 sm:col-span-2">
+            <label className="flex cursor-pointer items-center gap-2 text-sm text-slate-300">
+              <input
+                type="checkbox"
+                className="rounded border-slate-600"
+                checked={criticalOnly}
+                onChange={e => {
+                  setCriticalOnly(e.target.checked)
                   setPage(1)
                 }}
-                className={`rounded-lg px-3 py-1 text-xs font-bold ${modelId === m.id ? 'bg-cyan-500 text-slate-950' : 'bg-slate-800 text-slate-300'}`}
-              >
-                {m.name}
-              </button>
-            ))}
+              />
+              {t('bom.criticalOnly')}
+            </label>
+            <label className="flex cursor-pointer items-center gap-2 text-sm text-slate-300">
+              <input
+                type="checkbox"
+                className="rounded border-slate-600"
+                checked={noOperationOnly}
+                onChange={e => {
+                  setNoOperationOnly(e.target.checked)
+                  setPage(1)
+                }}
+              />
+              {t('bom.noOperationOnly')}
+            </label>
           </div>
-        )}
+        </div>
+
+        <p className="mt-3 border-t border-slate-800/80 pt-3 text-xs text-slate-500">
+          {modelName
+            ? t('bom.modelBomSummary', { model: selectedName, n: filteredCount ?? 0, shown: total })
+            : t('bom.allBomSummary', { n: filteredCount ?? total, shown: total })}
+          {activeExcelFilterCount > 0 && (
+            <span className="ms-2 text-cyan-400">· {t('bom.excel.filtersActive', { n: activeExcelFilterCount })}</span>
+          )}
+        </p>
       </div>
 
-      <p className="text-sm text-slate-400">
-        {modelId
-          ? t('bom.modelBomSummary', { model: selectedName, n: filteredCount ?? 0, shown: total })
-          : t('bom.allBomSummary', { n: filteredCount ?? total, shown: total })}
-        {activeExcelFilterCount > 0 && (
-          <span className="ms-2 text-cyan-400">· {t('bom.excel.filtersActive', { n: activeExcelFilterCount })}</span>
-        )}
-      </p>
-
-      <div className="card-industrial overflow-x-auto">
-        <table className="w-full min-w-[1200px] text-xs">
+      <div className="card-industrial overflow-hidden">
+        <table className="bom-parts-table">
+          <colgroup>
+            {BOM_PARTS_DISPLAY_COLUMNS.map(c => (
+              <col key={c} style={{ width: BOM_TABLE_COL_WIDTH[c] }} />
+            ))}
+            {(canUpdate || canDelete) && <col className="bom-actions-col" />}
+          </colgroup>
           <thead>
-            <tr className="border-b border-slate-800 text-[10px] font-black uppercase text-slate-500">
-              {showModelCol && (
-                <th className="table-cell whitespace-nowrap">
-                  <div className="flex items-center justify-between gap-1">
-                    <span>{t('bom.model')}</span>
-                    <ExcelColumnFilter
-                      column="vehicle_model"
-                      label={t('bom.model')}
-                      baseFilters={baseFilters}
-                      selected={excelFilters.vehicle_model}
-                      onApply={v => setColumnFilter('vehicle_model', v)}
-                    />
-                  </div>
-                </th>
-              )}
+            <tr className="border-b border-slate-800">
               {BOM_PARTS_DISPLAY_COLUMNS.map(c => (
-                <th key={c} className="table-cell whitespace-nowrap">
-                  <div className="flex items-center justify-between gap-1">
-                    <span>{t(`bom.col.${c}`)}</span>
+                <th
+                  key={c}
+                  className={c === 'qty_by_model' ? 'text-center' : ''}
+                >
+                  <div className="flex items-start justify-between gap-0.5">
+                    <span className="min-w-0 leading-tight">
+                      {c === 'vehicle_model' ? t('bom.model') : t(`bom.col.${c}`)}
+                    </span>
                     <ExcelColumnFilter
                       column={c}
-                      label={t(`bom.col.${c}`)}
+                      label={c === 'vehicle_model' ? t('bom.model') : t(`bom.col.${c}`)}
                       baseFilters={baseFilters}
                       selected={excelFilters[c]}
                       onApply={v => setColumnFilter(c, v)}
@@ -254,67 +295,40 @@ export function BomByModelTab({ notify }: { notify: (m: string, err?: boolean) =
                   </div>
                 </th>
               ))}
-              {(canUpdate || canDelete) && <th className="table-cell sticky end-0 bg-slate-950">{t('common.actions')}</th>}
+              {(canUpdate || canDelete) && (
+                <th className="bom-actions-col text-center">{t('common.actions')}</th>
+              )}
             </tr>
           </thead>
           <tbody>
             {loading ? (
               <tr>
-                <td colSpan={BOM_PARTS_DISPLAY_COLUMNS.length + (showModelCol ? 1 : 0) + 1} className="table-cell text-slate-400">
+                <td colSpan={colCount} className="text-slate-400">
                   {t('common.loading')}
                 </td>
               </tr>
-            ) : items.length === 0 ? (
+            ) : displayGroups.length === 0 ? (
               <tr>
-                <td colSpan={BOM_PARTS_DISPLAY_COLUMNS.length + (showModelCol ? 1 : 0) + 1} className="table-cell text-slate-400">
+                <td colSpan={colCount} className="text-slate-400">
                   {t('bom.noModelBom')}
                 </td>
               </tr>
             ) : (
-              items.map(row => (
-                <tr key={row.id} className="border-b border-slate-800/80 hover:bg-slate-900/50">
-                  {showModelCol && (
-                    <td className="table-cell font-bold text-violet-200">{row.vehicle_model_name || '—'}</td>
-                  )}
-                  {BOM_PARTS_DISPLAY_COLUMNS.map(c => (
-                    <td
-                      key={c}
-                      className="table-cell max-w-[220px] truncate text-slate-200"
-                      dir={c === 'part_number' || c === 'station_code' || c === 'part_name_en' ? 'ltr' : undefined}
-                      title={bomPartsCellValue(row, c)}
-                    >
-                      {bomPartsCellValue(row, c) || '—'}
-                    </td>
-                  ))}
-                  {(canUpdate || canDelete) && (
-                    <td className="table-cell sticky end-0 bg-slate-900/95">
-                      <div className="flex gap-1">
-                        {canUpdate && (
-                          <button
-                            type="button"
-                            onClick={() => {
-                              setFormMode('edit')
-                              setEditId(row.id)
-                            }}
-                            className="rounded-lg bg-orange-500/15 p-2 text-orange-200 hover:bg-orange-500/25"
-                            title={t('common.edit')}
-                          >
-                            <Pencil className="h-4 w-4" />
-                          </button>
-                        )}
-                        {canDelete && (
-                          <button
-                            type="button"
-                            onClick={() => setDeleteTarget(row)}
-                            className="rounded-lg bg-red-500/15 p-2 text-red-200 hover:bg-red-500/25"
-                          >
-                            <Trash2 className="h-4 w-4" />
-                          </button>
-                        )}
-                      </div>
-                    </td>
-                  )}
-                </tr>
+              displayGroups.map(group => (
+                <BomGroupedTableRow
+                  key={group.key}
+                  group={group}
+                  expanded={expandedKeys.has(group.key)}
+                  onToggle={() => toggleExpanded(group.key)}
+                  canUpdate={canUpdate}
+                  canDelete={canDelete}
+                  onEdit={() => {
+                    setFormMode('edit')
+                    setEditId(group.primary.id)
+                    setEditIds(group.allIds)
+                  }}
+                  onDelete={() => setDeleteTarget({ group })}
+                />
               ))
             )}
           </tbody>
@@ -337,11 +351,13 @@ export function BomByModelTab({ notify }: { notify: (m: string, err?: boolean) =
       <BomFormModal
         mode={formMode === 'create' ? 'create' : 'edit'}
         itemId={editId}
+        editItemIds={editIds.length > 1 ? editIds : undefined}
         open={formMode != null}
-        defaultVehicleModelId={modelId || undefined}
+        defaultVehicleModelId={models.find(m => m.name === modelName)?.id || undefined}
         onClose={() => {
           setFormMode(null)
           setEditId(null)
+          setEditIds([])
         }}
         onSaved={() => reload(t('settings.updated'))}
       />
@@ -351,7 +367,11 @@ export function BomByModelTab({ notify }: { notify: (m: string, err?: boolean) =
         title={t('bom.deleteRow')}
         message={
           deleteTarget
-            ? `${deleteTarget.part_number} — ${deleteTarget.vehicle_model_name || deleteTarget.applicable_models_text || ''}`
+            ? `${deleteTarget.group.summary.part_number} — ${deleteTarget.group.summary.applicable_models_text || deleteTarget.group.summary.part_name_ar || ''}${
+                deleteTarget.group.allIds.length > 1
+                  ? ` (${t('bom.deleteGroupHint', { n: deleteTarget.group.allIds.length })})`
+                  : ''
+              }`
             : ''
         }
         confirmLabel={t('common.delete')}

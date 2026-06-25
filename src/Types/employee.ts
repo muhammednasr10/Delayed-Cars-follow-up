@@ -1,6 +1,11 @@
 import type { JobRole, ResponsibleDepartment } from './enums'
 import type { EmploymentStatus } from './permissions'
 
+/** حالة التعيين من كشف العمالة — منفصلة عن تفعيل السجل */
+export type AssignmentStatus = 'متعين' | 'كاجوال'
+
+export const ASSIGNMENT_STATUSES: AssignmentStatus[] = ['متعين', 'كاجوال']
+
 // Row shape returned from the `employees` table (with embedded names resolved
 // by the service). Manager name is resolved client-side from the loaded list.
 export type Employee = {
@@ -20,6 +25,8 @@ export type Employee = {
   phone: string | null
   email: string | null
   notes: string | null
+  /** حالة التعيين من كشف العمالة (مثل متعين) — منفصلة عن نشط/موقوف */
+  assignmentStatus: AssignmentStatus | null
   isActive: boolean
   employmentStatus: EmploymentStatus
   stoppedReason: string | null
@@ -39,5 +46,6 @@ export type EmployeeInput = {
   phone: string | null
   email: string | null
   notes: string | null
+  assignmentStatus: AssignmentStatus | null
   isActive: boolean
 }

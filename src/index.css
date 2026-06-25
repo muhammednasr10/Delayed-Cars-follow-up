@@ -22,15 +22,114 @@ input, select, textarea {
 }
 
 .table-cell {
-  @apply px-4 py-3 text-sm text-slate-200;
+  @apply px-4 py-3 text-sm text-slate-200 align-middle;
 }
 
 .table-cell-compact {
-  @apply px-2 py-1.5 text-xs text-slate-200 text-center align-middle;
+  @apply px-2 py-1.5 text-xs text-slate-200 align-middle;
+}
+
+/* IPL parts list — fit viewport width, no horizontal scroll */
+.bom-parts-table {
+  table-layout: fixed;
+  width: 100%;
+}
+
+.bom-parts-table th,
+.bom-parts-table td {
+  @apply px-2 py-1.5 text-xs align-middle text-slate-200;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+
+.bom-parts-table thead th {
+  @apply py-2 text-[9px] font-black uppercase leading-tight text-slate-500;
+}
+
+.bom-parts-table .bom-actions-col {
+  width: 4.5rem;
 }
 
 .input-dark {
   @apply w-full rounded-xl border border-slate-700 bg-slate-950/80 px-3 py-2 text-sm text-slate-100 placeholder:text-slate-500 focus:border-cyan-400 focus:ring-2 focus:ring-cyan-400/20;
+}
+
+/* Org chart tree (top-down, connectors between manager and reports) */
+.org-chart-vline {
+  width: 2px;
+  height: 1.25rem;
+  background: rgb(71 85 105);
+}
+
+.org-chart-children {
+  display: flex;
+  justify-content: center;
+  padding: 0;
+  margin: 0;
+  padding-top: 1.25rem;
+  position: relative;
+  list-style: none;
+  gap: 0.5rem;
+}
+
+.org-chart-children::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 50%;
+  width: 2px;
+  height: 1.25rem;
+  background: rgb(71 85 105);
+  transform: translateX(-50%);
+}
+
+.org-chart-child {
+  position: relative;
+  padding: 1.25rem 0.35rem 0;
+  list-style: none;
+}
+
+/* Horizontal bar linking siblings */
+.org-chart-child::before,
+.org-chart-child::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  width: 50%;
+  height: 2px;
+  background: rgb(71 85 105);
+}
+
+.org-chart-child::before {
+  right: 50%;
+}
+
+.org-chart-child::after {
+  left: 50%;
+  border-left: 2px solid rgb(71 85 105);
+  background: transparent;
+  width: auto;
+  height: 1.25rem;
+}
+
+.org-chart-child:first-child::before {
+  display: none;
+}
+
+.org-chart-child:last-child::after {
+  border-left: none;
+}
+
+.org-chart-child:only-child::after {
+  left: 50%;
+  transform: translateX(-50%);
+  border-left: 2px solid rgb(71 85 105);
+  width: 0;
+  height: 1.25rem;
+}
+
+.org-chart-child:only-child::before {
+  display: none;
 }
 
 @keyframes fadeIn {

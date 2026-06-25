@@ -4,7 +4,7 @@ import { useLang } from '../i18n/LanguageContext'
 import { Modal } from './Modal'
 import { ALLOWED_MANAGER_ROLES, JOB_ROLES } from '../Types/enums'
 import type { JobRole, ResponsibleDepartment } from '../Types/enums'
-import type { Employee, EmployeeInput } from '../Types/employee'
+import { ASSIGNMENT_STATUSES, type AssignmentStatus, type Employee, type EmployeeInput } from '../Types/employee'
 import type { Station, WorkArea } from '../Types/settings'
 
 const DEPARTMENTS: ResponsibleDepartment[] = ['warehouse', 'purchasing', 'production', 'quality', 'supplier', 'management']
@@ -32,12 +32,14 @@ type FormState = {
   phone: string
   email: string
   notes: string
+  assignmentStatus: string
   isActive: boolean
 }
 
 const emptyState: FormState = {
   employeeCode: '', fullName: '', jobRole: '', department: '', workAreaId: '',
-  stationId: '', lineName: '', directManagerId: '', phone: '', email: '', notes: '', isActive: true
+  stationId: '', lineName: '', directManagerId: '', phone: '', email: '', notes: '',
+  assignmentStatus: '', isActive: true
 }
 
 function fromEmployee(e: Employee): FormState {
@@ -53,6 +55,7 @@ function fromEmployee(e: Employee): FormState {
     phone: e.phone ?? '',
     email: e.email ?? '',
     notes: e.notes ?? '',
+    assignmentStatus: e.assignmentStatus ?? '',
     isActive: e.isActive
   }
 }
@@ -116,6 +119,7 @@ export function EmployeeForm({ open, editing, employees, areas, stations, busy, 
       phone: form.phone || null,
       email: form.email || null,
       notes: form.notes || null,
+      assignmentStatus: (form.assignmentStatus || null) as AssignmentStatus | null,
       isActive: form.isActive
     }
   }
@@ -157,7 +161,15 @@ export function EmployeeForm({ open, editing, employees, areas, stations, busy, 
               {JOB_ROLES.map(r => <option key={r} value={r}>{t(`jobRole.${r}`)}</option>)}
             </select>
           </Field>
-          <Field label={t('org.f.status')}>
+          <Field label={t('org.f.assignmentStatus')} hint={t('org.f.assignmentStatusHint')}>
+            <select className={cls()} value={form.assignmentStatus} onChange={e => set('assignmentStatus', e.target.value)}>
+              <option value="">—</option>
+              {ASSIGNMENT_STATUSES.map(s => (
+                <option key={s} value={s}>{t(`org.assignmentStatus.${s}`)}</option>
+              ))}
+            </select>
+          </Field>
+          <Field label={t('org.f.recordActive')}>
             <div className="flex gap-2">
               <Toggle active={form.isActive} label={t('org.f.active')} onClick={() => set('isActive', true)} tone="emerald" />
               <Toggle active={!form.isActive} label={t('org.f.inactive')} onClick={() => set('isActive', false)} tone="slate" />
@@ -228,10 +240,11 @@ function Section({ title, children }: { title: string; children: ReactNode }) {
   )
 }
 
-function Field({ label, required, error, children }: { label: string; required?: boolean; error?: string; children: ReactNode }) {
+function Field({ label, required, error, hint, children }: { label: string; required?: boolean; error?: string; hint?: string; children: ReactNode }) {
   return (
     <label className="block space-y-1.5">
       <span className="text-sm font-bold text-slate-300">{label}{required && <span className="text-red-400"> *</span>}</span>
+      {hint && <span className="block text-xs text-slate-500">{hint}</span>}
       {children}
       {error && <span className="block text-xs font-semibold text-red-400">{error}</span>}
     </label>

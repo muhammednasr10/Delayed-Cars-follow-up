@@ -1,16 +1,16 @@
 import { useEffect, useState, type ReactNode } from 'react'
 import { AlertTriangle, Plus, Trash2 } from 'lucide-react'
 import { useLang } from '../i18n/LanguageContext'
-import { useAuth } from '../Context/AuthContext'
 import { Modal } from './Modal'
-import { StationAutocomplete } from './StationAutocomplete'
+import { StationSelect } from './StationSelect'
+import { VehicleModelFamilyPicker, resolveFamilyIdForVariant } from './VehicleModelFamilyPicker'
 import { reportMissingPartsBatch } from '../services/missingPartsService'
-import { getVehicleColors, getVehicleModels } from '../services/settingsService'
+import { getStations, getVehicleColors, getVehicleModels } from '../services/settingsService'
 import type { MissingPartLineInput } from '../Types/missingPart'
 import type { PriorityLevel, StopperType } from '../Types/enums'
 import type { Station, VehicleColor, VehicleModel } from '../Types/settings'
 import { useMpLookups } from '../hooks/useMpLookups'
-import { MpLookupSelect } from './MpLookupSelect'
+import { MpLookupCreatableSelect } from './MpLookupCreatableSelect'
 import { defaultDepartmentCode, defaultReasonCode } from '../Utils/mpLookupLabel'
 
 const PRIORITIES: PriorityLevel[] = ['low', 'normal', 'high', 'critical']
@@ -44,6 +44,7 @@ function newIssueLine(): IssueLineDraft {
 }
 
 type VehicleForm = {
+  familyId: string
   modelId: string
   colorId: string | null
   priority: PriorityLevel
@@ -52,6 +53,7 @@ type VehicleForm = {
 }
 
 const emptyVehicle: VehicleForm = {
+  familyId: '',
   modelId: '',
   colorId: null,
   priority: 'normal',
@@ -67,11 +69,11 @@ type Props = {
 
 export function ReportMissingPartModal({ open, onClose, onReported }: Props) {
   const { t } = useLang()
-  const { reasons, departments } = useMpLookups()
-  const { hasRole } = useAuth()
-  const canCreateStation = hasRole('admin', 'production', 'warehouse')
+  const { reasons, departments, addReason, addDepartment } = useMpLookups()
   const [models, setModels] = useState<VehicleModel[]>([])
   const [colors, setColors] = useState<VehicleColor[]>([])
+  const [stations, setStations] = useState<Station[]>([])
+  const [listsLoading, setListsLoading] = useState(false)
   const [issues, setIssues] = useState(() => [newIssueLine()])
   const [vehicle, setVehicle] = useState<VehicleForm>(emptyVehicle)
   const [formError, setFormError] = useState('')
@@ -99,13 +101,15 @@ export function ReportMissingPartModal({ open, onClose, onReported }: Props) {
     ])
     setVehicle(emptyVehicle)
     setFormError('')
-    Promise.all([getVehicleModels(), getVehicleColors()])
-      .then(([m, c]) => {
+    Promise.all([getVehicleModels(), getVehicleColors(), getStations()])
+      .then(([m, c, st]) => {
         setModels(m)
         setColors(c)
+        setStations(st)
       })
       .catch(err => setFormError(err instanceof Error ? err.message : t('common.error')))
-  }, [open, t])
+      .finally(() => setListsLoading(false))
+  }, [open, reasons, departments, t])
 
   function patchIssue(key: string, patch: Partial<IssueLineDraft>) {
     setIssues(prev => prev.map(l => (l.key === key ? { ...l, ...patch } : l)))
@@ -242,29 +246,47 @@ export function ReportMissingPartModal({ open, onClose, onReported }: Props) {
         </>
       }
     >
-      <div className="max-h-[70vh] space-y-5 overflow-y-auto">
+      <div className="space-y-5">
         <section className="space-y-3">
           <h3 className="text-xs font-black uppercase tracking-wider text-cyan-300">{t('mp.sectionVehicle')}</h3>
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-            <Field label={t('mp.f.model')} required>
-              <select className="input-dark" value={vehicle.modelId} onChange={e => setVehicle(p => ({ ...p, modelId: e.target.value }))}>
-                <option value="">—</option>
-                {models.map(m => (
-                  <option key={m.id} value={m.id}>
-                    {m.name}
-                  </option>
-                ))}
-              </select>
-            </Field>
+            <div className="sm:col-span-2">
+              <VehicleModelFamilyPicker
+                models={models}
+                familyId={vehicle.familyId}
+                variantId={vehicle.modelId}
+                loading={listsLoading}
+                onFamilyChange={familyId => setVehicle(p => ({ ...p, familyId, modelId: '' }))}
+                onVariantChange={modelId =>
+                  setVehicle(p => ({
+                    ...p,
+                    modelId,
+                    familyId: resolveFamilyIdForVariant(models, modelId) || p.familyId
+                  }))
+                }
+              />
+            </div>
             <Field label={t('mp.f.color')}>
-              <select className="input-dark" value={vehicle.colorId ?? ''} onChange={e => setVehicle(p => ({ ...p, colorId: e.target.value || null }))}>
-                <option value="">—</option>
-                {colors.map(c => (
-                  <option key={c.id} value={c.id}>
-                    {c.name}
-                  </option>
-                ))}
-              </select>
+              {listsLoading ? (
+                <p className="text-sm text-slate-500">{t('common.loading')}</p>
+              ) : colors.length === 0 ? (
+                <p className="rounded-xl border border-amber-500/30 bg-amber-500/10 p-2 text-xs text-amber-200">
+                  {t('mp.noColorsInSettings')}
+                </p>
+              ) : (
+                <select
+                  className="input-dark"
+                  value={vehicle.colorId ?? ''}
+                  onChange={e => setVehicle(p => ({ ...p, colorId: e.target.value || null }))}
+                >
+                  <option value="">—</option>
+                  {colors.map(c => (
+                    <option key={c.id} value={c.id}>
+                      {c.name}
+                    </option>
+                  ))}
+                </select>
+              )}
             </Field>
           </div>
         </section>
@@ -297,7 +319,12 @@ export function ReportMissingPartModal({ open, onClose, onReported }: Props) {
                 </div>
 
                 <Field label={t('mp.f.station')} required>
-                  <StationAutocomplete value={line.station} onSelect={s => setLineStation(line.key, s)} canCreate={canCreateStation} />
+                  <StationSelect
+                    stations={stations}
+                    value={line.station}
+                    loading={listsLoading}
+                    onSelect={s => setLineStation(line.key, s)}
+                  />
                 </Field>
 
                 <Field label={t('mp.cols.reason')} required>
@@ -321,10 +348,22 @@ export function ReportMissingPartModal({ open, onClose, onReported }: Props) {
                     />
                   </Field>
                   <Field label={t('mp.cols.reasonClass')}>
-                    <MpLookupSelect options={reasons} value={line.reason} onChange={code => patchIssue(line.key, { reason: code })} />
+                    <MpLookupCreatableSelect
+                      options={reasons}
+                      value={line.reason}
+                      onChange={code => patchIssue(line.key, { reason: code })}
+                      onCreate={addReason}
+                      addLabel={t('mp.addReasonOption')}
+                    />
                   </Field>
                   <Field label={t('mp.cols.department')}>
-                    <MpLookupSelect options={departments} value={line.department} onChange={code => patchIssue(line.key, { department: code })} />
+                    <MpLookupCreatableSelect
+                      options={departments}
+                      value={line.department}
+                      onChange={code => patchIssue(line.key, { department: code })}
+                      onCreate={addDepartment}
+                      addLabel={t('mp.addDepartmentOption')}
+                    />
                   </Field>
                 </div>
 

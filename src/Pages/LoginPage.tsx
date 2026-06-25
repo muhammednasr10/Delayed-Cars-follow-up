@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { LogIn, MonitorCog } from 'lucide-react'
 import { useAuth } from '../Context/AuthContext'
 import { useLang } from '../i18n/LanguageContext'
+import { UserSupportRequestModal } from '../Components/permissions/UserSupportRequestModal'
 
 export function LoginPage() {
   const { signIn, accessDeniedMessage } = useAuth()
@@ -10,6 +11,7 @@ export function LoginPage() {
   const [password, setPassword] = useState('')
   const [error, setError] = useState('')
   const [submitting, setSubmitting] = useState(false)
+  const [helpOpen, setHelpOpen] = useState(false)
 
   async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault()
@@ -82,7 +84,24 @@ export function LoginPage() {
             <LogIn className="h-4 w-4" />
             {submitting ? t('login.submitting') : t('login.submit')}
           </button>
+
+          <p className="text-center text-sm text-slate-400">
+            <button
+              type="button"
+              onClick={() => setHelpOpen(true)}
+              className="font-bold text-cyan-300 hover:text-cyan-200 hover:underline"
+            >
+              {t('login.needHelp')}
+            </button>
+          </p>
         </form>
+
+        <UserSupportRequestModal
+          open={helpOpen}
+          onClose={() => setHelpOpen(false)}
+          defaultEmail={email}
+          defaultType="password_reset"
+        />
       </div>
     </main>
   )
