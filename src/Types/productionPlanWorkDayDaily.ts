@@ -1,3 +1,5 @@
+import { DEFAULT_PLANNED_WORK_HOURS } from '../Utils/workScheduleDefaults'
+
 export const PLAN_DAY_TYPES = [
   'work',
   'overtime',
@@ -20,13 +22,15 @@ export type ProductionPlanWorkDayRow = {
 export type ProductionPlanWorkDayEdit = ProductionPlanWorkDayRow & {
   entryProductivity: number
   exitProductivity: number
+  stopMinutes: number
+  stopLostVehicles: number
 }
 
 export function defaultWorkDayRow(workDate: string): ProductionPlanWorkDayRow {
   return {
     workDate,
     dayType: 'work',
-    plannedHours: 0,
+    plannedHours: DEFAULT_PLANNED_WORK_HOURS,
     actualHours: 0,
     totalStops: 0,
     notes: null

@@ -119,3 +119,13 @@ export type EmployeeQualification = {
   qualified: boolean
   gaps: SkillGap[]
 }
+
+/** Worker × virtual station (e.g. PBS01-L3) cell in مصفوفة التدريب. */
+export type EmployeeStationLevel = {
+  id: string
+  employeeId: string
+  stationId: string
+  /** 1–4 → column suffix L1–L4 */
+  levelTrack: number
+  level: TrainingLevel
+}

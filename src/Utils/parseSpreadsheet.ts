@@ -34,3 +34,18 @@ export function pickDefaultBomSheet(sheetNames: string[]): string {
   if (sheetNames.includes('BOM')) return 'BOM'
   return sheetNames[0] ?? 'Sheet1'
 }
+
+export async function parseAllSpreadsheetSheets(file: File): Promise<{ sheetName: string; rows: string[][] }[]> {
+  const name = file.name.toLowerCase()
+  if (!name.endsWith('.xlsx') && !name.endsWith('.xls')) {
+    const rows = await parseSpreadsheetFile(file)
+    return [{ sheetName: 'Sheet1', rows }]
+  }
+  const buf = await file.arrayBuffer()
+  const wb = XLSX.read(buf, { type: 'array' })
+  return wb.SheetNames.map(sheetName => {
+    const sheet = wb.Sheets[sheetName]
+    const rows = XLSX.utils.sheet_to_json<string[]>(sheet, { header: 1, defval: '' }) as string[][]
+    return { sheetName, rows: rows.map(r => r.map(c => String(c ?? '').trim())) }
+  })
+}

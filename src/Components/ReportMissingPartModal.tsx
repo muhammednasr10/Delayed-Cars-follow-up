@@ -101,6 +101,7 @@ export function ReportMissingPartModal({ open, onClose, onReported }: Props) {
     ])
     setVehicle(emptyVehicle)
     setFormError('')
+    setListsLoading(true)
     Promise.all([getVehicleModels(), getVehicleColors(), getStations()])
       .then(([m, c, st]) => {
         setModels(m)
@@ -109,7 +110,7 @@ export function ReportMissingPartModal({ open, onClose, onReported }: Props) {
       })
       .catch(err => setFormError(err instanceof Error ? err.message : t('common.error')))
       .finally(() => setListsLoading(false))
-  }, [open, reasons, departments, t])
+  }, [open, t])
 
   function patchIssue(key: string, patch: Partial<IssueLineDraft>) {
     setIssues(prev => prev.map(l => (l.key === key ? { ...l, ...patch } : l)))
@@ -154,34 +155,26 @@ export function ReportMissingPartModal({ open, onClose, onReported }: Props) {
   }
 
   async function submit() {
-    if (!vehicle.modelId) {
-      setFormError(t('mp.f.model'))
-      return
-    }
+    const missing: string[] = []
+
+    if (!vehicle.modelId) missing.push(t('mp.f.model'))
 
     const validIssues = issues.filter(l => l.partDescription.trim())
-    if (validIssues.length === 0) {
-      setFormError(t('mp.errOneIssue'))
-      return
-    }
+    if (validIssues.length === 0) missing.push(t('mp.errOneIssue'))
 
     for (let li = 0; li < validIssues.length; li++) {
       const line = validIssues[li]
-      if (!line.stationId) {
-        setFormError(t('mp.errIssueStation', { n: li + 1 }))
-        return
-      }
+      if (!line.stationId) missing.push(t('mp.errIssueStation', { n: li + 1 }))
       const vinList = line.vins.map(v => v.trim()).filter(Boolean)
-      if (vinList.length !== line.vehicleCount) {
-        setFormError(t('mp.errIssueVins', { n: li + 1 }))
-        return
-      }
+      if (vinList.length !== line.vehicleCount) missing.push(t('mp.errIssueVins', { n: li + 1 }))
       for (let vi = 0; vi < vinList.length; vi++) {
-        if (vinList[vi].length < 6) {
-          setFormError(t('mp.errIssueVinIndex', { issue: li + 1, vin: vi + 1 }))
-          return
-        }
+        if (vinList[vi].length < 6) missing.push(t('mp.errIssueVinIndex', { issue: li + 1, vin: vi + 1 }))
       }
+    }
+
+    if (missing.length > 0) {
+      setFormError(missing.join(' · '))
+      return
     }
 
     setSubmitting(true)
@@ -236,14 +229,24 @@ export function ReportMissingPartModal({ open, onClose, onReported }: Props) {
       onClose={onClose}
       maxWidthClass="max-w-3xl"
       footer={
-        <>
-          <button onClick={onClose} className="rounded-xl bg-slate-800 px-4 py-2 font-bold text-slate-200 hover:bg-slate-700">
-            {t('common.cancel')}
-          </button>
-          <button disabled={submitting} onClick={() => void submit()} className="rounded-xl bg-cyan-500 px-5 py-2 font-black text-slate-950 hover:bg-cyan-400 disabled:opacity-50">
-            {submitting ? t('common.saving') : t('common.save')}
-          </button>
-        </>
+        <div className="w-full space-y-3">
+          {formError && (
+            <div className="rounded-xl border border-red-500/40 bg-red-500/15 px-3 py-2 text-sm text-red-200">{formError}</div>
+          )}
+          <div className="flex justify-end gap-2">
+            <button type="button" onClick={onClose} className="rounded-xl bg-slate-800 px-4 py-2 font-bold text-slate-200 hover:bg-slate-700">
+              {t('common.cancel')}
+            </button>
+            <button
+              type="button"
+              disabled={submitting}
+              onClick={() => void submit()}
+              className="rounded-xl bg-cyan-500 px-5 py-2 font-black text-slate-950 hover:bg-cyan-400 disabled:opacity-50"
+            >
+              {submitting ? t('common.saving') : t('common.save')}
+            </button>
+          </div>
+        </div>
       }
     >
       <div className="space-y-5">
@@ -430,7 +433,6 @@ export function ReportMissingPartModal({ open, onClose, onReported }: Props) {
           </div>
         </section>
 
-        {formError && <div className="rounded-xl border border-red-500/30 bg-red-500/10 p-3 text-sm text-red-200">{formError}</div>}
       </div>
     </Modal>
   )

@@ -22,6 +22,32 @@ npm install
 npm run dev
 ```
 
+## Deploy on Vercel
+
+1. Push this repo to GitHub (see below).
+2. Sign in at [vercel.com](https://vercel.com) → **Add New Project** → import the GitHub repo.
+3. Framework preset: **Vite** (auto-detected). Build command: `npm run build`. Output directory: `dist`.
+4. Add **Environment Variables** (Production + Preview):
+   - `VITE_SUPABASE_URL`
+   - `VITE_SUPABASE_ANON_KEY`
+5. Deploy. SPA routing is handled by `vercel.json` rewrites.
+
+After deploy, add your Vercel URL to Supabase **Authentication → URL Configuration** (Site URL + Redirect URLs) if you use email auth redirects.
+
+### Mobile / PWA notes
+
+- Responsive layout with touch-friendly controls (44px targets), horizontal scroll for tables and tab bars.
+- Safe-area padding for notched phones.
+- Installable from the browser menu on mobile (Add to Home Screen).
+
+## Push to GitHub
+
+```bash
+git add -A
+git commit -m "Your message"
+git push origin main
+```
+
 ## Build
 
 ```bash

@@ -3,9 +3,8 @@ export type AttendanceDayStatus = 'present' | 'absent' | 'vacation' | 'sick'
 export const ATTENDANCE_STATUSES: AttendanceDayStatus[] = ['present', 'absent', 'vacation', 'sick']
 
 /** Default shift times when day is حاضر */
-export const DEFAULT_ATTENDANCE_CHECK_IN = '07:00'
-export const DEFAULT_ATTENDANCE_CHECK_OUT = '15:30'
-
+export { DEFAULT_WORK_SHIFT_START as DEFAULT_ATTENDANCE_CHECK_IN } from '../Utils/workScheduleDefaults'
+export { DEFAULT_WORK_SHIFT_END as DEFAULT_ATTENDANCE_CHECK_OUT } from '../Utils/workScheduleDefaults'
 export type AttendanceDayEdit = {
   workDate: string
   status: AttendanceDayStatus

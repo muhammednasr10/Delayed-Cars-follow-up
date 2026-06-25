@@ -1,6 +1,7 @@
 import type { PlanDayType, ProductionPlanWorkDayEdit, ProductionPlanWorkDayRow } from '../Types/productionPlanWorkDayDaily'
 import { defaultWorkDayRow } from '../Types/productionPlanWorkDayDaily'
 import { listDatesInMonth } from '../services/entryProductivityService'
+import { DEFAULT_PLANNED_WORK_HOURS } from './workScheduleDefaults'
 
 export function countDayTypes(rows: Pick<ProductionPlanWorkDayRow, 'dayType'>[]): {
   workingDays: number
@@ -25,13 +26,26 @@ export function availableDaysFromRows(rows: Pick<ProductionPlanWorkDayRow, 'dayT
   return workingDays + overtimeDays
 }
 
+export function totalPlannedHoursFromRows(rows: Pick<ProductionPlanWorkDayRow, 'plannedHours'>[]): number {
+  return rows.reduce((sum, row) => sum + row.plannedHours, 0)
+}
+
 export function buildMonthWorkDayRows(
   year: number,
   month: number,
   saved: ProductionPlanWorkDayRow[]
 ): ProductionPlanWorkDayRow[] {
   const byDate = new Map(saved.map(row => [row.workDate, row]))
-  return listDatesInMonth(year, month).map(workDate => byDate.get(workDate) ?? defaultWorkDayRow(workDate))
+  return listDatesInMonth(year, month).map(workDate => {
+    const row = byDate.get(workDate) ?? defaultWorkDayRow(workDate)
+    if (row.dayType === 'vacation' || row.dayType === 'factory_vacation') {
+      return { ...row, plannedHours: 0 }
+    }
+    if ((row.dayType === 'work' || row.dayType === 'overtime') && row.plannedHours === 0) {
+      return { ...row, plannedHours: defaultPlannedHoursForDayType(row.dayType) }
+    }
+    return row
+  })
 }
 
 export function dayTypeBadgeClass(dayType: PlanDayType): string {
@@ -57,6 +71,28 @@ export function mergeProductivityIntoRows(
   return rows.map(row => ({
     ...row,
     entryProductivity: entryByDate.get(row.workDate) ?? 0,
-    exitProductivity: exitByDate.get(row.workDate) ?? 0
+    exitProductivity: exitByDate.get(row.workDate) ?? 0,
+    stopMinutes: 0,
+    stopLostVehicles: 0
   }))
+}
+
+export function mergeStopsIntoRows(
+  rows: ProductionPlanWorkDayEdit[],
+  minutesByDate: Map<string, number>,
+  lostVehiclesByDate: Map<string, number>
+): ProductionPlanWorkDayEdit[] {
+  return rows.map(row => {
+    const stopMinutes = minutesByDate.get(row.workDate) ?? 0
+    return {
+      ...row,
+      stopMinutes,
+      stopLostVehicles: lostVehiclesByDate.get(row.workDate) ?? 0,
+      totalStops: stopMinutes / 60
+    }
+  })
+}
+
+export function defaultPlannedHoursForDayType(dayType: PlanDayType): number {
+  return dayType === 'work' || dayType === 'overtime' ? DEFAULT_PLANNED_WORK_HOURS : 0
 }

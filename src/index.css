@@ -6,23 +6,46 @@
   color-scheme: dark;
 }
 
+html {
+  overflow-x: hidden;
+  -webkit-text-size-adjust: 100%;
+}
+
 body {
   margin: 0;
   min-width: 320px;
   min-height: 100vh;
+  min-height: 100dvh;
   background: #0f172a;
+  overflow-x: hidden;
+  touch-action: manipulation;
 }
 
-input, select, textarea {
+input,
+select,
+textarea {
   outline: none;
 }
 
+@media (max-width: 639px) {
+  input,
+  select,
+  textarea {
+    font-size: 16px;
+  }
+}
+
 .card-industrial {
-  @apply rounded-2xl border border-slate-700/70 bg-slate-900/80 shadow-xl shadow-black/20 backdrop-blur;
+  @apply rounded-xl border border-slate-700/70 bg-slate-900/80 shadow-xl shadow-black/20 backdrop-blur sm:rounded-2xl;
+}
+
+.table-scroll {
+  @apply -mx-3 overflow-x-auto px-3 sm:mx-0 sm:px-0;
+  -webkit-overflow-scrolling: touch;
 }
 
 .table-cell {
-  @apply px-4 py-3 text-sm text-slate-200 align-middle;
+  @apply px-2 py-2.5 text-xs text-slate-200 align-middle sm:px-4 sm:py-3 sm:text-sm;
 }
 
 .table-cell-compact {
@@ -51,7 +74,11 @@ input, select, textarea {
 }
 
 .input-dark {
-  @apply w-full rounded-xl border border-slate-700 bg-slate-950/80 px-3 py-2 text-sm text-slate-100 placeholder:text-slate-500 focus:border-cyan-400 focus:ring-2 focus:ring-cyan-400/20;
+  @apply w-full min-h-[44px] rounded-xl border border-slate-700 bg-slate-950/80 px-3 py-2.5 text-sm text-slate-100 placeholder:text-slate-500 focus:border-cyan-400 focus:ring-2 focus:ring-cyan-400/20;
+}
+
+.touch-target {
+  @apply min-h-[44px] min-w-[44px];
 }
 
 /* Org chart tree (top-down, connectors between manager and reports) */

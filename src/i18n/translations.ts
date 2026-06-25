@@ -16,7 +16,12 @@ export const translations = {
       home: 'الرئيسية', missingParts: 'نواقص السيارات', productivity: 'الإنتاجية',
       productionOrders: 'خطة الإنتاج',
       training: 'العمالة', ipl: 'IPL', stations: 'المحطات', lineBalancing: 'Line Balancing', settings: 'الإعدادات',
-      damagedParts: 'الأجزاء التالفة', missions: 'المهمات', scratches: 'الخدوش'
+      damagedParts: 'الأجزاء التالفة', missions: 'المهمات', scratches: 'الخدوش',
+      equipment: 'العدة', feedback: 'المقترحات والشكاوى'
+    },
+    sidebar: {
+      title: 'القائمة',
+      openMenu: 'فتح القائمة'
     },
     damagedParts: {
       title: 'الأجزاء التالفة',
@@ -24,16 +29,127 @@ export const translations = {
     },
     missions: {
       title: 'المهمات',
-      subtitle: 'متابعة المهمات والتكليفات اليومية'
+      subtitle: 'توزيع المهام على الفريق ومتابعة الإنجاز',
+      tabs: { board: 'توزيع المهام', leaderboard: 'لوحة الشرف' },
+      boardHint: 'إنشاء المهام وتوزيعها على أعضاء الفريق ومتابعة حالتها',
+      addMission: 'مهمة جديدة',
+      editMission: 'تعديل المهمة',
+      formSubtitle: 'تعيين مهمة لعضو من الفريق',
+      selectAssignee: 'اختر الموظف',
+      empty: 'لا توجد مهام مسجلة.',
+      filterStatus: 'تصفية حسب الحالة',
+      errTitle: 'عنوان المهمة مطلوب.',
+      errAssignee: 'يجب اختيار الموظف المكلف.',
+      deleteTitle: 'حذف المهمة',
+      deleteConfirm: 'حذف المهمة «{title}»؟',
+      setupTitle: 'جدول المهمات غير مُفعّل',
+      setupHint: 'طبّق migration 0076_team_missions.sql على Supabase.',
+      leaderboardTitle: 'لوحة الشرف',
+      leaderboardHint: 'الأكثر إنجازاً للمهام المكتملة خلال الشهر المحدد',
+      leaderboardEmpty: 'لا توجد مهام مكتملة في هذا الشهر.',
+      rank: 'المركز {n}',
+      completedMissions: 'مهمة مكتملة',
+      stats: { total: 'إجمالي المهام' },
+      cols: {
+        title: 'المهمة',
+        description: 'الوصف',
+        assignee: 'المكلف',
+        priority: 'الأولوية',
+        dueDate: 'الموعد',
+        status: 'الحالة',
+        rank: 'الترتيب',
+        completed: 'المكتمل',
+        active: 'النشط'
+      },
+      status: { pending: 'معلقة', in_progress: 'قيد التنفيذ', completed: 'مكتملة', cancelled: 'ملغاة' },
+      priority: { low: 'منخفضة', normal: 'عادية', high: 'عالية' }
     },
     scratches: {
       title: 'الخدوش',
-      subtitle: 'تسجيل ومتابعة خدوش الهيكل والطلاء'
+      subtitle: 'تسجيل ومتابعة خدوش الهيكل والطلاء',
+      tabs: { record: 'السجل', summary: 'ملخص الخدوش' },
+      addScratch: 'تسجيل خدش جديد',
+      formTitle: 'تسجيل خدش جديد',
+      formSubtitle: 'إدخال بيانات خدش على الهيكل أو الطلاء',
+      recordHint: 'سجل الخدوش المسجلة على خط الإنتاج',
+      empty: 'لا توجد خدوش مسجلة.',
+      vinPlaceholder: 'آخر 6 أحرف من الشاسيه أو الرقم الكامل',
+      areaPlaceholder: 'مثال: الباب الأمامي الأيمن',
+      errVin: 'رقم الشاسيه يجب أن يكون 4 أحرف على الأقل.',
+      errArea: 'منطقة الخدش مطلوبة.',
+      errDate: 'تاريخ التسجيل مطلوب.',
+      cols: { vin: 'الشاسيه', area: 'المنطقة', severity: 'الشدة', date: 'التاريخ' },
+      severity: { light: 'خفيف', medium: 'متوسط', severe: 'شديد' },
+      summaryTitle: 'ملخص الخدوش',
+      summaryHint: 'إجمالي الخدوش المسجلة حسب الشدة والمناطق الأكثر تكراراً',
+      summary: { total: 'إجمالي الخدوش', count: 'العدد', topAreas: 'أكثر المناطق تكراراً' }
+    },
+    equipment: {
+      title: 'العدة',
+      subtitle: 'سجل العدة ومتابعة المعايرة والـ scraps',
+      tabs: { rivetGun: 'مسدسات الربط', torqueWrench: 'يدات العزم', other: 'عدة أخرى', transactionLog: 'Transaction log' },
+      types: { rivet_gun: 'مسدس ربط', torque_wrench: 'يدة عزم', other: 'عدة أخرى' },
+      hints: {
+        rivet_gun: 'تسجيل مسدسات الربط — لكل مسدس رقم تعريف (ID) فريد',
+        torque_wrench: 'تسجيل يدات العزم — لكل يدة رقم تعريف (ID) فريد',
+        other: 'تسجيل عدة أخرى — لكل قطعة رقم تعريف (ID) فريد'
+      },
+      addItem: 'إضافة عدة',
+      editItem: 'تعديل العدة',
+      empty: 'لا توجد عدة مسجلة.',
+      codePlaceholder: 'مثال: RG-001 أو TW-042',
+      errCode: 'رقم تعريف العدة (ID) مطلوب.',
+      errEquipment: 'يجب اختيار العدة.',
+      errDate: 'التاريخ والوقت مطلوبان.',
+      errScrapReason: 'سبب الـ scrap مطلوب.',
+      deleteTitle: 'حذف العدة',
+      deleteConfirm: 'حذف العدة «{id}»؟',
+      setupTitle: 'جداول العدة غير مُفعّلة',
+      setupHint: 'طبّق migration 0077_line_equipment.sql على Supabase.',
+      transactionLogTitle: 'Transaction log',
+      transactionLogHint: 'متابعة عمليات المعايرة وتسجيل الـ scraps',
+      logCalibration: 'تسجيل معايرة',
+      logScrap: 'تسجيل scrap',
+      txEmpty: 'لا توجد حركات مسجلة.',
+      selectEquipment: 'اختر العدة',
+      noEligibleEquipment: 'لا توجد عدة متاحة (غير مُهملة).',
+      filterTxType: 'نوع الحركة',
+      filterEquipmentType: 'نوع العدة',
+      totalScrapQty: 'إجمالي كمية الـ scrap',
+      scrapReasonPlaceholder: 'مثال: تالف، انتهاء العمر الافتراضي…',
+      cols: {
+        id: 'ID',
+        name: 'الاسم / الوصف',
+        model: 'الموديل',
+        serial: 'الرقم التسلسلي',
+        location: 'الموقع',
+        status: 'الحالة',
+        nextCalibration: 'المعايرة القادمة',
+        equipment: 'العدة',
+        equipmentType: 'نوع العدة',
+        occurredAt: 'التاريخ والوقت',
+        txType: 'نوع الحركة',
+        details: 'التفاصيل',
+        calibrationResult: 'نتيجة المعايرة',
+        scrapReason: 'سبب الـ scrap',
+        scrapQty: 'كمية الـ scrap'
+      },
+      status: { active: 'نشط', calibration_due: 'معايرة مستحقة', out_of_service: 'خارج الخدمة', scrapped: 'مُهمل' },
+      txTypes: { calibration: 'معايرة', scrap: 'Scrap' },
+      calibration: { pass: 'ناجحة', fail: 'فاشلة' },
+      txHints: {
+        calibration: 'تسجيل نتيجة معايرة وموعد المعايرة القادمة',
+        scrap: 'تسجيل إهمال العدة أو كمية scrap مرتبطة بها'
+      }
+    },
+    feedback: {
+      title: 'المقترحات والشكاوى',
+      subtitle: 'تسجيل ومتابعة مقترحات التحسين وشكاوى العمال'
     },
     productivity: {
       title: 'الإنتاجية',
       subtitle: 'متابعة دخول السيارات للخط وخروجها للتسليم',
-      tabs: { orders: 'خطة الإنتاج', entry: 'إنتاجية الدخول', exit: 'إنتاجية الخروج' },
+      tabs: { orders: 'خطة الإنتاج', entry: 'إنتاجية الدخول', exit: 'إنتاجية الخروج', stops: 'التوقفات', summary: 'ملخص الإنتاجية' },
       entryTitle: 'إنتاجية الدخول',
       entrySubtitle: 'السيارات على الخط — تسجيل دخول جديد ومتابعة الإنتاج',
       exitTitle: 'إنتاجية الخروج',
@@ -70,6 +186,57 @@ export const translations = {
         syncedFromDaily: 'تم ملء الأرقام من تسجيلات الخروج — اضغط حفظ لتثبيتها.',
         hint: 'أدخل عدد سيارات الخروج لكل موديل ويوم، أو اضغط «تحديث من اليومي» لجلب العدد من التسليمات.',
         noModels: 'لا توجد موديلات في الإعدادات.'
+      },
+      stops: {
+        title: 'توقفات الخط',
+        subtitle: 'تسجيل أسباب التوقف والمدة والقسم المسؤول وعدد السيارات الضائعة',
+        add: 'تسجيل توقف',
+        addTitle: 'توقف جديد',
+        editTitle: 'تعديل التوقف',
+        empty: 'لا توجد توقفات مسجّلة لهذا الشهر.',
+        setupTitle: 'جدول التوقفات غير مُفعَّل',
+        setupHint: 'نفّذ migration 0075_production_line_stops.sql في Supabase SQL Editor ثم حدّث الصفحة.',
+        totalStops: 'عدد التوقفات',
+        totalLost: 'إجمالي السيارات الضائعة',
+        totalDowntime: 'إجمالي وقت التوقف',
+        reasonPlaceholder: 'مثال: نقص قطعة، عطل معدة، صيانة…',
+        selectDepartment: 'اختر القسم',
+        durationMinutes: '{n} د',
+        durationHours: '{h} س',
+        durationHoursMinutes: '{h} س {m} د',
+        errReason: 'سبب التوقف مطلوب.',
+        errDepartment: 'القسم المسؤول مطلوب.',
+        errTime: 'وقت البداية والنهاية مطلوبان.',
+        errTimeOrder: 'وقت النهاية يجب أن يكون بعد وقت البداية.',
+        errLost: 'عدد السيارات الضائعة غير صالح.',
+        fields: {
+          reason: 'سبب التوقف',
+          from: 'من',
+          to: 'إلى',
+          department: 'القسم المسؤول',
+          lost: 'عدد السيارات الضائعة',
+          notes: 'ملاحظات'
+        },
+        cols: {
+          reason: 'سبب التوقف',
+          from: 'من',
+          to: 'إلى',
+          duration: 'المدة',
+          department: 'القسم المسؤول',
+          lost: 'سيارات ضائعة'
+        }
+      },
+      summary: {
+        title: 'ملخص الإنتاجية',
+        subtitle: 'جدول يومي يجمع إنتاجية الدخول والخروج وسيارات التوقفات والعجز',
+        deficitHint: 'العجز الإجمالي = إنتاجية الدخول − إنتاجية الخروج − سيارات التوقفات (لكل يوم).',
+        cols: {
+          date: 'التاريخ',
+          entry: 'إنتاجية الدخول',
+          exit: 'إنتاجية الخروج',
+          stopCars: 'سيارات التوقفات',
+          deficit: 'العجز الإجمالي'
+        }
       }
     },
     productionOrders: {
@@ -84,11 +251,15 @@ export const translations = {
       addModelToPlan: 'إضافة موديل للخطة',
       savePlan: 'حفظ الخطة',
       planSaved: 'تم حفظ خطة الإنتاج.',
+      jph: 'JPH (الخط)',
+      taktTime: 'زمن التاكت (د)',
       ordersSection: 'أوامر الإنتاج',
       ordersSectionHint: 'تفاصيل أوامر الإنتاج حسب الموديل ونطاق أرقام الشاسيه',
       addCta: 'إضافة أمر إنتاج',
       addCtaHint: 'الموديل، رقم الأمر، وبداية ونهاية رقم الشاسيه',
       formTitle: 'أمر إنتاج جديد',
+      editTitle: 'تعديل أمر إنتاج',
+      deleteConfirm: 'حذف أمر الإنتاج «{n}»؟',
       orderNumberRequired: 'رقم أمر الإنتاج مطلوب.',
       chassisRequired: 'بداية ونهاية رقم الشاسيه مطلوبان.',
       invalidRange: 'نطاق الشاسيه غير صالح — تأكد أن الأرقام متسلسلة ونفس البادئة.',
@@ -112,18 +283,27 @@ export const translations = {
       },
       tabs: {
         planOrders: 'الخطة والأوامر',
-        workDays: 'أيام العمل'
+        workDays: 'ملخص الإنتاجية'
       },
       workDaysTab: {
         title: 'أيام العمل',
-        subtitle: 'تسجيل نوع كل يوم وساعات العمل والإنتاجية اليومية',
+        subtitle: 'تسجيل نوع كل يوم وساعات العمل والإنتاجية اليومية — الوردية الافتراضية 7:00 ص – 5:30 م',
         saved: 'تم حفظ أيام العمل.',
+        stopsFromPage: 'من صفحة التوقفات',
+        summary: {
+          plannedHours: 'ساعات العمل المخططة',
+          actualHours: 'ساعات العمل الفعلية',
+          totalStops: 'إجمالي التوقفات (د)',
+          totalStopsCars: 'إجمالي التوقفات (سيارات)'
+        },
         cols: {
           date: 'التاريخ / نوع اليوم',
           plannedHours: 'ساعات العمل المخطط لها',
           actualHours: 'ساعات العمل الفعلية',
           entryProductivity: 'إنتاجية الدخول',
-          totalStops: 'إجمالي التوقفات',
+          totalStops: 'إجمالي وقت التوقف',
+          stopMinutes: 'دقائق',
+          stopCars: 'سيارات',
           exitProductivity: 'إنتاجية الخروج'
         },
         dayTypes: {
@@ -148,6 +328,111 @@ export const translations = {
       engineeringTabs: 'وحدات الهندسية',
       placeholderDesc: 'هذا القسم جاهز للهيكلة — سيتم نقل الوحدات المناسبة إليه تدريجياً. كل البيانات الحالية متاحة الآن تحت قسم الإنتاج.',
       goProduction: 'الانتقال إلى قسم الإنتاج'
+    },
+    warehouses: {
+      title: 'المخازن',
+      subtitle: 'متابعة المخزون الحالي والتغذية حسب الموديل',
+      readOnly: 'عرض فقط — التعديل يتطلب صلاحية المخزون',
+      tabs: { currentStock: 'المخزون الحالي', feeding: 'التغذية' },
+      stock: {
+        warehouse: 'المخزن',
+        model: 'الموديل',
+        allWarehouses: 'كل المخازن',
+        allModels: 'كل الموديلات',
+        search: 'بحث',
+        searchPh: 'رقم القطعة أو الاسم…',
+        empty: 'لا توجد بيانات مخزون',
+        emptyHint: 'تأكد من استيراد IPL وربط أصناف المخزون (SKU = رقم القطعة)',
+        noItemLink: 'غير مربوط بمخزون',
+        summaryParts: 'قطع BOM',
+        summaryInStock: 'متوفر',
+        summaryLow: 'نفد',
+        summaryNoItem: 'بدون ربط',
+        summaryMinCars: 'أقل تغطية (سيارة)',
+        cols: {
+          model: 'الموديل',
+          part: 'رقم القطعة',
+          name: 'الاسم',
+          perCar: 'لكل سيارة',
+          onHand: 'بالرصيد',
+          reserved: 'محجوز',
+          available: 'متاح',
+          cars: 'تغطية سيارات'
+        }
+      },
+      feeding: {
+        newTitle: 'تسجيل تغذية للخط',
+        subTabs: { plan: 'خطة التغذية', actual: 'التغذية الفعلية' },
+        planNewTitle: 'إنشاء خطة تغذية',
+        planSubmit: 'حفظ الخطة',
+        planList: 'خطط التغذية',
+        planEmpty: 'لا توجد خطط تغذية',
+        plannedDate: 'تاريخ الخطة',
+        executePlan: 'تنفيذ كتغذية فعلية',
+        planExecuted: 'تم تنفيذ الخطة وتسجيل التغذية الفعلية',
+        planStatus: { planned: 'مخططة', executed: 'منفّذة', cancelled: 'ملغاة' },
+        pickModel: 'اختر الموديل',
+        station: 'المحطة',
+        optional: 'اختياري',
+        addParts: 'إضافة قطع من BOM الموديل',
+        qty: 'الكمية',
+        submit: 'تسجيل التغذية',
+        cols: {
+          partNo: 'رقم الجزء',
+          partName: 'اسم الجزء',
+          qv: 'Q/V',
+          direction: 'اتجاه الجزء',
+          station: 'المحطة',
+          partKind: 'نوع الجزء',
+          dimensions: 'أبعاد الجزء',
+          weight: 'الوزن',
+          classification: 'التصنيف',
+          rackCapacity: 'سعة الراك',
+          supplier: 'المورد',
+          cartonQty: 'الكمية في الكرتونة',
+          feedingMethod: 'طريقة التغذية'
+        },
+        direction: {
+          right: 'يمين',
+          left: 'شمال',
+          either: 'مش هتفرق'
+        },
+        history: 'سجل التغذية',
+        empty: 'لا توجد عمليات تغذية مسجّلة',
+        invalidQty: 'أدخل كميات صحيحة لكل القطع',
+        noStockMove: 'بدون حركة مخزون',
+        iplModelSection: 'الموديل (عائلة / فئة)',
+        iplPickModel: 'اختر الموديل لعرض IPL',
+        iplOtherModels: 'موديلات أخرى',
+        iplTitle: 'IPL — {model}',
+        iplRowCount: '{n} قطعة',
+        iplSelectedCount: '{n} محددة',
+        iplSelectAll: 'تحديد الكل',
+        iplSelectNone: 'إلغاء التحديد',
+        iplEmpty: 'لا توجد قطع IPL لهذا الموديل — استورد BOM أولاً',
+        iplStationParts: '{n} قطعة',
+        iplImportTitle: 'استيراد IPL من Excel',
+        iplImportHint: 'ارفع ملف Excel فيه ورقة لكل موديل (أو ورقة IPL-T4). بعد الاستيراد اختر الموديل لعرض القطع في خطة التغذية.',
+        iplImportPick: 'اختر ملف Excel',
+        iplImportConfirm: 'استيراد إلى البرنامج',
+        iplImportDone: 'تم استيراد IPL — اختر الموديل لبناء خطة التغذية',
+        iplImportAnother: 'رفع ملف آخر',
+        iplImportNoRows: 'لم يُعثر على قطع IPL في الملف',
+        iplImportSheetCount: '{n} ورقة',
+        iplImportPartCount: '{n} سطر BOM',
+        iplImportSkipped: 'تخطّي',
+        iplImportRows: '{n} قطعة'
+      },
+      setup: {
+        title: 'إعداد قاعدة بيانات المخازن',
+        subtitle: 'جداول خطة التغذية غير موجودة على Supabase — نفّذ migration مرة واحدة',
+        step1: 'افتح Supabase Dashboard → SQL Editor',
+        step2: 'انسخ والصق محتوى الملف الجاهز ثم Run',
+        step3: 'حدّث الصفحة (F5)',
+        script: 'ملف جاهز للتشغيل',
+        orFiles: 'أو بالترتيب من مجلد migrations:',
+        refreshHint: 'بعد التنفيذ الناجح ستختفي الرسالة وتعمل خطة التغذية.'
+      }
     },
     myProfile: {
       title: 'حسابي',
@@ -177,6 +462,7 @@ export const translations = {
       welcomeTitle: 'مرحباً بك في نظام متابعة خط الإنتاج',
       welcomeSubtitle: 'وحدات متابعة خط الإنتاج — اختر تبويباً من شريط الإنتاج أو ابدأ بتبليغ نقص جديد.',
       reportMissing: 'تبليغ نقص جديد',
+      reportMissingDesc: 'تسجيل نقص قطعة على سيارة في الخط',
       modules: 'وحدات الإنتاج', soon: 'قريباً',
       total: 'إجمالي السيارات', totalSub: 'جميع السيارات المسجلة',
       withMissing: 'بها نواقص', withMissingSub: 'سيارات بنواقص مفتوحة',
@@ -189,6 +475,31 @@ export const translations = {
       attendanceReportSubtitle: 'ملخص الشهر الحالي — حسب تسجيلات الحضور في العمالة',
       attendanceReportEmpty: 'لا توجد تسجيلات غياب أو إجازة أو مرض لهذا الشهر بعد.',
       attendanceReportHint: 'التفاصيل والاستيراد: الإعدادات → العمالة → الحضور والانصراف'
+    },
+    hub: {
+      actionBadge: 'إجراء',
+      sections: {
+        pages: 'الصفحات',
+        tabs: 'تبويبات — {page}',
+        actions: 'إجراءات سريعة'
+      },
+      production: {
+        title: 'الإنتاج — الرئيسية',
+        subtitle: 'اختصار لكل الصفحات والتبويبات والأوامر الرئيسية'
+      },
+      engineering: {
+        title: 'التخطيط — الرئيسية',
+        subtitle: 'IPL والمحطات وموازنة الخط',
+        iplDesc: 'قائمة الأجزاء والاستيراد',
+        stationsDesc: 'تعريف المحطات والعمليات',
+        lineBalancingDesc: 'العمليات والتوجيه والعمالة'
+      },
+      warehouses: {
+        title: 'المخازن — الرئيسية',
+        subtitle: 'المخزون والتغذية',
+        stockDesc: 'رصيد القطع حسب الموديل',
+        feedingDesc: 'خطة وتنفيذ تغذية الخط'
+      }
     },
     attendance: {
       title: 'الحضور والانصراف',
@@ -209,15 +520,15 @@ export const translations = {
       },
       today: {
         title: 'تسجيل اليوم',
-        hint: 'الافتراضي لكل الموظفين: حاضر (7:00 – 3:30). غيّر الحالة أو الأوقات ثم احفظ.',
+        hint: 'الافتراضي لكل الموظفين: حاضر (7:00 – 5:30). غيّر الحالة أو الأوقات ثم احفظ.',
         save: 'حفظ اليوم',
         saved: 'تم حفظ حضور اليوم — يظهر الآن في الجدول الشهري.'
       },
       monthEditor: 'تسجيل الشهر يوماً بيوم',
       saveMonth: 'حفظ الشهر',
       defaultsHint:
-        'الافتراضي: حاضر — حضور 7:00 ص — انصراف 3:30 م. الأيام السابقة تُحسب حاضراً إن لم تُسجَّل؛ اليوم يُحسب بعد الحفظ فقط.',
-      markAllPresent: 'الكل حاضر (7:00 – 3:30)',
+        'الافتراضي: حاضر — حضور 7:00 ص — انصراف 5:30 م. الأيام السابقة تُحسب حاضراً إن لم تُسجَّل؛ اليوم يُحسب بعد الحفظ فقط.',
+      markAllPresent: 'الكل حاضر (7:00 – 5:30)',
       checkIn: 'وقت الحضور',
       checkOut: 'وقت الانصراف',
       cols: {
@@ -237,6 +548,8 @@ export const translations = {
       damagedParts: 'الأجزاء التالفة', damagedPartsDesc: 'تسجيل ومتابعة الأجزاء التالفة',
       missions: 'المهمات', missionsDesc: 'متابعة المهمات والتكليفات',
       scratches: 'الخدوش', scratchesDesc: 'تسجيل ومتابعة خدوش الهيكل والطلاء',
+      equipment: 'العدة', equipmentDesc: 'متابعة أدوات وعدد خط الإنتاج',
+      feedback: 'المقترحات والشكاوى', feedbackDesc: 'مقترحات التحسين وشكاوى العمال',
       productionOrders: 'خطة الإنتاج', productionOrdersDesc: 'خطة الإنتاج وأوامرها والكميات',
       inventory: 'المخزون', inventoryDesc: 'الأصناف، المخازن، حركة الصرف',
       quality: 'الجودة', qualityDesc: 'فحص الجودة واعتماد القطع',
@@ -527,7 +840,55 @@ export const translations = {
     },
     training: {
       title: 'العمالة', subtitle: 'سجل العمالة، المهارات، وتأهيل المحطات',
-      tabs: { org: 'العمالة', attendance: 'الحضور والانصراف', manpower: 'توزيع العمالة', skills: 'المهارات', operations: 'تأهيل العمليات', stationSkills: 'مهارات المحطات', matrix: 'تدريب الموظفين', qualification: 'تأهيل المحطات', expiry: 'انتهاء التدريبات', import: 'استيراد العمليات' },
+      tabs: { org: 'العمالة', attendance: 'الحضور والانصراف', manpower: 'توزيع العمالة', skills: 'المهارات', operations: 'تأهيل العمليات', stationSkills: 'مصفوفة التدريب', matrix: 'تدريب الموظفين', qualification: 'تأهيل المحطات', expiry: 'انتهاء التدريبات', import: 'استيراد العمليات' },
+      stationMatrix: {
+        hint: 'كل عمود (مثل PBS01-L1) محطة مستقلة. اضغط الخلية لاختيار المستوى LVL.1–LVL.4.',
+        allStations: 'كل المحطات',
+        tableStationFilter: 'تصفية أعمدة الجدول',
+        empty: 'لا توجد بيانات لعرض المصفوفة',
+        emptyHint: 'أضف عمالاً ومحطات من الإعدادات ثم حدّد مستوى كل فني في كل محطة',
+        notSet: 'غير محدد',
+        cellClick: 'اضغط لاختيار المستوى',
+        lvl: { level_1: 'LVL.1', level_2: 'LVL.2', level_3: 'LVL.3', level_4: 'LVL.4' },
+        cellAchieved: '{col}: محقق ({lvl})',
+        cellEmpty: '{col}: غير محقق',
+        picker: { title: 'اختر المستوى' },
+        detailModal: {
+          button: 'ملخص',
+          title: 'ملخص العمالة بالمحطات',
+          subtitle: 'عدد العمال المسجّلين في كل محطة وعمود (L1–L4) مع توزيع المستويات',
+          totalWorkers: 'إجمالي العمال المؤهّلين',
+          totalAssignments: 'إجمالي التعيينات',
+          stationsWithWorkers: 'محطات بها عمال',
+          colStation: 'المحطة',
+          colTrack: 'العمود',
+          colWorkers: 'عدد العمال',
+          stationTotal: 'إجمالي المحطة: {n} عامل',
+          noData: 'لا توجد تعيينات مسجّلة بعد'
+        },
+        quickEdit: {
+          title: 'تعديل سريع',
+          employee: 'الفني',
+          employeePh: 'ابحث بالاسم أو الرقم الوظيفي…',
+          station: 'المحطة',
+          pickStation: 'اختر المحطة',
+          level: 'المستوى',
+          clear: 'مسح',
+          current: 'المستوى الحالي'
+        },
+        summary: {
+          title: 'ملخص المصفوفة',
+          workers: 'العمال',
+          stations: 'المحطات',
+          virtualStations: 'أعمدة المحطات',
+          physicalStations: '{n} محطة أساسية',
+          assigned: 'خلايا مسجّلة',
+          unassigned: 'خلايا بدون مستوى',
+          coverage: 'تغطية {n}%',
+          qualifiedL3: 'مؤهل L3+ : {n}',
+          byLevel: 'حسب أعلى مستوى'
+        }
+      },
       attendanceTabs: { monthly: 'شهري', today: 'تسجيل اليوم' },
       opsQual: {
         station: 'المحطة', searchPh: 'بحث باسم العملية…', total: 'إجمالي العمليات',
@@ -978,7 +1339,12 @@ export const translations = {
       home: 'Home', missingParts: 'Vehicle Shortages', productivity: 'Productivity',
       productionOrders: 'Production plan',
       training: 'Workforce', ipl: 'IPL', stations: 'Stations', lineBalancing: 'Line Balancing', settings: 'Settings',
-      damagedParts: 'Damaged parts', missions: 'Missions', scratches: 'Scratches'
+      damagedParts: 'Damaged parts', missions: 'Missions', scratches: 'Scratches',
+      equipment: 'Equipment', feedback: 'Suggestions & complaints'
+    },
+    sidebar: {
+      title: 'Menu',
+      openMenu: 'Open menu'
     },
     damagedParts: {
       title: 'Damaged parts',
@@ -986,16 +1352,127 @@ export const translations = {
     },
     missions: {
       title: 'Missions',
-      subtitle: 'Track daily missions and assignments'
+      subtitle: 'Distribute tasks to the team and track completion',
+      tabs: { board: 'Task board', leaderboard: 'Honor board' },
+      boardHint: 'Create missions, assign them to team members, and track status',
+      addMission: 'New mission',
+      editMission: 'Edit mission',
+      formSubtitle: 'Assign a task to a team member',
+      selectAssignee: 'Select employee',
+      empty: 'No missions recorded.',
+      filterStatus: 'Filter by status',
+      errTitle: 'Mission title is required.',
+      errAssignee: 'Assignee is required.',
+      deleteTitle: 'Delete mission',
+      deleteConfirm: 'Delete mission «{title}»?',
+      setupTitle: 'Missions table not set up',
+      setupHint: 'Apply migration 0076_team_missions.sql on Supabase.',
+      leaderboardTitle: 'Honor board',
+      leaderboardHint: 'Top performers by completed missions in the selected month',
+      leaderboardEmpty: 'No completed missions in this month.',
+      rank: 'Rank {n}',
+      completedMissions: 'completed missions',
+      stats: { total: 'Total missions' },
+      cols: {
+        title: 'Mission',
+        description: 'Description',
+        assignee: 'Assignee',
+        priority: 'Priority',
+        dueDate: 'Due date',
+        status: 'Status',
+        rank: 'Rank',
+        completed: 'Completed',
+        active: 'Active'
+      },
+      status: { pending: 'Pending', in_progress: 'In progress', completed: 'Completed', cancelled: 'Cancelled' },
+      priority: { low: 'Low', normal: 'Normal', high: 'High' }
     },
     scratches: {
       title: 'Scratches',
-      subtitle: 'Record and track body and paint scratches'
+      subtitle: 'Record and track body and paint scratches',
+      tabs: { record: 'Log', summary: 'Scratch summary' },
+      addScratch: 'Register new scratch',
+      formTitle: 'Register new scratch',
+      formSubtitle: 'Enter scratch details on body or paint',
+      recordHint: 'Scratches recorded on the production line',
+      empty: 'No scratches recorded.',
+      vinPlaceholder: 'Last 6 VIN characters or full number',
+      areaPlaceholder: 'e.g. front right door',
+      errVin: 'VIN must be at least 4 characters.',
+      errArea: 'Body area is required.',
+      errDate: 'Record date is required.',
+      cols: { vin: 'VIN', area: 'Area', severity: 'Severity', date: 'Date' },
+      severity: { light: 'Light', medium: 'Medium', severe: 'Severe' },
+      summaryTitle: 'Scratch summary',
+      summaryHint: 'Totals by severity and most frequent body areas',
+      summary: { total: 'Total scratches', count: 'Count', topAreas: 'Most frequent areas' }
+    },
+    equipment: {
+      title: 'Equipment',
+      subtitle: 'Equipment registry, calibration and scrap tracking',
+      tabs: { rivetGun: 'Rivet guns', torqueWrench: 'Torque wrenches', other: 'Other equipment', transactionLog: 'Transaction log' },
+      types: { rivet_gun: 'Rivet gun', torque_wrench: 'Torque wrench', other: 'Other' },
+      hints: {
+        rivet_gun: 'Register rivet guns — each with a unique ID',
+        torque_wrench: 'Register torque wrenches — each with a unique ID',
+        other: 'Register other equipment — each with a unique ID'
+      },
+      addItem: 'Add equipment',
+      editItem: 'Edit equipment',
+      empty: 'No equipment registered.',
+      codePlaceholder: 'e.g. RG-001 or TW-042',
+      errCode: 'Equipment ID is required.',
+      errEquipment: 'Select equipment.',
+      errDate: 'Date and time are required.',
+      errScrapReason: 'Scrap reason is required.',
+      deleteTitle: 'Delete equipment',
+      deleteConfirm: 'Delete equipment «{id}»?',
+      setupTitle: 'Equipment tables not set up',
+      setupHint: 'Apply migration 0077_line_equipment.sql on Supabase.',
+      transactionLogTitle: 'Transaction log',
+      transactionLogHint: 'Track calibrations and scrap events',
+      logCalibration: 'Log calibration',
+      logScrap: 'Log scrap',
+      txEmpty: 'No transactions recorded.',
+      selectEquipment: 'Select equipment',
+      noEligibleEquipment: 'No eligible equipment (not scrapped).',
+      filterTxType: 'Transaction type',
+      filterEquipmentType: 'Equipment type',
+      totalScrapQty: 'Total scrap quantity',
+      scrapReasonPlaceholder: 'e.g. damaged, end of life…',
+      cols: {
+        id: 'ID',
+        name: 'Name / description',
+        model: 'Model',
+        serial: 'Serial number',
+        location: 'Location',
+        status: 'Status',
+        nextCalibration: 'Next calibration',
+        equipment: 'Equipment',
+        equipmentType: 'Equipment type',
+        occurredAt: 'Date & time',
+        txType: 'Transaction type',
+        details: 'Details',
+        calibrationResult: 'Calibration result',
+        scrapReason: 'Scrap reason',
+        scrapQty: 'Scrap quantity'
+      },
+      status: { active: 'Active', calibration_due: 'Calibration due', out_of_service: 'Out of service', scrapped: 'Scrapped' },
+      txTypes: { calibration: 'Calibration', scrap: 'Scrap' },
+      calibration: { pass: 'Pass', fail: 'Fail' },
+      txHints: {
+        calibration: 'Record calibration result and next due date',
+        scrap: 'Record equipment scrap or related scrap quantity'
+      }
+    },
+    feedback: {
+      title: 'Suggestions & complaints',
+      subtitle: 'Record and follow up improvement ideas and worker feedback'
     },
     productivity: {
       title: 'Productivity',
       subtitle: 'Track vehicles entering the line and exiting for delivery',
-      tabs: { orders: 'Production plan', entry: 'Entry productivity', exit: 'Exit productivity' },
+      tabs: { orders: 'Production plan', entry: 'Entry productivity', exit: 'Exit productivity', stops: 'Line stops', summary: 'Productivity summary' },
       entryTitle: 'Entry productivity',
       entrySubtitle: 'Vehicles on the line — register new entries and track production',
       exitTitle: 'Exit productivity',
@@ -1032,6 +1509,57 @@ export const translations = {
         syncedFromDaily: 'Filled from exit records — click Save to persist.',
         hint: 'Enter exit counts per model and day, or use Sync from daily to pull from deliveries.',
         noModels: 'No models configured in Settings.'
+      },
+      stops: {
+        title: 'Line stops',
+        subtitle: 'Record stop reasons, duration, responsible department and lost vehicles',
+        add: 'Log stop',
+        addTitle: 'New stop',
+        editTitle: 'Edit stop',
+        empty: 'No stops recorded for this month.',
+        setupTitle: 'Stops table not set up',
+        setupHint: 'Run migration 0075_production_line_stops.sql in Supabase SQL Editor, then refresh.',
+        totalStops: 'Stop count',
+        totalLost: 'Total lost vehicles',
+        totalDowntime: 'Total downtime',
+        reasonPlaceholder: 'e.g. part shortage, equipment fault, maintenance…',
+        selectDepartment: 'Select department',
+        durationMinutes: '{n} min',
+        durationHours: '{h} h',
+        durationHoursMinutes: '{h} h {m} min',
+        errReason: 'Stop reason is required.',
+        errDepartment: 'Responsible department is required.',
+        errTime: 'Start and end times are required.',
+        errTimeOrder: 'End time must be after start time.',
+        errLost: 'Invalid lost vehicle count.',
+        fields: {
+          reason: 'Stop reason',
+          from: 'From',
+          to: 'To',
+          department: 'Responsible department',
+          lost: 'Lost vehicles',
+          notes: 'Notes'
+        },
+        cols: {
+          reason: 'Stop reason',
+          from: 'From',
+          to: 'To',
+          duration: 'Duration',
+          department: 'Department',
+          lost: 'Lost vehicles'
+        }
+      },
+      summary: {
+        title: 'Productivity summary',
+        subtitle: 'Daily table: entry, exit, stop losses and total deficit',
+        deficitHint: 'Total deficit = entry productivity − exit productivity − stop lost vehicles (per day).',
+        cols: {
+          date: 'Date',
+          entry: 'Entry productivity',
+          exit: 'Exit productivity',
+          stopCars: 'Stop lost vehicles',
+          deficit: 'Total deficit'
+        }
       }
     },
     productionOrders: {
@@ -1046,11 +1574,15 @@ export const translations = {
       addModelToPlan: 'Add model to plan',
       savePlan: 'Save plan',
       planSaved: 'Production plan saved.',
+      jph: 'JPH (line)',
+      taktTime: 'Takt time (min)',
       ordersSection: 'Production orders',
       ordersSectionHint: 'Production order details by model and chassis range',
       addCta: 'Add production order',
       addCtaHint: 'Model, order number, and chassis start/end',
       formTitle: 'New production order',
+      editTitle: 'Edit production order',
+      deleteConfirm: 'Delete production order "{n}"?',
       orderNumberRequired: 'Production order number is required.',
       chassisRequired: 'Chassis start and end are required.',
       invalidRange: 'Invalid chassis range — numbers must be sequential with the same prefix.',
@@ -1074,18 +1606,27 @@ export const translations = {
       },
       tabs: {
         planOrders: 'Plan & orders',
-        workDays: 'Working days'
+        workDays: 'Productivity summary'
       },
       workDaysTab: {
         title: 'Working days',
-        subtitle: 'Daily day type, work hours and productivity',
+        subtitle: 'Daily day type, work hours and productivity — default shift 7:00 AM – 5:30 PM',
         saved: 'Working days saved.',
+        stopsFromPage: 'From line stops',
+        summary: {
+          plannedHours: 'Planned work hours',
+          actualHours: 'Actual work hours',
+          totalStops: 'Total stop time (min)',
+          totalStopsCars: 'Total stop losses (vehicles)'
+        },
         cols: {
           date: 'Date / day type',
           plannedHours: 'Planned work hours',
           actualHours: 'Actual work hours',
           entryProductivity: 'Entry productivity',
-          totalStops: 'Total stops',
+          totalStops: 'Total stop time',
+          stopMinutes: 'Minutes',
+          stopCars: 'Vehicles',
           exitProductivity: 'Exit productivity'
         },
         dayTypes: {
@@ -1110,6 +1651,111 @@ export const translations = {
       engineeringTabs: 'Engineering modules',
       placeholderDesc: 'This department is ready for structure — relevant modules will be moved here step by step. All current data is under Production for now.',
       goProduction: 'Go to Production'
+    },
+    warehouses: {
+      title: 'Warehouses',
+      subtitle: 'Current stock and line feeding by model',
+      readOnly: 'Read-only — editing requires inventory permission',
+      tabs: { currentStock: 'Current stock', feeding: 'Line feeding' },
+      stock: {
+        warehouse: 'Warehouse',
+        model: 'Model',
+        allWarehouses: 'All warehouses',
+        allModels: 'All models',
+        search: 'Search',
+        searchPh: 'Part number or name…',
+        empty: 'No inventory data',
+        emptyHint: 'Import IPL and link inventory items (SKU = part number)',
+        noItemLink: 'Not linked to stock',
+        summaryParts: 'BOM parts',
+        summaryInStock: 'In stock',
+        summaryLow: 'Out of stock',
+        summaryNoItem: 'Unlinked',
+        summaryMinCars: 'Min car coverage',
+        cols: {
+          model: 'Model',
+          part: 'Part no.',
+          name: 'Name',
+          perCar: 'Per car',
+          onHand: 'On hand',
+          reserved: 'Reserved',
+          available: 'Available',
+          cars: 'Car coverage'
+        }
+      },
+      feeding: {
+        newTitle: 'Record line feeding',
+        subTabs: { plan: 'Feeding plan', actual: 'Actual feeding' },
+        planNewTitle: 'Create feeding plan',
+        planSubmit: 'Save plan',
+        planList: 'Feeding plans',
+        planEmpty: 'No feeding plans',
+        plannedDate: 'Plan date',
+        executePlan: 'Execute as actual feeding',
+        planExecuted: 'Plan executed and recorded as actual feeding',
+        planStatus: { planned: 'Planned', executed: 'Executed', cancelled: 'Cancelled' },
+        pickModel: 'Select model',
+        station: 'Station',
+        optional: 'Optional',
+        addParts: 'Add parts from model BOM',
+        qty: 'Quantity',
+        submit: 'Record feeding',
+        cols: {
+          partNo: 'Part no.',
+          partName: 'Part name',
+          qv: 'Q/V',
+          direction: 'Side',
+          station: 'Station',
+          partKind: 'Part type',
+          dimensions: 'Dimensions',
+          weight: 'Weight',
+          classification: 'Classification',
+          rackCapacity: 'Rack capacity',
+          supplier: 'Supplier',
+          cartonQty: 'Qty per carton',
+          feedingMethod: 'Feeding method'
+        },
+        direction: {
+          right: 'Right',
+          left: 'Left',
+          either: 'Either'
+        },
+        history: 'Feeding history',
+        empty: 'No feeding records yet',
+        invalidQty: 'Enter valid quantities for all parts',
+        noStockMove: 'No stock movement',
+        iplModelSection: 'Model (family / variant)',
+        iplPickModel: 'Select a model to view IPL',
+        iplOtherModels: 'Other models',
+        iplTitle: 'IPL — {model}',
+        iplRowCount: '{n} parts',
+        iplSelectedCount: '{n} selected',
+        iplSelectAll: 'Select all',
+        iplSelectNone: 'Clear selection',
+        iplEmpty: 'No IPL parts for this model — import BOM first',
+        iplStationParts: '{n} parts',
+        iplImportTitle: 'Import IPL from Excel',
+        iplImportHint: 'Upload an Excel file with one sheet per model (or an IPL-T4 sheet). Then pick a model to build the feeding plan.',
+        iplImportPick: 'Choose Excel file',
+        iplImportConfirm: 'Import into system',
+        iplImportDone: 'IPL imported — select a model to build the feeding plan',
+        iplImportAnother: 'Upload another file',
+        iplImportNoRows: 'No IPL parts found in the file',
+        iplImportSheetCount: '{n} sheets',
+        iplImportPartCount: '{n} BOM lines',
+        iplImportSkipped: 'skipped',
+        iplImportRows: '{n} parts'
+      },
+      setup: {
+        title: 'Warehouse database setup',
+        subtitle: 'Feeding plan tables are missing on Supabase — run the migration once',
+        step1: 'Open Supabase Dashboard → SQL Editor',
+        step2: 'Copy/paste the ready script and Run',
+        step3: 'Refresh this page (F5)',
+        script: 'Ready-to-run script',
+        orFiles: 'Or in order from migrations folder:',
+        refreshHint: 'After a successful run, the error clears and feeding plans work.'
+      }
     },
     myProfile: {
       title: 'My account',
@@ -1139,6 +1785,7 @@ export const translations = {
       welcomeTitle: 'Welcome to the assembly line tracking system',
       welcomeSubtitle: 'Production line modules — pick a tab from the production bar or report a new shortage.',
       reportMissing: 'Report new shortage',
+      reportMissingDesc: 'Report a missing part on a vehicle on the line',
       modules: 'Production modules', soon: 'Soon',
       total: 'Total vehicles', totalSub: 'All registered vehicles',
       withMissing: 'With shortages', withMissingSub: 'Vehicles with open shortages',
@@ -1151,6 +1798,31 @@ export const translations = {
       attendanceReportSubtitle: 'Current month — from manpower attendance records',
       attendanceReportEmpty: 'No absence, vacation or sick records for this month yet.',
       attendanceReportHint: 'Details & import: Settings → Manpower → Attendance'
+    },
+    hub: {
+      actionBadge: 'Action',
+      sections: {
+        pages: 'Pages',
+        tabs: 'Tabs — {page}',
+        actions: 'Quick actions'
+      },
+      production: {
+        title: 'Production — Home',
+        subtitle: 'Shortcuts to pages, tabs, and main commands'
+      },
+      engineering: {
+        title: 'Planning — Home',
+        subtitle: 'IPL, stations, and line balancing',
+        iplDesc: 'Parts list and import',
+        stationsDesc: 'Stations and operations setup',
+        lineBalancingDesc: 'Operations, routing, and manpower'
+      },
+      warehouses: {
+        title: 'Warehouses — Home',
+        subtitle: 'Stock and line feeding',
+        stockDesc: 'Parts balance by model',
+        feedingDesc: 'Feeding plans and actual feeding'
+      }
     },
     attendance: {
       title: 'Attendance',
@@ -1171,15 +1843,15 @@ export const translations = {
       },
       today: {
         title: 'Today',
-        hint: 'Default for all employees: present (7:00 – 3:30). Change status or times, then save.',
+        hint: 'Default for all employees: present (7:00 – 5:30). Change status or times, then save.',
         save: 'Save today',
         saved: "Today's attendance saved — reflected in the monthly table."
       },
       monthEditor: 'Month (day by day)',
       saveMonth: 'Save month',
       defaultsHint:
-        'Default: present — in 7:00 AM, out 3:30 PM. Past days count as present if not recorded; today counts only after you save.',
-      markAllPresent: 'All present (7:00 – 3:30)',
+        'Default: present — in 7:00 AM, out 5:30 PM. Past days count as present if not recorded; today counts only after you save.',
+      markAllPresent: 'All present (7:00 – 5:30)',
       checkIn: 'Check-in',
       checkOut: 'Check-out',
       cols: {
@@ -1199,6 +1871,8 @@ export const translations = {
       damagedParts: 'Damaged parts', damagedPartsDesc: 'Record and track damaged parts',
       missions: 'Missions', missionsDesc: 'Track missions and assignments',
       scratches: 'Scratches', scratchesDesc: 'Record and track scratches',
+      equipment: 'Equipment', equipmentDesc: 'Track production line tools and equipment',
+      feedback: 'Suggestions & complaints', feedbackDesc: 'Improvement ideas and worker feedback',
       productionOrders: 'Production plan', productionOrdersDesc: 'Production plan, orders and quantities',
       inventory: 'Inventory', inventoryDesc: 'Items, warehouses, stock issues',
       quality: 'Quality', qualityDesc: 'QC inspection and part approval',
@@ -1489,7 +2163,55 @@ export const translations = {
     },
     training: {
       title: 'Workforce', subtitle: 'Manpower registry, skills and station qualification',
-      tabs: { org: 'Manpower', attendance: 'Attendance', manpower: 'Manpower allocation', skills: 'Skills', operations: 'Operation qualification', stationSkills: 'Station Skills', matrix: 'Employee Matrix', qualification: 'Station Qualification', expiry: 'Training Expiry', import: 'Import Operations' },
+      tabs: { org: 'Manpower', attendance: 'Attendance', manpower: 'Manpower allocation', skills: 'Skills', operations: 'Operation qualification', stationSkills: 'Training Matrix', matrix: 'Employee Matrix', qualification: 'Station Qualification', expiry: 'Training Expiry', import: 'Import Operations' },
+      stationMatrix: {
+        hint: 'Each column (e.g. PBS01-L1) is an independent station. Click a cell to pick LVL.1–LVL.4.',
+        allStations: 'All stations',
+        tableStationFilter: 'Filter table columns',
+        empty: 'No data to display the matrix',
+        emptyHint: 'Add workers and stations in settings, then set each technician level per station',
+        notSet: 'Not set',
+        cellClick: 'Click to choose level',
+        lvl: { level_1: 'LVL.1', level_2: 'LVL.2', level_3: 'LVL.3', level_4: 'LVL.4' },
+        cellAchieved: '{col}: achieved ({lvl})',
+        cellEmpty: '{col}: not achieved',
+        picker: { title: 'Choose level' },
+        detailModal: {
+          button: 'Summary',
+          title: 'Station workforce summary',
+          subtitle: 'Workers per station column (L1–L4) with level breakdown',
+          totalWorkers: 'Total qualified workers',
+          totalAssignments: 'Total assignments',
+          stationsWithWorkers: 'Stations with workers',
+          colStation: 'Station',
+          colTrack: 'Column',
+          colWorkers: 'Workers',
+          stationTotal: 'Station total: {n} workers',
+          noData: 'No assignments recorded yet'
+        },
+        quickEdit: {
+          title: 'Quick edit',
+          employee: 'Technician',
+          employeePh: 'Search by name or employee code…',
+          station: 'Station',
+          pickStation: 'Select station',
+          level: 'Level',
+          clear: 'Clear',
+          current: 'Current level'
+        },
+        summary: {
+          title: 'Matrix summary',
+          workers: 'Workers',
+          stations: 'Stations',
+          virtualStations: 'Station columns',
+          physicalStations: '{n} base stations',
+          assigned: 'Recorded cells',
+          unassigned: 'Cells without level',
+          coverage: '{n}% coverage',
+          qualifiedL3: 'L3+ qualified: {n}',
+          byLevel: 'By highest level'
+        }
+      },
       attendanceTabs: { monthly: 'Monthly', today: 'Today' },
       opsQual: {
         station: 'Station', searchPh: 'Search operation…', total: 'Total operations',

@@ -1,0 +1,350 @@
+import { useEffect, useMemo, useState } from 'react'
+import { PackageCheck } from 'lucide-react'
+import { useLang } from '../../i18n/LanguageContext'
+import { useMpLookups } from '../../hooks/useMpLookups'
+import { useCanReportMissingPart } from '../../hooks/useCanReportMissingPart'
+import { useCanManageMissingPart } from '../../hooks/useCanManageMissingPart'
+import { SetupRequired } from '../../Components/SetupRequired'
+import { ReportMissingPartModal } from '../../Components/ReportMissingPartModal'
+import { UpdateMissingPartModal, type UpdateVehicleContext } from '../../Components/UpdateMissingPartModal'
+import { EditMissingPartModal } from '../../Components/EditMissingPartModal'
+import { EditReportGroupModal } from '../../Components/EditReportGroupModal'
+import { VinListModal } from '../../Components/VinListModal'
+import type { ReportGroupContext, VehicleIssuesContext } from '../../Types/missingPart'
+import {
+  hasPendingInstall,
+  isReportGroup,
+  openPartsForDisplayRow,
+  reportGroupMembers,
+  toDisplayRows,
+  vehicleIdsFromDisplayRow,
+  type MissingPartDisplayRow
+} from '../../Utils/missingPartDisplay'
+import { MissingPartDetailModal } from '../../Components/MissingPartDetailModal'
+import { VehicleNotesModal } from '../../Components/VehicleNotesModal'
+import type { VehicleNoteTarget } from '../../Types/vehicleNote'
+import {
+  bulkInstallVehiclesToFull,
+  completeVehicleShortage,
+  deleteMissingPartRecord,
+  getMissingParts
+} from '../../services/missingPartsService'
+import type { MissingPartDetail, MissingPartFilters } from '../../Types/missingPart'
+import { MissingPartsToolbar, type ListTab } from '../../Components/missingParts/MissingPartsToolbar'
+import { MissingPartsTable } from '../../Components/missingParts/MissingPartsTable'
+import { applyFilters, isSchemaMissing } from '../../Utils/missingPartPageUtils'
+
+export function MissingPartsPage() {
+  const { t } = useLang()
+  const { reasons, departments } = useMpLookups()
+  const { canReport, role } = useCanReportMissingPart()
+  const { canEdit, canDelete, canInstall, canUpdateStatus, canComplete } = useCanManageMissingPart()
+  const canBulkInstall = canInstall && canUpdateStatus
+
+  const [items, setItems] = useState<MissingPartDetail[]>([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState('')
+  const [setupRequired, setSetupRequired] = useState(false)
+  const [listTab, setListTab] = useState<ListTab>('active')
+  const [filters, setFilters] = useState<MissingPartFilters>({ search: '', stationNumber: '', modelName: '', department: '' })
+  const [showReport, setShowReport] = useState(false)
+  const [updateVehicle, setUpdateVehicle] = useState<UpdateVehicleContext | null>(null)
+  const [editVehicle, setEditVehicle] = useState<VehicleIssuesContext | null>(null)
+  const [editGroup, setEditGroup] = useState<ReportGroupContext | null>(null)
+  const [vinList, setVinList] = useState<{ vins: string[]; modelName: string; colorName: string | null } | null>(null)
+  const [detailTarget, setDetailTarget] = useState<MissingPartDetail | null>(null)
+  const [notesTarget, setNotesTarget] = useState<VehicleNoteTarget | null>(null)
+  const [success, setSuccess] = useState('')
+  const [completingVehicleId, setCompletingVehicleId] = useState<string | null>(null)
+  const [selectedVehicleIds, setSelectedVehicleIds] = useState<Set<string>>(new Set())
+  const [bulkInstalling, setBulkInstalling] = useState(false)
+
+  function vehicleContext(row: MissingPartDetail): VehicleIssuesContext {
+    const parts = filtered.filter(p => p.vehicleId === row.vehicleId && p.status !== 'closed' && p.status !== 'cancelled')
+    return {
+      vehicleId: row.vehicleId,
+      vin: row.vin,
+      modelName: row.modelName,
+      colorName: row.colorName,
+      colorHex: row.colorHex,
+      parts
+    }
+  }
+
+  function openUpdate(row: MissingPartDetail) {
+    const members = reportGroupMembers(row, filtered).filter(p => p.status !== 'closed' && p.status !== 'cancelled')
+    if (members.length === 0) return
+    setUpdateVehicle({
+      vehicleId: row.vehicleId,
+      vin: row.vin,
+      modelName: row.modelName,
+      colorName: row.colorName,
+      colorHex: row.colorHex,
+      parts: isReportGroup(row, filtered) ? members : vehicleContext(row).parts
+    })
+  }
+
+  function openEdit(row: MissingPartDetail) {
+    const members = reportGroupMembers(row, filtered).filter(p => p.status !== 'closed' && p.status !== 'cancelled')
+    if (members.length === 0) return
+    if (isReportGroup(row, filtered) && row.reportGroupId) {
+      setEditGroup({
+        reportGroupId: row.reportGroupId,
+        modelName: row.modelName,
+        colorName: row.colorName,
+        colorHex: row.colorHex,
+        stationId: row.stationId,
+        parts: members
+      })
+      setEditVehicle(null)
+    } else {
+      setEditVehicle(vehicleContext(row))
+      setEditGroup(null)
+    }
+  }
+
+  function vehicleIssueCount(vehicleId: string): number {
+    return filtered.filter(p => p.vehicleId === vehicleId && p.status !== 'closed' && p.status !== 'cancelled').length
+  }
+
+  async function load() {
+    setLoading(true)
+    setError('')
+    try {
+      setItems(await getMissingParts())
+      setSetupRequired(false)
+    } catch (err) {
+      const message = err instanceof Error ? err.message : t('common.error')
+      setSetupRequired(isSchemaMissing(message))
+      setError(message)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  useEffect(() => {
+    void load()
+  }, [])
+
+  useEffect(() => {
+    setSelectedVehicleIds(new Set())
+  }, [listTab, filters])
+
+  const stationOptions = useMemo(
+    () => Array.from(new Set(items.map(i => i.stationNumber).filter(Boolean))).sort() as string[],
+    [items]
+  )
+  const modelOptions = useMemo(() => Array.from(new Set(items.map(i => i.modelName).filter(Boolean))).sort(), [items])
+  const departmentFilterCodes = useMemo(() => {
+    const codes = new Set<string>()
+    for (const d of departments) codes.add(d.code)
+    for (const i of items) if (i.department) codes.add(i.department)
+    return Array.from(codes).sort()
+  }, [departments, items])
+
+  const activeItems = useMemo(() => items.filter(i => !i.shortageResolvedAt), [items])
+  const historyItems = useMemo(() => items.filter(i => !!i.shortageResolvedAt), [items])
+  const tabSource = listTab === 'active' ? activeItems : historyItems
+  const filtered = useMemo(() => applyFilters(tabSource, filters), [tabSource, filters])
+  const displayRows = useMemo(() => toDisplayRows(filtered), [filtered])
+  const tabVehicleCount = useMemo(() => new Set(tabSource.map(i => i.vehicleId)).size, [tabSource])
+  const filteredVehicleCount = useMemo(() => new Set(filtered.map(i => i.vehicleId)).size, [filtered])
+  const hasActiveFilter = Boolean(filters.search.trim() || filters.stationNumber || filters.modelName || filters.department)
+
+  const selectableVehicleIds = useMemo(() => {
+    if (!canBulkInstall) return new Set<string>()
+    const ids = new Set<string>()
+    for (const row of displayRows) {
+      if (hasPendingInstall(openPartsForDisplayRow(row, filtered))) {
+        for (const id of vehicleIdsFromDisplayRow(row)) ids.add(id)
+      }
+    }
+    return ids
+  }, [displayRows, filtered, canBulkInstall])
+
+  const allSelectableSelected = selectableVehicleIds.size > 0 && [...selectableVehicleIds].every(id => selectedVehicleIds.has(id))
+  const someSelectableSelected = [...selectableVehicleIds].some(id => selectedVehicleIds.has(id))
+
+  function toggleRowSelection(displayRow: MissingPartDisplayRow) {
+    const ids = vehicleIdsFromDisplayRow(displayRow).filter(id => selectableVehicleIds.has(id))
+    if (ids.length === 0) return
+    setSelectedVehicleIds(prev => {
+      const next = new Set(prev)
+      const allOn = ids.every(id => next.has(id))
+      if (allOn) ids.forEach(id => next.delete(id))
+      else ids.forEach(id => next.add(id))
+      return next
+    })
+  }
+
+  function toggleSelectAllVisible() {
+    setSelectedVehicleIds(allSelectableSelected ? new Set() : new Set(selectableVehicleIds))
+  }
+
+  async function bulkInstallSelected() {
+    if (!canBulkInstall || selectedVehicleIds.size === 0) return
+    const ids = [...selectedVehicleIds]
+    const pendingLines = filtered.filter(
+      p => ids.includes(p.vehicleId) && p.status !== 'closed' && p.status !== 'cancelled' && p.installedQty < p.requiredQty
+    )
+    if (pendingLines.length === 0) {
+      setError(t('mp.bulk.nothingToInstall'))
+      return
+    }
+    if (!window.confirm(t('mp.bulk.installConfirm', { vehicles: ids.length, lines: pendingLines.length }))) return
+    setBulkInstalling(true)
+    setError('')
+    try {
+      const result = await bulkInstallVehiclesToFull(ids, filtered)
+      setSelectedVehicleIds(new Set())
+      showSuccess(t('mp.bulk.installSuccess', { vehicles: result.vehicles, lines: result.lines }))
+      await load()
+    } catch (err) {
+      setError(err instanceof Error ? err.message : t('common.error'))
+    } finally {
+      setBulkInstalling(false)
+    }
+  }
+
+  function showSuccess(msg: string) {
+    setSuccess(msg)
+    window.setTimeout(() => setSuccess(''), 3500)
+  }
+
+  function onReported(msg?: string) {
+    showSuccess(msg ?? t('mp.success'))
+    void load()
+  }
+
+  async function removeDisplayRow(displayRow: MissingPartDisplayRow) {
+    const targets = displayRow.kind === 'group' ? displayRow.items : [displayRow.item]
+    const label =
+      targets.length > 1
+        ? t('mp.deleteGroupConfirm', { n: targets.length, part: targets[0].partDescription })
+        : t('mp.deleteConfirm', { part: targets[0].partDescription })
+    if (!window.confirm(label)) return
+    setError('')
+    try {
+      for (const row of targets) await deleteMissingPartRecord(row.id)
+      showSuccess(t('common.deleted'))
+      void load()
+    } catch (err) {
+      setError(err instanceof Error ? err.message : t('common.error'))
+    }
+  }
+
+  async function completeVehicle(row: MissingPartDetail) {
+    if (!window.confirm(t('mp.completeConfirm', { vin: row.vin }))) return
+    setCompletingVehicleId(row.vehicleId)
+    setError('')
+    try {
+      await completeVehicleShortage(row.vehicleId)
+      showSuccess(t('mp.completeSuccess', { vin: row.vin }))
+      void load()
+    } catch (err) {
+      setError(err instanceof Error ? err.message : t('common.error'))
+    } finally {
+      setCompletingVehicleId(null)
+    }
+  }
+
+  if (setupRequired) return <SetupRequired detail={error} />
+
+  return (
+    <section className="space-y-5">
+      <div className="card-industrial overflow-hidden">
+        <MissingPartsToolbar
+          listTab={listTab}
+          onListTabChange={setListTab}
+          activeCount={activeItems.length}
+          historyCount={historyItems.length}
+          filters={filters}
+          onFiltersChange={patch => setFilters(p => ({ ...p, ...patch }))}
+          stationOptions={stationOptions}
+          modelOptions={modelOptions}
+          departmentFilterCodes={departmentFilterCodes}
+          departments={departments}
+          filteredVehicleCount={filteredVehicleCount}
+          tabVehicleCount={tabVehicleCount}
+          hasActiveFilter={hasActiveFilter}
+          canReport={canReport}
+          role={role}
+          onRefresh={load}
+          onReport={() => setShowReport(true)}
+        />
+
+        {success && <div className="m-4 rounded-xl border border-emerald-500/30 bg-emerald-500/10 p-3 text-sm text-emerald-200">{success}</div>}
+        {error && !setupRequired && <div className="m-4 rounded-xl border border-red-500/30 bg-red-500/10 p-3 text-sm text-red-200">{error}</div>}
+
+        {listTab === 'active' && canBulkInstall && selectedVehicleIds.size > 0 && (
+          <div className="flex flex-wrap items-center gap-3 border-b border-slate-800 px-4 py-3 sm:px-5">
+            <span className="text-sm font-bold text-slate-300">{t('mp.bulk.selected', { n: selectedVehicleIds.size })}</span>
+            <button
+              type="button"
+              disabled={bulkInstalling}
+              onClick={() => void bulkInstallSelected()}
+              className="inline-flex items-center gap-2 rounded-xl bg-emerald-600 px-4 py-2 text-sm font-black text-white hover:bg-emerald-500 disabled:opacity-50"
+            >
+              <PackageCheck className="h-4 w-4" />
+              {t('mp.bulk.installSelected')}
+            </button>
+            <button
+              type="button"
+              disabled={bulkInstalling}
+              onClick={() => setSelectedVehicleIds(new Set())}
+              className="rounded-xl bg-slate-800 px-4 py-2 text-sm font-bold text-slate-300 hover:bg-slate-700 disabled:opacity-50"
+            >
+              {t('mp.bulk.clearSelection')}
+            </button>
+          </div>
+        )}
+
+        <MissingPartsTable
+          listTab={listTab}
+          displayRows={displayRows}
+          filtered={filtered}
+          loading={loading}
+          reasons={reasons}
+          departments={departments}
+          canBulkInstall={canBulkInstall}
+          canEdit={canEdit}
+          canDelete={canDelete}
+          canUpdateStatus={canUpdateStatus}
+          canComplete={canComplete}
+          selectableVehicleIds={selectableVehicleIds}
+          selectedVehicleIds={selectedVehicleIds}
+          bulkInstalling={bulkInstalling}
+          completingVehicleId={completingVehicleId}
+          allSelectableSelected={allSelectableSelected}
+          someSelectableSelected={someSelectableSelected}
+          onToggleSelectAll={toggleSelectAllVisible}
+          onToggleRowSelection={toggleRowSelection}
+          onOpenVinList={(vins, modelName, colorName) => setVinList({ vins, modelName, colorName })}
+          onOpenDetail={setDetailTarget}
+          onOpenNotes={row =>
+            setNotesTarget({
+              vehicleId: row.vehicleId,
+              vin: row.vin,
+              modelName: row.modelName,
+              colorName: row.colorName,
+              colorHex: row.colorHex
+            })
+          }
+          onEdit={openEdit}
+          onUpdate={openUpdate}
+          onDelete={row => void removeDisplayRow(row)}
+          onComplete={row => void completeVehicle(row)}
+          vehicleIssueCount={vehicleIssueCount}
+        />
+      </div>
+
+      <ReportMissingPartModal open={showReport} onClose={() => setShowReport(false)} onReported={onReported} />
+      <UpdateMissingPartModal vehicle={updateVehicle} onClose={() => setUpdateVehicle(null)} onChanged={load} />
+      <EditMissingPartModal vehicle={editVehicle} onClose={() => setEditVehicle(null)} onSaved={load} />
+      <EditReportGroupModal group={editGroup} onClose={() => setEditGroup(null)} onSaved={load} />
+      <VinListModal vins={vinList?.vins ?? null} modelName={vinList?.modelName} colorName={vinList?.colorName} onClose={() => setVinList(null)} />
+      <MissingPartDetailModal part={detailTarget} onClose={() => setDetailTarget(null)} />
+      <VehicleNotesModal target={notesTarget} onClose={() => setNotesTarget(null)} />
+    </section>
+  )
+}

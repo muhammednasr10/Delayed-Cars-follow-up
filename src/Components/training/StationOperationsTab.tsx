@@ -1,12 +1,11 @@
-import { useEffect, useMemo, useState, type ReactNode } from 'react'
-import { MapPin, Pencil, Plus, Trash2, Users, ChevronDown } from 'lucide-react'
+import { useEffect, useMemo, useState } from 'react'
+import { Plus } from 'lucide-react'
 import { useLang } from '../../i18n/LanguageContext'
 import { ConfirmDialog } from '../ConfirmDialog'
 import { EmptyState } from '../EmptyState'
 import { StationWizardModal } from '../StationWizardModal'
 import { StationOperationForm } from './StationOperationForm'
 import { MoveOperationModal } from './MoveOperationModal'
-import { OperationsDataTable, flattenOperationRows } from './OperationsDataTable'
 import {
   createStationOperation,
   deactivateStationOperation,
@@ -18,12 +17,8 @@ import {
 import { deactivateStation, getStations, getWorkAreas, updateStation } from '../../services/settingsService'
 import { masterStationCode, filterMasterReferenceStations, resolveMasterStationRecord, countWorkerLines } from '../../Utils/stationMaster'
 import { normalizeStationReferenceCode, composeStationNumber, parseStationNumberParts, formatStationWorkerDisplayCode } from '../../Utils/stationHierarchy'
-import {
-  MODEL_LINES,
-  MODEL_LINE_STYLES,
-  type ModelLine
-} from '../../Utils/modelLines'
-import { classificationAppliesToVariant, getPresetsForLine, getVariantsForLine } from '../../Utils/lineClassifications'
+import { MODEL_LINES, MODEL_LINE_STYLES, type ModelLine } from '../../Utils/modelLines'
+import { getVariantsForLine } from '../../Utils/lineClassifications'
 import { familyModelIdForLine } from '../../Utils/operationClassificationBuilder'
 import { operationMatchesLineFilter } from '../../Utils/operationClassification'
 import {
@@ -32,9 +27,11 @@ import {
   resolveEditStationId,
   stationToWizardValues
 } from '../../Utils/stationFormValues'
-import type { ParentStationOperationsGroup, StationOperationDetail, WorkerOperationsGroup } from '../../Types/timeStudy'
+import type { ParentStationOperationsGroup, StationOperationDetail } from '../../Types/timeStudy'
 import type { Station, VehicleModel, WorkArea } from '../../Types/settings'
 import { normalizeStationType } from '../../Utils/stationDisplay'
+import { StationOperationsLineFilter } from './stationOperations/StationOperationsLineFilter'
+import { ParentStationBlock } from './stationOperations/StationOperationsParentBlock'
 
 type Props = {
   parentGroups: ParentStationOperationsGroup[]
@@ -51,15 +48,7 @@ type DeleteTarget =
   | { kind: 'worker'; workerId: string; label: string }
   | { kind: 'operation'; operationId: string; label: string }
 
-export function StationOperationsTab({
-  parentGroups,
-  models,
-  loading,
-  loadError,
-  canManage,
-  onReload,
-  notify
-}: Props) {
+export function StationOperationsTab({ parentGroups, models, loading, loadError, canManage, onReload, notify }: Props) {
   const { t } = useLang()
   const [activeLine, setActiveLine] = useState<ModelLine>(MODEL_LINES[0])
   const [activeVariant, setActiveVariant] = useState('')
@@ -101,7 +90,7 @@ export function StationOperationsTab({
           await syncWorkerLinesToHeadcount(master, target)
           needsReload = true
         } catch {
-          // retry on next parentGroups refresh
+          // retry on next refresh
         }
       }
       if (needsReload && !cancelled) await reload()
@@ -117,10 +106,7 @@ export function StationOperationsTab({
   )
 
   const masterStationsAvailable = useMemo(
-    () =>
-      filterMasterReferenceStations(allStations).filter(
-        s => !linkedMasterCodes.includes(masterStationCode(s).toUpperCase())
-      ),
+    () => filterMasterReferenceStations(allStations).filter(s => !linkedMasterCodes.includes(masterStationCode(s).toUpperCase())),
     [allStations, linkedMasterCodes]
   )
 
@@ -160,15 +146,8 @@ export function StationOperationsTab({
     await onReload()
   }
 
-  const lineVariants = useMemo(
-    () => getVariantsForLine(models, activeLine),
-    [models, activeLine]
-  )
-
-  const lineFamilyId = useMemo(
-    () => familyModelIdForLine(models, activeLine),
-    [models, activeLine]
-  )
+  const lineVariants = useMemo(() => getVariantsForLine(models, activeLine), [models, activeLine])
+  const lineFamilyId = useMemo(() => familyModelIdForLine(models, activeLine), [models, activeLine])
 
   const filteredParents = useMemo(() => {
     return parentGroups
@@ -221,9 +200,7 @@ export function StationOperationsTab({
       }
     }
 
-    return list
-      .sort((a, b) => a.sortKey.localeCompare(b.sortKey))
-      .map(({ sortKey: _s, ...rest }) => rest)
+    return list.sort((a, b) => a.sortKey.localeCompare(b.sortKey)).map(({ sortKey: _s, ...rest }) => rest)
   }, [parentGroups, editingOp?.id])
 
   function selectLine(line: ModelLine) {
@@ -246,32 +223,14 @@ export function StationOperationsTab({
 
   return (
     <div className="space-y-4">
-      <div className="card-industrial p-4">
-        <p className="mb-2 text-xs font-bold uppercase text-slate-500">{t('operations.modelPages')}</p>
-        <div className="flex flex-wrap gap-2">
-          {MODEL_LINES.map(line => (
-            <ModelTab
-              key={line}
-              active={activeLine === line}
-              label={line}
-              style={MODEL_LINE_STYLES[line]}
-              onClick={() => selectLine(line)}
-            />
-          ))}
-        </div>
-        {lineVariants.length > 0 && (
-          <VariantFilter
-            line={activeLine}
-            variants={lineVariants}
-            activeVariant={activeVariant}
-            onSelect={setActiveVariant}
-            t={t}
-          />
-        )}
-        {lineVariants.length >= 3 && (
-          <ClassificationLegend line={activeLine} t={t} />
-        )}
-      </div>
+      <StationOperationsLineFilter
+        activeLine={activeLine}
+        lineVariants={lineVariants}
+        activeVariant={activeVariant}
+        onSelectLine={selectLine}
+        onSelectVariant={setActiveVariant}
+        t={t}
+      />
 
       <div className="card-industrial flex flex-wrap items-center justify-between gap-3 p-4">
         <div>
@@ -342,8 +301,7 @@ export function StationOperationsTab({
                     stationId = line.id
                     label = formatStationWorkerDisplayCode(line.station_number)
                     await reload()
-                    const fresh = await getStations()
-                    setAllStations(fresh)
+                    setAllStations(await getStations())
                   } catch (e) {
                     notify(e instanceof Error ? e.message : t('common.error'), true)
                   } finally {
@@ -354,13 +312,9 @@ export function StationOperationsTab({
               })()
             }}
             onEditOp={setEditingOp}
-            onDeleteOp={op =>
-              setDeleteTarget({ kind: 'operation', operationId: op.id, label: op.operationNameAr })
-            }
+            onDeleteOp={op => setDeleteTarget({ kind: 'operation', operationId: op.id, label: op.operationNameAr })}
             onMoveOp={(op, workerStationId) => setMoveOp({ op, workerStationId })}
-            onDeleteWorker={worker =>
-              setDeleteTarget({ kind: 'worker', workerId: worker.stationId, label: worker.displayCode })
-            }
+            onDeleteWorker={worker => setDeleteTarget({ kind: 'worker', workerId: worker.stationId, label: worker.displayCode })}
             t={t}
           />
         ))
@@ -395,13 +349,9 @@ export function StationOperationsTab({
               headcount_workers: parseHeadcountWorkers(values.headcount_workers)
             })
             const freshStation = (await getStations()).find(s => s.id === station.id) ?? station
-            await syncWorkerLinesToHeadcount(
-              freshStation,
-              parseHeadcountWorkers(values.headcount_workers)
-            )
+            await syncWorkerLinesToHeadcount(freshStation, parseHeadcountWorkers(values.headcount_workers))
             await reload()
-            const fresh = await getStations()
-            setAllStations(fresh)
+            setAllStations(await getStations())
             setAddParentOpen(false)
             notify(t('operations.stationLinked'))
             return true
@@ -435,9 +385,7 @@ export function StationOperationsTab({
               notify(t('operations.noParentStationId'), true)
               return false
             }
-            const oldBase = normalizeStationReferenceCode(
-              station?.station_number ?? editParent.stationNumber
-            )
+            const oldBase = normalizeStationReferenceCode(station?.station_number ?? editParent.stationNumber)
             const patch = {
               station_number: values.station_number,
               station_name: values.station_name,
@@ -453,10 +401,7 @@ export function StationOperationsTab({
               try {
                 await syncWorkerLinesToHeadcount(freshStation, patch.headcount_workers)
               } catch (syncErr) {
-                notify(
-                  syncErr instanceof Error ? syncErr.message : t('operations.workerLinesSyncFailed'),
-                  true
-                )
+                notify(syncErr instanceof Error ? syncErr.message : t('operations.workerLinesSyncFailed'), true)
               }
             }
             const newBase = normalizeStationReferenceCode(values.station_number || values.station_base)
@@ -465,15 +410,12 @@ export function StationOperationsTab({
                 if (!worker.stationId || worker.stationId === id) continue
                 const { base, workerSuffix } = parseStationNumberParts(worker.stationNumber)
                 if (normalizeStationReferenceCode(base) !== oldBase) continue
-                const station_number = workerSuffix
-                  ? composeStationNumber(newBase, workerSuffix)
-                  : newBase
+                const station_number = workerSuffix ? composeStationNumber(newBase, workerSuffix) : newBase
                 await updateStation(worker.stationId, { station_number })
               }
             }
             await reload()
-            const fresh = await getStations()
-            setAllStations(fresh)
+            setAllStations(await getStations())
             setEditParent(null)
             notify(t('settings.updated'))
             return true
@@ -503,10 +445,7 @@ export function StationOperationsTab({
         onSubmit={async input => {
           setBusy(true)
           try {
-            const payload = {
-              ...input,
-              parentModelId: lineFamilyId ?? input.parentModelId
-            }
+            const payload = { ...input, parentModelId: lineFamilyId ?? input.parentModelId }
             if (creatingOpContext) {
               await createStationOperation(creatingOpContext.stationId, payload)
               setCreatingOpContext(null)
@@ -575,379 +514,6 @@ export function StationOperationsTab({
           })()
         }}
       />
-    </div>
-  )
-}
-
-function VariantFilter({
-  line,
-  variants,
-  activeVariant,
-  onSelect,
-  t
-}: {
-  line: ModelLine
-  variants: string[]
-  activeVariant: string
-  onSelect: (v: string) => void
-  t: (key: string, vars?: Record<string, string | number>) => string
-}) {
-  const style = MODEL_LINE_STYLES[line]
-  return (
-    <div className="mt-3 border-t border-slate-800 pt-3">
-      <p className="mb-2 text-[10px] font-bold uppercase text-slate-500">{t('operations.variantFilter', { line })}</p>
-      <div className="flex flex-wrap gap-2">
-        <button
-          type="button"
-          onClick={() => onSelect('')}
-          className={`rounded-lg px-3 py-1.5 text-xs font-black ${!activeVariant ? style.tabActive : style.tabIdle}`}
-        >
-          {t('operations.allVariants', { line })}
-        </button>
-        {variants.map(v => (
-          <button
-            key={v}
-            type="button"
-            onClick={() => onSelect(v)}
-            className={`rounded-lg px-3 py-1.5 text-xs font-black ${activeVariant === v ? style.tabActive : style.tabIdle}`}
-          >
-            {v}
-          </button>
-        ))}
-      </div>
-    </div>
-  )
-}
-
-function ClassificationLegend({
-  line,
-  t
-}: {
-  line: ModelLine
-  t: (key: string, vars?: Record<string, string | number>) => string
-}) {
-  const presets = getPresetsForLine(line)
-  return (
-    <div className="mt-3 rounded-lg border border-slate-800 bg-slate-950/50 p-3">
-      <p className="mb-2 text-[10px] font-bold uppercase text-slate-500">{t('operations.classLegend', { line })}</p>
-      <ul className="grid grid-cols-1 gap-1 text-[11px] text-slate-400 sm:grid-cols-2 lg:grid-cols-3">
-        {presets.map(p => (
-          <li key={p.value} className="flex items-center gap-2">
-            <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-slate-500" />
-            {p.label}
-          </li>
-        ))}
-      </ul>
-    </div>
-  )
-}
-
-function ModelTab({
-  active,
-  label,
-  style,
-  onClick
-}: {
-  active: boolean
-  label: string
-  style: { tabActive: string; tabIdle: string }
-  onClick: () => void
-}) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      className={`rounded-xl px-4 py-2 text-sm font-black transition ${active ? style.tabActive : style.tabIdle}`}
-    >
-      {label}
-    </button>
-  )
-}
-
-function CrudActions({
-  canManage,
-  onAdd,
-  onEdit,
-  onDelete,
-  addTitle,
-  editTitle,
-  deleteTitle
-}: {
-  canManage: boolean
-  onAdd?: () => void
-  onEdit?: () => void
-  onDelete?: () => void
-  addTitle?: string
-  editTitle?: string
-  deleteTitle?: string
-}) {
-  if (!canManage) return null
-  const btn = 'rounded-lg p-2 transition'
-  return (
-    <div className="flex flex-wrap gap-1">
-      {onAdd && (
-        <button type="button" title={addTitle} onClick={onAdd} className={`${btn} bg-cyan-500/15 text-cyan-200 hover:bg-cyan-500/25`}>
-          <Plus className="h-4 w-4" />
-        </button>
-      )}
-      {onEdit && (
-        <button type="button" title={editTitle} onClick={onEdit} className={`${btn} bg-orange-500/15 text-orange-200 hover:bg-orange-500/25`}>
-          <Pencil className="h-4 w-4" />
-        </button>
-      )}
-      {onDelete && (
-        <button type="button" title={deleteTitle} onClick={onDelete} className={`${btn} bg-red-500/15 text-red-200 hover:bg-red-500/25`}>
-          <Trash2 className="h-4 w-4" />
-        </button>
-      )}
-    </div>
-  )
-}
-
-function formatWorkerLineTime(minutes: number, t: (key: string, vars?: Record<string, string | number>) => string): string {
-  if (!Number.isFinite(minutes) || minutes <= 0) return '—'
-  const text = Number.isInteger(minutes) ? String(minutes) : minutes.toFixed(1)
-  return `${text} ${t('operations.minUnit')}`
-}
-
-function ParentStationBlock({
-  parent,
-  contextLine,
-  canManage,
-  onEditParent,
-  onDeleteParent,
-  onAddOp,
-  onEditOp,
-  onDeleteOp,
-  onMoveOp,
-  onDeleteWorker,
-  t
-}: {
-  parent: ParentStationOperationsGroup
-  contextLine: ModelLine | null
-  canManage: boolean
-  onEditParent: () => void
-  onDeleteParent: () => void
-  onAddOp: (worker: WorkerOperationsGroup) => void
-  onEditOp: (op: StationOperationDetail) => void
-  onDeleteOp: (op: StationOperationDetail) => void
-  onMoveOp: (op: StationOperationDetail, workerStationId: string) => void
-  onDeleteWorker: (worker: WorkerOperationsGroup) => void
-  t: (key: string, vars?: Record<string, string | number>) => string
-}) {
-  const [open, setOpen] = useState(false)
-  const workplace = parent.workAreaName || parent.lineName || '—'
-  const avgText =
-    parent.avgStationTimeMinutes != null
-      ? `${parent.avgStationTimeMinutes.toFixed(1)}`
-      : '—'
-  const totalOps = parent.workers.reduce((n, w) => n + w.operations.length, 0)
-
-  return (
-    <div className="card-industrial overflow-hidden border-cyan-500/20">
-      <div className="border-b border-cyan-500/30 bg-gradient-to-l from-cyan-950/40 to-slate-950/80 p-4 sm:p-5">
-        <div className="flex flex-col gap-4 lg:flex-row lg:items-center">
-          <button
-            type="button"
-            onClick={() => setOpen(v => !v)}
-            className="flex min-w-0 flex-1 items-start gap-2 rounded-xl p-1 text-start transition hover:bg-cyan-500/5"
-            aria-expanded={open}
-          >
-            <ChevronDown
-              className={`mt-1 h-5 w-5 shrink-0 text-cyan-300 transition-transform ${open ? '' : '-rotate-90'}`}
-            />
-            <div className="grid min-w-0 flex-1 grid-cols-2 gap-3 text-center sm:grid-cols-3 lg:grid-cols-5">
-              <HeaderCell
-                label={t('settings.cols.stationName')}
-                value={parent.displayCode || '—'}
-                accent
-                dir="ltr"
-              />
-              <HeaderCell label={t('settings.cols.commonName')} value={parent.stationName || '—'} />
-              <HeaderCell
-                label={t('operations.workplace')}
-                value={workplace}
-                icon={<MapPin className="h-3.5 w-3.5 text-slate-500" />}
-              />
-              <HeaderCell
-                label={t('operations.avgStationTime')}
-                value={
-                  parent.avgStationTimeMinutes != null
-                    ? `${avgText} ${t('operations.minUnit')}`
-                    : '—'
-                }
-                accent={parent.avgStationTimeMinutes != null}
-                accentTone="orange"
-                dir="ltr"
-              />
-              <HeaderCell
-                label={t('operations.totalWorkers')}
-                value={String(parent.totalWorkers)}
-                icon={<Users className="h-3.5 w-3.5 text-slate-500" />}
-              />
-            </div>
-          </button>
-
-          <div className="flex shrink-0 items-center justify-end gap-2">
-            {!open && (
-              <span className="rounded-lg bg-slate-800/80 px-2.5 py-1 text-xs font-bold text-slate-400">
-                {totalOps} {t('operations.opsCount')}
-              </span>
-            )}
-            <CrudActions
-              canManage={canManage}
-              onEdit={onEditParent}
-              onDelete={onDeleteParent}
-              editTitle={t('operations.editParentStation')}
-              deleteTitle={t('operations.deleteParent')}
-            />
-          </div>
-        </div>
-      </div>
-
-      {open && (
-        <div className="space-y-4 p-4">
-          {parent.workers.length === 0 ? (
-            <p className="text-center text-sm text-slate-500">{t('common.noData')}</p>
-          ) : (
-            parent.workers.map(worker => (
-              <WorkerOperationsPanel
-                key={worker.stationId}
-                worker={worker}
-                parent={parent}
-                contextLine={contextLine}
-                canManage={canManage}
-                onAddOp={onAddOp}
-                onEditOp={onEditOp}
-                onDeleteOp={onDeleteOp}
-                onMoveOp={onMoveOp}
-                onDeleteWorker={onDeleteWorker}
-                t={t}
-              />
-            ))
-          )}
-        </div>
-      )}
-    </div>
-  )
-}
-
-function WorkerOperationsPanel({
-  worker,
-  parent,
-  contextLine,
-  canManage,
-  onAddOp,
-  onEditOp,
-  onDeleteOp,
-  onMoveOp,
-  onDeleteWorker,
-  t
-}: {
-  worker: WorkerOperationsGroup
-  parent: ParentStationOperationsGroup
-  contextLine: ModelLine | null
-  canManage: boolean
-  onAddOp: (worker: WorkerOperationsGroup) => void
-  onEditOp: (op: StationOperationDetail) => void
-  onDeleteOp: (op: StationOperationDetail) => void
-  onMoveOp: (op: StationOperationDetail, workerStationId: string) => void
-  onDeleteWorker: (worker: WorkerOperationsGroup) => void
-  t: (key: string, vars?: Record<string, string | number>) => string
-}) {
-  const [open, setOpen] = useState(false)
-  const workerRows = flattenOperationRows(parent).filter(r => r.worker.stationId === worker.stationId)
-  const workerCode = formatStationWorkerDisplayCode(worker.displayCode || worker.stationNumber)
-  const workerTimeMin = worker.totalWorkerTimeMinutes
-
-  return (
-    <div className="overflow-hidden rounded-xl border border-slate-800 bg-slate-950/40">
-      <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-800 bg-slate-900/60 px-3 py-2">
-        <button
-          type="button"
-          onClick={() => setOpen(v => !v)}
-          className="flex min-w-0 flex-1 items-center gap-2 rounded-lg px-1 py-0.5 text-start transition hover:bg-slate-800/60"
-          aria-expanded={open}
-        >
-          <ChevronDown
-            className={`h-4 w-4 shrink-0 text-slate-400 transition-transform ${open ? '' : '-rotate-90'}`}
-          />
-          <Users className="h-4 w-4 shrink-0 text-cyan-400" />
-          <span className="font-mono text-sm font-black text-cyan-200" dir="ltr">
-            {workerCode}
-          </span>
-          <span className="text-xs text-slate-500">
-            {worker.operations.length} {t('operations.opsCount')}
-          </span>
-          <span className="hidden text-xs text-slate-600 sm:inline">·</span>
-          <span className="text-xs font-bold text-orange-300" dir="ltr">
-            {t('operations.workerLineTime')}: {formatWorkerLineTime(workerTimeMin, t)}
-          </span>
-        </button>
-        <div className="flex flex-wrap items-center gap-2">
-          {canManage && (
-            <button
-              type="button"
-              onClick={() => onAddOp(worker)}
-              className="inline-flex items-center gap-1.5 rounded-lg border border-cyan-500/40 bg-cyan-500/10 px-2.5 py-1.5 text-xs font-bold text-cyan-200 hover:bg-cyan-500/20"
-            >
-              <Plus className="h-3.5 w-3.5" />
-              {t('operations.addOperation')}
-            </button>
-          )}
-          {canManage && (
-            <button
-              type="button"
-              onClick={() => onDeleteWorker(worker)}
-              className="text-xs font-bold text-red-300/80 hover:text-red-200"
-            >
-              {t('operations.deleteWorker')}
-            </button>
-          )}
-        </div>
-      </div>
-      {open && (
-        <OperationsDataTable
-          rows={workerRows}
-          contextLine={contextLine}
-          canManage={canManage}
-          compact
-          onEdit={onEditOp}
-          onDelete={onDeleteOp}
-          onMove={onMoveOp}
-        />
-      )}
-    </div>
-  )
-}
-
-function HeaderCell({
-  label,
-  value,
-  accent,
-  accentTone = 'cyan',
-  icon,
-  dir
-}: {
-  label: string
-  value: string
-  accent?: boolean
-  accentTone?: 'cyan' | 'orange'
-  icon?: ReactNode
-  dir?: 'ltr' | 'rtl'
-}) {
-  const accentCls =
-    accentTone === 'orange' ? 'text-orange-300' : 'text-cyan-300'
-  return (
-    <div className="text-center">
-      <p className="text-xs font-bold uppercase text-slate-500">{label}</p>
-      <p
-        className={`mt-1 flex items-center justify-center gap-1.5 text-base font-black ${accent ? accentCls : 'text-white'} ${dir === 'ltr' ? 'font-mono' : ''}`}
-        dir={dir}
-      >
-        {icon}
-        {value}
-      </p>
     </div>
   )
 }

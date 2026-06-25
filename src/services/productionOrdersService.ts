@@ -76,3 +76,29 @@ export async function createProductionOrder(input: ProductionOrderInput): Promis
   if (error) throw new Error(error.message)
   return mapRow(data as ProductionOrderRow)
 }
+
+export async function updateProductionOrder(id: string, input: ProductionOrderInput): Promise<ProductionOrder> {
+  const { data, error } = await requireClient()
+    .from('production_orders')
+    .update({
+      order_number: input.orderNumber.trim(),
+      model_id: input.modelId || null,
+      planned_qty: input.plannedQty,
+      chassis_start: input.chassisStart?.trim() || null,
+      chassis_end: input.chassisEnd?.trim() || null,
+      planned_start: input.plannedStart || null,
+      planned_end: input.plannedEnd || null,
+      notes: input.notes?.trim() || null
+    })
+    .eq('id', id)
+    .select('*')
+    .single()
+
+  if (error) throw new Error(error.message)
+  return mapRow(data as ProductionOrderRow)
+}
+
+export async function deleteProductionOrder(id: string): Promise<void> {
+  const { error } = await requireClient().from('production_orders').delete().eq('id', id)
+  if (error) throw new Error(error.message)
+}
