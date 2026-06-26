@@ -35,6 +35,7 @@ import { EngineeringHomePage } from './Pages/engineering/EngineeringHomePage'
 import { WarehousesPage } from './Pages/warehouses/WarehousesPage'
 import { useCanAccessSettings } from './hooks/useCanAccessSettings'
 import { formatRoleBadge } from './Utils/roleBadge'
+import { PwaInstallPrompt } from './Components/PwaInstallPrompt'
 
 export type { AppPage as Page, DepartmentId, ProductionPage, EngineeringPage } from './Types/navigation'
 
@@ -195,6 +196,7 @@ function App() {
           </NavigationProvider>
         </PermissionsProvider>
       </AuthProvider>
+      <PwaInstallPrompt />
     </LanguageProvider>
   )
 }

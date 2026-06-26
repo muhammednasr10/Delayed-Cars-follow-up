@@ -12,6 +12,13 @@ export const translations = {
       actions: 'إجراءات', notes: 'ملاحظات', logout: 'خروج', items: '{n} عنصر', noData: 'لا توجد بيانات.',
       noResults: 'لا توجد نتائج مطابقة.', error: 'حدث خطأ.', cannotUndo: 'لا يمكن التراجع.'
     },
+    pwa: {
+      installTitle: 'ثبّت التطبيق',
+      installHint: 'أضف التطبيق للشاشة الرئيسية للوصول السريع من الموبايل أو سطح المكتب.',
+      installAction: 'إضافة للشاشة الرئيسية',
+      later: 'لاحقاً',
+      iosHint: 'من Safari: اضغط زر المشاركة ثم «إضافة إلى الشاشة الرئيسية».'
+    },
     nav: {
       home: 'الرئيسية', missingParts: 'نواقص السيارات', productivity: 'الإنتاجية',
       productionOrders: 'خطة الإنتاج',
@@ -1573,6 +1580,13 @@ export const translations = {
       saving: 'Saving...', search: 'Search', all: 'All', yes: 'Yes', no: 'No', required: 'required', back: 'Back', next: 'Next',
       actions: 'Actions', notes: 'Notes', logout: 'Logout', items: '{n} items', noData: 'No data.',
       noResults: 'No matching results.', error: 'Something went wrong.', cannotUndo: 'This cannot be undone.'
+    },
+    pwa: {
+      installTitle: 'Install app',
+      installHint: 'Add this app to your home screen for quick access on mobile or desktop.',
+      installAction: 'Add to home screen',
+      later: 'Later',
+      iosHint: 'In Safari: tap Share, then «Add to Home Screen».'
     },
     nav: {
       home: 'Home', missingParts: 'Vehicle Shortages', productivity: 'Productivity',
