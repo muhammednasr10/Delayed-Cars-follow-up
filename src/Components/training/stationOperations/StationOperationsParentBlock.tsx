@@ -1,7 +1,9 @@
 import { useState } from 'react'
 import { ChevronDown, MapPin, Pencil, Plus, Trash2, Users } from 'lucide-react'
 import { flattenOperationRows, OperationsDataTable } from '../OperationsDataTable'
+import { inputCls } from '../../FormField'
 import { formatStationWorkerDisplayCode } from '../../../Utils/stationHierarchy'
+import { updateStationWorker1Summary } from '../../../services/stationOperationsService'
 import type { ModelLine } from '../../../Utils/modelLines'
 import type { ParentStationOperationsGroup, StationOperationDetail, WorkerOperationsGroup } from '../../../Types/timeStudy'
 import { HeaderCell } from './StationOperationsLineFilter'
@@ -62,6 +64,7 @@ function WorkerOperationsPanel({
   onDeleteOp,
   onMoveOp,
   onDeleteWorker,
+  onSummarySaved,
   t
 }: {
   worker: WorkerOperationsGroup
@@ -73,12 +76,29 @@ function WorkerOperationsPanel({
   onDeleteOp: (op: StationOperationDetail) => void
   onMoveOp: (op: StationOperationDetail, workerStationId: string) => void
   onDeleteWorker: (worker: WorkerOperationsGroup) => void
+  onSummarySaved: () => void
   t: (key: string, vars?: Record<string, string | number>) => string
 }) {
   const [open, setOpen] = useState(false)
+  const [summary, setSummary] = useState(worker.worker1OperationsSummary ?? '')
+  const [savingSummary, setSavingSummary] = useState(false)
   const workerRows = flattenOperationRows(parent).filter(r => r.worker.stationId === worker.stationId)
   const workerCode = formatStationWorkerDisplayCode(worker.displayCode || worker.stationNumber)
   const workerTimeMin = worker.totalWorkerTimeMinutes
+
+  async function saveSummary() {
+    if (!canManage || !worker.stationId) return
+    const next = summary.trim()
+    const prev = (worker.worker1OperationsSummary ?? '').trim()
+    if (next === prev) return
+    setSavingSummary(true)
+    try {
+      await updateStationWorker1Summary(worker.stationId, next)
+      onSummarySaved()
+    } finally {
+      setSavingSummary(false)
+    }
+  }
 
   return (
     <div className="overflow-hidden rounded-xl border border-slate-800 bg-slate-950/40">
@@ -120,6 +140,21 @@ function WorkerOperationsPanel({
           )}
         </div>
       </div>
+      <div className="border-b border-slate-800 bg-slate-950/50 px-3 py-2">
+        <label className="block text-center">
+          <span className="mb-1 block text-[10px] font-bold uppercase text-slate-500">
+            {t('manpower.daily.cols.operationsName')}
+          </span>
+          <input
+            className={`${inputCls()} mx-auto max-w-lg py-1.5 text-center text-sm`}
+            value={summary}
+            disabled={!canManage || savingSummary}
+            placeholder={t('manpower.daily.operationsNamePh')}
+            onChange={e => setSummary(e.target.value)}
+            onBlur={() => void saveSummary()}
+          />
+        </label>
+      </div>
       {open && (
         <OperationsDataTable
           rows={workerRows}
@@ -146,6 +181,7 @@ export function ParentStationBlock({
   onDeleteOp,
   onMoveOp,
   onDeleteWorker,
+  onReload,
   t
 }: {
   parent: ParentStationOperationsGroup
@@ -158,6 +194,7 @@ export function ParentStationBlock({
   onDeleteOp: (op: StationOperationDetail) => void
   onMoveOp: (op: StationOperationDetail, workerStationId: string) => void
   onDeleteWorker: (worker: WorkerOperationsGroup) => void
+  onReload: () => void
   t: (key: string, vars?: Record<string, string | number>) => string
 }) {
   const [open, setOpen] = useState(false)
@@ -227,6 +264,7 @@ export function ParentStationBlock({
                 onDeleteOp={onDeleteOp}
                 onMoveOp={onMoveOp}
                 onDeleteWorker={onDeleteWorker}
+                onSummarySaved={onReload}
                 t={t}
               />
             ))

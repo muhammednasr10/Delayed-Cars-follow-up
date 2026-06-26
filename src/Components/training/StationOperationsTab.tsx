@@ -315,6 +315,7 @@ export function StationOperationsTab({ parentGroups, models, loading, loadError,
             onDeleteOp={op => setDeleteTarget({ kind: 'operation', operationId: op.id, label: op.operationNameAr })}
             onMoveOp={(op, workerStationId) => setMoveOp({ op, workerStationId })}
             onDeleteWorker={worker => setDeleteTarget({ kind: 'worker', workerId: worker.stationId, label: worker.displayCode })}
+            onReload={() => void reload()}
             t={t}
           />
         ))

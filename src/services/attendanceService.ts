@@ -2,6 +2,7 @@ import { supabase } from '../lib/supabase'
 import {
   DEFAULT_ATTENDANCE_CHECK_IN,
   DEFAULT_ATTENDANCE_CHECK_OUT,
+  attendanceStatusHasTimes,
   type AttendanceDay,
   type AttendanceDayEdit,
   type AttendanceDayInput,
@@ -54,7 +55,7 @@ export function tallyElapsedMonthDays(
   month: number,
   dayRecords: { employeeId: string; workDate: string; status: AttendanceDayStatus }[],
   today = localTodayIso()
-): Map<string, { present: number; absent: number; vacation: number; sick: number }> {
+): Map<string, { present: number; absent: number; vacation: number; sick: number; permission: number; late: number }> {
   const monthDates = listDatesInMonth(year, month).filter(d => d <= today)
   const byEmpDate = new Map<string, Map<string, AttendanceDayStatus>>()
   for (const r of dayRecords) {
@@ -67,10 +68,10 @@ export function tallyElapsedMonthDays(
     m.set(r.workDate, r.status)
   }
 
-  const tallies = new Map<string, { present: number; absent: number; vacation: number; sick: number }>()
+  const tallies = new Map<string, { present: number; absent: number; vacation: number; sick: number; permission: number; late: number }>()
   for (const employeeId of employeeIds) {
     const byDate = byEmpDate.get(employeeId)
-    const t = { present: 0, absent: 0, vacation: 0, sick: 0 }
+    const t = { present: 0, absent: 0, vacation: 0, sick: 0, permission: 0, late: 0 }
     for (const workDate of monthDates) {
       const recorded = byDate?.get(workDate)
       if (workDate === today) {
@@ -79,6 +80,8 @@ export function tallyElapsedMonthDays(
         else if (recorded === 'absent') t.absent++
         else if (recorded === 'vacation') t.vacation++
         else if (recorded === 'sick') t.sick++
+        else if (recorded === 'permission') t.permission++
+        else if (recorded === 'late') t.late++
         continue
       }
       const st = recorded ?? 'present'
@@ -86,6 +89,8 @@ export function tallyElapsedMonthDays(
       else if (st === 'absent') t.absent++
       else if (st === 'vacation') t.vacation++
       else if (st === 'sick') t.sick++
+      else if (st === 'permission') t.permission++
+      else if (st === 'late') t.late++
     }
     tallies.set(employeeId, t)
   }
@@ -130,34 +135,77 @@ export function buildMonthDayEdits(year: number, month: number, existing: Attend
     rows.push({
       workDate,
       status,
-      checkIn: status === 'present' ? normalizeTime(ex?.checkIn) ?? DEFAULT_ATTENDANCE_CHECK_IN : '',
-      checkOut: status === 'present' ? normalizeTime(ex?.checkOut) ?? DEFAULT_ATTENDANCE_CHECK_OUT : '',
+      checkIn: attendanceStatusHasTimes(status) ? normalizeTime(ex?.checkIn) ?? DEFAULT_ATTENDANCE_CHECK_IN : '',
+      checkOut: attendanceStatusHasTimes(status) ? normalizeTime(ex?.checkOut) ?? DEFAULT_ATTENDANCE_CHECK_OUT : '',
       notes: ex?.notes ?? ''
     })
   }
   return rows
 }
 
+/** Daily labor attendance efficiency (% present of active employees). */
+export function computeDailyAttendanceEfficiency(
+  employeeIds: string[],
+  year: number,
+  month: number,
+  dayRecords: { employeeId: string; workDate: string; status: AttendanceDayStatus }[],
+  today = localTodayIso()
+): Map<string, number | null> {
+  const byEmpDate = new Map<string, Map<string, AttendanceDayStatus>>()
+  for (const r of dayRecords) {
+    if (r.workDate > today) continue
+    let m = byEmpDate.get(r.employeeId)
+    if (!m) {
+      m = new Map()
+      byEmpDate.set(r.employeeId, m)
+    }
+    m.set(r.workDate, r.status)
+  }
+
+  const result = new Map<string, number | null>()
+  for (const workDate of listDatesInMonth(year, month)) {
+    if (workDate > today) {
+      result.set(workDate, null)
+      continue
+    }
+    if (employeeIds.length === 0) {
+      result.set(workDate, null)
+      continue
+    }
+    let present = 0
+    for (const employeeId of employeeIds) {
+      const recorded = byEmpDate.get(employeeId)?.get(workDate)
+      if (workDate === today) {
+        if (recorded === 'present' || recorded === 'late') present++
+        continue
+      }
+      if ((recorded ?? 'present') === 'present' || recorded === 'late') present++
+    }
+    result.set(workDate, Math.round((present / employeeIds.length) * 100))
+  }
+  return result
+}
+
 export function dayEditToInput(employeeId: string, row: AttendanceDayEdit): AttendanceDayInput {
-  const present = row.status === 'present'
+  const hasTimes = attendanceStatusHasTimes(row.status)
   return {
     employeeId,
     workDate: row.workDate,
     status: row.status,
-    checkIn: present ? normalizeTime(row.checkIn) ?? DEFAULT_ATTENDANCE_CHECK_IN : null,
-    checkOut: present ? normalizeTime(row.checkOut) ?? DEFAULT_ATTENDANCE_CHECK_OUT : null,
+    checkIn: hasTimes ? normalizeTime(row.checkIn) ?? DEFAULT_ATTENDANCE_CHECK_IN : null,
+    checkOut: hasTimes ? normalizeTime(row.checkOut) ?? DEFAULT_ATTENDANCE_CHECK_OUT : null,
     notes: row.notes.trim() || null
   }
 }
 
 function toPayload(input: AttendanceDayInput): Record<string, unknown> {
-  const present = input.status === 'present'
+  const hasTimes = attendanceStatusHasTimes(input.status)
   return {
     employee_id: input.employeeId,
     work_date: input.workDate,
     status: input.status,
-    check_in: present ? normalizeTime(input.checkIn) ?? DEFAULT_ATTENDANCE_CHECK_IN : null,
-    check_out: present ? normalizeTime(input.checkOut) ?? DEFAULT_ATTENDANCE_CHECK_OUT : null,
+    check_in: hasTimes ? normalizeTime(input.checkIn) ?? DEFAULT_ATTENDANCE_CHECK_IN : null,
+    check_out: hasTimes ? normalizeTime(input.checkOut) ?? DEFAULT_ATTENDANCE_CHECK_OUT : null,
     notes: input.notes?.trim() || null
   }
 }
@@ -273,8 +321,8 @@ export async function getMonthlyAttendanceSummaries(
   )
 
   return empRows.map(e => {
-    const t = tallies.get(e.id) ?? { present: 0, absent: 0, vacation: 0, sick: 0 }
-    const issueDays = t.absent + t.vacation + t.sick
+    const t = tallies.get(e.id) ?? { present: 0, absent: 0, vacation: 0, sick: 0, permission: 0, late: 0 }
+    const issueDays = t.absent + t.vacation + t.sick + t.permission
     return {
       employeeId: e.id,
       employeeCode: e.employee_code,
@@ -284,6 +332,8 @@ export async function getMonthlyAttendanceSummaries(
       absentDays: t.absent,
       vacationDays: t.vacation,
       sickDays: t.sick,
+      permissionDays: t.permission,
+      lateDays: t.late,
       issueDays
     }
   })
@@ -299,7 +349,7 @@ export async function getTopAttendanceIssues(
     .filter(s => s.issueDays > 0)
     .map(s => ({
       ...s,
-      rankScore: s.absentDays * 3 + s.vacationDays * 2 + s.sickDays * 2
+      rankScore: s.absentDays * 3 + s.vacationDays * 2 + s.sickDays * 2 + s.permissionDays * 2
     }))
     .sort((a, b) => b.rankScore - a.rankScore || b.issueDays - a.issueDays)
     .slice(0, limit)

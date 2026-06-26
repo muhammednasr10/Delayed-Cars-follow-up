@@ -1,6 +1,18 @@
-export type AttendanceDayStatus = 'present' | 'absent' | 'vacation' | 'sick'
+export type AttendanceDayStatus = 'present' | 'absent' | 'vacation' | 'sick' | 'permission' | 'late'
 
-export const ATTENDANCE_STATUSES: AttendanceDayStatus[] = ['present', 'absent', 'vacation', 'sick']
+export const ATTENDANCE_STATUSES: AttendanceDayStatus[] = [
+  'present',
+  'absent',
+  'vacation',
+  'sick',
+  'permission',
+  'late'
+]
+
+/** Statuses that keep check-in / check-out times. */
+export function attendanceStatusHasTimes(status: AttendanceDayStatus): boolean {
+  return status === 'present' || status === 'late' || status === 'permission'
+}
 
 /** Default shift times when day is حاضر */
 export { DEFAULT_WORK_SHIFT_START as DEFAULT_ATTENDANCE_CHECK_IN } from '../Utils/workScheduleDefaults'
@@ -41,6 +53,8 @@ export type EmployeeAttendanceSummary = {
   absentDays: number
   vacationDays: number
   sickDays: number
+  permissionDays: number
+  lateDays: number
   issueDays: number
 }
 

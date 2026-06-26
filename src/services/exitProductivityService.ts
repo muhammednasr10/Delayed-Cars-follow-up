@@ -4,6 +4,7 @@ import type { VehicleOverview } from '../Types/vehicle'
 import type { VehicleModel } from '../Types/settings'
 import {
   buildMonthGrid,
+  buildVariantToFamilyMap,
   gridToInputs
 } from './entryProductivityService'
 
@@ -85,18 +86,22 @@ export function exitGridToInputs(
   return gridToInputs(models, year, month, grid)
 }
 
-export function tallyDeliveredByModelDay(
+export function tallyDeliveredByFamilyDay(
   vehicles: VehicleOverview[],
+  models: VehicleModel[],
   year: number,
   month: number
 ): Map<string, number> {
+  const variantToFamily = buildVariantToFamilyMap(models)
   const prefix = `${year}-${String(month).padStart(2, '0')}`
   const grid = new Map<string, number>()
   for (const vehicle of vehicles) {
     if (!vehicle.modelId || vehicle.deliveryStatus !== 'delivered') continue
+    const familyId = variantToFamily.get(vehicle.modelId)
+    if (!familyId) continue
     const workDate = vehicle.updatedAt.slice(0, 10)
     if (!workDate.startsWith(prefix)) continue
-    const key = `${vehicle.modelId}|${workDate}`
+    const key = `${familyId}|${workDate}`
     grid.set(key, (grid.get(key) ?? 0) + 1)
   }
   return grid
@@ -105,6 +110,7 @@ export function tallyDeliveredByModelDay(
 // Re-export shared grid helpers for exit monthly tab
 export {
   buildModelColumns,
+  buildVariantToFamilyMap,
   listDatesInMonth,
   productivityModelRows,
   sumVariantForMonth,

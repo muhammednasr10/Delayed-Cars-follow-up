@@ -65,8 +65,16 @@ textarea {
   word-break: break-word;
 }
 
+.bom-parts-table thead tr {
+  @apply bg-slate-800/70;
+}
+
 .bom-parts-table thead th {
-  @apply py-2 text-[9px] font-black uppercase leading-tight text-slate-500;
+  @apply border-b border-slate-600 py-3 text-sm font-bold leading-snug text-slate-100;
+}
+
+.bom-parts-table thead th span {
+  @apply font-bold text-slate-100;
 }
 
 .bom-parts-table .bom-actions-col {
@@ -82,38 +90,182 @@ textarea {
 }
 
 /* Org chart tree (top-down, connectors between manager and reports) */
+.org-chart-viewport {
+  position: relative;
+  min-height: 62vh;
+  max-height: 72vh;
+  overflow: hidden;
+  cursor: grab;
+  touch-action: none;
+  user-select: none;
+  direction: ltr;
+  background:
+    radial-gradient(ellipse at 50% 0%, rgb(34 211 238 / 0.06), transparent 55%),
+    rgb(15 23 42 / 0.35);
+}
+
+.org-chart-viewport--dragging,
+.org-chart-viewport:active {
+  cursor: grabbing;
+}
+
+.org-chart-canvas {
+  display: inline-block;
+  padding: 2.5rem 2rem 3rem;
+  will-change: transform;
+}
+
+.org-chart-zoom-controls {
+  position: absolute;
+  top: 0.75rem;
+  inset-inline-end: 0.75rem;
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.35rem 0.45rem;
+  border-radius: 0.75rem;
+  border: 1px solid rgb(51 65 85 / 0.8);
+  background: rgb(15 23 42 / 0.92);
+  box-shadow: 0 8px 24px rgb(0 0 0 / 0.25);
+}
+
+.org-chart-zoom-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.75rem;
+  height: 1.75rem;
+  border-radius: 0.5rem;
+  border: 1px solid rgb(51 65 85);
+  background: rgb(30 41 59);
+  color: rgb(226 232 240);
+  font-size: 1rem;
+  font-weight: 800;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.org-chart-zoom-btn:hover {
+  background: rgb(51 65 85);
+  border-color: rgb(34 211 238 / 0.45);
+}
+
+.org-chart-zoom-label {
+  min-width: 2.75rem;
+  text-align: center;
+  font-size: 0.7rem;
+  font-weight: 800;
+  color: rgb(148 163 184);
+}
+
+.org-chart-zoom-reset {
+  margin-inline-start: 0.15rem;
+  padding: 0.35rem 0.55rem;
+  border-radius: 0.5rem;
+  border: 1px solid rgb(51 65 85);
+  background: transparent;
+  color: rgb(148 163 184);
+  font-size: 0.65rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.org-chart-zoom-reset:hover {
+  color: rgb(226 232 240);
+  border-color: rgb(34 211 238 / 0.45);
+}
+
+.org-chart-pan-hint {
+  pointer-events: none;
+  position: absolute;
+  bottom: 0.65rem;
+  inset-inline: 0;
+  text-align: center;
+  font-size: 0.65rem;
+  font-weight: 700;
+  color: rgb(100 116 139);
+}
+
+.org-chart-forest {
+  display: inline-flex;
+  min-width: max-content;
+  flex-wrap: nowrap;
+  align-items: flex-start;
+  justify-content: center;
+  gap: 2.5rem;
+}
+
+.org-chart-node {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.org-chart-branch,
+.org-chart-stack {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  width: 100%;
+}
+
 .org-chart-vline {
-  width: 2px;
-  height: 1.25rem;
-  background: rgb(71 85 105);
+  flex-shrink: 0;
+  width: 3px;
+  height: 1.5rem;
+  background: var(--org-line-color);
+  border-radius: 2px;
+  box-shadow: 0 0 8px rgb(34 211 238 / 0.25);
 }
 
 .org-chart-children {
   display: flex;
   justify-content: center;
+  align-items: flex-start;
   padding: 0;
   margin: 0;
-  padding-top: 1.25rem;
+  padding-top: 1.5rem;
   position: relative;
   list-style: none;
-  gap: 0.5rem;
+  gap: 1rem;
 }
 
-.org-chart-children::before {
+.org-chart-children--stack {
+  flex-direction: column;
+  align-items: center;
+  gap: 0;
+  padding-top: 0;
+  position: relative;
+}
+
+.org-chart-children--stack::before {
   content: '';
   position: absolute;
   top: 0;
+  bottom: 0;
   left: 50%;
-  width: 2px;
-  height: 1.25rem;
-  background: rgb(71 85 105);
+  width: 3px;
   transform: translateX(-50%);
+  background: var(--org-line-color);
+  border-radius: 2px;
+  box-shadow: 0 0 8px rgb(34 211 238 / 0.25);
+  z-index: 0;
 }
 
 .org-chart-child {
   position: relative;
-  padding: 1.25rem 0.35rem 0;
+  padding: 1.5rem 0.5rem 0;
   list-style: none;
+}
+
+.org-chart-child--stack {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 0.45rem 0;
 }
 
 /* Horizontal bar linking siblings */
@@ -123,8 +275,10 @@ textarea {
   position: absolute;
   top: 0;
   width: 50%;
-  height: 2px;
-  background: rgb(71 85 105);
+  height: 3px;
+  background: var(--org-line-color);
+  border-radius: 2px;
+  box-shadow: 0 0 6px rgb(34 211 238 / 0.15);
 }
 
 .org-chart-child::before {
@@ -133,10 +287,17 @@ textarea {
 
 .org-chart-child::after {
   left: 50%;
-  border-left: 2px solid rgb(71 85 105);
+  border-left: 3px solid var(--org-line-color);
   background: transparent;
   width: auto;
-  height: 1.25rem;
+  height: 1.5rem;
+  border-radius: 0;
+  box-shadow: none;
+}
+
+.org-chart-child--stack::before,
+.org-chart-child--stack::after {
+  display: none;
 }
 
 .org-chart-child:first-child::before {
@@ -150,13 +311,17 @@ textarea {
 .org-chart-child:only-child::after {
   left: 50%;
   transform: translateX(-50%);
-  border-left: 2px solid rgb(71 85 105);
+  border-left: 3px solid var(--org-line-color);
   width: 0;
-  height: 1.25rem;
+  height: 1.5rem;
 }
 
 .org-chart-child:only-child::before {
   display: none;
+}
+
+:root {
+  --org-line-color: rgb(56 189 248 / 0.85);
 }
 
 @keyframes fadeIn {

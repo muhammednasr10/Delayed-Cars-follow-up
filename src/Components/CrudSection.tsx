@@ -16,7 +16,7 @@ export type CrudField = {
   defaultValue?: string
 }
 
-export type CrudColumn<T> = { header: string; render: (item: T) => ReactNode }
+export type CrudColumn<T> = { header: string; render: (item: T) => ReactNode; className?: string }
 
 export type CrudSectionProps<T> = {
   title: string
@@ -153,12 +153,12 @@ export function CrudSection<T>({
           <thead className="bg-slate-950">
             <tr>
               {columns.map(col => (
-                <th key={col.header} className="table-cell text-xs font-black uppercase text-slate-400">
+                <th key={col.header} className={`table-cell text-xs font-black uppercase text-slate-400 ${col.className ?? ''}`}>
                   {col.header}
                 </th>
               ))}
               {canManage && (
-                <th className="table-cell text-xs font-black uppercase text-slate-400">{t('common.actions')}</th>
+                <th className="table-cell text-center text-xs font-black uppercase text-slate-400">{t('common.actions')}</th>
               )}
             </tr>
           </thead>
@@ -173,13 +173,13 @@ export function CrudSection<T>({
               items.map(item => (
                 <tr key={getId(item)} className="bg-slate-900/30 hover:bg-slate-800/40">
                   {columns.map(col => (
-                    <td key={col.header} className="table-cell">
+                    <td key={col.header} className={`table-cell ${col.className ?? ''}`}>
                       {col.render(item)}
                     </td>
                   ))}
                   {canManage && (
-                    <td className="table-cell">
-                      <div className="flex gap-2">
+                    <td className="table-cell text-center">
+                      <div className="flex justify-center gap-2">
                         <button
                           onClick={() => openEdit(item)}
                           title={t('common.edit')}

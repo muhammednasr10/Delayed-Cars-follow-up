@@ -7,6 +7,7 @@ import {
   ATTENDANCE_STATUSES,
   DEFAULT_ATTENDANCE_CHECK_IN,
   DEFAULT_ATTENDANCE_CHECK_OUT,
+  attendanceStatusHasTimes,
   type AttendanceDayEdit,
   type AttendanceDayStatus,
   type EmployeeAttendanceSummary
@@ -58,10 +59,10 @@ export function EmployeeMonthAttendanceModal({ open, summary, year, month, onClo
         if (i !== index) return r
         const next = { ...r, ...patch }
         const status = patch.status ?? r.status
-        if (status !== 'present') {
+        if (!attendanceStatusHasTimes(status)) {
           next.checkIn = ''
           next.checkOut = ''
-        } else if (r.status !== 'present' || !next.checkIn) {
+        } else if (!attendanceStatusHasTimes(r.status) || !next.checkIn) {
           next.checkIn = DEFAULT_ATTENDANCE_CHECK_IN
           next.checkOut = DEFAULT_ATTENDANCE_CHECK_OUT
         }
@@ -164,7 +165,7 @@ export function EmployeeMonthAttendanceModal({ open, summary, year, month, onClo
                     <td className="table-cell">
                       <input
                         type="time"
-                        disabled={row.status !== 'present'}
+                        disabled={!attendanceStatusHasTimes(row.status)}
                         className={`${inputCls()} w-28 py-1.5 text-xs disabled:opacity-40`}
                         value={row.checkIn}
                         onChange={e => patchRow(i, { checkIn: e.target.value })}
@@ -174,7 +175,7 @@ export function EmployeeMonthAttendanceModal({ open, summary, year, month, onClo
                     <td className="table-cell">
                       <input
                         type="time"
-                        disabled={row.status !== 'present'}
+                        disabled={!attendanceStatusHasTimes(row.status)}
                         className={`${inputCls()} w-28 py-1.5 text-xs disabled:opacity-40`}
                         value={row.checkOut}
                         onChange={e => patchRow(i, { checkOut: e.target.value })}

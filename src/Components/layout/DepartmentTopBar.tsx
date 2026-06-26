@@ -1,7 +1,8 @@
-import { ChevronDown } from 'lucide-react'
+import { ChevronDown, Settings } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import { DEPARTMENTS, departmentAccentClass } from '../../config/departments'
 import { useLang } from '../../i18n/LanguageContext'
+import { useNavigation } from '../../Context/NavigationContext'
 import { useDepartmentNavPages } from '../../hooks/useDepartmentNavPages'
 import type { DepartmentId } from '../../Types/navigation'
 
@@ -9,7 +10,9 @@ const IMPLEMENTED_DEPARTMENTS = new Set<DepartmentId>(['production', 'engineerin
 
 export function DepartmentTopBar() {
   const { t } = useLang()
-  const { pagesForDepartment, isPageActive, selectDepartment, currentDepartment, showProfile } = useDepartmentNavPages()
+  const nav = useNavigation()
+  const { pagesForDepartment, isPageActive, selectDepartment, settingsPage, currentDepartment, showProfile } =
+    useDepartmentNavPages()
   const [expandedPage, setExpandedPage] = useState<string | null>(null)
 
   useEffect(() => {
@@ -21,8 +24,16 @@ export function DepartmentTopBar() {
     return () => document.removeEventListener('click', onDocClick)
   }, [expandedPage])
 
+  const isSettingsActive = !showProfile && nav.department === 'production' && nav.productionPage === 'settings'
   const sectionPages = pagesForDepartment(currentDepartment).filter(p => p.visible)
-  const hasSectionPages = IMPLEMENTED_DEPARTMENTS.has(currentDepartment) && sectionPages.length > 0
+  const hasSectionPages =
+    !isSettingsActive && IMPLEMENTED_DEPARTMENTS.has(currentDepartment) && sectionPages.length > 0
+  const settingsTabs = settingsPage.visible ? settingsPage.children ?? [] : []
+
+  function openSettings() {
+    setExpandedPage(null)
+    settingsPage.onNavigate()
+  }
 
   return (
     <div className="sticky top-0 z-30 -mx-1 rounded-2xl border border-slate-700/70 bg-slate-950/95 p-2 shadow-lg shadow-black/25 backdrop-blur-md sm:-mx-0 sm:p-3">
@@ -32,7 +43,7 @@ export function DepartmentTopBar() {
           <div className="flex gap-1.5 overflow-x-auto pb-0.5 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
             {DEPARTMENTS.map(dept => {
               const Icon = dept.icon
-              const active = !showProfile && currentDepartment === dept.id
+              const active = !showProfile && !isSettingsActive && currentDepartment === dept.id
               return (
                 <button
                   key={dept.id}
@@ -46,8 +57,46 @@ export function DepartmentTopBar() {
                 </button>
               )
             })}
+            {settingsPage.visible && (
+              <button
+                type="button"
+                onClick={openSettings}
+                className={`flex shrink-0 items-center gap-1.5 rounded-xl px-2.5 py-2.5 text-xs font-black transition sm:px-3 sm:text-sm ${
+                  isSettingsActive
+                    ? 'bg-emerald-500 text-slate-950 shadow-lg shadow-emerald-900/30'
+                    : 'bg-slate-800 text-slate-300 hover:bg-slate-700 hover:text-white'
+                }`}
+                title={t('nav.settings')}
+              >
+                <Settings className="h-4 w-4 shrink-0" />
+                <span className="hidden sm:inline">{t('nav.settings')}</span>
+              </button>
+            )}
           </div>
         </div>
+
+        {isSettingsActive && settingsTabs.length > 0 && (
+          <div className="border-t border-slate-800 pt-2">
+            <p className="mb-1.5 px-1 text-[10px] font-black uppercase tracking-widest text-slate-500">{t('nav.settings')}</p>
+            <div className="flex gap-1.5 overflow-x-auto pb-0.5 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+              {settingsTabs.map(tab => {
+                const active = nav.settingsTab === tab.key
+                return (
+                  <button
+                    key={tab.key}
+                    type="button"
+                    onClick={tab.onClick}
+                    className={`shrink-0 rounded-xl px-3 py-2 text-xs font-black transition sm:text-sm ${
+                      active ? 'bg-emerald-500 text-slate-950' : 'bg-slate-800 text-slate-300 hover:bg-slate-700 hover:text-white'
+                    }`}
+                  >
+                    {tab.label}
+                  </button>
+                )
+              })}
+            </div>
+          </div>
+        )}
 
         {hasSectionPages && !showProfile && (
           <div className="border-t border-slate-800 pt-2">

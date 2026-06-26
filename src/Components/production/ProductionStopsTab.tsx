@@ -4,6 +4,7 @@ import { useAuth } from '../../Context/AuthContext'
 import { useLang } from '../../i18n/LanguageContext'
 import { useMpLookups } from '../../hooks/useMpLookups'
 import { mpLookupLabel } from '../../Utils/mpLookupLabel'
+import { computeTaktMinutes, lostVehiclesFromStopMinutes } from '../../Utils/productionLineRate'
 import { Modal } from '../Modal'
 import { ConfirmDialog } from '../ConfirmDialog'
 import { MpLookupCreatableSelect } from '../MpLookupCreatableSelect'
@@ -15,6 +16,7 @@ import {
   stopDurationMinutes,
   updateProductionLineStop
 } from '../../services/productionStopService'
+import { getProductionPlanWorkDays } from '../../services/productionPlanWorkDaysService'
 import type { ProductionLineStop, ProductionLineStopInput } from '../../Types/productionStop'
 import { fromDatetimeLocalValue, toDatetimeLocalValue } from '../../Utils/datetimeLocal'
 
@@ -64,6 +66,7 @@ export function ProductionStopsTab() {
   const [formError, setFormError] = useState('')
   const [saving, setSaving] = useState(false)
   const [deleteTarget, setDeleteTarget] = useState<ProductionLineStop | null>(null)
+  const [taktMinutes, setTaktMinutes] = useState<number | null>(null)
 
   const monthValue = `${year}-${String(month).padStart(2, '0')}`
 
@@ -87,6 +90,32 @@ export function ProductionStopsTab() {
     void load()
   }, [load])
 
+  useEffect(() => {
+    if (!formOpen) return
+    const started = new Date(form.startedAt)
+    if (Number.isNaN(started.getTime())) {
+      setTaktMinutes(null)
+      return
+    }
+    void getProductionPlanWorkDays(started.getFullYear(), started.getMonth() + 1)
+      .then(config => {
+        const jph = config?.lineJph ?? 0
+        setTaktMinutes(computeTaktMinutes(jph > 0 ? jph : null))
+      })
+      .catch(() => setTaktMinutes(null))
+  }, [formOpen, form.startedAt])
+
+  useEffect(() => {
+    if (!formOpen || editing) return
+    setForm(prev => {
+      const lost = lostVehiclesFromStopMinutes(
+        stopDurationMinutes(prev.startedAt, prev.endedAt),
+        taktMinutes
+      )
+      return prev.lostVehicles === lost ? prev : { ...prev, lostVehicles: lost }
+    })
+  }, [formOpen, editing, taktMinutes])
+
   const totals = useMemo(
     () => ({
       count: items.length,
@@ -108,6 +137,16 @@ export function ProductionStopsTab() {
     const h = Math.floor(minutes / 60)
     const m = minutes % 60
     return m > 0 ? t('productivity.stops.durationHoursMinutes', { h, m }) : t('productivity.stops.durationHours', { h })
+  }
+
+  function applyLostFromDuration(input: ProductionLineStopInput): ProductionLineStopInput {
+    return {
+      ...input,
+      lostVehicles: lostVehiclesFromStopMinutes(
+        stopDurationMinutes(input.startedAt, input.endedAt),
+        taktMinutes
+      )
+    }
   }
 
   function openCreate() {
@@ -328,7 +367,9 @@ export function ProductionStopsTab() {
                 type="datetime-local"
                 className={inputCls()}
                 value={toDatetimeLocalValue(form.startedAt)}
-                onChange={e => setForm(p => ({ ...p, startedAt: fromDatetimeLocalValue(e.target.value) }))}
+                onChange={e =>
+                  setForm(p => applyLostFromDuration({ ...p, startedAt: fromDatetimeLocalValue(e.target.value) }))
+                }
               />
             </Field>
             <Field label={t('productivity.stops.fields.to')} required>
@@ -336,7 +377,9 @@ export function ProductionStopsTab() {
                 type="datetime-local"
                 className={inputCls()}
                 value={toDatetimeLocalValue(form.endedAt)}
-                onChange={e => setForm(p => ({ ...p, endedAt: fromDatetimeLocalValue(e.target.value) }))}
+                onChange={e =>
+                  setForm(p => applyLostFromDuration({ ...p, endedAt: fromDatetimeLocalValue(e.target.value) }))
+                }
               />
             </Field>
           </div>
@@ -356,8 +399,13 @@ export function ProductionStopsTab() {
               min={0}
               className={inputCls()}
               value={form.lostVehicles}
-              onChange={e => setForm(p => ({ ...p, lostVehicles: Number(e.target.value) || 0 }))}
+              onChange={e => setForm(p => ({ ...p, lostVehicles: Math.max(0, Math.floor(Number(e.target.value) || 0)) }))}
             />
+            {taktMinutes != null && taktMinutes > 0 && (
+              <p className="mt-1 text-xs text-slate-500">
+                {t('productivity.stops.lostAutoHint', { takt: taktMinutes.toFixed(1) })}
+              </p>
+            )}
           </Field>
           <Field label={t('productivity.stops.fields.notes')}>
             <textarea className={`${inputCls()} min-h-20`} value={form.notes ?? ''} onChange={e => setForm(p => ({ ...p, notes: e.target.value }))} />

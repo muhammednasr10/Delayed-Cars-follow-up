@@ -14,6 +14,40 @@ export function filterMasterReferenceStations(stations: Station[]): Station[] {
   return stations.filter(isMasterReferenceStation)
 }
 
+function compareMasterStations(a: Station, b: Station): number {
+  const sortDiff = (a.sort_order ?? 0) - (b.sort_order ?? 0)
+  if (sortDiff !== 0) return sortDiff
+  return a.station_number.localeCompare(b.station_number, undefined, { numeric: true, sensitivity: 'base' })
+}
+
+export function pickCanonicalMasterStation(group: Station[]): Station {
+  return [...group].sort(compareMasterStations)[0]
+}
+
+export function findDuplicateMasterGroups(stations: Station[]): Station[][] {
+  const masters = filterMasterReferenceStations(stations)
+  const byKey = new Map<string, Station[]>()
+  for (const s of masters) {
+    const key = normalizeStationReferenceCode(s.station_number)
+    const list = byKey.get(key) ?? []
+    list.push(s)
+    byKey.set(key, list)
+  }
+  return [...byKey.values()].filter(group => group.length > 1)
+}
+
+/** عرض محطة مرجعية واحدة لكل كود (PBS-01) — بدون تكرار خطوط العمال */
+export function dedupeMasterStationsForDisplay(stations: Station[]): Station[] {
+  const masters = filterMasterReferenceStations(stations)
+  const byKey = new Map<string, Station>()
+  for (const s of masters) {
+    const key = normalizeStationReferenceCode(s.station_number)
+    const existing = byKey.get(key)
+    byKey.set(key, existing ? pickCanonicalMasterStation([existing, s]) : s)
+  }
+  return [...byKey.values()].sort(compareMasterStations)
+}
+
 export function masterStationCode(s: Pick<Station, 'station_number'>): string {
   return normalizeStationReferenceCode(s.station_number)
 }

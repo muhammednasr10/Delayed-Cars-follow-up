@@ -24,6 +24,7 @@ import { StationsPage } from './Pages/engineering/StationsPage'
 import { ProductivityPage } from './Pages/production/ProductivityPage'
 import { DamagedPartsPage } from './Pages/production/DamagedPartsPage'
 import { MissionsPage } from './Pages/production/MissionsPage'
+import { RequestsPage } from './Pages/production/RequestsPage'
 import { ScratchesPage } from './Pages/production/ScratchesPage'
 import { EquipmentPage } from './Pages/production/EquipmentPage'
 import { FeedbackPage } from './Pages/production/FeedbackPage'
@@ -156,6 +157,7 @@ function Shell() {
               {nav.productionPage === 'training' && <TrainingMatrixPage />}
               {nav.productionPage === 'damagedParts' && <DamagedPartsPage />}
               {nav.productionPage === 'missions' && <MissionsPage />}
+              {nav.productionPage === 'requests' && <RequestsPage />}
               {nav.productionPage === 'scratches' && <ScratchesPage />}
               {nav.productionPage === 'equipment' && <EquipmentPage />}
               {nav.productionPage === 'feedback' && <FeedbackPage />}

@@ -4,17 +4,18 @@ import { useLang } from '../i18n/LanguageContext'
 import { StationManpowerDailyTab } from './StationManpowerDailyTab'
 import { StationManpowerHistoryTab } from './StationManpowerHistoryTab'
 import type { Employee } from '../Types/employee'
-import type { Station } from '../Types/settings'
+import type { Station, VehicleModel } from '../Types/settings'
 
 type ManpowerSubTab = 'daily' | 'history'
 
 type Props = {
   stations: Station[]
   employees: Employee[]
+  models: VehicleModel[]
   canManage: boolean
 }
 
-export function WorkforceManpowerSection({ stations, employees, canManage }: Props) {
+export function WorkforceManpowerSection({ stations, employees, models, canManage }: Props) {
   const { t } = useLang()
   const [subTab, setSubTab] = useState<ManpowerSubTab>('daily')
 
@@ -58,7 +59,7 @@ export function WorkforceManpowerSection({ stations, employees, canManage }: Pro
 
       <div className="card-industrial overflow-hidden">
         {subTab === 'daily' && (
-          <StationManpowerDailyTab stations={stations} employees={employees} canManage={canManage} />
+          <StationManpowerDailyTab stations={stations} employees={employees} models={models} canManage={canManage} />
         )}
         {subTab === 'history' && <StationManpowerHistoryTab />}
       </div>

@@ -1,5 +1,5 @@
-import { useCallback, useEffect, useMemo, useState } from 'react'
-import { CalendarDays, RefreshCcw, Save } from 'lucide-react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { CalendarDays } from 'lucide-react'
 import { useAuth } from '../Context/AuthContext'
 import { useVehicles } from '../Context/VehiclesContext'
 import { useLang } from '../i18n/LanguageContext'
@@ -13,8 +13,7 @@ import {
   listDatesInMonth,
   productivityModelRows,
   sumVariantForMonth,
-  sumVariantsForDay,
-  tallyVehiclesByModelDay,
+  tallyVehiclesByFamilyDay,
   type ModelColumn
 } from '../services/entryProductivityService'
 import { getVehicleModels } from '../services/settingsService'
@@ -29,7 +28,7 @@ function currentYm(): { year: number; month: number } {
 }
 
 function columnKey(col: ModelColumn): string {
-  return col.kind === 'family' ? `family:${col.familyId}` : `variant:${col.model.id}`
+  return `family:${col.familyId}`
 }
 
 export function EntryProductivityMonthlyTab() {
@@ -47,6 +46,7 @@ export function EntryProductivityMonthlyTab() {
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
   const [success, setSuccess] = useState('')
+  const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   const monthValue = `${year}-${String(month).padStart(2, '0')}`
   const dates = useMemo(() => listDatesInMonth(year, month), [year, month])
@@ -72,17 +72,49 @@ export function EntryProductivityMonthlyTab() {
     void load()
   }, [load])
 
+  useEffect(() => {
+    return () => {
+      if (saveTimerRef.current) clearTimeout(saveTimerRef.current)
+    }
+  }, [])
+
+  const persistGrid = useCallback(
+    async (gridToSave: Map<string, number>) => {
+      if (!canManage) return
+      setSaving(true)
+      setError('')
+      try {
+        await bulkUpsertEntryProductivity(gridToInputs(models, year, month, gridToSave))
+        setSuccess(t('common.saved'))
+        window.setTimeout(() => setSuccess(''), 2000)
+      } catch (e) {
+        setError(e instanceof Error ? e.message : t('common.error'))
+      } finally {
+        setSaving(false)
+      }
+    },
+    [canManage, models, year, month, t]
+  )
+
+  function scheduleSave(nextGrid: Map<string, number>) {
+    if (!canManage) return
+    if (saveTimerRef.current) clearTimeout(saveTimerRef.current)
+    saveTimerRef.current = setTimeout(() => {
+      void persistGrid(nextGrid)
+    }, 600)
+  }
+
   function setCell(modelId: string, workDate: string, quantity: number) {
-    const key = `${modelId}|${workDate}`
     setGrid(prev => {
       const next = new Map(prev)
-      next.set(key, Math.max(0, quantity))
+      next.set(`${modelId}|${workDate}`, Math.max(0, quantity))
+      scheduleSave(next)
       return next
     })
   }
 
   function syncFromDaily() {
-    const tallies = tallyVehiclesByModelDay(vehicles, year, month)
+    const tallies = tallyVehiclesByFamilyDay(vehicles, models, year, month)
     setGrid(prev => {
       const next = new Map(prev)
       for (const model of modelRows) {
@@ -92,24 +124,10 @@ export function EntryProductivityMonthlyTab() {
           if (count !== undefined) next.set(key, count)
         }
       }
+      scheduleSave(next)
       return next
     })
     setSuccess(t('productivity.monthly.syncedFromDaily'))
-  }
-
-  async function save() {
-    setSaving(true)
-    setError('')
-    setSuccess('')
-    try {
-      await bulkUpsertEntryProductivity(gridToInputs(models, year, month, grid))
-      setSuccess(t('common.saved'))
-      await load()
-    } catch (e) {
-      setError(e instanceof Error ? e.message : t('common.error'))
-    } finally {
-      setSaving(false)
-    }
   }
 
   function dayRowTotal(workDate: string): number {
@@ -117,10 +135,7 @@ export function EntryProductivityMonthlyTab() {
   }
 
   function columnMonthTotal(col: ModelColumn): number {
-    if (col.kind === 'family') {
-      return dates.reduce((sum, workDate) => sum + sumVariantsForDay(grid, col.variantIds, workDate), 0)
-    }
-    return sumVariantForMonth(grid, col.model.id, dates)
+    return sumVariantForMonth(grid, col.familyId, dates)
   }
 
   const monthGrandTotal = useMemo(() => {
@@ -128,11 +143,7 @@ export function EntryProductivityMonthlyTab() {
   }, [dates, grid, modelRows])
 
   function renderColumnValue(col: ModelColumn, workDate: string) {
-    if (col.kind === 'family') {
-      const value = sumVariantsForDay(grid, col.variantIds, workDate)
-      return <span className="font-black text-violet-300">{value || '—'}</span>
-    }
-    const value = grid.get(`${col.model.id}|${workDate}`) ?? 0
+    const value = grid.get(`${col.familyId}|${workDate}`) ?? 0
     if (canManage) {
       return (
         <input
@@ -140,7 +151,7 @@ export function EntryProductivityMonthlyTab() {
           min={0}
           className="w-12 rounded-lg border border-slate-700 bg-slate-950 px-1 py-1 text-center text-sm font-bold text-white"
           value={value || ''}
-          onChange={e => setCell(col.model.id, workDate, Number(e.target.value) || 0)}
+          onChange={e => setCell(col.familyId, workDate, Number(e.target.value) || 0)}
         />
       )
     }
@@ -158,6 +169,7 @@ export function EntryProductivityMonthlyTab() {
             <div>
               <h2 className="text-lg font-black text-white">{t('productivity.monthly.title')}</h2>
               <p className="text-sm text-slate-400">{t('productivity.monthly.subtitle')}</p>
+              {saving && <p className="mt-1 text-xs font-bold text-cyan-300">{t('common.saving')}</p>}
             </div>
           </div>
           <div className="flex flex-wrap items-end gap-2">
@@ -176,31 +188,14 @@ export function EntryProductivityMonthlyTab() {
                 }}
               />
             </label>
-            <button
-              type="button"
-              onClick={() => void load()}
-              className="rounded-xl bg-slate-800 px-3 py-2 text-sm font-bold text-slate-200 hover:bg-slate-700"
-            >
-              <RefreshCcw className="mr-1 inline h-4 w-4" /> {t('common.refresh')}
-            </button>
             {canManage && (
-              <>
-                <button
-                  type="button"
-                  onClick={syncFromDaily}
-                  className="rounded-xl border border-cyan-500/40 bg-cyan-500/10 px-4 py-2 text-sm font-bold text-cyan-200 hover:bg-cyan-500/20"
-                >
-                  {t('productivity.monthly.syncFromDaily')}
-                </button>
-                <button
-                  type="button"
-                  disabled={saving}
-                  onClick={() => void save()}
-                  className="rounded-xl bg-cyan-500 px-4 py-2 text-sm font-black text-slate-950 disabled:opacity-50"
-                >
-                  <Save className="mr-1 inline h-4 w-4" /> {saving ? t('common.saving') : t('common.save')}
-                </button>
-              </>
+              <button
+                type="button"
+                onClick={syncFromDaily}
+                className="rounded-xl border border-cyan-500/40 bg-cyan-500/10 px-4 py-2 text-sm font-bold text-cyan-200 hover:bg-cyan-500/20"
+              >
+                {t('productivity.monthly.syncFromDaily')}
+              </button>
             )}
           </div>
         </div>
@@ -221,18 +216,8 @@ export function EntryProductivityMonthlyTab() {
                 {t('productivity.monthly.date')}
               </th>
               {columns.map(col => (
-                <th
-                  key={columnKey(col)}
-                  className={`${cell} min-w-[56px] text-xs font-black ${
-                    col.kind === 'family' ? 'bg-violet-500/10 text-violet-200' : 'text-slate-400'
-                  }`}
-                >
+                <th key={columnKey(col)} className={`${cell} min-w-[56px] text-xs font-black text-violet-200`}>
                   {col.label}
-                  {col.kind === 'family' && (
-                    <span className="mt-0.5 block text-[9px] font-bold text-violet-300/80">
-                      {t('productivity.monthly.familyTotal')}
-                    </span>
-                  )}
                 </th>
               ))}
             </tr>
@@ -247,10 +232,7 @@ export function EntryProductivityMonthlyTab() {
                     {workDate.slice(8)}
                   </td>
                   {columns.map(col => (
-                    <td
-                      key={`${workDate}-${columnKey(col)}`}
-                      className={`${cell} ${col.kind === 'family' ? 'bg-violet-500/5' : ''}`}
-                    >
+                    <td key={`${workDate}-${columnKey(col)}`} className={cell}>
                       {renderColumnValue(col, workDate)}
                     </td>
                   ))}
@@ -263,10 +245,7 @@ export function EntryProductivityMonthlyTab() {
                 {t('productivity.monthly.total')}
               </td>
               {columns.map(col => (
-                <td
-                  key={`total-${columnKey(col)}`}
-                  className={`${cell} ${col.kind === 'family' ? 'text-violet-300' : 'text-emerald-300'}`}
-                >
+                <td key={`total-${columnKey(col)}`} className={`${cell} text-violet-300`}>
                   {columnMonthTotal(col) || '—'}
                 </td>
               ))}

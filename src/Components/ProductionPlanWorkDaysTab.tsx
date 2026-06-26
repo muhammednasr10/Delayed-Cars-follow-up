@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import { CalendarDays } from 'lucide-react'
 import { useAuth } from '../Context/AuthContext'
 import { useLang } from '../i18n/LanguageContext'
@@ -7,20 +7,31 @@ import { PLAN_DAY_TYPES, type PlanDayType, type ProductionPlanWorkDayEdit, type 
 import {
   availableDaysFromRows,
   buildMonthWorkDayRows,
+  computeProductivityDeficit,
   dayTypeBadgeClass,
   defaultPlannedHoursForDayType,
+  isVacationOrFactoryHoliday,
   mergeProductivityIntoRows,
   mergeStopsIntoRows
 } from '../Utils/productionPlanWorkDayDaily'
 import {
   bulkUpsertProductionPlanWorkDays,
-  getMonthProductivityTotals,
+  getMonthProductivityDetail,
   getProductionPlanWorkDaysMonth
 } from '../services/productionPlanWorkDayDailyService'
+import { getProductionPlanWorkDays } from '../services/productionPlanWorkDaysService'
 import { getProductionLineStops, aggregateStopsByDate } from '../services/productionStopService'
+import { computeDailyAttendanceEfficiency, getAttendanceDaysForMonth } from '../services/attendanceService'
+import { getEmployees } from '../services/employeesService'
+import { ProductivityBreakdownHover } from './productivity/ProductivityBreakdownHover'
+import { buildModelProductivityBreakdown } from '../Utils/productivityBreakdown'
+import type { EntryProductivityDay } from '../Types/entryProductivity'
+import type { VehicleModel } from '../Types/settings'
 
 const cell = 'table-cell text-center align-middle'
-const stickyCell = `${cell} sticky start-0 z-10 bg-slate-900 text-start`
+const dateStickyHeader = `${cell} sticky start-0 z-10 bg-slate-950/90`
+const dateStickyBody = `${cell} sticky start-0 z-10 bg-slate-900`
+const dayTypeSelectCls = 'mx-auto block w-[9.5rem] shrink-0 py-1.5 text-xs font-bold text-center'
 
 type Props = {
   onAvailableDaysChange?: (count: number) => void
@@ -33,12 +44,21 @@ function currentYm(): { year: number; month: number } {
 
 function formatDayLabel(workDate: string, lang: string): string {
   const d = new Date(workDate + 'T12:00:00')
-  const weekday = d.toLocaleDateString(lang === 'ar' ? 'ar-EG' : 'en-US', { weekday: 'short' })
+  const weekday = d.toLocaleDateString(lang === 'ar' ? 'ar-EG' : 'en-US', { weekday: 'long' })
   return `${weekday} ${d.getDate()}`
 }
 
 function formatCount(n: number): string {
   return n ? String(n) : '—'
+}
+
+function formatEfficiency(value: number | null): string {
+  return value == null ? '—' : `${value}%`
+}
+
+function formatDeficit(actualHours: number, lineJph: number, productivity: number): string {
+  if (lineJph <= 0 && actualHours <= 0 && productivity <= 0) return '—'
+  return String(computeProductivityDeficit(actualHours, lineJph, productivity))
 }
 
 export function ProductionPlanWorkDaysTab({ onAvailableDaysChange }: Props) {
@@ -50,6 +70,10 @@ export function ProductionPlanWorkDaysTab({ onAvailableDaysChange }: Props) {
   const [year, setYear] = useState(init.year)
   const [month, setMonth] = useState(init.month)
   const [rows, setRows] = useState<ProductionPlanWorkDayEdit[]>([])
+  const [entryRecords, setEntryRecords] = useState<EntryProductivityDay[]>([])
+  const [exitRecords, setExitRecords] = useState<EntryProductivityDay[]>([])
+  const [productivityModels, setProductivityModels] = useState<VehicleModel[]>([])
+  const [lineJph, setLineJph] = useState(0)
   const [loading, setLoading] = useState(false)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
@@ -64,18 +88,33 @@ export function ProductionPlanWorkDaysTab({ onAvailableDaysChange }: Props) {
     setError('')
     setSuccess('')
     try {
-      const [saved, productivity, stops] = await Promise.all([
+      const [saved, productivity, stops, employees, attendanceDays, workConfig] = await Promise.all([
         getProductionPlanWorkDaysMonth(year, month),
-        getMonthProductivityTotals(year, month),
-        getProductionLineStops(year, month).catch(() => [])
+        getMonthProductivityDetail(year, month),
+        getProductionLineStops(year, month).catch(() => []),
+        getEmployees().catch(() => []),
+        getAttendanceDaysForMonth(year, month).catch(() => []),
+        getProductionPlanWorkDays(year, month).catch(() => null)
       ])
+      const activeEmployeeIds = employees.filter(e => e.isActive).map(e => e.id)
+      const attendanceEfficiencyByDate = computeDailyAttendanceEfficiency(
+        activeEmployeeIds,
+        year,
+        month,
+        attendanceDays.map(d => ({ employeeId: d.employeeId, workDate: d.workDate, status: d.status }))
+      )
       const { minutesByDate, lostVehiclesByDate } = aggregateStopsByDate(stops)
       const base = buildMonthWorkDayRows(year, month, saved)
       const merged = mergeStopsIntoRows(
         mergeProductivityIntoRows(base, productivity.entryByDate, productivity.exitByDate),
         minutesByDate,
-        lostVehiclesByDate
+        lostVehiclesByDate,
+        attendanceEfficiencyByDate
       )
+      setEntryRecords(productivity.entryRecords)
+      setExitRecords(productivity.exitRecords)
+      setProductivityModels(productivity.models)
+      setLineJph(workConfig?.lineJph ?? 0)
       setRows(merged)
       onAvailableDaysChange?.(availableDaysFromRows(merged))
     } catch (e) {
@@ -153,6 +192,9 @@ export function ProductionPlanWorkDaysTab({ onAvailableDaysChange }: Props) {
         const updated = { ...row, ...patch }
         if (patch.dayType && patch.plannedHours === undefined) {
           updated.plannedHours = defaultPlannedHoursForDayType(patch.dayType)
+          if (isVacationOrFactoryHoliday(patch.dayType)) {
+            updated.actualHours = 0
+          }
         }
         return updated
       })
@@ -163,17 +205,43 @@ export function ProductionPlanWorkDaysTab({ onAvailableDaysChange }: Props) {
     })
   }
 
-  const totals = useMemo(
-    () => ({
-      plannedHours: rows.reduce((sum, row) => sum + row.plannedHours, 0),
-      actualHours: rows.reduce((sum, row) => sum + row.actualHours, 0),
-      entryProductivity: rows.reduce((sum, row) => sum + row.entryProductivity, 0),
-      stopMinutes: rows.reduce((sum, row) => sum + row.stopMinutes, 0),
-      stopLostVehicles: rows.reduce((sum, row) => sum + row.stopLostVehicles, 0),
-      exitProductivity: rows.reduce((sum, row) => sum + row.exitProductivity, 0)
-    }),
-    [rows]
+  const monthBreakdown = useMemo(
+    () => buildModelProductivityBreakdown(entryRecords, exitRecords, productivityModels),
+    [entryRecords, exitRecords, productivityModels]
   )
+
+  function dayBreakdown(workDate: string) {
+    return buildModelProductivityBreakdown(entryRecords, exitRecords, productivityModels, workDate)
+  }
+
+  const displayRows = useMemo(
+    () =>
+      rows.map(row => ({
+        ...row,
+        entryDeficit: computeProductivityDeficit(row.actualHours, lineJph, row.entryProductivity),
+        exitDeficit: computeProductivityDeficit(row.actualHours, lineJph, row.exitProductivity)
+      })),
+    [rows, lineJph]
+  )
+
+  const totals = useMemo(() => {
+    const efficiencyValues = displayRows.map(r => r.laborAttendanceEfficiency).filter((v): v is number => v != null)
+    const laborAttendanceEfficiency =
+      efficiencyValues.length > 0
+        ? Math.round(efficiencyValues.reduce((sum, v) => sum + v, 0) / efficiencyValues.length)
+        : null
+    return {
+      plannedHours: displayRows.reduce((sum, row) => sum + row.plannedHours, 0),
+      actualHours: displayRows.reduce((sum, row) => sum + row.actualHours, 0),
+      laborAttendanceEfficiency,
+      entryProductivity: displayRows.reduce((sum, row) => sum + row.entryProductivity, 0),
+      entryDeficit: displayRows.reduce((sum, row) => sum + row.entryDeficit, 0),
+      stopMinutes: displayRows.reduce((sum, row) => sum + row.stopMinutes, 0),
+      stopLostVehicles: displayRows.reduce((sum, row) => sum + row.stopLostVehicles, 0),
+      exitProductivity: displayRows.reduce((sum, row) => sum + row.exitProductivity, 0),
+      exitDeficit: displayRows.reduce((sum, row) => sum + row.exitDeficit, 0)
+    }
+  }, [displayRows])
 
   return (
     <div className="card-industrial p-5 sm:p-6">
@@ -221,12 +289,28 @@ export function ProductionPlanWorkDaysTab({ onAvailableDaysChange }: Props) {
           />
           <SummaryPill
             label={t('productionOrders.workDaysTab.cols.entryProductivity')}
-            value={formatCount(totals.entryProductivity)}
+            value={
+              totals.entryProductivity ? (
+                <ProductivityBreakdownHover breakdown={monthBreakdown} kind="entry" className="text-cyan-300">
+                  {formatCount(totals.entryProductivity)}
+                </ProductivityBreakdownHover>
+              ) : (
+                '—'
+              )
+            }
             tone="cyan"
           />
           <SummaryPill
             label={t('productionOrders.workDaysTab.cols.exitProductivity')}
-            value={formatCount(totals.exitProductivity)}
+            value={
+              totals.exitProductivity ? (
+                <ProductivityBreakdownHover breakdown={monthBreakdown} kind="exit" className="text-emerald-300">
+                  {formatCount(totals.exitProductivity)}
+                </ProductivityBreakdownHover>
+              ) : (
+                '—'
+              )
+            }
             tone="emerald"
           />
           <SummaryPill
@@ -252,11 +336,17 @@ export function ProductionPlanWorkDaysTab({ onAvailableDaysChange }: Props) {
       )}
 
       <div className="overflow-x-auto rounded-2xl border border-slate-800">
-        <table className="w-full min-w-[960px] text-sm">
+        <table className="w-full min-w-[1180px] text-sm">
           <thead className="bg-slate-950/90">
             <tr>
-              <th rowSpan={2} className={`${stickyCell} text-xs font-black uppercase text-slate-400`}>
+              <th rowSpan={2} className={`${dateStickyHeader} text-xs font-black uppercase text-slate-400`}>
                 {t('productionOrders.workDaysTab.cols.date')}
+              </th>
+              <th rowSpan={2} className={`${cell} text-xs font-black uppercase text-slate-400`}>
+                {t('productionOrders.workDaysTab.cols.dayType')}
+              </th>
+              <th rowSpan={2} className={`${cell} text-xs font-black uppercase text-violet-300`}>
+                {t('productionOrders.workDaysTab.cols.laborAttendance')}
               </th>
               <th rowSpan={2} className={`${cell} text-xs font-black uppercase text-slate-400`}>
                 {t('productionOrders.workDaysTab.cols.plannedHours')}
@@ -264,7 +354,7 @@ export function ProductionPlanWorkDaysTab({ onAvailableDaysChange }: Props) {
               <th rowSpan={2} className={`${cell} text-xs font-black uppercase text-slate-400`}>
                 {t('productionOrders.workDaysTab.cols.actualHours')}
               </th>
-              <th rowSpan={2} className={`${cell} text-xs font-black uppercase text-cyan-300`}>
+              <th colSpan={2} className={`${cell} text-xs font-black uppercase text-cyan-300`}>
                 {t('productionOrders.workDaysTab.cols.entryProductivity')}
               </th>
               <th colSpan={2} className={`${cell} text-xs font-black uppercase text-amber-300`}>
@@ -273,83 +363,155 @@ export function ProductionPlanWorkDaysTab({ onAvailableDaysChange }: Props) {
                   {t('productionOrders.workDaysTab.stopsFromPage')}
                 </span>
               </th>
-              <th rowSpan={2} className={`${cell} text-xs font-black uppercase text-emerald-300`}>
+              <th colSpan={2} className={`${cell} text-xs font-black uppercase text-emerald-300`}>
                 {t('productionOrders.workDaysTab.cols.exitProductivity')}
               </th>
             </tr>
             <tr>
+              <th className={`${cell} border-e border-slate-700 text-[10px] font-black uppercase text-cyan-200`}>
+                {t('productionOrders.workDaysTab.cols.productivityQty')}
+              </th>
+              <th className={`${cell} text-[10px] font-black uppercase text-rose-300`}>
+                {t('productionOrders.workDaysTab.cols.deficitShort')}
+              </th>
               <th className={`${cell} text-[10px] font-black uppercase text-amber-200`}>
                 {t('productionOrders.workDaysTab.cols.stopMinutes')}
               </th>
               <th className={`${cell} text-[10px] font-black uppercase text-amber-200`}>
                 {t('productionOrders.workDaysTab.cols.stopCars')}
               </th>
+              <th className={`${cell} border-e border-slate-700 text-[10px] font-black uppercase text-emerald-200`}>
+                {t('productionOrders.workDaysTab.cols.productivityQty')}
+              </th>
+              <th className={`${cell} text-[10px] font-black uppercase text-rose-300`}>
+                {t('productionOrders.workDaysTab.cols.deficitShort')}
+              </th>
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-800">
-            {rows.map((row, index) => (
+            {displayRows.map((row, index) => {
+              const hoursLocked = isVacationOrFactoryHoliday(row.dayType)
+              return (
               <tr key={row.workDate} className="bg-slate-900/30 hover:bg-slate-800/40">
-                <td className={stickyCell}>
-                  <div className="flex flex-col gap-1.5 sm:flex-row sm:items-center sm:gap-3">
-                    <div className="whitespace-nowrap">
-                      <span className="font-bold text-slate-200">{formatDayLabel(row.workDate, lang)}</span>
-                      <span className="ms-2 font-mono text-xs text-slate-500" dir="ltr">
-                        {row.workDate}
-                      </span>
-                    </div>
-                    <select
+                <td className={dateStickyBody}>
+                  <span className="whitespace-nowrap font-bold text-slate-200">
+                    {formatDayLabel(row.workDate, lang)}
+                  </span>
+                </td>
+                <td className={cell}>
+                  <select
+                    disabled={!canManage}
+                    className={`${inputCls()} ${dayTypeSelectCls} ${dayTypeBadgeClass(row.dayType)}`}
+                    value={row.dayType}
+                    onChange={e => patchRow(index, { dayType: e.target.value as PlanDayType })}
+                  >
+                    {PLAN_DAY_TYPES.map(type => (
+                      <option key={type} value={type}>
+                        {t(`productionOrders.workDaysTab.dayTypes.${type}`)}
+                      </option>
+                    ))}
+                  </select>
+                </td>
+                <td className={`${cell} font-black text-violet-300`}>{formatEfficiency(row.laborAttendanceEfficiency)}</td>
+                <td className={cell}>
+                  {hoursLocked ? (
+                    <span className="text-slate-500">—</span>
+                  ) : (
+                    <input
+                      type="number"
+                      min={0}
+                      step={0.5}
                       disabled={!canManage}
-                      className={`${inputCls()} min-w-[9rem] py-1.5 text-xs font-bold ${dayTypeBadgeClass(row.dayType)}`}
-                      value={row.dayType}
-                      onChange={e => patchRow(index, { dayType: e.target.value as PlanDayType })}
-                    >
-                      {PLAN_DAY_TYPES.map(type => (
-                        <option key={type} value={type}>
-                          {t(`productionOrders.workDaysTab.dayTypes.${type}`)}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
+                      className="w-20 rounded-lg border border-slate-700 bg-slate-950 px-2 py-1 text-center text-sm"
+                      value={row.plannedHours || ''}
+                      onChange={e => patchRow(index, { plannedHours: Number(e.target.value) || 0 })}
+                      onBlur={e => flushSaveRow({ ...row, plannedHours: Number(e.target.value) || 0 })}
+                    />
+                  )}
                 </td>
                 <td className={cell}>
-                  <input
-                    type="number"
-                    min={0}
-                    step={0.5}
-                    disabled={!canManage}
-                    className="w-20 rounded-lg border border-slate-700 bg-slate-950 px-2 py-1 text-center text-sm"
-                    value={row.plannedHours || ''}
-                    onChange={e => patchRow(index, { plannedHours: Number(e.target.value) || 0 })}
-                    onBlur={e => flushSaveRow({ ...row, plannedHours: Number(e.target.value) || 0 })}
-                  />
+                  {hoursLocked ? (
+                    <span className="text-slate-500">—</span>
+                  ) : (
+                    <input
+                      type="number"
+                      min={0}
+                      step={0.5}
+                      disabled={!canManage}
+                      className="w-20 rounded-lg border border-slate-700 bg-slate-950 px-2 py-1 text-center text-sm"
+                      value={row.actualHours || ''}
+                      onChange={e => patchRow(index, { actualHours: Number(e.target.value) || 0 })}
+                      onBlur={e => flushSaveRow({ ...row, actualHours: Number(e.target.value) || 0 })}
+                    />
+                  )}
                 </td>
-                <td className={cell}>
-                  <input
-                    type="number"
-                    min={0}
-                    step={0.5}
-                    disabled={!canManage}
-                    className="w-20 rounded-lg border border-slate-700 bg-slate-950 px-2 py-1 text-center text-sm"
-                    value={row.actualHours || ''}
-                    onChange={e => patchRow(index, { actualHours: Number(e.target.value) || 0 })}
-                    onBlur={e => flushSaveRow({ ...row, actualHours: Number(e.target.value) || 0 })}
-                  />
+                <td className={`${cell} border-e border-slate-800 font-black text-cyan-300`}>
+                  {row.entryProductivity ? (
+                    <ProductivityBreakdownHover breakdown={dayBreakdown(row.workDate)} kind="entry" className="text-cyan-300">
+                      {row.entryProductivity}
+                    </ProductivityBreakdownHover>
+                  ) : (
+                    '—'
+                  )}
                 </td>
-                <td className={`${cell} font-black text-cyan-300`}>{row.entryProductivity || '—'}</td>
+                <td className={`${cell} font-black text-rose-300`}>
+                  {formatDeficit(row.actualHours, lineJph, row.entryProductivity)}
+                </td>
                 <td className={`${cell} font-black text-amber-300`}>{formatCount(row.stopMinutes)}</td>
                 <td className={`${cell} font-black text-amber-300`}>{formatCount(row.stopLostVehicles)}</td>
-                <td className={`${cell} font-black text-emerald-300`}>{row.exitProductivity || '—'}</td>
+                <td className={`${cell} border-e border-slate-800 font-black text-emerald-300`}>
+                  {row.exitProductivity ? (
+                    <ProductivityBreakdownHover breakdown={dayBreakdown(row.workDate)} kind="exit" className="text-emerald-300">
+                      {row.exitProductivity}
+                    </ProductivityBreakdownHover>
+                  ) : (
+                    '—'
+                  )}
+                </td>
+                <td className={`${cell} font-black text-rose-300`}>
+                  {formatDeficit(row.actualHours, lineJph, row.exitProductivity)}
+                </td>
               </tr>
-            ))}
+              )
+            })}
             {rows.length > 0 && (
               <tr className="bg-slate-950/95 text-base font-black">
-                <td className={`${stickyCell} text-white`}>{t('productionOrders.grandTotal')}</td>
+                <td colSpan={2} className={`${dateStickyBody} bg-slate-950/95 text-white`}>
+                  {t('productionOrders.grandTotal')}
+                </td>
+                <td className={`${cell} text-violet-300`}>{formatEfficiency(totals.laborAttendanceEfficiency)}</td>
                 <td className={`${cell} text-cyan-200`}>{totals.plannedHours || '—'}</td>
                 <td className={`${cell} text-slate-200`}>{totals.actualHours || '—'}</td>
-                <td className={`${cell} text-cyan-300`}>{totals.entryProductivity || '—'}</td>
+                <td className={`${cell} border-e border-slate-800 text-cyan-300`}>
+                  {totals.entryProductivity ? (
+                    <ProductivityBreakdownHover breakdown={monthBreakdown} kind="entry" className="text-cyan-300">
+                      {totals.entryProductivity}
+                    </ProductivityBreakdownHover>
+                  ) : (
+                    '—'
+                  )}
+                </td>
+                <td className={`${cell} text-rose-300`}>
+                  {lineJph > 0 || totals.actualHours || totals.entryProductivity
+                    ? totals.entryDeficit
+                    : '—'}
+                </td>
                 <td className={`${cell} text-amber-300`}>{formatCount(totals.stopMinutes)}</td>
                 <td className={`${cell} text-amber-300`}>{formatCount(totals.stopLostVehicles)}</td>
-                <td className={`${cell} text-emerald-300`}>{totals.exitProductivity || '—'}</td>
+                <td className={`${cell} border-e border-slate-800 text-emerald-300`}>
+                  {totals.exitProductivity ? (
+                    <ProductivityBreakdownHover breakdown={monthBreakdown} kind="exit" className="text-emerald-300">
+                      {totals.exitProductivity}
+                    </ProductivityBreakdownHover>
+                  ) : (
+                    '—'
+                  )}
+                </td>
+                <td className={`${cell} text-rose-300`}>
+                  {lineJph > 0 || totals.actualHours || totals.exitProductivity
+                    ? totals.exitDeficit
+                    : '—'}
+                </td>
               </tr>
             )}
           </tbody>
@@ -370,7 +532,7 @@ function SummaryPill({
   tone = 'violet'
 }: {
   label: string
-  value: string
+  value: ReactNode
   hint?: string
   tone?: 'violet' | 'cyan' | 'slate' | 'emerald' | 'amber'
 }) {

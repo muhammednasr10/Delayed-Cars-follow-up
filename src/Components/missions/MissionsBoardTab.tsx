@@ -1,8 +1,8 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { Pencil, Plus, RefreshCcw, Trash2 } from 'lucide-react'
-import { useAuth } from '../../Context/AuthContext'
 import { useLang } from '../../i18n/LanguageContext'
 import { useEmployees } from '../../hooks/useEmployees'
+import { useMyOrgScope } from '../../hooks/useMyOrgScope'
 import { ConfirmDialog } from '../ConfirmDialog'
 import { Field, inputCls } from '../FormField'
 import { MissionFormModal } from './MissionFormModal'
@@ -13,6 +13,7 @@ import {
   updateTeamMission,
   updateTeamMissionStatus
 } from '../../services/missionService'
+import { formatPeopleList, missionVisibleToManager } from '../../Utils/missionPeople'
 import type { MissionStatus, TeamMission, TeamMissionInput } from '../../Types/mission'
 import { MISSION_STATUSES } from '../../Types/mission'
 
@@ -29,9 +30,8 @@ type Props = {
 
 export function MissionsBoardTab({ onChanged }: Props) {
   const { t, lang } = useLang()
-  const { hasRole } = useAuth()
-  const canManage = hasRole('admin', 'production')
   const { employees } = useEmployees()
+  const { employeeId, isAdmin, subordinateIds, assignableEmployees, canAssignMissions } = useMyOrgScope(employees)
 
   const [items, setItems] = useState<TeamMission[]>([])
   const [loading, setLoading] = useState(true)
@@ -65,19 +65,25 @@ export function MissionsBoardTab({ onChanged }: Props) {
     void load()
   }, [load])
 
+  const visibleItems = useMemo(() => {
+    if (isAdmin) return items
+    if (!employeeId) return []
+    return items.filter(i => missionVisibleToManager(i.assigneeIds, subordinateIds))
+  }, [items, isAdmin, employeeId, subordinateIds])
+
   const filtered = useMemo(
-    () => (statusFilter === 'all' ? items : items.filter(i => i.status === statusFilter)),
-    [items, statusFilter]
+    () => (statusFilter === 'all' ? visibleItems : visibleItems.filter(i => i.status === statusFilter)),
+    [visibleItems, statusFilter]
   )
 
   const stats = useMemo(
     () => ({
-      total: items.length,
-      pending: items.filter(i => i.status === 'pending').length,
-      inProgress: items.filter(i => i.status === 'in_progress').length,
-      completed: items.filter(i => i.status === 'completed').length
+      total: visibleItems.length,
+      pending: visibleItems.filter(i => i.status === 'pending').length,
+      inProgress: visibleItems.filter(i => i.status === 'in_progress').length,
+      completed: visibleItems.filter(i => i.status === 'completed').length
     }),
-    [items]
+    [visibleItems]
   )
 
   function notify(msg: string) {
@@ -130,6 +136,10 @@ export function MissionsBoardTab({ onChanged }: Props) {
   }
 
   async function save(input: TeamMissionInput) {
+    if (!input.assigneeIds.length || !input.assigneeIds.every(id => assignableEmployees.some(e => e.id === id))) {
+      setError(t('missions.errAssigneeNotSubordinate'))
+      return
+    }
     setSaving(true)
     try {
       if (editing) await updateTeamMission(editing.id, input)
@@ -184,7 +194,7 @@ export function MissionsBoardTab({ onChanged }: Props) {
           <button type="button" onClick={() => void load()} className="rounded-xl bg-slate-800 px-3 py-2 text-slate-200 hover:bg-slate-700">
             <RefreshCcw className="h-4 w-4" />
           </button>
-          {canManage && (
+          {canAssignMissions && (
             <button
               type="button"
               onClick={openCreate}
@@ -196,6 +206,14 @@ export function MissionsBoardTab({ onChanged }: Props) {
           )}
         </div>
       </div>
+
+      {!canAssignMissions && employeeId && (
+        <div className="rounded-xl border border-slate-700 bg-slate-900/50 p-4 text-sm text-slate-400">{t('missions.boardNoSubordinates')}</div>
+      )}
+
+      {!employeeId && (
+        <div className="rounded-xl border border-amber-500/30 bg-amber-500/10 p-4 text-sm text-amber-100">{t('missions.my.noEmployeeLink')}</div>
+      )}
 
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
         <StatPill label={t('missions.stats.total')} value={String(stats.total)} />
@@ -236,19 +254,19 @@ export function MissionsBoardTab({ onChanged }: Props) {
               <th className={`${cell} font-black text-slate-400`}>{t('missions.cols.priority')}</th>
               <th className={`${cell} font-black text-slate-400`}>{t('missions.cols.dueDate')}</th>
               <th className={`${cell} font-black text-slate-400`}>{t('missions.cols.status')}</th>
-              {canManage && <th className={`${cell} font-black text-slate-400`}>{t('common.actions')}</th>}
+              {canAssignMissions && <th className={`${cell} font-black text-slate-400`}>{t('common.actions')}</th>}
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-800">
             {loading ? (
               <tr>
-                <td colSpan={canManage ? 6 : 5} className="px-4 py-12 text-slate-500">
+                <td colSpan={canAssignMissions ? 6 : 5} className="px-4 py-12 text-slate-500">
                   {t('common.loading')}
                 </td>
               </tr>
             ) : filtered.length === 0 ? (
               <tr>
-                <td colSpan={canManage ? 6 : 5} className="px-4 py-12 text-slate-500">
+                <td colSpan={canAssignMissions ? 6 : 5} className="px-4 py-12 text-slate-500">
                   {t('missions.empty')}
                 </td>
               </tr>
@@ -260,13 +278,28 @@ export function MissionsBoardTab({ onChanged }: Props) {
                     {row.description && <p className="mt-0.5 truncate text-xs text-slate-500">{row.description}</p>}
                   </td>
                   <td className={cell}>
-                    <p className="font-bold text-slate-200">{row.assigneeName}</p>
-                    <p className="text-xs text-slate-500">{row.assigneeCode}</p>
+                    {row.assignees.length > 1 ? (
+                      <div className="space-y-0.5">
+                        {row.assignees.map(a => (
+                          <p key={a.id} className="font-bold text-slate-200">
+                            {a.name}
+                            <span className="ms-1 font-mono text-[10px] text-slate-500" dir="ltr">
+                              {a.code}
+                            </span>
+                          </p>
+                        ))}
+                      </div>
+                    ) : (
+                      <>
+                        <p className="font-bold text-slate-200">{row.assigneeName}</p>
+                        <p className="text-xs text-slate-500">{row.assigneeCode}</p>
+                      </>
+                    )}
                   </td>
                   <td className={cell}>{priorityBadge(row.priority)}</td>
                   <td className={`${cell} text-slate-300`}>{formatDate(row.dueDate)}</td>
                   <td className={cell}>
-                    {canManage ? (
+                    {canAssignMissions ? (
                       <select
                         className="rounded-lg border border-slate-700 bg-slate-900 px-2 py-1 text-xs font-bold text-slate-200"
                         value={row.status}
@@ -283,7 +316,7 @@ export function MissionsBoardTab({ onChanged }: Props) {
                       statusBadge(row.status)
                     )}
                   </td>
-                  {canManage && (
+                  {canAssignMissions && (
                     <td className={cell}>
                       <div className="flex items-center justify-center gap-1">
                         <button type="button" onClick={() => openEdit(row)} className="rounded-lg bg-slate-800 p-2 text-cyan-300 hover:bg-slate-700">
@@ -304,7 +337,7 @@ export function MissionsBoardTab({ onChanged }: Props) {
 
       <MissionFormModal
         open={formOpen}
-        employees={employees}
+        employees={assignableEmployees}
         editing={editing}
         onClose={() => setFormOpen(false)}
         onSave={save}

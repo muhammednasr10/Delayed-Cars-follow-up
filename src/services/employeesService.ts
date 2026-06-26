@@ -32,6 +32,12 @@ type EmployeeRow = {
   stations?: { station_number: string; station_name: string } | null
 }
 
+type ManagerLinkRow = {
+  employee_id: string
+  manager_id: string
+  sort_order: number
+}
+
 const SELECT = '*, work_areas(name), stations(station_number, station_name)'
 
 const JOB_ROLE_RANK = new Map<JobRole, number>(JOB_ROLES.map((role, index) => [role, index]))
@@ -48,8 +54,11 @@ function sortEmployees(list: Employee[]): Employee[] {
   return [...list].sort(compareEmployees)
 }
 
-function mapRow(row: EmployeeRow, byId: Map<string, EmployeeRow>): Employee {
+function mapRow(row: EmployeeRow, byId: Map<string, EmployeeRow>, managerIds: string[]): Employee {
   const manager = row.direct_manager_id ? byId.get(row.direct_manager_id) : null
+  const managerNames = managerIds
+    .map(id => byId.get(id)?.full_name)
+    .filter((name): name is string => Boolean(name))
   const station = row.stations
   return {
     id: row.id,
@@ -62,8 +71,10 @@ function mapRow(row: EmployeeRow, byId: Map<string, EmployeeRow>): Employee {
     stationId: row.station_id,
     stationLabel: station ? `${station.station_number} - ${station.station_name}` : null,
     lineName: row.line_name,
-    directManagerId: row.direct_manager_id,
-    directManagerName: manager ? manager.full_name : null,
+    directManagerId: managerIds[0] ?? row.direct_manager_id,
+    directManagerName: managerNames[0] ?? (manager ? manager.full_name : null),
+    directManagerIds: managerIds,
+    directManagerNames: managerNames,
     profileId: row.profile_id,
     phone: row.phone,
     email: row.email,
@@ -78,15 +89,60 @@ function mapRow(row: EmployeeRow, byId: Map<string, EmployeeRow>): Employee {
 }
 
 export async function getEmployees(): Promise<Employee[]> {
-  const { data, error } = await requireClient().from('employees').select(SELECT)
+  const client = requireClient()
+  const { data, error } = await client.from('employees').select(SELECT)
 
   if (error) throw new Error(error.message)
   const rows = (data ?? []) as EmployeeRow[]
   const byId = new Map(rows.map(r => [r.id, r]))
-  return sortEmployees(rows.map(r => mapRow(r, byId)))
+
+  const managersByEmployee = new Map<string, string[]>()
+  const { data: linkData, error: linkError } = await client
+    .from('employee_direct_managers')
+    .select('employee_id, manager_id, sort_order')
+    .order('sort_order')
+
+  if (!linkError && linkData) {
+    for (const link of linkData as ManagerLinkRow[]) {
+      const list = managersByEmployee.get(link.employee_id) ?? []
+      list.push(link.manager_id)
+      managersByEmployee.set(link.employee_id, list)
+    }
+  }
+
+  return sortEmployees(
+    rows.map(r => {
+      const managerIds =
+        managersByEmployee.get(r.id) ?? (r.direct_manager_id ? [r.direct_manager_id] : [])
+      return mapRow(r, byId, managerIds)
+    })
+  )
+}
+
+async function saveEmployeeDirectManagers(employeeId: string, managerIds: string[]): Promise<void> {
+  const client = requireClient()
+  const uniqueIds = [...new Set(managerIds.filter(id => id && id !== employeeId))]
+
+  const { error: deleteError } = await client
+    .from('employee_direct_managers')
+    .delete()
+    .eq('employee_id', employeeId)
+  if (deleteError) throw new Error(translateError(deleteError))
+
+  if (uniqueIds.length === 0) return
+
+  const { error: insertError } = await client.from('employee_direct_managers').insert(
+    uniqueIds.map((managerId, index) => ({
+      employee_id: employeeId,
+      manager_id: managerId,
+      sort_order: index
+    }))
+  )
+  if (insertError) throw new Error(translateError(insertError))
 }
 
 function toPayload(input: EmployeeInput): Record<string, unknown> {
+  const primaryManagerId = input.directManagerIds[0] ?? null
   return {
     employee_code: input.employeeCode.trim(),
     full_name: input.fullName.trim(),
@@ -95,7 +151,7 @@ function toPayload(input: EmployeeInput): Record<string, unknown> {
     work_area_id: input.workAreaId || null,
     station_id: input.stationId || null,
     line_name: input.lineName?.trim() || null,
-    direct_manager_id: input.directManagerId || null,
+    direct_manager_id: primaryManagerId,
     phone: input.phone?.trim() || null,
     email: input.email?.trim() || null,
     notes: input.notes?.trim() || null,
@@ -105,8 +161,10 @@ function toPayload(input: EmployeeInput): Record<string, unknown> {
 }
 
 export async function createEmployee(input: EmployeeInput): Promise<void> {
-  const { error } = await requireClient().from('employees').insert(toPayload(input))
+  const client = requireClient()
+  const { data, error } = await client.from('employees').insert(toPayload(input)).select('id').single()
   if (error) throw new Error(translateError(error))
+  await saveEmployeeDirectManagers(data.id, input.directManagerIds)
 }
 
 export async function bulkCreateEmployees(
@@ -130,6 +188,7 @@ export async function bulkCreateEmployees(
 export async function updateEmployee(id: string, input: EmployeeInput): Promise<void> {
   const { error } = await requireClient().from('employees').update(toPayload(input)).eq('id', id)
   if (error) throw new Error(translateError(error))
+  await saveEmployeeDirectManagers(id, input.directManagerIds)
 }
 
 export async function setEmployeeActive(id: string, isActive: boolean): Promise<void> {
@@ -163,6 +222,7 @@ export async function reactivateEmployee(employeeId: string): Promise<void> {
 
 function translateError(error: { code?: string; message?: string }): string {
   const msg = error.message || 'Request failed'
+  if (msg.includes('Circular management hierarchy')) return 'MANAGER_CYCLE'
   if (error.code === '23505' || msg.toLowerCase().includes('employees_employee_code_key') || msg.toLowerCase().includes('duplicate')) {
     return 'DUPLICATE_CODE'
   }

@@ -15,18 +15,24 @@ import {
 import { createProductionOrder, deleteProductionOrder, getProductionOrders, updateProductionOrder } from '../../services/productionOrdersService'
 import { getVehicleModels } from '../../services/settingsService'
 import { chassisRangeCount, vinInChassisRange } from '../../Utils/chassisRange'
-import { getProductionPlanWorkDaysMonth } from '../../services/productionPlanWorkDayDailyService'
-import { buildMonthWorkDayRows, totalPlannedHoursFromRows } from '../../Utils/productionPlanWorkDayDaily'
+import { getProductionPlanWorkDays, saveProductionPlanWorkDays } from '../../services/productionPlanWorkDaysService'
 import {
-  computeLineJph,
   computeTaktMinutes,
-  formatLineRate,
   formatTaktMinutes
 } from '../../Utils/productionLineRate'
 import {
-  buildPlanFamilyGroups,
+  getProductionPlanGroupTargets,
+  mergePlanGroupTargets,
+  saveProductionPlanGroupTarget
+} from '../../services/productionPlanGroupService'
+import type { ProductionPlanGroupCode } from '../../Types/productionPlanGroup'
+import {
+  buildPlanSections,
   planProgressPercent,
-  tallyAchievedByModel
+  sumPlanSectionsAchieved,
+  sumPlanSectionsPlanned,
+  tallyAchievedByModel,
+  type PlanFamilyGroup
 } from '../../Utils/productionPlanSummary'
 import type { ProductionOrder } from '../../Types/production'
 import type { VehicleModel } from '../../Types/settings'
@@ -39,11 +45,7 @@ function currentYm(): { year: number; month: number } {
   return { year: d.getFullYear(), month: d.getMonth() + 1 }
 }
 
-type Props = {
-  availableDays: number
-}
-
-export function ProductionPlanOrdersTab({ availableDays }: Props) {
+export function ProductionPlanOrdersTab() {
   const { t } = useLang()
   const { hasRole } = useAuth()
   const { vehicles, refresh: refreshVehicles } = useVehicles()
@@ -52,6 +54,7 @@ export function ProductionPlanOrdersTab({ availableDays }: Props) {
   const [orders, setOrders] = useState<ProductionOrder[]>([])
   const [models, setModels] = useState<VehicleModel[]>([])
   const [planTargets, setPlanTargets] = useState<Map<string, number>>(new Map())
+  const [planGroupTargets, setPlanGroupTargets] = useState<Map<ProductionPlanGroupCode, number>>(new Map())
   const [loading, setLoading] = useState(true)
   const [listsLoading, setListsLoading] = useState(false)
   const [formOpen, setFormOpen] = useState(false)
@@ -59,9 +62,12 @@ export function ProductionPlanOrdersTab({ availableDays }: Props) {
   const [deleteTarget, setDeleteTarget] = useState<ProductionOrder | null>(null)
   const [submitting, setSubmitting] = useState(false)
   const [savingPlan, setSavingPlan] = useState(false)
+  const [savingWorkMetrics, setSavingWorkMetrics] = useState(false)
   const [error, setError] = useState('')
   const [planSuccess, setPlanSuccess] = useState('')
   const planSaveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const planGroupSaveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const workMetricsSaveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   const [orderNumber, setOrderNumber] = useState('')
   const [familyId, setFamilyId] = useState('')
@@ -70,7 +76,9 @@ export function ProductionPlanOrdersTab({ availableDays }: Props) {
   const [chassisEnd, setChassisEnd] = useState('')
 
   const [expandedFamilies, setExpandedFamilies] = useState<Set<string>>(new Set())
-  const [monthPlannedHours, setMonthPlannedHours] = useState(0)
+  const [availableDays, setAvailableDays] = useState(0)
+  const [availableHours, setAvailableHours] = useState(0)
+  const [lineJph, setLineJph] = useState(0)
 
   const carCount = useMemo(() => chassisRangeCount(chassisStart, chassisEnd), [chassisStart, chassisEnd])
 
@@ -91,33 +99,70 @@ export function ProductionPlanOrdersTab({ availableDays }: Props) {
 
   const achievedByModelId = useMemo(() => tallyAchievedByModel(vehicles), [vehicles])
 
-  const planFamilyGroups = useMemo(
-    () => buildPlanFamilyGroups(models, planTargets, achievedByModelId),
-    [models, planTargets, achievedByModelId]
+  const planSections = useMemo(
+    () => buildPlanSections(models, planTargets, planGroupTargets, achievedByModelId),
+    [models, planTargets, planGroupTargets, achievedByModelId]
   )
 
   const planTotals = useMemo(() => {
     return {
-      planned: planFamilyGroups.reduce((sum, g) => sum + g.planned, 0),
-      achieved: planFamilyGroups.reduce((sum, g) => sum + g.achieved, 0)
+      planned: sumPlanSectionsPlanned(planSections),
+      achieved: sumPlanSectionsAchieved(planSections)
     }
-  }, [planFamilyGroups])
+  }, [planSections])
 
-  const lineJph = useMemo(
-    () => computeLineJph(monthPlannedHours, planTotals.planned),
-    [monthPlannedHours, planTotals.planned]
+  const lineTaktMinutes = useMemo(
+    () => computeTaktMinutes(lineJph > 0 ? lineJph : null),
+    [lineJph]
   )
-  const lineTaktMinutes = useMemo(() => computeTaktMinutes(lineJph), [lineJph])
 
-  async function loadMonthPlannedHours() {
+  function scheduleSaveWorkMetrics(days: number, hours: number, jph: number) {
+    if (!canManage) return
+    if (workMetricsSaveTimerRef.current) clearTimeout(workMetricsSaveTimerRef.current)
+    workMetricsSaveTimerRef.current = setTimeout(() => {
+      void persistWorkMetrics(days, hours, jph)
+    }, 600)
+  }
+
+  async function persistWorkMetrics(days: number, hours: number, jph: number) {
     const { year, month } = currentYm()
+    setSavingWorkMetrics(true)
+    setError('')
     try {
-      const saved = await getProductionPlanWorkDaysMonth(year, month)
-      const rows = buildMonthWorkDayRows(year, month, saved)
-      setMonthPlannedHours(totalPlannedHoursFromRows(rows))
-    } catch {
-      setMonthPlannedHours(0)
+      const existing = await getProductionPlanWorkDays(year, month)
+      await saveProductionPlanWorkDays({
+        year,
+        month,
+        workingDays: existing?.workingDays ?? 0,
+        vacationDays: existing?.vacationDays ?? 0,
+        overtimeDays: existing?.overtimeDays ?? 0,
+        availableDays: Math.max(0, Math.round(days)),
+        availableHours: Math.max(0, hours),
+        lineJph: Math.max(0, jph)
+      })
+    } catch (e) {
+      setError(e instanceof Error ? e.message : t('common.error'))
+    } finally {
+      setSavingWorkMetrics(false)
     }
+  }
+
+  function handleAvailableDaysChange(raw: string) {
+    const next = Math.max(0, Math.round(Number(raw) || 0))
+    setAvailableDays(next)
+    scheduleSaveWorkMetrics(next, availableHours, lineJph)
+  }
+
+  function handleAvailableHoursChange(raw: string) {
+    const next = Math.max(0, Number(raw) || 0)
+    setAvailableHours(next)
+    scheduleSaveWorkMetrics(availableDays, next, lineJph)
+  }
+
+  function handleLineJphChange(raw: string) {
+    const next = Math.max(0, Number(raw) || 0)
+    setLineJph(next)
+    scheduleSaveWorkMetrics(availableDays, availableHours, next)
   }
 
   function toggleFamily(key: string) {
@@ -136,18 +181,24 @@ export function ProductionPlanOrdersTab({ availableDays }: Props) {
   async function reload() {
     setLoading(true)
     setPlanSuccess('')
+    const { year, month } = currentYm()
     try {
       await refreshVehicles()
-      const [orderRows, modelRows, dbTargets] = await Promise.all([
+      const [orderRows, modelRows, dbTargets, dbGroupTargets, workConfig] = await Promise.all([
         getProductionOrders(),
         getVehicleModels(),
-        getModelPlanTargets().catch(() => [])
+        getModelPlanTargets().catch(() => []),
+        getProductionPlanGroupTargets().catch(() => []),
+        getProductionPlanWorkDays(year, month).catch(() => null)
       ])
       setOrders(orderRows)
       setModels(modelRows)
       setPlanTargets(mergePlanTargets(dbTargets, orderRows))
+      setPlanGroupTargets(mergePlanGroupTargets(dbGroupTargets))
+      setAvailableDays(workConfig?.availableDays ?? 0)
+      setAvailableHours(workConfig?.availableHours ?? 0)
+      setLineJph(workConfig?.lineJph ?? 0)
       setError('')
-      await loadMonthPlannedHours()
     } catch (e) {
       setError(e instanceof Error ? e.message : t('common.error'))
     } finally {
@@ -171,6 +222,8 @@ export function ProductionPlanOrdersTab({ availableDays }: Props) {
   useEffect(() => {
     return () => {
       if (planSaveTimerRef.current) clearTimeout(planSaveTimerRef.current)
+      if (planGroupSaveTimerRef.current) clearTimeout(planGroupSaveTimerRef.current)
+      if (workMetricsSaveTimerRef.current) clearTimeout(workMetricsSaveTimerRef.current)
     }
   }, [])
 
@@ -209,6 +262,43 @@ export function ProductionPlanOrdersTab({ availableDays }: Props) {
       planSaveTimerRef.current = null
     }
     void persistPlanTarget(modelId, quantity)
+  }
+
+  async function persistPlanGroupTarget(groupCode: ProductionPlanGroupCode, targetQty: number) {
+    setSavingPlan(true)
+    setError('')
+    try {
+      await saveProductionPlanGroupTarget(groupCode, Math.max(0, targetQty))
+      setPlanSuccess(t('productionOrders.planSaved'))
+      window.setTimeout(() => setPlanSuccess(''), 2000)
+    } catch (e) {
+      setError(e instanceof Error ? e.message : t('common.error'))
+    } finally {
+      setSavingPlan(false)
+    }
+  }
+
+  function setPlanGroupTarget(groupCode: ProductionPlanGroupCode, quantity: number) {
+    const qty = Math.max(0, quantity)
+    setPlanGroupTargets(prev => {
+      const next = new Map(prev)
+      next.set(groupCode, qty)
+      return next
+    })
+    if (!canManage) return
+    if (planGroupSaveTimerRef.current) clearTimeout(planGroupSaveTimerRef.current)
+    planGroupSaveTimerRef.current = setTimeout(() => {
+      void persistPlanGroupTarget(groupCode, qty)
+    }, 600)
+  }
+
+  function flushPlanGroupTarget(groupCode: ProductionPlanGroupCode, quantity: number) {
+    if (!canManage) return
+    if (planGroupSaveTimerRef.current) {
+      clearTimeout(planGroupSaveTimerRef.current)
+      planGroupSaveTimerRef.current = null
+    }
+    void persistPlanGroupTarget(groupCode, quantity)
   }
 
   function openCreateOrder() {
@@ -317,16 +407,33 @@ export function ProductionPlanOrdersTab({ availableDays }: Props) {
         </div>
 
         <div className="mb-3 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-          <h3 className="text-sm font-black text-violet-200">{t('productionOrders.planSummary')}</h3>
+          <div>
+            <h3 className="text-sm font-black text-violet-200">{t('productionOrders.planSummary')}</h3>
+            <p className="mt-1 text-xs text-slate-500">{t('productionOrders.planEntryModesHint')}</p>
+          </div>
           <div className="flex flex-wrap items-center gap-2">
-            <MetricPill
+            <EditableMetricPill
               label={t('productionOrders.workDays.available')}
-              value={String(availableDays)}
+              value={availableDays}
+              onChange={handleAvailableDaysChange}
+              disabled={!canManage}
+              step={1}
               tone="violet"
             />
-            <MetricPill
+            <EditableMetricPill
+              label={t('productionOrders.workDays.availableHours')}
+              value={availableHours}
+              onChange={handleAvailableHoursChange}
+              disabled={!canManage}
+              step={0.5}
+              tone="emerald"
+            />
+            <EditableMetricPill
               label={t('productionOrders.jph')}
-              value={lineJph != null ? formatLineRate(lineJph) : '—'}
+              value={lineJph}
+              onChange={handleLineJphChange}
+              disabled={!canManage}
+              step={0.01}
               tone="cyan"
             />
             <MetricPill
@@ -334,7 +441,7 @@ export function ProductionPlanOrdersTab({ availableDays }: Props) {
               value={lineTaktMinutes != null ? formatTaktMinutes(lineTaktMinutes) : '—'}
               tone="amber"
             />
-            {savingPlan && (
+            {(savingPlan || savingWorkMetrics) && (
               <span className="text-xs font-bold text-cyan-300">{t('common.saving')}</span>
             )}
           </div>
@@ -360,64 +467,81 @@ export function ProductionPlanOrdersTab({ availableDays }: Props) {
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-800">
-              {planFamilyGroups.map(group => {
-                const open = isFamilyExpanded(group.key)
-                return (
-                  <Fragment key={group.key}>
-                    <tr className="bg-violet-500/10">
-                      <td className={`${cell} text-start font-bold text-violet-200`}>
-                        <button
-                          type="button"
-                          onClick={() => toggleFamily(group.key)}
-                          className="inline-flex w-full items-center gap-2 rounded-lg px-1 py-0.5 text-start hover:bg-violet-500/15"
-                          aria-expanded={open}
-                        >
-                          <ChevronDown
-                            className={`h-4 w-4 shrink-0 text-violet-300 transition-transform ${open ? '' : '-rotate-90'}`}
+              {planSections.map(section => {
+                if (section.kind === 'combined_lines') {
+                  const combinedKey = `combined:${section.key}`
+                  const combinedOpen = isFamilyExpanded(combinedKey)
+                  return (
+                    <Fragment key={section.key}>
+                      <tr className="bg-cyan-500/10">
+                        <td className={`${cell} text-start font-bold text-cyan-200`}>
+                          <button
+                            type="button"
+                            onClick={() => toggleFamily(combinedKey)}
+                            className="inline-flex w-full items-center gap-2 rounded-lg px-1 py-0.5 text-start hover:bg-cyan-500/15"
+                            aria-expanded={combinedOpen}
+                          >
+                            <ChevronDown
+                              className={`h-4 w-4 shrink-0 text-cyan-300 transition-transform ${combinedOpen ? '' : '-rotate-90'}`}
+                            />
+                            {section.label}
+                            <span className="text-xs font-semibold text-cyan-300/70">
+                              ({section.families.length})
+                            </span>
+                          </button>
+                        </td>
+                        <td className={`${cell} font-black text-cyan-300`}>
+                          {canManage ? (
+                            <input
+                              type="number"
+                              min={0}
+                              className="w-24 rounded-lg border border-cyan-600/50 bg-slate-950 px-2 py-1 text-center text-sm font-black text-cyan-300"
+                              value={section.planned || ''}
+                              onChange={e => setPlanGroupTarget(section.key, Number(e.target.value) || 0)}
+                              onBlur={e => flushPlanGroupTarget(section.key, Number(e.target.value) || 0)}
+                              title={t('productionOrders.planCombinedLinesHint')}
+                            />
+                          ) : (
+                            section.planned || '—'
+                          )}
+                        </td>
+                        <td className={`${cell} font-black text-emerald-300`}>{section.achieved || '—'}</td>
+                        <td className={cell}>
+                          <CompletionBar percent={planProgressPercent(section.planned, section.achieved)} />
+                        </td>
+                      </tr>
+                      {combinedOpen &&
+                        section.families.map(family => (
+                          <PlanFamilyRows
+                            key={family.key}
+                            group={family}
+                            nested
+                            canManage={canManage}
+                            isExpanded={isFamilyExpanded(family.key)}
+                            onToggle={() => toggleFamily(family.key)}
+                            onSetPlanTarget={setPlanTarget}
+                            onFlushPlanTarget={flushPlanTarget}
+                            t={t}
                           />
-                          {group.label}
-                          <span className="text-xs font-semibold text-violet-300/70">
-                            ({group.variants.length})
-                          </span>
-                        </button>
-                      </td>
-                      <td className={`${cell} font-black text-cyan-300`}>{group.planned || '—'}</td>
-                      <td className={`${cell} font-black text-emerald-300`}>{group.achieved || '—'}</td>
-                      <td className={cell}>
-                        <CompletionBar percent={planProgressPercent(group.planned, group.achieved)} />
-                      </td>
-                    </tr>
-                    {open &&
-                      group.variants.map(variant => (
-                        <tr key={variant.modelId} className="bg-slate-900/30 hover:bg-slate-800/40">
-                          <td className={`${cell} ps-10 text-start font-bold text-slate-200`}>
-                            <span className="text-slate-500">— </span>
-                            {variant.label}
-                          </td>
-                          <td className={cell}>
-                            {canManage ? (
-                              <input
-                                type="number"
-                                min={0}
-                                className="w-20 rounded-lg border border-slate-700 bg-slate-950 px-2 py-1 text-center text-sm font-black text-cyan-300"
-                                value={variant.planned || ''}
-                                onChange={e => setPlanTarget(variant.modelId, Number(e.target.value) || 0)}
-                                onBlur={e => flushPlanTarget(variant.modelId, Number(e.target.value) || 0)}
-                              />
-                            ) : (
-                              <span className="font-black text-cyan-300">{variant.planned || '—'}</span>
-                            )}
-                          </td>
-                          <td className={`${cell} font-black text-emerald-300`}>{variant.achieved || '—'}</td>
-                          <td className={cell}>
-                            <CompletionBar percent={planProgressPercent(variant.planned, variant.achieved)} />
-                          </td>
-                        </tr>
-                      ))}
-                  </Fragment>
+                        ))}
+                    </Fragment>
+                  )
+                }
+
+                return (
+                  <PlanFamilyRows
+                    key={section.group.key}
+                    group={section.group}
+                    canManage={canManage}
+                    isExpanded={isFamilyExpanded(section.group.key)}
+                    onToggle={() => toggleFamily(section.group.key)}
+                    onSetPlanTarget={setPlanTarget}
+                    onFlushPlanTarget={flushPlanTarget}
+                    t={t}
+                  />
                 )
               })}
-              {planFamilyGroups.length > 0 && (
+              {planSections.length > 0 && (
                 <tr className={totalRow}>
                   <td className={`${cell} text-lg text-white`}>{t('productionOrders.grandTotal')}</td>
                   <td className={`${cell} text-lg text-cyan-300`}>{planTotals.planned || '—'}</td>
@@ -429,7 +553,7 @@ export function ProductionPlanOrdersTab({ availableDays }: Props) {
               )}
             </tbody>
           </table>
-          {!loading && planFamilyGroups.length === 0 && (
+          {!loading && planSections.length === 0 && (
             <p className="p-6 text-center text-sm text-slate-500">{t('productivity.monthly.noModels')}</p>
           )}
         </div>
@@ -623,6 +747,167 @@ export function ProductionPlanOrdersTab({ availableDays }: Props) {
         />
       </div>
     </section>
+  )
+}
+
+function PlanFamilyRows({
+  group,
+  nested = false,
+  canManage,
+  isExpanded,
+  onToggle,
+  onSetPlanTarget,
+  onFlushPlanTarget,
+  t
+}: {
+  group: PlanFamilyGroup
+  nested?: boolean
+  canManage: boolean
+  isExpanded: boolean
+  onToggle: () => void
+  onSetPlanTarget: (modelId: string, quantity: number) => void
+  onFlushPlanTarget: (modelId: string, quantity: number) => void
+  t: (key: string, vars?: Record<string, string | number>) => string
+}) {
+  const rowTone = nested ? 'bg-violet-500/5' : 'bg-violet-500/10'
+  const labelPad = nested ? 'ps-8' : ''
+
+  return (
+    <Fragment>
+      <tr className={rowTone}>
+        <td className={`${cell} text-start font-bold text-violet-200 ${labelPad}`}>
+          <button
+            type="button"
+            onClick={onToggle}
+            className="inline-flex w-full items-center gap-2 rounded-lg px-1 py-0.5 text-start hover:bg-violet-500/15"
+            aria-expanded={isExpanded}
+          >
+            <ChevronDown
+              className={`h-4 w-4 shrink-0 text-violet-300 transition-transform ${isExpanded ? '' : '-rotate-90'}`}
+            />
+            {group.label}
+            <span className="text-xs font-semibold text-violet-300/70">({group.variants.length})</span>
+          </button>
+        </td>
+        <td className={`${cell} font-black text-cyan-300`}>
+          {group.entryMode === 'family_aggregate' && canManage ? (
+            <input
+              type="number"
+              min={0}
+              className="w-24 rounded-lg border border-violet-600/50 bg-slate-950 px-2 py-1 text-center text-sm font-black text-cyan-300"
+              value={group.planned || ''}
+              onChange={e => onSetPlanTarget(group.familyId, Number(e.target.value) || 0)}
+              onBlur={e => onFlushPlanTarget(group.familyId, Number(e.target.value) || 0)}
+              title={t('productionOrders.planFamilyAggregateHint', { line: group.label })}
+            />
+          ) : group.entryMode === 'family_aggregate' ? (
+            group.planned || '—'
+          ) : (
+            <span className="text-slate-500">—</span>
+          )}
+        </td>
+        <td className={`${cell} font-black text-emerald-300`}>{group.achieved || '—'}</td>
+        <td className={cell}>
+          {group.entryMode === 'family_aggregate' ? (
+            <CompletionBar percent={planProgressPercent(group.planned, group.achieved)} />
+          ) : (
+            <span className="text-slate-600">—</span>
+          )}
+        </td>
+      </tr>
+      {isExpanded &&
+        group.variants.map(variant => (
+          <tr key={variant.modelId} className="bg-slate-900/30 hover:bg-slate-800/40">
+            <td className={`${cell} ${nested ? 'ps-14' : 'ps-10'} text-start font-bold text-slate-200`}>
+              <span className="text-slate-500">— </span>
+              {variant.label}
+            </td>
+            <td className={cell}>
+              {group.entryMode === 'per_variant' && canManage ? (
+                <input
+                  type="number"
+                  min={0}
+                  className="w-20 rounded-lg border border-slate-700 bg-slate-950 px-2 py-1 text-center text-sm font-black text-cyan-300"
+                  value={variant.planned || ''}
+                  onChange={e => onSetPlanTarget(variant.modelId, Number(e.target.value) || 0)}
+                  onBlur={e => onFlushPlanTarget(variant.modelId, Number(e.target.value) || 0)}
+                />
+              ) : group.entryMode === 'per_variant' ? (
+                <span className="font-black text-cyan-300">{variant.planned || '—'}</span>
+              ) : (
+                <span className="text-slate-500">—</span>
+              )}
+            </td>
+            <td className={`${cell} font-black text-emerald-300`}>{variant.achieved || '—'}</td>
+            <td className={cell}>
+              {group.entryMode === 'per_variant' ? (
+                <CompletionBar percent={planProgressPercent(variant.planned, variant.achieved)} />
+              ) : (
+                <span className="text-slate-600">—</span>
+              )}
+            </td>
+          </tr>
+        ))}
+    </Fragment>
+  )
+}
+
+function EditableMetricPill({
+  label,
+  value,
+  onChange,
+  disabled,
+  step = 1,
+  tone = 'violet'
+}: {
+  label: string
+  value: number
+  onChange: (raw: string) => void
+  disabled?: boolean
+  step?: number
+  tone?: 'violet' | 'emerald' | 'cyan' | 'amber'
+}) {
+  const borderCls =
+    tone === 'emerald'
+      ? 'border-emerald-500/30 bg-emerald-500/10'
+      : tone === 'cyan'
+        ? 'border-cyan-500/30 bg-cyan-500/10'
+        : tone === 'amber'
+          ? 'border-amber-500/30 bg-amber-500/10'
+          : 'border-violet-500/30 bg-violet-500/10'
+  const labelCls =
+    tone === 'emerald'
+      ? 'text-emerald-200'
+      : tone === 'cyan'
+        ? 'text-cyan-200'
+        : tone === 'amber'
+          ? 'text-amber-200'
+          : 'text-violet-200'
+  const valueCls =
+    tone === 'emerald'
+      ? 'text-emerald-300'
+      : tone === 'cyan'
+        ? 'text-cyan-300'
+        : tone === 'amber'
+          ? 'text-amber-300'
+          : 'text-white'
+
+  return (
+    <div className={`rounded-xl border px-3 py-2 ${borderCls}`}>
+      <p className={`text-xs font-bold ${labelCls}`}>{label}</p>
+      {disabled ? (
+        <p className={`text-lg font-black ${valueCls}`}>{value}</p>
+      ) : (
+        <input
+          type="number"
+          min={0}
+          step={step}
+          value={value || ''}
+          onChange={e => onChange(e.target.value)}
+          className={`mt-0.5 w-24 bg-transparent text-lg font-black outline-none ${valueCls}`}
+        />
+      )}
+    </div>
   )
 }
 

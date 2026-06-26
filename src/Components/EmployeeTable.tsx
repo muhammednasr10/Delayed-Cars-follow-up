@@ -35,7 +35,9 @@ export function EmployeeTable({ employees, canManage, onEdit, onToggleActive }: 
               </td>
               <td className="table-cell text-slate-300">{e.department ? t(`department.${e.department}`) : '-'}</td>
               <td className="table-cell text-slate-300">{e.workAreaName ?? '-'}</td>
-              <td className="table-cell text-slate-300">{e.directManagerName ?? t('org.f.noManager')}</td>
+              <td className="table-cell text-slate-300">
+                {e.directManagerNames.length > 0 ? e.directManagerNames.join('، ') : t('org.f.noManager')}
+              </td>
               <td className="table-cell">
                 <div className="flex flex-col gap-1 text-xs text-slate-300">
                   {e.phone && <span className="inline-flex items-center gap-1" dir="ltr"><Phone className="h-3 w-3 text-slate-500" />{e.phone}</span>}

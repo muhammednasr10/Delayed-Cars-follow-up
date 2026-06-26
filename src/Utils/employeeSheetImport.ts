@@ -119,7 +119,7 @@ export function previewRowToInput(row: EmployeeImportPreviewRow): EmployeeInput 
     workAreaId: row.workAreaId,
     stationId: null,
     lineName: null,
-    directManagerId: null,
+    directManagerIds: [],
     phone: null,
     email: null,
     notes: null,

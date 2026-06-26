@@ -97,6 +97,12 @@ export function useDepartmentNavPages() {
         onNavigate: () => navTo({ department: 'production', productionPage: 'missions' })
       },
       {
+        key: 'requests',
+        label: t('nav.requests'),
+        visible: true,
+        onNavigate: () => navTo({ department: 'production', productionPage: 'requests' })
+      },
+      {
         key: 'scratches',
         label: t('nav.scratches'),
         visible: true,
@@ -113,20 +119,24 @@ export function useDepartmentNavPages() {
         label: t('nav.feedback'),
         visible: true,
         onNavigate: () => navTo({ department: 'production', productionPage: 'feedback' })
-      },
-      {
-        key: 'settings',
-        label: t('nav.settings'),
-        visible: canAccessSettings,
-        onNavigate: () => navTo({ department: 'production', productionPage: 'settings', settingsTab: 'models' }),
-        children: (['models', 'stations', 'colors', 'areas', 'reasons', 'departments', 'users'] as const).map(key => ({
-          key,
-          label: t(`settings.tabs.${key}`),
-          onClick: () => navTo({ department: 'production', productionPage: 'settings', settingsTab: key })
-        }))
       }
     ],
-    [canAccessSettings, canViewModule, navTo, permsLoading, t]
+    [canViewModule, navTo, permsLoading, t]
+  )
+
+  const settingsPage = useMemo<NavPageItem>(
+    () => ({
+      key: 'settings',
+      label: t('nav.settings'),
+      visible: canAccessSettings,
+      onNavigate: () => navTo({ department: 'production', productionPage: 'settings', settingsTab: 'models' }),
+      children: (['models', 'stations', 'colors', 'areas', 'reasons', 'departments', 'users'] as const).map(key => ({
+        key,
+        label: t(`settings.tabs.${key}`),
+        onClick: () => navTo({ department: 'production', productionPage: 'settings', settingsTab: key })
+      }))
+    }),
+    [canAccessSettings, navTo, t]
   )
 
   const engineeringPages = useMemo<NavPageItem[]>(
@@ -218,6 +228,7 @@ export function useDepartmentNavPages() {
     productionPages,
     engineeringPages,
     warehousesPages,
+    settingsPage,
     pagesForDepartment,
     isPageActive,
     selectDepartment,

@@ -28,7 +28,13 @@ const STATUS_MAP: Record<string, AttendanceDayStatus> = {
   مرض: 'sick',
   مرضى: 'sick',
   م: 'sick',
-  s: 'sick'
+  s: 'sick',
+  permission: 'permission',
+  اذن: 'permission',
+  إذن: 'permission',
+  late: 'late',
+  تأخير: 'late',
+  تاخير: 'late'
 }
 
 function normalizeHeader(h: string): string {

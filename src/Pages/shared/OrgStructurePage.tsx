@@ -90,6 +90,10 @@ export function OrgStructurePage({ embedded = false }: { embedded?: boolean }) {
         setActionError(t('org.err.duplicateCode'))
         return false
       }
+      if (msg === 'MANAGER_CYCLE') {
+        setActionError(t('org.err.managerCycle'))
+        return false
+      }
       setActionError(msg)
       return false
     } finally {

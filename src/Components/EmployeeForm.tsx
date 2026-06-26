@@ -28,7 +28,7 @@ type FormState = {
   workAreaId: string
   stationId: string
   lineName: string
-  directManagerId: string
+  directManagerIds: string[]
   phone: string
   email: string
   notes: string
@@ -38,7 +38,7 @@ type FormState = {
 
 const emptyState: FormState = {
   employeeCode: '', fullName: '', jobRole: '', department: '', workAreaId: '',
-  stationId: '', lineName: '', directManagerId: '', phone: '', email: '', notes: '',
+  stationId: '', lineName: '', directManagerIds: [], phone: '', email: '', notes: '',
   assignmentStatus: '', isActive: true
 }
 
@@ -51,7 +51,7 @@ function fromEmployee(e: Employee): FormState {
     workAreaId: e.workAreaId ?? '',
     stationId: e.stationId ?? '',
     lineName: e.lineName ?? '',
-    directManagerId: e.directManagerId ?? '',
+    directManagerIds: e.directManagerIds.length > 0 ? e.directManagerIds : (e.directManagerId ? [e.directManagerId] : []),
     phone: e.phone ?? '',
     email: e.email ?? '',
     notes: e.notes ?? '',
@@ -93,16 +93,37 @@ export function EmployeeForm({ open, editing, employees, areas, stations, busy, 
     return true
   })
 
+  function toggleManager(managerId: string) {
+    setForm(prev => ({
+      ...prev,
+      directManagerIds: prev.directManagerIds.includes(managerId)
+        ? prev.directManagerIds.filter(id => id !== managerId)
+        : [...prev.directManagerIds, managerId]
+    }))
+    setErrors(prev => {
+      if (!prev.directManagerId) return prev
+      const next = { ...prev }
+      delete next.directManagerId
+      return next
+    })
+  }
+
   function validate(): EmployeeInput | null {
     const e: Record<string, string> = {}
     if (!form.employeeCode.trim()) e.employeeCode = t('org.err.codeRequired')
     if (!form.fullName.trim()) e.fullName = t('org.err.nameRequired')
     if (!form.jobRole) e.jobRole = t('org.err.roleRequired')
     if (form.email.trim() && !EMAIL_RE.test(form.email.trim())) e.email = t('org.err.email')
-    if (editing && form.directManagerId && form.directManagerId === editing.id) e.directManagerId = t('org.err.selfManager')
-    if (form.directManagerId) {
-      const mgr = employees.find(m => m.id === form.directManagerId)
-      if (mgr && !mgr.isActive) e.directManagerId = t('org.err.managerInactive')
+    for (const managerId of form.directManagerIds) {
+      if (editing && managerId === editing.id) {
+        e.directManagerId = t('org.err.selfManager')
+        break
+      }
+      const mgr = employees.find(m => m.id === managerId)
+      if (mgr && !mgr.isActive) {
+        e.directManagerId = t('org.err.managerInactive')
+        break
+      }
     }
     setErrors(e)
     if (Object.keys(e).length > 0) return null
@@ -115,7 +136,7 @@ export function EmployeeForm({ open, editing, employees, areas, stations, busy, 
       workAreaId: form.workAreaId || null,
       stationId: form.stationId || null,
       lineName: form.lineName || null,
-      directManagerId: form.directManagerId || null,
+      directManagerIds: form.directManagerIds,
       phone: form.phone || null,
       email: form.email || null,
       notes: form.notes || null,
@@ -200,11 +221,30 @@ export function EmployeeForm({ open, editing, employees, areas, stations, busy, 
             </select>
           </Field>
           <div className="sm:col-span-2">
-            <Field label={t('org.f.manager')} error={errors.directManagerId}>
-              <select className={cls(errors.directManagerId)} value={form.directManagerId} onChange={e => set('directManagerId', e.target.value)}>
-                <option value="">{t('org.f.noManager')}</option>
-                {managerOptions.map(m => <option key={m.id} value={m.id}>{m.fullName} — {t(`jobRole.${m.jobRole}`)}</option>)}
-              </select>
+            <Field label={t('org.f.managers')} error={errors.directManagerId} hint={t('org.f.managersHint')}>
+              <div className={`max-h-44 overflow-y-auto rounded-xl border bg-slate-900/50 p-2 space-y-1 ${errors.directManagerId ? 'border-red-500/60' : 'border-slate-700'}`}>
+                {managerOptions.length === 0 ? (
+                  <p className="px-2 py-1.5 text-sm text-slate-500">{t('org.f.noManager')}</p>
+                ) : (
+                  managerOptions.map(m => {
+                    const checked = form.directManagerIds.includes(m.id)
+                    return (
+                      <label
+                        key={m.id}
+                        className={`flex cursor-pointer items-center gap-2 rounded-lg px-2 py-1.5 text-sm transition ${checked ? 'bg-cyan-500/10 text-cyan-100' : 'text-slate-300 hover:bg-slate-800'}`}
+                      >
+                        <input
+                          type="checkbox"
+                          className="h-4 w-4 rounded border-slate-600 bg-slate-800 text-cyan-500"
+                          checked={checked}
+                          onChange={() => toggleManager(m.id)}
+                        />
+                        <span>{m.fullName} — {t(`jobRole.${m.jobRole}`)}</span>
+                      </label>
+                    )
+                  })
+                )}
+              </div>
             </Field>
           </div>
         </Section>

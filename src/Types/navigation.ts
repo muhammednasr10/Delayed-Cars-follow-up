@@ -14,6 +14,7 @@ export type ProductionPage =
   | 'training'
   | 'damagedParts'
   | 'missions'
+  | 'requests'
   | 'scratches'
   | 'equipment'
   | 'feedback'

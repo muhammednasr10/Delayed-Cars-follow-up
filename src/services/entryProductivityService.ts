@@ -24,62 +24,55 @@ export function listDatesInMonth(year: number, month: number): string[] {
   return dates
 }
 
+export function buildVariantToFamilyMap(models: VehicleModel[]): Map<string, string> {
+  const map = new Map<string, string>()
+  for (const model of models) {
+    if (model.model_kind === 'family') map.set(model.id, model.id)
+  }
+  for (const model of models) {
+    if (model.parent_model_id && map.has(model.parent_model_id)) {
+      map.set(model.id, model.parent_model_id)
+    }
+  }
+  return map
+}
+
 export function productivityModelRows(models: VehicleModel[]): VehicleModel[] {
-  const active = models.filter(m => m.is_active)
-  const variants = active.filter(m => m.model_kind === 'variant' || m.parent_model_id)
-  const rows = variants.length > 0 ? variants : active
-  return [...rows].sort((a, b) => a.name.localeCompare(b.name, 'ar'))
+  return models
+    .filter(m => m.is_active && m.model_kind === 'family')
+    .sort((a, b) => a.name.localeCompare(b.name, 'ar'))
 }
 
 export function modelDisplayLabel(model: VehicleModel): string {
+  if (model.model_kind === 'family') return model.name
   if (model.parent_name && model.parent_name !== model.name) {
     return `${model.parent_name} — ${model.name}`
   }
   return model.name
 }
 
-export type ModelColumn =
-  | { kind: 'family'; familyId: string; label: string; variantIds: string[] }
-  | { kind: 'variant'; model: VehicleModel; label: string }
+export type ModelColumn = {
+  kind: 'family'
+  familyId: string
+  label: string
+  model: VehicleModel
+}
 
 export function buildModelColumns(models: VehicleModel[]): ModelColumn[] {
-  const variants = productivityModelRows(models)
-  const byFamily = new Map<string, VehicleModel[]>()
-  const familyNames = new Map<string, string>()
-
-  for (const variant of variants) {
-    const familyId = variant.parent_model_id ?? variant.id
-    const familyName = variant.parent_name ?? variant.name
-    familyNames.set(familyId, familyName)
-    const list = byFamily.get(familyId) ?? []
-    list.push(variant)
-    byFamily.set(familyId, list)
-  }
-
-  const columns: ModelColumn[] = []
-  for (const [familyId, familyVariants] of [...byFamily.entries()].sort((a, b) =>
-    (familyNames.get(a[0]) ?? '').localeCompare(familyNames.get(b[0]) ?? '', 'ar')
-  )) {
-    const sorted = [...familyVariants].sort((a, b) => a.name.localeCompare(b.name, 'ar'))
-    columns.push({
-      kind: 'family',
-      familyId,
-      label: familyNames.get(familyId) ?? '',
-      variantIds: sorted.map(v => v.id)
-    })
-    for (const variant of sorted) {
-      columns.push({ kind: 'variant', model: variant, label: variant.name })
-    }
-  }
-  return columns
+  return productivityModelRows(models).map(model => ({
+    kind: 'family',
+    familyId: model.id,
+    label: model.name,
+    model
+  }))
 }
 
 export function sumVariantsForDay(
   grid: Map<string, number>,
-  variantIds: string[],
+  modelIds: string[],
   workDate: string
 ): number {
-  return variantIds.reduce((sum, modelId) => sum + (grid.get(`${modelId}|${workDate}`) ?? 0), 0)
+  return modelIds.reduce((sum, modelId) => sum + (grid.get(`${modelId}|${workDate}`) ?? 0), 0)
 }
 
 export function sumVariantForMonth(
@@ -147,13 +140,17 @@ export function buildMonthGrid(
   const grid = new Map<string, number>()
   const dates = listDatesInMonth(year, month)
   const modelRows = productivityModelRows(models)
+  const variantToFamily = buildVariantToFamilyMap(models)
   for (const model of modelRows) {
     for (const workDate of dates) {
       grid.set(`${model.id}|${workDate}`, 0)
     }
   }
   for (const record of records) {
-    grid.set(`${record.modelId}|${record.workDate}`, record.quantity)
+    const familyId = variantToFamily.get(record.modelId) ?? record.modelId
+    if (!modelRows.some(m => m.id === familyId)) continue
+    const key = `${familyId}|${record.workDate}`
+    grid.set(key, (grid.get(key) ?? 0) + record.quantity)
   }
   return grid
 }
@@ -170,6 +167,27 @@ export function tallyVehiclesByModelDay(
     const workDate = vehicle.createdAt.slice(0, 10)
     if (!workDate.startsWith(prefix)) continue
     const key = `${vehicle.modelId}|${workDate}`
+    grid.set(key, (grid.get(key) ?? 0) + 1)
+  }
+  return grid
+}
+
+export function tallyVehiclesByFamilyDay(
+  vehicles: VehicleOverview[],
+  models: VehicleModel[],
+  year: number,
+  month: number
+): Map<string, number> {
+  const variantToFamily = buildVariantToFamilyMap(models)
+  const prefix = `${year}-${String(month).padStart(2, '0')}`
+  const grid = new Map<string, number>()
+  for (const vehicle of vehicles) {
+    if (!vehicle.modelId || !vehicle.createdAt) continue
+    const familyId = variantToFamily.get(vehicle.modelId)
+    if (!familyId) continue
+    const workDate = vehicle.createdAt.slice(0, 10)
+    if (!workDate.startsWith(prefix)) continue
+    const key = `${familyId}|${workDate}`
     grid.set(key, (grid.get(key) ?? 0) + 1)
   }
   return grid

@@ -1,11 +1,12 @@
-import { forwardRef, useCallback, useEffect, useImperativeHandle, useState } from 'react'
+import { forwardRef, useCallback, useEffect, useImperativeHandle, useMemo, useState } from 'react'
 import { MapPin, RefreshCcw } from 'lucide-react'
 import { useLang } from '../i18n/LanguageContext'
 import { CrudSection } from './CrudSection'
 import { StationWizardModal } from './StationWizardModal'
 import { formatStationReferenceCode, composeStationNumber, parseStationNumberParts } from '../Utils/stationHierarchy'
 import { createStationWizardDefaults, parseHeadcountWorkers, stationToWizardValues } from '../Utils/stationFormValues'
-import { createStation, deleteStation, getAllStationNumbers, getStations, getWorkAreas, updateStation } from '../services/settingsService'
+import { dedupeMasterStationsForDisplay } from '../Utils/stationMaster'
+import { createStation, deleteStation, getAllStationNumbers, getStations, getWorkAreas, removeDuplicateMasterStations, updateStation } from '../services/settingsService'
 import type { Station, WorkArea } from '../Types/settings'
 import { supabase } from '../lib/supabase'
 import { normalizeStationType, stationTypeLabel } from '../Utils/stationDisplay'
@@ -37,6 +38,13 @@ export const StationsSection = forwardRef<StationsSectionHandle, Props>(function
   const [localError, setLocalError] = useState('')
   const [localSuccess, setLocalSuccess] = useState('')
 
+  function showSuccess(message: string) {
+    setLocalSuccess(message)
+    setLocalError('')
+    onSuccess?.(message)
+    window.setTimeout(() => setLocalSuccess(''), 2500)
+  }
+
   const load = useCallback(async () => {
     if (!supabase) {
       const msg = 'Supabase .env'
@@ -52,7 +60,18 @@ export const StationsSection = forwardRef<StationsSectionHandle, Props>(function
         getWorkAreas(),
         getAllStationNumbers()
       ])
-      setStations(stationsData)
+      if (manage) {
+        const removed = await removeDuplicateMasterStations(stationsData)
+        if (removed > 0) {
+          const refreshed = await getStations()
+          setStations(refreshed)
+          showSuccess(t('settings.stationsDeduped', { n: removed }))
+        } else {
+          setStations(stationsData)
+        }
+      } else {
+        setStations(stationsData)
+      }
       setWorkAreas(areasData)
       setAllStationNumbers(numbers)
     } catch (err) {
@@ -63,20 +82,15 @@ export const StationsSection = forwardRef<StationsSectionHandle, Props>(function
     } finally {
       setLoading(false)
     }
-  }, [onError, t])
+  }, [manage, onError, onSuccess, t])
+
+  const displayStations = useMemo(() => dedupeMasterStationsForDisplay(stations), [stations])
 
   useEffect(() => {
     void load()
   }, [load])
 
   useImperativeHandle(ref, () => ({ reload: load }), [load])
-
-  function showSuccess(message: string) {
-    setLocalSuccess(message)
-    setLocalError('')
-    onSuccess?.(message)
-    window.setTimeout(() => setLocalSuccess(''), 2500)
-  }
 
   async function runAction(action: () => Promise<void>, successMessage: string): Promise<boolean> {
     setLoading(true)
@@ -129,7 +143,7 @@ export const StationsSection = forwardRef<StationsSectionHandle, Props>(function
       <CrudSection
         title={title}
         icon={<MapPin className="h-5 w-5" />}
-        items={stations}
+        items={displayStations}
         busy={loading}
         canManage={manage}
         getId={s => s.id}
@@ -144,6 +158,7 @@ export const StationsSection = forwardRef<StationsSectionHandle, Props>(function
         columns={[
           {
             header: t('settings.cols.stationName'),
+            className: 'text-center',
             render: s => (
               <span className="font-mono font-bold text-white" dir="ltr">
                 {formatStationReferenceCode(s.station_number)}
@@ -152,10 +167,11 @@ export const StationsSection = forwardRef<StationsSectionHandle, Props>(function
           },
           {
             header: t('settings.cols.commonName'),
+            className: 'text-center',
             render: s => <span className="font-bold text-slate-100">{s.station_name}</span>
           },
-          { header: t('settings.cols.workArea'), render: s => s.work_areas?.name || '—' },
-          { header: t('settings.fields.stationType'), render: s => stationTypeLabel(t, s.station_type) }
+          { header: t('settings.cols.workArea'), className: 'text-center', render: s => s.work_areas?.name || '—' },
+          { header: t('settings.fields.stationType'), className: 'text-center', render: s => stationTypeLabel(t, s.station_type) }
         ]}
         toValues={stationToWizardValues}
         getCreateValues={items => createStationWizardDefaults(items, allStationNumbers)}

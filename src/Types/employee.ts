@@ -19,8 +19,11 @@ export type Employee = {
   stationId: string | null
   stationLabel: string | null
   lineName: string | null
+  /** Primary direct manager (first in directManagerIds). */
   directManagerId: string | null
   directManagerName: string | null
+  directManagerIds: string[]
+  directManagerNames: string[]
   profileId: string | null
   phone: string | null
   email: string | null
@@ -42,7 +45,7 @@ export type EmployeeInput = {
   workAreaId: string | null
   stationId: string | null
   lineName: string | null
-  directManagerId: string | null
+  directManagerIds: string[]
   phone: string | null
   email: string | null
   notes: string | null

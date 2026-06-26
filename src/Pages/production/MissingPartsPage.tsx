@@ -12,13 +12,13 @@ import { EditReportGroupModal } from '../../Components/EditReportGroupModal'
 import { VinListModal } from '../../Components/VinListModal'
 import type { ReportGroupContext, VehicleIssuesContext } from '../../Types/missingPart'
 import {
+  buildMissingPartTableRows,
   hasPendingInstall,
   isReportGroup,
-  openPartsForDisplayRow,
+  partsFromTableRow,
   reportGroupMembers,
-  toDisplayRows,
-  vehicleIdsFromDisplayRow,
-  type MissingPartDisplayRow
+  vehicleIdsFromTableRow,
+  type MissingPartTableRow
 } from '../../Utils/missingPartDisplay'
 import { MissingPartDetailModal } from '../../Components/MissingPartDetailModal'
 import { VehicleNotesModal } from '../../Components/VehicleNotesModal'
@@ -32,6 +32,7 @@ import {
 import type { MissingPartDetail, MissingPartFilters } from '../../Types/missingPart'
 import { MissingPartsToolbar, type ListTab } from '../../Components/missingParts/MissingPartsToolbar'
 import { MissingPartsTable } from '../../Components/missingParts/MissingPartsTable'
+import { MissingPartsSummaryTab } from '../../Components/missingParts/MissingPartsSummaryTab'
 import { applyFilters, isSchemaMissing } from '../../Utils/missingPartPageUtils'
 
 export function MissingPartsPage() {
@@ -103,10 +104,6 @@ export function MissingPartsPage() {
     }
   }
 
-  function vehicleIssueCount(vehicleId: string): number {
-    return filtered.filter(p => p.vehicleId === vehicleId && p.status !== 'closed' && p.status !== 'cancelled').length
-  }
-
   async function load() {
     setLoading(true)
     setError('')
@@ -144,9 +141,11 @@ export function MissingPartsPage() {
 
   const activeItems = useMemo(() => items.filter(i => !i.shortageResolvedAt), [items])
   const historyItems = useMemo(() => items.filter(i => !!i.shortageResolvedAt), [items])
-  const tabSource = listTab === 'active' ? activeItems : historyItems
+  const activeVehicleCount = useMemo(() => new Set(activeItems.map(i => i.vehicleId)).size, [activeItems])
+  const historyVehicleCount = useMemo(() => new Set(historyItems.map(i => i.vehicleId)).size, [historyItems])
+  const tabSource = listTab === 'history' ? historyItems : activeItems
   const filtered = useMemo(() => applyFilters(tabSource, filters), [tabSource, filters])
-  const displayRows = useMemo(() => toDisplayRows(filtered), [filtered])
+  const tableRows = useMemo(() => buildMissingPartTableRows(filtered), [filtered])
   const tabVehicleCount = useMemo(() => new Set(tabSource.map(i => i.vehicleId)).size, [tabSource])
   const filteredVehicleCount = useMemo(() => new Set(filtered.map(i => i.vehicleId)).size, [filtered])
   const hasActiveFilter = Boolean(filters.search.trim() || filters.stationNumber || filters.modelName || filters.department)
@@ -154,19 +153,20 @@ export function MissingPartsPage() {
   const selectableVehicleIds = useMemo(() => {
     if (!canBulkInstall) return new Set<string>()
     const ids = new Set<string>()
-    for (const row of displayRows) {
-      if (hasPendingInstall(openPartsForDisplayRow(row, filtered))) {
-        for (const id of vehicleIdsFromDisplayRow(row)) ids.add(id)
+    for (const row of tableRows) {
+      const parts = partsFromTableRow(row).filter(p => p.status !== 'closed' && p.status !== 'cancelled')
+      if (hasPendingInstall(parts)) {
+        for (const id of vehicleIdsFromTableRow(row)) ids.add(id)
       }
     }
     return ids
-  }, [displayRows, filtered, canBulkInstall])
+  }, [tableRows, canBulkInstall])
 
   const allSelectableSelected = selectableVehicleIds.size > 0 && [...selectableVehicleIds].every(id => selectedVehicleIds.has(id))
   const someSelectableSelected = [...selectableVehicleIds].some(id => selectedVehicleIds.has(id))
 
-  function toggleRowSelection(displayRow: MissingPartDisplayRow) {
-    const ids = vehicleIdsFromDisplayRow(displayRow).filter(id => selectableVehicleIds.has(id))
+  function toggleRowSelection(tableRow: MissingPartTableRow) {
+    const ids = vehicleIdsFromTableRow(tableRow).filter(id => selectableVehicleIds.has(id))
     if (ids.length === 0) return
     setSelectedVehicleIds(prev => {
       const next = new Set(prev)
@@ -216,8 +216,8 @@ export function MissingPartsPage() {
     void load()
   }
 
-  async function removeDisplayRow(displayRow: MissingPartDisplayRow) {
-    const targets = displayRow.kind === 'group' ? displayRow.items : [displayRow.item]
+  async function removeParts(targets: MissingPartDetail[]) {
+    if (targets.length === 0) return
     const label =
       targets.length > 1
         ? t('mp.deleteGroupConfirm', { n: targets.length, part: targets[0].partDescription })
@@ -256,20 +256,17 @@ export function MissingPartsPage() {
         <MissingPartsToolbar
           listTab={listTab}
           onListTabChange={setListTab}
-          activeCount={activeItems.length}
-          historyCount={historyItems.length}
+          activeCount={activeVehicleCount}
+          historyCount={historyVehicleCount}
+          searchPool={tabSource}
           filters={filters}
           onFiltersChange={patch => setFilters(p => ({ ...p, ...patch }))}
           stationOptions={stationOptions}
           modelOptions={modelOptions}
           departmentFilterCodes={departmentFilterCodes}
           departments={departments}
-          filteredVehicleCount={filteredVehicleCount}
-          tabVehicleCount={tabVehicleCount}
-          hasActiveFilter={hasActiveFilter}
           canReport={canReport}
           role={role}
-          onRefresh={load}
           onReport={() => setShowReport(true)}
         />
 
@@ -299,43 +296,52 @@ export function MissingPartsPage() {
           </div>
         )}
 
-        <MissingPartsTable
-          listTab={listTab}
-          displayRows={displayRows}
-          filtered={filtered}
-          loading={loading}
-          reasons={reasons}
-          departments={departments}
-          canBulkInstall={canBulkInstall}
-          canEdit={canEdit}
-          canDelete={canDelete}
-          canUpdateStatus={canUpdateStatus}
-          canComplete={canComplete}
-          selectableVehicleIds={selectableVehicleIds}
-          selectedVehicleIds={selectedVehicleIds}
-          bulkInstalling={bulkInstalling}
-          completingVehicleId={completingVehicleId}
-          allSelectableSelected={allSelectableSelected}
-          someSelectableSelected={someSelectableSelected}
-          onToggleSelectAll={toggleSelectAllVisible}
-          onToggleRowSelection={toggleRowSelection}
-          onOpenVinList={(vins, modelName, colorName) => setVinList({ vins, modelName, colorName })}
-          onOpenDetail={setDetailTarget}
-          onOpenNotes={row =>
-            setNotesTarget({
-              vehicleId: row.vehicleId,
-              vin: row.vin,
-              modelName: row.modelName,
-              colorName: row.colorName,
-              colorHex: row.colorHex
-            })
-          }
-          onEdit={openEdit}
-          onUpdate={openUpdate}
-          onDelete={row => void removeDisplayRow(row)}
-          onComplete={row => void completeVehicle(row)}
-          vehicleIssueCount={vehicleIssueCount}
-        />
+        {listTab === 'summary' ? (
+          <MissingPartsSummaryTab
+            items={filtered}
+            reasons={reasons}
+            departments={departments}
+            hasActiveFilter={hasActiveFilter}
+            filteredVehicleCount={filteredVehicleCount}
+            tabVehicleCount={tabVehicleCount}
+          />
+        ) : (
+          <MissingPartsTable
+            listTab={listTab}
+            filtered={filtered}
+            loading={loading}
+            reasons={reasons}
+            departments={departments}
+            canBulkInstall={canBulkInstall}
+            canEdit={canEdit}
+            canDelete={canDelete}
+            canUpdateStatus={canUpdateStatus}
+            canComplete={canComplete}
+            selectableVehicleIds={selectableVehicleIds}
+            selectedVehicleIds={selectedVehicleIds}
+            bulkInstalling={bulkInstalling}
+            completingVehicleId={completingVehicleId}
+            allSelectableSelected={allSelectableSelected}
+            someSelectableSelected={someSelectableSelected}
+            onToggleSelectAll={toggleSelectAllVisible}
+            onToggleRowSelection={toggleRowSelection}
+            onOpenVinList={(vins, modelName, colorName) => setVinList({ vins, modelName, colorName })}
+            onOpenDetail={setDetailTarget}
+            onOpenNotes={row =>
+              setNotesTarget({
+                vehicleId: row.vehicleId,
+                vin: row.vin,
+                modelName: row.modelName,
+                colorName: row.colorName,
+                colorHex: row.colorHex
+              })
+            }
+            onEdit={openEdit}
+            onUpdate={openUpdate}
+            onDeleteParts={parts => void removeParts(parts)}
+            onComplete={row => void completeVehicle(row)}
+          />
+        )}
       </div>
 
       <ReportMissingPartModal open={showReport} onClose={() => setShowReport(false)} onReported={onReported} />

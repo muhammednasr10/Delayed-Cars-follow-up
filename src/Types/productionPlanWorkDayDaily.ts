@@ -24,6 +24,8 @@ export type ProductionPlanWorkDayEdit = ProductionPlanWorkDayRow & {
   exitProductivity: number
   stopMinutes: number
   stopLostVehicles: number
+  laborAttendanceEfficiency: number | null
+  totalLostVehicles: number
 }
 
 export function defaultWorkDayRow(workDate: string): ProductionPlanWorkDayRow {

@@ -79,3 +79,48 @@ export function aggregateQty(items: MissingPartDetail[]) {
   const required = items.reduce((s, p) => s + p.requiredQty, 0)
   return { installed, required }
 }
+
+export type MissingPartTableRow =
+  | { kind: 'report-group'; displayRow: Extract<MissingPartDisplayRow, { kind: 'group' }> }
+  | { kind: 'vehicle'; vehicleId: string; parts: MissingPartDetail[] }
+  | { kind: 'single'; item: MissingPartDetail }
+
+/** One row per vehicle (multi-reason collapsible) or per VIN report-group. */
+export function buildMissingPartTableRows(filtered: MissingPartDetail[]): MissingPartTableRow[] {
+  const displayRows = toDisplayRows(filtered)
+  const seenVehicles = new Set<string>()
+  const rows: MissingPartTableRow[] = []
+
+  for (const dr of displayRows) {
+    if (dr.kind === 'group') {
+      rows.push({ kind: 'report-group', displayRow: dr })
+      continue
+    }
+
+    const vehicleId = dr.item.vehicleId
+    if (seenVehicles.has(vehicleId)) continue
+    seenVehicles.add(vehicleId)
+
+    const parts = filtered
+      .filter(p => p.vehicleId === vehicleId)
+      .sort((a, b) => b.createdAt.localeCompare(a.createdAt))
+
+    if (parts.length > 1) {
+      rows.push({ kind: 'vehicle', vehicleId, parts })
+    } else {
+      rows.push({ kind: 'single', item: parts[0] ?? dr.item })
+    }
+  }
+
+  return rows
+}
+
+export function partsFromTableRow(row: MissingPartTableRow): MissingPartDetail[] {
+  if (row.kind === 'report-group') return row.displayRow.items
+  if (row.kind === 'vehicle') return row.parts
+  return [row.item]
+}
+
+export function vehicleIdsFromTableRow(row: MissingPartTableRow): string[] {
+  return [...new Set(partsFromTableRow(row).map(p => p.vehicleId))]
+}

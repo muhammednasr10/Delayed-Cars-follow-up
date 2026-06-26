@@ -1,4 +1,5 @@
 import { supabase } from '../lib/supabase'
+import { stationsForManpowerDaily } from '../Utils/stationManpowerGroups'
 import type { StationManpowerDailyRow, StationManpowerHistoryEntry } from '../Types/stationManpowerDaily'
 import type { Station } from '../Types/settings'
 
@@ -12,9 +13,14 @@ type Row = {
   work_date: string
   station_id: string
   employee_id: string
+  vehicle_model_id: string | null
   notes: string | null
 }
 
+type LabelRow = {
+  station_id: string
+  operations_summary: string | null
+}
 
 function mapRow(row: Row): StationManpowerDailyRow {
   return {
@@ -22,6 +28,7 @@ function mapRow(row: Row): StationManpowerDailyRow {
     workDate: row.work_date,
     stationId: row.station_id,
     employeeId: row.employee_id,
+    vehicleModelId: row.vehicle_model_id,
     notes: row.notes
   }
 }
@@ -33,22 +40,101 @@ function monthBounds(year: number, month: number): { start: string; end: string 
   return { start, end }
 }
 
-export async function getStationManpowerForDate(workDate: string): Promise<StationManpowerDailyRow[]> {
+function applyModelFilter<T extends { eq: Function; is: Function }>(
+  query: T,
+  vehicleModelId: string | null
+): T {
+  if (vehicleModelId) return query.eq('vehicle_model_id', vehicleModelId) as T
+  return query.is('vehicle_model_id', null) as T
+}
+
+export async function getStationManpowerForDate(
+  workDate: string,
+  vehicleModelId: string | null = null
+): Promise<StationManpowerDailyRow[]> {
+  let query = requireClient()
+    .from('station_manpower_daily')
+    .select('id, work_date, station_id, employee_id, vehicle_model_id, notes')
+    .eq('work_date', workDate)
+  query = applyModelFilter(query, vehicleModelId)
+
+  const { data, error } = await query
+  if (error) throw new Error(error.message)
+  return (data ?? []).map(r => mapRow(r as Row))
+}
+
+export async function getAllStationManpowerForDate(workDate: string): Promise<StationManpowerDailyRow[]> {
   const { data, error } = await requireClient()
     .from('station_manpower_daily')
-    .select('id, work_date, station_id, employee_id, notes')
+    .select('id, work_date, station_id, employee_id, vehicle_model_id, notes')
     .eq('work_date', workDate)
 
   if (error) throw new Error(error.message)
   return (data ?? []).map(r => mapRow(r as Row))
 }
 
+export async function getWorkerOperationLabels(
+  workDate: string,
+  vehicleModelId: string | null = null
+): Promise<Map<string, string>> {
+  let query = requireClient()
+    .from('station_manpower_worker_labels')
+    .select('station_id, operations_summary')
+    .eq('work_date', workDate)
+  query = applyModelFilter(query, vehicleModelId)
+
+  const { data, error } = await query
+  if (error) {
+    if (error.message.includes('station_manpower_worker_labels')) return new Map()
+    throw new Error(error.message)
+  }
+
+  const map = new Map<string, string>()
+  for (const row of (data ?? []) as LabelRow[]) {
+    map.set(row.station_id, row.operations_summary ?? '')
+  }
+  return map
+}
+
+export async function getAllWorkerOperationLabels(
+  workDate: string
+): Promise<{ general: Map<string, string>; byModel: Map<string, Map<string, string>> }> {
+  const { data, error } = await requireClient()
+    .from('station_manpower_worker_labels')
+    .select('station_id, operations_summary, vehicle_model_id')
+    .eq('work_date', workDate)
+
+  if (error) {
+    if (error.message.includes('station_manpower_worker_labels')) {
+      return { general: new Map(), byModel: new Map() }
+    }
+    throw new Error(error.message)
+  }
+
+  const general = new Map<string, string>()
+  const byModel = new Map<string, Map<string, string>>()
+  for (const row of (data ?? []) as (LabelRow & { vehicle_model_id: string | null })[]) {
+    const summary = row.operations_summary ?? ''
+    if (row.vehicle_model_id) {
+      const modelMap = byModel.get(row.vehicle_model_id) ?? new Map<string, string>()
+      modelMap.set(row.station_id, summary)
+      byModel.set(row.vehicle_model_id, modelMap)
+    } else {
+      general.set(row.station_id, summary)
+    }
+  }
+  return { general, byModel }
+}
+
 export async function saveStationManpowerForDate(
   workDate: string,
+  vehicleModelId: string | null,
   assignments: { stationId: string; employeeIds: string[] }[]
 ): Promise<void> {
   const client = requireClient()
-  const { error: delErr } = await client.from('station_manpower_daily').delete().eq('work_date', workDate)
+  let deleteQuery = client.from('station_manpower_daily').delete().eq('work_date', workDate)
+  deleteQuery = applyModelFilter(deleteQuery, vehicleModelId)
+  const { error: delErr } = await deleteQuery
   if (delErr) throw new Error(delErr.message)
 
   const rows: Record<string, unknown>[] = []
@@ -58,13 +144,103 @@ export async function saveStationManpowerForDate(
       rows.push({
         work_date: workDate,
         station_id: item.stationId,
-        employee_id: employeeId
+        employee_id: employeeId,
+        vehicle_model_id: vehicleModelId
       })
     }
   }
   if (rows.length === 0) return
 
   const { error } = await client.from('station_manpower_daily').insert(rows)
+  if (error) throw new Error(error.message)
+}
+
+export async function saveModelStationManpowerOverrides(
+  workDate: string,
+  vehicleModelId: string,
+  assignments: { stationId: string; employeeIds: string[] }[]
+): Promise<void> {
+  const client = requireClient()
+  const { error: delErr } = await client
+    .from('station_manpower_daily')
+    .delete()
+    .eq('work_date', workDate)
+    .eq('vehicle_model_id', vehicleModelId)
+  if (delErr) throw new Error(delErr.message)
+
+  const rows: Record<string, unknown>[] = []
+  for (const item of assignments) {
+    for (const employeeId of item.employeeIds) {
+      if (!employeeId) continue
+      rows.push({
+        work_date: workDate,
+        station_id: item.stationId,
+        employee_id: employeeId,
+        vehicle_model_id: vehicleModelId
+      })
+    }
+  }
+  if (rows.length === 0) return
+
+  const { error } = await client.from('station_manpower_daily').insert(rows)
+  if (error) throw new Error(error.message)
+}
+
+export async function saveWorkerOperationLabels(
+  workDate: string,
+  vehicleModelId: string | null,
+  updates: { stationId: string; summary: string | null }[]
+): Promise<void> {
+  const client = requireClient()
+  let deleteQuery = client.from('station_manpower_worker_labels').delete().eq('work_date', workDate)
+  deleteQuery = applyModelFilter(deleteQuery, vehicleModelId)
+  const { error: delErr } = await deleteQuery
+  if (delErr) {
+    if (delErr.message.includes('station_manpower_worker_labels')) return
+    throw new Error(delErr.message)
+  }
+
+  const rows = updates
+    .filter(item => item.summary?.trim())
+    .map(item => ({
+      work_date: workDate,
+      station_id: item.stationId,
+      vehicle_model_id: vehicleModelId,
+      operations_summary: item.summary!.trim()
+    }))
+  if (rows.length === 0) return
+
+  const { error } = await client.from('station_manpower_worker_labels').insert(rows)
+  if (error) throw new Error(error.message)
+}
+
+export async function saveModelWorkerOperationLabels(
+  workDate: string,
+  vehicleModelId: string,
+  updates: { stationId: string; summary: string | null }[]
+): Promise<void> {
+  const client = requireClient()
+  const { error: delErr } = await client
+    .from('station_manpower_worker_labels')
+    .delete()
+    .eq('work_date', workDate)
+    .eq('vehicle_model_id', vehicleModelId)
+  if (delErr) {
+    if (delErr.message.includes('station_manpower_worker_labels')) return
+    throw new Error(delErr.message)
+  }
+
+  const rows = updates
+    .filter(item => item.summary?.trim())
+    .map(item => ({
+      work_date: workDate,
+      station_id: item.stationId,
+      vehicle_model_id: vehicleModelId,
+      operations_summary: item.summary!.trim()
+    }))
+  if (rows.length === 0) return
+
+  const { error } = await client.from('station_manpower_worker_labels').insert(rows)
   if (error) throw new Error(error.message)
 }
 
@@ -117,8 +293,9 @@ export async function getStationManpowerHistory(year: number, month: number): Pr
 
 export function buildStationManpowerDayRows(
   stations: Station[],
-  saved: StationManpowerDailyRow[]
-): { stationId: string; stationNumber: string; stationName: string; laborSummary: string | null; employeeIds: string[] }[] {
+  saved: StationManpowerDailyRow[],
+  operationLabels: Map<string, string> = new Map()
+): { stationId: string; stationNumber: string; stationName: string; operationsSummary: string; employeeIds: string[] }[] {
   const byStation = new Map<string, string[]>()
   for (const row of saved) {
     const list = byStation.get(row.stationId) ?? []
@@ -126,19 +303,11 @@ export function buildStationManpowerDayRows(
     byStation.set(row.stationId, list)
   }
 
-  return [...stations]
-    .filter(s => s.is_active)
-    .sort((a, b) => {
-      const ao = a.sort_order ?? 0
-      const bo = b.sort_order ?? 0
-      if (ao !== bo) return ao - bo
-      return a.station_number.localeCompare(b.station_number, 'ar')
-    })
-    .map(station => ({
-      stationId: station.id,
-      stationNumber: station.station_number,
-      stationName: station.station_name,
-      laborSummary: station.worker1_operations_summary ?? null,
-      employeeIds: byStation.get(station.id) ?? []
-    }))
+  return stationsForManpowerDaily(stations).map(station => ({
+    stationId: station.id,
+    stationNumber: station.station_number,
+    stationName: station.station_name,
+    operationsSummary: operationLabels.get(station.id) ?? '',
+    employeeIds: byStation.get(station.id) ?? []
+  }))
 }

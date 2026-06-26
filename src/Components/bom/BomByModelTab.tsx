@@ -3,7 +3,7 @@ import { Plus, RefreshCcw, Search, X } from 'lucide-react'
 import { useLang } from '../../i18n/LanguageContext'
 import { usePermissions } from '../../Context/PermissionsContext'
 import { useAuth } from '../../Context/AuthContext'
-import { getVehicleModels } from '../../services/settingsService'
+import { getVehicleModels, getStations } from '../../services/settingsService'
 import { deleteBomItem, getBomItems, type BomExcelColumnFilters, type BomListFilters } from '../../services/bomService'
 import { BOM_PARTS_DISPLAY_COLUMNS, BOM_TABLE_COL_WIDTH } from '../../Utils/bomPartsColumns'
 import { groupBomItemsForDisplay, type BomDisplayGroup } from '../../Utils/bomRowGroups'
@@ -15,7 +15,7 @@ import { ExcelColumnFilter } from './ExcelColumnFilter'
 import { ConfirmDialog } from '../ConfirmDialog'
 import { inputCls } from '../FormField'
 import type { BomItemDetail } from '../../Types/bom'
-import type { VehicleModel } from '../../Types/settings'
+import type { VehicleModel, Station } from '../../Types/settings'
 
 const PAGE_SIZE = 100
 
@@ -28,10 +28,11 @@ export function BomByModelTab({ notify }: { notify: (m: string, err?: boolean) =
   const canDelete = hasRole('admin') || hasPermission('bom', 'delete') || canUpdate
 
   const [models, setModels] = useState<VehicleModel[]>([])
+  const [stations, setStations] = useState<Station[]>([])
   const [modelName, setModelName] = useState('')
+  const [stationId, setStationId] = useState('')
   const [search, setSearch] = useState('')
   const [stopperType, setStopperType] = useState('')
-  const [criticalOnly, setCriticalOnly] = useState(false)
   const [noOperationOnly, setNoOperationOnly] = useState(false)
   const [excelFilters, setExcelFilters] = useState<BomExcelColumnFilters>({})
   const [page, setPage] = useState(1)
@@ -54,11 +55,15 @@ export function BomByModelTab({ notify }: { notify: (m: string, err?: boolean) =
   const baseFilters = useMemo((): Omit<BomListFilters, 'page' | 'pageSize'> => {
     const f: Omit<BomListFilters, 'page' | 'pageSize'> = { search, excel: excelFilters }
     if (modelName) f.modelName = modelName
+    if (stationId) {
+      const st = stations.find(s => s.id === stationId)
+      f.stationId = stationId
+      if (st) f.stationNumber = st.station_number
+    }
     if (stopperType) f.stopperType = stopperType as BomListFilters['stopperType']
-    if (criticalOnly) f.isCriticalOnly = true
     if (noOperationOnly) f.noOperationOnly = true
     return f
-  }, [search, modelName, excelFilters, stopperType, criticalOnly, noOperationOnly])
+  }, [search, modelName, stationId, stations, excelFilters, stopperType, noOperationOnly])
 
   const activeExcelFilterCount = Object.values(excelFilters).filter(v => v && v.length > 0).length
 
@@ -77,8 +82,11 @@ export function BomByModelTab({ notify }: { notify: (m: string, err?: boolean) =
   }, [baseFilters, page, notify, t])
 
   useEffect(() => {
-    getVehicleModels()
-      .then(setModels)
+    Promise.all([getVehicleModels(), getStations()])
+      .then(([m, s]) => {
+        setModels(m)
+        setStations(s.filter(st => st.is_active))
+      })
       .catch(() => notify(t('common.error'), true))
   }, [notify, t])
 
@@ -213,6 +221,24 @@ export function BomByModelTab({ notify }: { notify: (m: string, err?: boolean) =
             </select>
           </label>
           <label className="block">
+            <span className="mb-1 block text-[10px] font-bold uppercase text-cyan-300">{t('bom.filterStation')}</span>
+            <select
+              className={inputCls()}
+              value={stationId}
+              onChange={e => {
+                setStationId(e.target.value)
+                setPage(1)
+              }}
+            >
+              <option value="">{t('bom.allStations')}</option>
+              {stations.map(s => (
+                <option key={s.id} value={s.id}>
+                  {s.station_number} — {s.station_name}
+                </option>
+              ))}
+            </select>
+          </label>
+          <label className="block">
             <span className="mb-1 block text-[10px] font-bold uppercase text-slate-500">{t('bom.stopperType')}</span>
             <select
               className={inputCls()}
@@ -228,20 +254,8 @@ export function BomByModelTab({ notify }: { notify: (m: string, err?: boolean) =
               <option value="non_stopper">{t('bom.stopperNone')}</option>
             </select>
           </label>
-          <div className="flex flex-wrap items-end gap-x-5 gap-y-2 sm:col-span-2">
-            <label className="flex cursor-pointer items-center gap-2 text-sm text-slate-300">
-              <input
-                type="checkbox"
-                className="rounded border-slate-600"
-                checked={criticalOnly}
-                onChange={e => {
-                  setCriticalOnly(e.target.checked)
-                  setPage(1)
-                }}
-              />
-              {t('bom.criticalOnly')}
-            </label>
-            <label className="flex cursor-pointer items-center gap-2 text-sm text-slate-300">
+          <div className="flex items-end">
+            <label className="flex cursor-pointer items-center gap-2 pb-2.5 text-sm text-slate-300">
               <input
                 type="checkbox"
                 className="rounded border-slate-600"

@@ -14,6 +14,28 @@ export function isAssignableModel(m: VehicleModel): boolean {
 
 const GD_VARIANT_NAMES = new Set(['K50', 'K51', 'F10', 'K52', 'K53', 'F12'])
 
+/** GD: one aggregate target on the family row. */
+export const GD_AGGREGATE_FAMILY = 'GD'
+
+/** T4 / T7 / T8 share one combined plan target (stored in production_plan_group_targets). */
+export const T_LINE_FAMILY_NAMES = new Set(['T4', 'T7', 'T8'])
+
+export function isGdAggregateFamily(familyName: string): boolean {
+  return familyName.trim().toUpperCase() === GD_AGGREGATE_FAMILY
+}
+
+export function isTLineFamily(familyName: string): boolean {
+  return T_LINE_FAMILY_NAMES.has(familyName.trim().toUpperCase())
+}
+
+export type PlanEntryMode = 'family_aggregate' | 'combined_line_member' | 'per_variant'
+
+export function planEntryModeForFamily(familyName: string): PlanEntryMode {
+  if (isGdAggregateFamily(familyName)) return 'family_aggregate'
+  if (isTLineFamily(familyName)) return 'combined_line_member'
+  return 'per_variant'
+}
+
 export function inferParentNameFromVariant(name: string): string | null {
   const n = name.trim().toUpperCase()
   if (GD_VARIANT_NAMES.has(n)) return 'GD'

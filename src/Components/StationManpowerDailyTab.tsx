@@ -1,69 +1,186 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { Save, Users } from 'lucide-react'
 import { useLang } from '../i18n/LanguageContext'
 import { inputCls } from './FormField'
-import { StationManpowerAssignCell } from './StationManpowerAssignCell'
-import { formatStationWorkerDisplayCode } from '../Utils/stationHierarchy'
+import { StationManpowerParentGroup } from './StationManpowerParentGroup'
 import { localTodayIso } from '../services/attendanceService'
+import { getParentStationOperationsGroups } from '../services/stationOperationsService'
 import {
   buildStationManpowerDayRows,
-  getStationManpowerForDate,
+  getAllStationManpowerForDate,
+  saveModelStationManpowerOverrides,
   saveStationManpowerForDate
 } from '../services/stationManpowerDailyService'
 import { compareEmployees } from '../services/employeesService'
+import { groupManpowerDayRows } from '../Utils/stationManpowerGroups'
+import {
+  buildLineBalanceHeadcountByModel,
+  buildLineBalanceLabelsByModel,
+  formatOperationsLabelComparison,
+  labelsForStationAcrossModels,
+  maxHeadcountForParent
+} from '../Utils/lineBalanceManpowerLabels'
+import {
+  detectModelOverrides,
+  effectiveModelRows,
+  emptyManpowerDayState,
+  updateGeneralRow,
+  upsertModelOverride,
+  type ManpowerDayState
+} from '../Utils/stationManpowerInheritance'
 import type { Employee } from '../Types/employee'
-import type { Station } from '../Types/settings'
+import type { Station, VehicleModel } from '../Types/settings'
 import type { StationManpowerDayEdit } from '../Types/stationManpowerDaily'
 
 type Props = {
   stations: Station[]
   employees: Employee[]
+  models: VehicleModel[]
   canManage: boolean
 }
 
-export function StationManpowerDailyTab({ stations, employees, canManage }: Props) {
+function buildDayStateFromDb(
+  stations: Station[],
+  savedRows: Awaited<ReturnType<typeof getAllStationManpowerForDate>>,
+  familyModelIds: string[]
+): ManpowerDayState {
+  const generalSaved = savedRows.filter(r => !r.vehicleModelId)
+  const generalRows = buildStationManpowerDayRows(stations, generalSaved)
+
+  const modelRows = new Map<string, StationManpowerDayEdit[]>()
+  const overrideStations = new Map<string, Set<string>>()
+
+  for (const modelId of familyModelIds) {
+    const modelSaved = savedRows.filter(r => r.vehicleModelId === modelId)
+    if (modelSaved.length === 0) continue
+
+    const built = buildStationManpowerDayRows(stations, modelSaved)
+    const modelStationIds = new Set(modelSaved.map(r => r.stationId))
+    const overrides = detectModelOverrides(
+      generalRows,
+      built.filter(row => modelStationIds.has(row.stationId))
+    )
+    if (overrides.size > 0) {
+      overrideStations.set(modelId, overrides)
+      modelRows.set(
+        modelId,
+        built.filter(row => overrides.has(row.stationId))
+      )
+    }
+  }
+
+  return { generalRows, modelRows, overrideStations }
+}
+
+export function StationManpowerDailyTab({ stations, employees, models, canManage }: Props) {
   const { t } = useLang()
   const [workDate, setWorkDate] = useState(localTodayIso())
-  const [rows, setRows] = useState<StationManpowerDayEdit[]>([])
+  const [activeModelId, setActiveModelId] = useState<string | null>(null)
+  const [dayState, setDayState] = useState<ManpowerDayState | null>(null)
+  const [lineBalanceLabels, setLineBalanceLabels] = useState<Map<string, Map<string, string>>>(new Map())
+  const [lineBalanceHeadcount, setLineBalanceHeadcount] = useState<Map<string, Map<string, number>>>(new Map())
   const [loading, setLoading] = useState(false)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
   const [success, setSuccess] = useState('')
 
   const activeEmployees = [...employees].filter(e => e.isActive).sort(compareEmployees)
+  const familyModels = useMemo(
+    () => models.filter(m => m.is_active && m.model_kind === 'family').sort((a, b) => a.name.localeCompare(b.name, 'ar')),
+    [models]
+  )
+  const familyModelIds = useMemo(() => familyModels.map(m => m.id), [familyModels])
+
+  const displayRows = useMemo(() => {
+    if (!dayState) return []
+    const assignmentRows = activeModelId
+      ? effectiveModelRows(dayState.generalRows, activeModelId, dayState)
+      : dayState.generalRows
+
+    if (!activeModelId) return assignmentRows
+
+    const labels = lineBalanceLabels.get(activeModelId) ?? new Map<string, string>()
+    return assignmentRows.map(row => ({
+      ...row,
+      operationsSummary: labels.get(row.stationId) ?? ''
+    }))
+  }, [dayState, activeModelId, lineBalanceLabels])
+
+  const groups = useMemo(() => groupManpowerDayRows(displayRows), [displayRows])
 
   const load = useCallback(async () => {
     setLoading(true)
     setError('')
     try {
-      const saved = await getStationManpowerForDate(workDate)
-      setRows(buildStationManpowerDayRows(stations, saved))
+      const [saved, parentGroups] = await Promise.all([
+        getAllStationManpowerForDate(workDate),
+        getParentStationOperationsGroups()
+      ])
+      setLineBalanceLabels(buildLineBalanceLabelsByModel(parentGroups, models, familyModels))
+      setLineBalanceHeadcount(buildLineBalanceHeadcountByModel(parentGroups, familyModels))
+      const baseGeneral = buildStationManpowerDayRows(stations, saved.filter(r => !r.vehicleModelId))
+      setDayState(
+        saved.some(r => r.vehicleModelId)
+          ? buildDayStateFromDb(stations, saved, familyModelIds)
+          : emptyManpowerDayState(baseGeneral)
+      )
     } catch (e) {
       setError(e instanceof Error ? e.message : t('common.error'))
+      setDayState(emptyManpowerDayState(buildStationManpowerDayRows(stations, [], new Map())))
+      setLineBalanceLabels(new Map())
+      setLineBalanceHeadcount(new Map())
     } finally {
       setLoading(false)
     }
-  }, [workDate, stations, t])
+  }, [workDate, stations, familyModelIds, familyModels, models, t])
 
   useEffect(() => {
     void load()
   }, [load])
 
   function setEmployeeIds(stationId: string, employeeIds: string[]) {
-    setRows(prev => prev.map(row => (row.stationId === stationId ? { ...row, employeeIds } : row)))
+    if (!dayState) return
+    setDayState(prev => {
+      if (!prev) return prev
+      if (!activeModelId) {
+        return updateGeneralRow(prev, stationId, { employeeIds }, familyModelIds)
+      }
+      const baseRow = effectiveModelRows(prev.generalRows, activeModelId, prev).find(r => r.stationId === stationId)
+      if (!baseRow) return prev
+      return upsertModelOverride(prev, activeModelId, stationId, { employeeIds }, baseRow)
+    })
     setSuccess('')
   }
 
+  function getOperationsComparison(stationId: string): string {
+    return formatOperationsLabelComparison(
+      labelsForStationAcrossModels(stationId, lineBalanceLabels, familyModels),
+      t
+    )
+  }
+
   async function save() {
-    if (!canManage) return
+    if (!canManage || !dayState) return
     setSaving(true)
     setError('')
     setSuccess('')
     try {
-      await saveStationManpowerForDate(
-        workDate,
-        rows.map(row => ({ stationId: row.stationId, employeeIds: row.employeeIds }))
-      )
+      if (!activeModelId) {
+        await saveStationManpowerForDate(
+          workDate,
+          null,
+          dayState.generalRows.map(row => ({ stationId: row.stationId, employeeIds: row.employeeIds }))
+        )
+      } else {
+        const overrides = dayState.overrideStations.get(activeModelId) ?? new Set<string>()
+        const effective = effectiveModelRows(dayState.generalRows, activeModelId, dayState)
+        const overrideRows = effective.filter(row => overrides.has(row.stationId))
+        await saveModelStationManpowerOverrides(
+          workDate,
+          activeModelId,
+          overrideRows.map(row => ({ stationId: row.stationId, employeeIds: row.employeeIds }))
+        )
+      }
       setSuccess(t('manpower.daily.saved'))
     } catch (e) {
       setError(e instanceof Error ? e.message : t('common.error'))
@@ -71,6 +188,16 @@ export function StationManpowerDailyTab({ stations, employees, canManage }: Prop
       setSaving(false)
     }
   }
+
+  const activeModelName =
+    activeModelId == null ? t('manpower.daily.generalTab') : familyModels.find(m => m.id === activeModelId)?.name
+
+  const scopeHint =
+    activeModelId == null
+      ? t('manpower.daily.generalScope')
+      : (dayState?.overrideStations.get(activeModelId)?.size ?? 0) > 0
+        ? t('manpower.daily.modelOverrideScope', { model: activeModelName ?? '' })
+        : t('manpower.daily.modelInheritedScope', { model: activeModelName ?? '' })
 
   return (
     <div className="space-y-4 p-4 sm:p-5">
@@ -102,55 +229,70 @@ export function StationManpowerDailyTab({ stations, employees, canManage }: Prop
         </div>
       </div>
 
+      <nav className="flex flex-wrap gap-2 border-b border-slate-800 pb-3">
+        <button
+          type="button"
+          onClick={() => setActiveModelId(null)}
+          className={`rounded-xl px-3 py-2 text-sm font-black sm:px-4 ${
+            activeModelId == null ? 'bg-cyan-500 text-slate-950' : 'bg-slate-800 text-slate-300 hover:bg-slate-700'
+          }`}
+        >
+          {t('manpower.daily.generalTab')}
+        </button>
+        {familyModels.map(model => (
+          <button
+            key={model.id}
+            type="button"
+            onClick={() => setActiveModelId(model.id)}
+            className={`rounded-xl px-3 py-2 text-sm font-black sm:px-4 ${
+              activeModelId === model.id ? 'bg-cyan-500 text-slate-950' : 'bg-slate-800 text-slate-300 hover:bg-slate-700'
+            }`}
+          >
+            {model.name}
+            {(dayState?.overrideStations.get(model.id)?.size ?? 0) > 0 && (
+              <span className="mr-1.5 inline-block h-1.5 w-1.5 rounded-full bg-amber-400" title={t('manpower.daily.hasOverrides')} />
+            )}
+          </button>
+        ))}
+      </nav>
+
+      <p className="text-xs text-slate-500">{scopeHint}</p>
+      <p className="text-xs text-slate-500">
+        {activeModelId == null ? t('manpower.daily.generalOperationsHint') : t('manpower.daily.modelOperationsHint')}
+      </p>
       <p className="text-xs text-slate-500">{t('manpower.daily.hint')}</p>
       {success && <div className="rounded-xl border border-emerald-500/30 bg-emerald-500/10 p-3 text-sm text-emerald-200">{success}</div>}
       {error && <div className="rounded-xl border border-red-500/30 bg-red-500/10 p-3 text-sm text-red-200">{error}</div>}
 
-      <div className="overflow-x-auto rounded-2xl border border-slate-800">
-        {loading ? (
-          <p className="p-8 text-center text-slate-500">{t('common.loading')}</p>
-        ) : (
-          <table className="w-full min-w-[720px] text-start">
-            <thead className="bg-slate-950/90">
-              <tr>
-                <th className="table-cell text-xs font-black uppercase text-slate-400">{t('manpower.daily.cols.number')}</th>
-                <th className="table-cell text-xs font-black uppercase text-slate-400">{t('manpower.daily.cols.name')}</th>
-                <th className="table-cell text-xs font-black uppercase text-violet-300">{t('manpower.daily.cols.manpower')}</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-slate-800">
-              {rows.map(row => (
-                <tr key={row.stationId} className="bg-slate-900/30 hover:bg-slate-800/40">
-                  <td className="table-cell font-mono font-bold text-white" dir="ltr">
-                    {formatStationWorkerDisplayCode(row.stationNumber)}
-                  </td>
-                  <td className="table-cell">
-                    <p className="font-bold text-slate-100">{row.stationName}</p>
-                    {row.laborSummary && (
-                      <p className="mt-1 whitespace-pre-line text-xs text-slate-500">{row.laborSummary}</p>
-                    )}
-                  </td>
-                  <td className="table-cell min-w-[300px]">
-                    <StationManpowerAssignCell
-                      employees={activeEmployees}
-                      selectedIds={row.employeeIds}
-                      canManage={canManage}
-                      onChange={ids => setEmployeeIds(row.stationId, ids)}
-                    />
-                  </td>
-                </tr>
-              ))}
-              {rows.length === 0 && (
-                <tr>
-                  <td colSpan={3} className="table-cell p-8 text-center text-slate-500">
-                    {t('manpower.daily.noStations')}
-                  </td>
-                </tr>
-              )}
-            </tbody>
-          </table>
-        )}
-      </div>
+      {loading ? (
+        <p className="p-8 text-center text-slate-500">{t('common.loading')}</p>
+      ) : groups.length === 0 ? (
+        <p className="p-8 text-center text-slate-500">{t('manpower.daily.noStations')}</p>
+      ) : (
+        <div className="space-y-3">
+          {groups.map(group => (
+            <StationManpowerParentGroup
+              key={group.parentCode}
+              group={group}
+              employees={activeEmployees}
+              canManage={canManage}
+              operationsMode={activeModelId == null ? 'compare' : 'readonly'}
+              getOperationsComparison={activeModelId == null ? getOperationsComparison : undefined}
+              headcount={
+                activeModelId == null
+                  ? maxHeadcountForParent(
+                      group.parentCode,
+                      lineBalanceHeadcount,
+                      familyModelIds,
+                      group.workers.length
+                    )
+                  : lineBalanceHeadcount.get(activeModelId)?.get(group.parentCode) ?? group.workers.length
+              }
+              onEmployeeIds={setEmployeeIds}
+            />
+          ))}
+        </div>
+      )}
     </div>
   )
 }

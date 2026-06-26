@@ -73,26 +73,54 @@ export function mergeProductivityIntoRows(
     entryProductivity: entryByDate.get(row.workDate) ?? 0,
     exitProductivity: exitByDate.get(row.workDate) ?? 0,
     stopMinutes: 0,
-    stopLostVehicles: 0
+    stopLostVehicles: 0,
+    laborAttendanceEfficiency: null,
+    totalLostVehicles: 0
   }))
+}
+
+export function computeProductivityDeficit(
+  actualHours: number,
+  lineJph: number,
+  productivity: number
+): number {
+  if (lineJph <= 0) return 0
+  return Math.round(actualHours * lineJph - productivity)
+}
+
+/** @deprecated use computeProductivityDeficit */
+export function computeTotalLostVehicles(
+  actualHours: number,
+  lineJph: number,
+  entryProductivity: number
+): number {
+  return computeProductivityDeficit(actualHours, lineJph, entryProductivity)
 }
 
 export function mergeStopsIntoRows(
   rows: ProductionPlanWorkDayEdit[],
   minutesByDate: Map<string, number>,
-  lostVehiclesByDate: Map<string, number>
+  lostVehiclesByDate: Map<string, number>,
+  attendanceEfficiencyByDate: Map<string, number | null> = new Map()
 ): ProductionPlanWorkDayEdit[] {
   return rows.map(row => {
     const stopMinutes = minutesByDate.get(row.workDate) ?? 0
+    const stopLostVehicles = lostVehiclesByDate.get(row.workDate) ?? 0
     return {
       ...row,
       stopMinutes,
-      stopLostVehicles: lostVehiclesByDate.get(row.workDate) ?? 0,
-      totalStops: stopMinutes / 60
+      stopLostVehicles,
+      totalStops: stopMinutes / 60,
+      laborAttendanceEfficiency: attendanceEfficiencyByDate.get(row.workDate) ?? null,
+      totalLostVehicles: 0
     }
   })
 }
 
 export function defaultPlannedHoursForDayType(dayType: PlanDayType): number {
   return dayType === 'work' || dayType === 'overtime' ? DEFAULT_PLANNED_WORK_HOURS : 0
+}
+
+export function isVacationOrFactoryHoliday(dayType: PlanDayType): boolean {
+  return dayType === 'vacation' || dayType === 'factory_vacation'
 }

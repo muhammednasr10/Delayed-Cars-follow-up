@@ -18,6 +18,9 @@ export type BomExcelColumnFilters = Partial<Record<BomFilterColumn, string[]>>
 export type BomListFilters = {
   search?: string
   stationCode?: string
+  /** Filter by settings station (matches linked id or IPL station code). */
+  stationId?: string
+  stationNumber?: string
   modelName?: string
   vehicleModelId?: string
   categoryCode?: string
@@ -42,7 +45,15 @@ function applyBomFilters(q: any, filters: BomListFilters) {
       `part_number.ilike.%${term}%,part_name.ilike.%${term}%,part_name_ar.ilike.%${term}%,normalized_part_number.ilike.%${term}%`
     )
   }
-  if (filters.stationCode) q = q.ilike('station_code_text', `%${filters.stationCode}%`)
+  if (filters.stationId) {
+    if (filters.stationNumber) {
+      q = q.or(`station_id.eq.${filters.stationId},station_code_text.eq.${filters.stationNumber}`)
+    } else {
+      q = q.eq('station_id', filters.stationId)
+    }
+  } else if (filters.stationCode) {
+    q = q.ilike('station_code_text', `%${filters.stationCode}%`)
+  }
   if (filters.vehicleModelId) q = q.eq('vehicle_model_id', filters.vehicleModelId)
   else if (filters.modelName) {
     q = q.or(`vehicle_model_name.ilike.%${filters.modelName}%,applicable_models_text.ilike.%${filters.modelName}%`)

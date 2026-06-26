@@ -7,7 +7,7 @@ import { usePermissions } from '../../Context/PermissionsContext'
 import { useEmployees } from '../../hooks/useEmployees'
 import { useEmployeeTrainingRecords, useStationRequiredSkills, useTrainingSkills } from '../../hooks/useTraining'
 import { useEmployeeStationLevels } from '../../hooks/useEmployeeStationLevels'
-import { getStations } from '../../services/settingsService'
+import { getStations, getVehicleModels } from '../../services/settingsService'
 import { OrgStructurePage } from '../shared/OrgStructurePage'
 import { PageTabShell } from '../../Components/layout/PageTabShell'
 import { WorkforceAttendanceSection } from '../../Components/WorkforceAttendanceSection'
@@ -17,7 +17,7 @@ import { EmployeeTrainingMatrixTab } from '../../Components/training/EmployeeTra
 import { StationQualificationTab } from '../../Components/training/StationQualificationTab'
 import { TrainingExpiryDashboard } from '../../Components/training/TrainingExpiryDashboard'
 import { OperationQualificationTab } from '../../Components/training/OperationQualificationTab'
-import type { Station } from '../../Types/settings'
+import type { Station, VehicleModel } from '../../Types/settings'
 
 type Tab = 'org' | 'attendance' | 'manpower' | 'operations' | 'stationSkills' | 'matrix' | 'qualification' | 'expiry'
 const TABS: Tab[] = ['org', 'attendance', 'manpower', 'operations', 'stationSkills', 'matrix', 'qualification', 'expiry']
@@ -38,12 +38,14 @@ export function TrainingMatrixPage() {
   const { records, reload: reloadRecords } = useEmployeeTrainingRecords()
   const { levels: stationLevels, reload: reloadStationLevels } = useEmployeeStationLevels()
   const [stations, setStations] = useState<Station[]>([])
+  const [models, setModels] = useState<VehicleModel[]>([])
   const { trainingTab: tab, setTrainingTab: setTab } = useNavigation()
   const [success, setSuccess] = useState('')
   const [error, setError] = useState('')
 
   useEffect(() => {
     getStations().then(setStations).catch(() => setStations([]))
+    getVehicleModels().then(setModels).catch(() => setModels([]))
   }, [])
 
   function notify(msg: string, isError = false) {
@@ -81,7 +83,9 @@ export function TrainingMatrixPage() {
     >
       {tab === 'org' && <OrgStructurePage embedded />}
       {tab === 'attendance' && <WorkforceAttendanceSection employees={employees} canManage={canManageEmployees} />}
-      {tab === 'manpower' && <WorkforceManpowerSection stations={stations} employees={employees} canManage={canManageEmployees} />}
+      {tab === 'manpower' && (
+        <WorkforceManpowerSection stations={stations} employees={employees} models={models} canManage={canManageEmployees} />
+      )}
       {tab === 'operations' && <OperationQualificationTab stations={stations} />}
       {tab === 'stationSkills' && (
         <StationTrainingMatrixTab

@@ -4,6 +4,12 @@ export type MissionPriority = 'low' | 'normal' | 'high'
 export const MISSION_STATUSES: MissionStatus[] = ['pending', 'in_progress', 'completed', 'cancelled']
 export const MISSION_PRIORITIES: MissionPriority[] = ['low', 'normal', 'high']
 
+export type MissionPerson = {
+  id: string
+  name: string
+  code: string
+}
+
 export type TeamMission = {
   id: string
   title: string
@@ -11,6 +17,8 @@ export type TeamMission = {
   assigneeId: string
   assigneeName: string
   assigneeCode: string
+  assigneeIds: string[]
+  assignees: MissionPerson[]
   status: MissionStatus
   priority: MissionPriority
   dueDate: string | null
@@ -23,7 +31,7 @@ export type TeamMission = {
 export type TeamMissionInput = {
   title: string
   description?: string
-  assigneeId: string
+  assigneeIds: string[]
   status: MissionStatus
   priority: MissionPriority
   dueDate?: string | null

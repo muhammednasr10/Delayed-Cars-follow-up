@@ -1,5 +1,6 @@
 import { supabase } from '../lib/supabase'
 import { normalizeStationNumberForSave } from '../Utils/stationHierarchy'
+import { findDuplicateMasterGroups, pickCanonicalMasterStation } from '../Utils/stationMaster'
 import type { AppUser, Station, VehicleColor, VehicleModel, WorkArea } from '../Types/settings'
 
 function requireClient() {
@@ -283,6 +284,21 @@ export async function deactivateStation(id: string): Promise<void> {
 export async function deleteStation(id: string): Promise<void> {
   const { error } = await requireClient().from('stations').delete().eq('id', id)
   if (error) handleError('Failed to delete station:', error)
+}
+
+/** يحذف المحطات المرجعية المكررة (نفس كود PBS-01) ويبقي الأقدم ترتيباً */
+export async function removeDuplicateMasterStations(stations: Station[]): Promise<number> {
+  const groups = findDuplicateMasterGroups(stations)
+  let removed = 0
+  for (const group of groups) {
+    const keep = pickCanonicalMasterStation(group)
+    for (const station of group) {
+      if (station.id === keep.id) continue
+      await deleteStation(station.id)
+      removed += 1
+    }
+  }
+  return removed
 }
 
 export async function getVehicleColors(): Promise<VehicleColor[]> {

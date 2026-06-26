@@ -3,6 +3,7 @@ export type StationManpowerDailyRow = {
   workDate: string
   stationId: string
   employeeId: string
+  vehicleModelId?: string | null
   notes?: string | null
 }
 
@@ -20,6 +21,7 @@ export type StationManpowerDayEdit = {
   stationId: string
   stationNumber: string
   stationName: string
-  laborSummary: string | null
+  /** اسم شائع لعمليات هذا العامل لهذا الموديل/اليوم */
+  operationsSummary: string
   employeeIds: string[]
 }

@@ -3,7 +3,7 @@ import { ListTodo } from 'lucide-react'
 import { useLang } from '../../i18n/LanguageContext'
 import { Modal } from '../Modal'
 import { Field, inputCls } from '../FormField'
-import { EmployeeAutocomplete } from '../EmployeeAutocomplete'
+import { EmployeeMultiSelect } from '../EmployeeMultiSelect'
 import type { Employee } from '../../Types/employee'
 import type { MissionPriority, MissionStatus, TeamMission, TeamMissionInput } from '../../Types/mission'
 import { MISSION_PRIORITIES, MISSION_STATUSES } from '../../Types/mission'
@@ -17,7 +17,7 @@ function emptyForm(): TeamMissionInput {
   return {
     title: '',
     description: '',
-    assigneeId: '',
+    assigneeIds: [],
     status: 'pending',
     priority: 'normal',
     dueDate: todayIsoDate(),
@@ -47,7 +47,7 @@ export function MissionFormModal({ open, employees, editing, onClose, onSave, sa
       setForm({
         title: editing.title,
         description: editing.description ?? '',
-        assigneeId: editing.assigneeId,
+        assigneeIds: editing.assigneeIds,
         status: editing.status,
         priority: editing.priority,
         dueDate: editing.dueDate ?? todayIsoDate(),
@@ -61,7 +61,7 @@ export function MissionFormModal({ open, employees, editing, onClose, onSave, sa
 
   function validate(): string | null {
     if (!form.title.trim()) return t('missions.errTitle')
-    if (!form.assigneeId) return t('missions.errAssignee')
+    if (!form.assigneeIds.length) return t('missions.errAssignee')
     return null
   }
 
@@ -84,7 +84,7 @@ export function MissionFormModal({ open, employees, editing, onClose, onSave, sa
     <Modal
       open={open}
       title={editing ? t('missions.editMission') : t('missions.addMission')}
-      subtitle={t('missions.formSubtitle')}
+      subtitle={t('missions.formSubtitleMulti')}
       icon={<ListTodo className="h-5 w-5" />}
       onClose={onClose}
       maxWidthClass="max-w-xl"
@@ -119,11 +119,11 @@ export function MissionFormModal({ open, employees, editing, onClose, onSave, sa
           />
         </Field>
 
-        <Field label={t('missions.cols.assignee')} required>
-          <EmployeeAutocomplete
+        <Field label={t('missions.cols.assignees')} required>
+          <EmployeeMultiSelect
             employees={activeEmployees}
-            value={form.assigneeId}
-            onChange={assigneeId => setForm(f => ({ ...f, assigneeId }))}
+            value={form.assigneeIds}
+            onChange={assigneeIds => setForm(f => ({ ...f, assigneeIds }))}
           />
         </Field>
 

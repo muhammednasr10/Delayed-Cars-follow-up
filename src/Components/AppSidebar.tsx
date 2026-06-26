@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { ChevronDown, X } from 'lucide-react'
+import { ChevronDown, Settings, X } from 'lucide-react'
 import { useLang } from '../i18n/LanguageContext'
 import { useAuth, profileIsAdmin } from '../Context/AuthContext'
 import { usePermissions } from '../Context/PermissionsContext'
@@ -143,6 +143,12 @@ export function AppSidebar() {
       onNavigate: () => sidebarNav({ department: 'production', productionPage: 'missions' })
     },
     {
+      key: 'requests',
+      label: t('nav.requests'),
+      visible: true,
+      onNavigate: () => sidebarNav({ department: 'production', productionPage: 'requests' })
+    },
+    {
       key: 'scratches',
       label: t('nav.scratches'),
       visible: true,
@@ -159,21 +165,22 @@ export function AppSidebar() {
       label: t('nav.feedback'),
       visible: true,
       onNavigate: () => sidebarNav({ department: 'production', productionPage: 'feedback' })
-    },
-    {
-      key: 'settings',
-      label: t('nav.settings'),
-      visible: canAccessSettings,
-      onNavigate: () => sidebarNav({ department: 'production', productionPage: 'settings' }, true),
-      children: (
-        ['models', 'stations', 'colors', 'areas', 'reasons', 'departments', 'users'] as const
-      ).map(key => ({
-        key,
-        label: t(`settings.tabs.${key}`),
-        onClick: () => sidebarNav({ department: 'production', productionPage: 'settings', settingsTab: key })
-      }))
     }
   ]
+
+  const settingsSidebarPage: SidebarPage = {
+    key: 'settings',
+    label: t('nav.settings'),
+    visible: canAccessSettings,
+    onNavigate: () => sidebarNav({ department: 'production', productionPage: 'settings' }, true),
+    children: (
+      ['models', 'stations', 'colors', 'areas', 'reasons', 'departments', 'users'] as const
+    ).map(key => ({
+      key,
+      label: t(`settings.tabs.${key}`),
+      onClick: () => sidebarNav({ department: 'production', productionPage: 'settings', settingsTab: key })
+    }))
+  }
 
   const engineeringPages: SidebarPage[] = [
     {
@@ -371,7 +378,10 @@ export function AppSidebar() {
 
           {DEPARTMENTS.map(dept => {
             const Icon = dept.icon
-            const deptSelected = !nav.showProfile && nav.department === dept.id
+            const deptSelected =
+              !nav.showProfile &&
+              nav.department === dept.id &&
+              !(dept.id === 'production' && nav.productionPage === 'settings')
             const deptOpen = expandedDepts.has(dept.id)
             const isProduction = dept.id === 'production'
             const isEngineering = dept.id === 'engineering'
@@ -402,6 +412,12 @@ export function AppSidebar() {
               </div>
             )
           })}
+
+          {settingsSidebarPage.visible && (
+            <div className="mb-2 border-t border-slate-800 pt-3">
+              {renderPages('production', [settingsSidebarPage], isProductionActive)}
+            </div>
+          )}
         </div>
 
         {profile && (

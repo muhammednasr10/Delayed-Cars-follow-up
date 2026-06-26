@@ -114,6 +114,14 @@ export function useProductionHubSections() {
         onClick: () => go({ productionPage: 'missions' })
       },
       {
+        key: 'requests',
+        title: t('modules.requests'),
+        description: t('modules.requestsDesc'),
+        icon: ClipboardList,
+        tone: 'text-violet-300 bg-violet-500/15',
+        onClick: () => go({ productionPage: 'requests' })
+      },
+      {
         key: 'scratches',
         title: t('modules.scratches'),
         description: t('modules.scratchesDesc'),

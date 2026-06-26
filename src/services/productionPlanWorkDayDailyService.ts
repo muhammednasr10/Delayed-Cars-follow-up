@@ -3,6 +3,8 @@ import type { EntryProductivityDay } from '../Types/entryProductivity'
 import type { PlanDayType, ProductionPlanWorkDayRow } from '../Types/productionPlanWorkDayDaily'
 import { getEntryProductivityMonth } from './entryProductivityService'
 import { getExitProductivityMonth } from './exitProductivityService'
+import { getVehicleModels } from './settingsService'
+import type { VehicleModel } from '../Types/settings'
 
 function requireClient() {
   if (!supabase) throw new Error('Supabase غير مهيأ. تحقق من ملف .env')
@@ -55,6 +57,16 @@ export function sumProductivityByDate(records: EntryProductivityDay[]): Map<stri
   return map
 }
 
+export async function getProductionPlanDayType(workDate: string): Promise<PlanDayType | null> {
+  const { data, error } = await requireClient()
+    .from('production_plan_work_days_daily')
+    .select('day_type')
+    .eq('work_date', workDate)
+    .maybeSingle()
+  if (error) throw new Error(error.message)
+  return data ? (data.day_type as PlanDayType) : null
+}
+
 export async function getProductionPlanWorkDaysMonth(year: number, month: number): Promise<ProductionPlanWorkDayRow[]> {
   const { start, end } = monthBounds(year, month)
   const { data, error } = await requireClient()
@@ -72,13 +84,31 @@ export async function getMonthProductivityTotals(
   year: number,
   month: number
 ): Promise<{ entryByDate: Map<string, number>; exitByDate: Map<string, number> }> {
-  const [entry, exit] = await Promise.all([
+  const detail = await getMonthProductivityDetail(year, month)
+  return {
+    entryByDate: detail.entryByDate,
+    exitByDate: detail.exitByDate
+  }
+}
+
+export async function getMonthProductivityDetail(year: number, month: number): Promise<{
+  entryRecords: EntryProductivityDay[]
+  exitRecords: EntryProductivityDay[]
+  models: VehicleModel[]
+  entryByDate: Map<string, number>
+  exitByDate: Map<string, number>
+}> {
+  const [entryRecords, exitRecords, models] = await Promise.all([
     getEntryProductivityMonth(year, month),
-    getExitProductivityMonth(year, month)
+    getExitProductivityMonth(year, month),
+    getVehicleModels()
   ])
   return {
-    entryByDate: sumProductivityByDate(entry),
-    exitByDate: sumProductivityByDate(exit)
+    entryRecords,
+    exitRecords,
+    models,
+    entryByDate: sumProductivityByDate(entryRecords),
+    exitByDate: sumProductivityByDate(exitRecords)
   }
 }
 

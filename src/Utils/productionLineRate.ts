@@ -1,7 +1,7 @@
-/** Line JPH = total planned hours ÷ total required plan (current month). */
-export function computeLineJph(plannedHours: number, totalPlanQty: number): number | null {
-  if (plannedHours <= 0 || totalPlanQty <= 0) return null
-  return plannedHours / totalPlanQty
+/** Line JPH = total required plan ÷ available working hours. */
+export function computeLineJph(availableHours: number, totalPlanQty: number): number | null {
+  if (availableHours <= 0 || totalPlanQty <= 0) return null
+  return totalPlanQty / availableHours
 }
 
 /** Takt time in minutes = 60 ÷ JPH */
@@ -18,4 +18,10 @@ export function formatLineRate(value: number): string {
 export function formatTaktMinutes(value: number): string {
   const rounded = Math.round(value * 10) / 10
   return Number.isInteger(rounded) ? String(rounded) : rounded.toFixed(1)
+}
+
+/** Lost vehicles during a stop = ceil(stop minutes ÷ takt minutes). */
+export function lostVehiclesFromStopMinutes(stopMinutes: number, taktMinutes: number | null): number {
+  if (stopMinutes <= 0 || taktMinutes == null || taktMinutes <= 0) return 0
+  return Math.ceil(stopMinutes / taktMinutes)
 }
