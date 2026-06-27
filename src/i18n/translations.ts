@@ -697,11 +697,12 @@ export const translations = {
       },
       today: {
         title: 'تسجيل اليوم',
-        hint: 'الافتراضي يعتمد على ملخص الإنتاجية. غيّر الحالة أو الأوقات ثم احفظ.',
+        hint: 'غيّر الحالة أو الأوقات — يُحفظ تلقائياً ويظهر في الجدول الشهري.',
         save: 'حفظ اليوم',
         saved: 'تم حفظ حضور اليوم — يظهر الآن في الجدول الشهري.',
+        autoSaved: 'تم الحفظ تلقائياً',
         quickTitle: 'تسجيل سريع',
-        quickHint: 'ابحث بالاسم أو الرقم الوظيفي — التعديل يُطبَّق فوراً على الجدول أدناه.',
+        quickHint: 'ابحث بالاسم أو الرقم الوظيفي — التسجيل يُحفظ تلقائياً من هنا دون الحاجة للجدول.',
         quickSearch: 'بحث عن موظف',
         quickSearchPh: 'اكتب الاسم أو الرقم الوظيفي…',
         defaultsBtn: 'الوضع الافتراضي للكل',
@@ -711,7 +712,13 @@ export const translations = {
         holidayDefaultsHint:
           'اليوم أجازة في ملخص الإنتاجية — الافتراضي إجازة بدون أوقات. يمكنك تغيير حالة موظف لـ حاضر أو إضافي يدوياً لمن حضر فعلاً.',
         holidayBanner: 'افتراضياً بدون حضور وانصراف — سجّل يدوياً من جاء إضافي.',
-        planDayLabel: 'نوع اليوم في ملخص الإنتاجية'
+        planDayLabel: 'نوع اليوم في ملخص الإنتاجية',
+        summary: {
+          title: 'ملخص اليوم',
+          total: 'إجمالي العمالة',
+          onSite: 'في العمل (حاضر + تأخير + إذن)',
+          footnote: 'في العمل: {onSite} — غائب/إجازة/مرضى: {away} من {total}'
+        }
       },
       monthEditor: 'تسجيل الشهر يوماً بيوم',
       saveMonth: 'حفظ الشهر',
@@ -1045,6 +1052,11 @@ export const translations = {
       },
       noPerm: 'عرض فقط — التعديل متاح للمدير/الموارد البشرية.',
       empty: 'لا يوجد موظفون مسجلون بعد.'
+    },
+    productionLine: {
+      body: 'البودى',
+      paint: 'الدهان',
+      assembly: 'التجميع'
     },
     stationType: {
       main_line: 'محطة على الخط', side_assembly: 'محطة تجميع جانبي', offline_prep: 'محطة تحضير'
@@ -1413,6 +1425,7 @@ export const translations = {
       subtitle: 'قائمة أجزاء السيارة حسب المحطة والموديل',
       tabs: { parts: 'قائمة الأجزاء', compare: 'مقارنة الأرقام', categories: 'التصنيفات', import: 'استيراد Excel', dashboard: 'ملخص IPL' },
       filterModel: 'فلتر الموديل', filterStation: 'فلتر المحطة', allModels: 'كل الموديلات', allStations: 'كل المحطات',
+      modelShort: 'موديل',
       allBomSummary: 'إجمالي {n} صف BOM · {shown} معروض في الصفحة',
       selectModel: 'اختر موديلاً', selectFamily: 'اختر عائلة الموديل', qtyPerCar: 'الكمية / السيارة',
       noVariantsInFamily: 'لا توجد متغيرات لهذه العائلة — سجّلها من الإعدادات.',
@@ -1437,6 +1450,18 @@ export const translations = {
         part_name_en: 'الاسم بالإنجليزية', part_kind: 'نوع الجزء', supply_source: 'المورد', part_class: 'تصنيف الجزء',
         bom_classification: 'Class',
         qty_by_model: 'الكمية / السيارة', source_sheet: 'ورقة المصدر', source_row: 'صف المصدر', import_action: 'إجراء الاستيراد'
+      },
+      colShort: {
+        part_name_ar: 'عربي',
+        part_name_en: 'EN',
+        part_number: 'رقم',
+        vehicle_model: 'موديل',
+        qty_by_model: 'كمية',
+        station_code: 'محطة',
+        bom_classification: 'Class',
+        part_kind: 'نوع',
+        supply_source: 'توريد',
+        operation: 'إيقاف'
       },
       partKindPart: 'جزء', partKindHardware: 'هاردوير', supplyCkd: 'CKD', supplyLocal: 'محلي',
       partNumber: 'رقم الجزء', partName: 'اسم الجزء', station: 'المحطة', model: 'الموديل', qty: 'الكمية',
@@ -1535,7 +1560,78 @@ export const translations = {
         viewer: 'عرض فقط'
       },
       module: 'الوحدة',
+      matrix: {
+        title: 'مصفوفة الصلاحيات',
+        hint: 'اختر الدور ثم فعّل أو ألغِ الصلاحيات لكل وحدة. الأخضر = مسموح، الرمادي = مرفوض.',
+        selectRole: 'الدور',
+        searchModule: 'بحث في الوحدات',
+        searchPh: 'ابحث باسم الوحدة أو الصلاحية…',
+        enabledCount: 'صلاحية مفعّلة',
+        groupSummary: '{enabled} من {total} صلاحية · {modules} وحدة',
+        moduleCount: '{enabled} / {total}',
+        allowAll: 'تفعيل الكل',
+        denyAll: 'إلغاء الكل',
+        groups: {
+          pages: 'ظهور الصفحات في القائمة',
+          core: 'عام — لوحة التحكم والتقارير والإعدادات',
+          people: 'الموظفون والقوى العاملة',
+          production: 'الإنتاج والمحطات والجودة',
+          inventory: 'المخزون',
+          other: 'وحدات أخرى'
+        },
+        moduleDesc: {
+          dashboard: 'الصفحة الرئيسية وملخصات النظام',
+          users: 'إدارة حسابات المستخدمين والأدوار والصلاحيات',
+          employees: 'سجل الموظفين — إضافة وتعديل وإيقاف',
+          organizational_structure: 'الهيكل التنظيمي وتوزيع العمالة',
+          stations: 'إعداد المحطات وتعريفها',
+          station_operations: 'عمليات المحطات ودراسات الوقت',
+          training_matrix: 'الحضور والانصراف والتدريب والتأهيل',
+          bom: 'قائمة الأجزاء IPL',
+          missing_parts: 'تقارير نقص السيارات والقطع',
+          qc: 'فحوصات الجودة والاعتماد',
+          production: 'أوامر الإنتاج والتخطيط',
+          inventory: 'المخزون والتغذية',
+          reports: 'التقارير والتصدير',
+          settings: 'إعدادات النظام — موديلات وألوان ومحطات',
+          pages: 'تحكم في الصفحات التي تظهر في القائمة الجانبية لكل دور'
+        },
+        pageDesc: {
+          production_home: 'الصفحة الرئيسية لقسم الإنتاج',
+          production_missing: 'صفحة تقارير نقص السيارات والقطع',
+          production_productivity: 'صفحة الإنتاجية وأوامر الإنتاج',
+          production_training: 'العمالة، الحضور، التدريب والتأهيل',
+          production_damaged_parts: 'تسجيل ومتابعة القطع التالفة',
+          production_missions: 'لوحة المهام والتكليفات',
+          production_requests: 'طلبات الفريق والمتابعة',
+          production_scratches: 'تسجيل الخدوش',
+          production_equipment: 'متابعة المعدات',
+          production_feedback: 'ملاحظات واقتراحات',
+          production_settings: 'إعدادات النظام (موديلات، محطات، مستخدمين…)',
+          engineering_home: 'الصفحة الرئيسية لقسم الهندسة',
+          engineering_ipl: 'قائمة الأجزاء IPL',
+          engineering_stations: 'إعداد وعرض المحطات',
+          engineering_line_balancing: 'توازن الخط ودراسات الوقت',
+          warehouses_home: 'الصفحة الرئيسية للمخازن',
+          warehouses_stock: 'عرض المخزون الحالي',
+          warehouses_feeding: 'خطط تغذية خط الإنتاج'
+        },
+        actionDesc: {
+          view: 'فتح الشاشة وقراءة البيانات',
+          create: 'إضافة سجلات جديدة',
+          update: 'تعديل البيانات الموجودة',
+          delete: 'حذف أو إيقاف السجلات',
+          approve: 'اعتماد أو تأكيد العمليات',
+          import: 'استيراد بيانات من ملفات',
+          export: 'تصدير البيانات إلى ملفات',
+          print: 'طباعة التقارير',
+          manage: 'إدارة كاملة للوحدة (مستخدمون، إعدادات متقدمة)',
+          assign: 'تعيين مهام أو موارد لأشخاص',
+          override: 'تجاوز قيود أو قواعد افتراضية'
+        }
+      },
       modules: {
+        pages: 'الصفحات',
         dashboard: 'الرئيسية',
         users: 'المستخدمون والصلاحيات',
         employees: 'الموظفون',
@@ -2266,11 +2362,12 @@ export const translations = {
       },
       today: {
         title: 'Today',
-        hint: 'Defaults follow the production summary. Change status or times, then save.',
+        hint: 'Change status or times — saves automatically and appears in the monthly table.',
         save: 'Save today',
         saved: "Today's attendance saved — reflected in the monthly table.",
+        autoSaved: 'Saved automatically',
         quickTitle: 'Quick entry',
-        quickHint: 'Search by name or employee code — changes apply instantly to the table below.',
+        quickHint: 'Search by name or employee code — entry saves automatically from here.',
         quickSearch: 'Find employee',
         quickSearchPh: 'Type name or employee code…',
         defaultsBtn: 'Defaults for all',
@@ -2280,7 +2377,13 @@ export const translations = {
         holidayDefaultsHint:
           'This day is a holiday in the production summary — default is leave with no times. Change individual rows to present for anyone who worked overtime.',
         holidayBanner: 'No check-in/out by default — record overtime arrivals manually.',
-        planDayLabel: 'Production summary day type'
+        planDayLabel: 'Production summary day type',
+        summary: {
+          title: "Today's summary",
+          total: 'Total workers',
+          onSite: 'On site (present + late + permission)',
+          footnote: 'On site: {onSite} — away/leave/sick: {away} of {total}'
+        }
       },
       monthEditor: 'Month (day by day)',
       saveMonth: 'Save month',
@@ -2614,6 +2717,11 @@ export const translations = {
       },
       noPerm: 'View only — editing is restricted to managers/HR.',
       empty: 'No employees registered yet.'
+    },
+    productionLine: {
+      body: 'Body',
+      paint: 'Paint',
+      assembly: 'Assembly'
     },
     stationType: {
       main_line: 'Main line', side_assembly: 'Side assembly', offline_prep: 'Offline / prep'
@@ -2982,6 +3090,7 @@ export const translations = {
       subtitle: 'Vehicle parts list by station and model',
       tabs: { parts: 'Parts list', compare: 'Part comparison', categories: 'Categories', import: 'Import Excel', dashboard: 'IPL dashboard' },
       filterModel: 'Model filter', filterStation: 'Station filter', allModels: 'All models', allStations: 'All stations',
+      modelShort: 'Model',
       allBomSummary: '{n} total BOM rows · {shown} on this page',
       selectModel: 'Select a model', selectFamily: 'Select model family', qtyPerCar: 'Qty per vehicle',
       noVariantsInFamily: 'No variants for this family — register them in Settings.',
@@ -3005,6 +3114,18 @@ export const translations = {
         part_name_en: 'English name', part_kind: 'Part type', supply_source: 'Supplier', part_class: 'Part class',
         bom_classification: 'Class',
         qty_by_model: 'Qty / vehicle', source_sheet: 'Source sheet', source_row: 'Source row', import_action: 'Import action'
+      },
+      colShort: {
+        part_name_ar: 'AR',
+        part_name_en: 'EN',
+        part_number: 'No.',
+        vehicle_model: 'Model',
+        qty_by_model: 'Qty',
+        station_code: 'Stn',
+        bom_classification: 'Class',
+        part_kind: 'Kind',
+        supply_source: 'Supply',
+        operation: 'Stop'
       },
       partKindPart: 'Part', partKindHardware: 'Hardware', supplyCkd: 'CKD', supplyLocal: 'Local',
       partNumber: 'Part number', partName: 'Part name', station: 'Station', model: 'Model', qty: 'Qty',
@@ -3103,7 +3224,78 @@ export const translations = {
         viewer: 'Viewer'
       },
       module: 'Module',
+      matrix: {
+        title: 'Permissions matrix',
+        hint: 'Select a role, then enable or disable permissions per module. Green = allowed, gray = denied.',
+        selectRole: 'Role',
+        searchModule: 'Search modules',
+        searchPh: 'Search by module or permission…',
+        enabledCount: 'permissions enabled',
+        groupSummary: '{enabled} of {total} permissions · {modules} modules',
+        moduleCount: '{enabled} / {total}',
+        allowAll: 'Allow all',
+        denyAll: 'Deny all',
+        groups: {
+          pages: 'Page visibility in menu',
+          core: 'General — dashboard, reports & settings',
+          people: 'Employees & workforce',
+          production: 'Production, stations & quality',
+          inventory: 'Inventory',
+          other: 'Other modules'
+        },
+        moduleDesc: {
+          dashboard: 'Home page and system summaries',
+          users: 'User accounts, roles and permissions',
+          employees: 'Employee records — add, edit and suspend',
+          organizational_structure: 'Org structure and manpower allocation',
+          stations: 'Station setup and definitions',
+          station_operations: 'Station operations and time studies',
+          training_matrix: 'Attendance, training and qualification',
+          bom: 'IPL parts list',
+          missing_parts: 'Vehicle and parts shortage reports',
+          qc: 'Quality inspections and approvals',
+          production: 'Production orders and planning',
+          inventory: 'Inventory and feeding',
+          reports: 'Reports and export',
+          settings: 'System settings — models, colors, stations',
+          pages: 'Control which pages appear in the sidebar per role'
+        },
+        pageDesc: {
+          production_home: 'Production department home',
+          production_missing: 'Vehicle and parts shortage reports',
+          production_productivity: 'Productivity and production orders',
+          production_training: 'Workforce, attendance, training',
+          production_damaged_parts: 'Damaged parts tracking',
+          production_missions: 'Missions board',
+          production_requests: 'Team requests',
+          production_scratches: 'Scratch reports',
+          production_equipment: 'Equipment tracking',
+          production_feedback: 'Feedback and suggestions',
+          production_settings: 'System settings (models, stations, users…)',
+          engineering_home: 'Engineering department home',
+          engineering_ipl: 'IPL parts list',
+          engineering_stations: 'Station setup',
+          engineering_line_balancing: 'Line balancing and time studies',
+          warehouses_home: 'Warehouses home',
+          warehouses_stock: 'Current stock view',
+          warehouses_feeding: 'Line feeding plans'
+        },
+        actionDesc: {
+          view: 'Open screen and read data',
+          create: 'Add new records',
+          update: 'Edit existing data',
+          delete: 'Delete or deactivate records',
+          approve: 'Approve or confirm operations',
+          import: 'Import data from files',
+          export: 'Export data to files',
+          print: 'Print reports',
+          manage: 'Full module administration',
+          assign: 'Assign tasks or resources to people',
+          override: 'Override default rules or restrictions'
+        }
+      },
       modules: {
+        pages: 'Pages',
         dashboard: 'Home dashboard',
         users: 'Users & permissions',
         employees: 'Employees',

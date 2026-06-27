@@ -3,6 +3,7 @@ import { formatClassificationShort, resolveSupplySource } from './bomDisplayForm
 import { effectivePartKind, effectiveSupplySource } from './bomDefaults'
 import { resolvePartNameEn } from './partNameEn'
 import { effectiveBomStopperType } from './bomStopper'
+import { displayBomStationCode } from './bomStationCode'
 import type { BomPartsDisplayColumn } from './bomPartsColumns'
 
 export function formatQtyForDisplay(qty: number): string {
@@ -24,7 +25,7 @@ export function bomPartsCellValue(row: BomItemDetail, col: BomPartsDisplayColumn
     case 'bom_classification':
       return formatClassificationShort(row.bom_classification)
     case 'station_code':
-      return row.station_code_text || row.station_number || ''
+      return displayBomStationCode(row.station_code_text || row.station_number || '')
     case 'operation': {
       const st = effectiveBomStopperType(row)
       return st === 'non_stopper' ? '' : st

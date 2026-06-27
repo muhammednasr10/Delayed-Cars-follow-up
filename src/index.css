@@ -60,7 +60,7 @@ textarea {
 
 .bom-parts-table th,
 .bom-parts-table td {
-  @apply px-2 py-1.5 text-xs align-middle text-slate-200;
+  @apply px-2 py-1.5 text-xs align-middle text-center text-slate-200;
   overflow-wrap: anywhere;
   word-break: break-word;
 }
@@ -70,11 +70,33 @@ textarea {
 }
 
 .bom-parts-table thead th {
-  @apply border-b border-slate-600 py-3 text-sm font-bold leading-snug text-slate-100;
+  @apply border-b border-slate-600 px-1.5 py-1.5 text-[11px] font-bold leading-tight text-slate-100;
+  vertical-align: bottom;
 }
 
 .bom-parts-table thead th span {
   @apply font-bold text-slate-100;
+}
+
+.bom-parts-table .bom-th-wrap {
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  gap: 2px;
+  min-height: 1.75rem;
+}
+
+.bom-parts-table .bom-th-label {
+  flex: 1;
+  min-width: 0;
+  word-break: keep-all;
+  overflow-wrap: normal;
+}
+
+.bom-parts-table .bom-th-label--compact {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .bom-parts-table .bom-actions-col {

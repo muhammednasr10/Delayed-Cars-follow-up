@@ -1,6 +1,13 @@
 import { useMemo } from 'react'
 import { useLang } from '../../i18n/LanguageContext'
 import { Field, inputCls } from '../FormField'
+import { formatStationReferenceCode } from '../../Utils/stationHierarchy'
+import {
+  displayBomStationCode,
+  findMasterStationByCode,
+  masterStationsForBom,
+  normalizeBomStationCodeText
+} from '../../Utils/bomStationCode'
 import {
   emptyCard,
   familyOptions,
@@ -34,6 +41,7 @@ export function BomModelCardsEditor({
   const { t } = useLang()
   const families = useMemo(() => familyOptions(models), [models])
   const variants = useMemo(() => variantsForFamilies(models, familyIds), [models, familyIds])
+  const masterStations = useMemo(() => masterStationsForBom(stations), [stations])
 
   function toggleFamily(id: string, on: boolean) {
     const next = on ? [...familyIds, id] : familyIds.filter(x => x !== id)
@@ -74,6 +82,15 @@ export function BomModelCardsEditor({
 
   function patchCard(modelId: string, patch: Partial<ModelCardDraft>) {
     onCardsChange(cards.map(c => (c.modelId === modelId ? { ...c, ...patch } : c)))
+  }
+
+  function commitStationCode(modelId: string, raw: string) {
+    const formatted = normalizeBomStationCodeText(raw)
+    const matched = findMasterStationByCode(stations, formatted)
+    patchCard(modelId, {
+      station_code_text: formatted,
+      station_id: matched?.id ?? ''
+    })
   }
 
   return (
@@ -182,32 +199,34 @@ export function BomModelCardsEditor({
                     <option value="Local">{t('bom.supplyLocal')}</option>
                   </select>
                 </Field>
-                <Field label={t('bom.col.station_code')}>
-                  <input
-                    className={inputCls()}
-                    value={card.station_code_text}
-                    onChange={e => patchCard(card.modelId, { station_code_text: e.target.value })}
-                  />
-                </Field>
                 <Field label={t('bom.station')}>
                   <select
                     className={inputCls()}
                     value={card.station_id}
                     onChange={e => {
-                      const st = stations.find(s => s.id === e.target.value)
+                      const st = masterStations.find(s => s.id === e.target.value)
                       patchCard(card.modelId, {
                         station_id: e.target.value,
-                        station_code_text: st ? String(st.station_number) : card.station_code_text
+                        station_code_text: st ? formatStationReferenceCode(st.station_number) : card.station_code_text
                       })
                     }}
                   >
                     <option value="">{t('bom.noStation')}</option>
-                    {stations.map(s => (
+                    {masterStations.map(s => (
                       <option key={s.id} value={s.id}>
-                        {s.station_number} — {s.station_name}
+                        {formatStationReferenceCode(s.station_number)} — {s.station_name}
                       </option>
                     ))}
                   </select>
+                </Field>
+                <Field label={t('bom.col.station_code')}>
+                  <input
+                    className={inputCls()}
+                    dir="ltr"
+                    value={displayBomStationCode(card.station_code_text)}
+                    onChange={e => patchCard(card.modelId, { station_code_text: e.target.value })}
+                    onBlur={e => commitStationCode(card.modelId, e.target.value)}
+                  />
                 </Field>
               </div>
             </div>

@@ -31,15 +31,13 @@ import { UserAccountFormModal } from './UserAccountFormModal'
 import { UserRequestsTab } from './UserRequestsTab'
 import { UserPasswordModal } from './UserPasswordModal'
 import { SystemRoleFormModal } from './SystemRoleFormModal'
+import { PermissionsMatrixTab } from './PermissionsMatrixTab'
 import {
   formatPermissionLabel,
-  permissionModuleLabel,
-  sortModuleKeys
+  permissionModuleLabel
 } from '../../Utils/permissionLabels'
 
 type SubTab = 'users' | 'roles' | 'matrix' | 'overrides' | 'blocked' | 'requests'
-
-const MATRIX_ACTIONS = ['view', 'create', 'update', 'delete', 'approve', 'import', 'export', 'manage'] as const
 
 export function UsersPermissionsPanel({ notify }: { notify: (m: string, err?: boolean) => void }) {
   const { t, lang } = useLang()
@@ -69,10 +67,46 @@ export function UsersPermissionsPanel({ notify }: { notify: (m: string, err?: bo
   const [busy, setBusy] = useState(false)
   const [openRequestCount, setOpenRequestCount] = useState(0)
 
-  const modules = useMemo(
-    () => sortModuleKeys([...new Set(permissions.map(p => p.module_key))], t, lang === 'ar' ? 'ar' : 'en'),
-    [permissions, t, lang]
-  )
+  async function refreshRolePerms() {
+    if (!selectedRoleId) return
+    const next = await getRolePermissions(selectedRoleId)
+    setRolePerms(next)
+  }
+
+  async function handleSetPermission(permissionId: string, allowed: boolean) {
+    const perm = permissions.find(p => p.id === permissionId)
+    if (perm) {
+      const key = permissionKey(perm.module_key, perm.permission_key)
+      setRolePerms(prev => new Map(prev).set(key, allowed))
+    }
+    try {
+      await setRolePermission(selectedRoleId, permissionId, allowed)
+      await refreshRolePerms()
+    } catch (e) {
+      await refreshRolePerms()
+      notify(e instanceof Error ? e.message : t('common.error'), true)
+      throw e
+    }
+  }
+
+  async function handleSetModulePermissions(moduleKey: string, allowed: boolean) {
+    const modPerms = permissions.filter(p => p.module_key === moduleKey)
+    setRolePerms(prev => {
+      const next = new Map(prev)
+      for (const p of modPerms) {
+        next.set(permissionKey(p.module_key, p.permission_key), allowed)
+      }
+      return next
+    })
+    try {
+      await Promise.all(modPerms.map(p => setRolePermission(selectedRoleId, p.id, allowed)))
+      await refreshRolePerms()
+    } catch (e) {
+      await refreshRolePerms()
+      notify(e instanceof Error ? e.message : t('common.error'), true)
+      throw e
+    }
+  }
 
   async function reloadOpenRequestCount() {
     try {
@@ -353,60 +387,16 @@ export function UsersPermissionsPanel({ notify }: { notify: (m: string, err?: bo
           </div>
         </>
       ) : subTab === 'matrix' ? (
-        <div className="space-y-3">
-          <select className={inputCls()} value={selectedRoleId} onChange={e => setSelectedRoleId(e.target.value)}>
-            {roles.filter(r => r.is_active).map(r => (
-              <option key={r.id} value={r.id}>
-                {r.role_name_ar}
-              </option>
-            ))}
-          </select>
-          <div className="card-industrial max-h-[480px] overflow-auto">
-            <table className="w-full text-xs">
-              <thead>
-                <tr className="text-slate-500">
-                  <th className="p-2 text-start">{t('permissions.module')}</th>
-                  {MATRIX_ACTIONS.map(a => (
-                    <th key={a} className="p-2">
-                      {t(`permissions.action.${a}`)}
-                    </th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody>
-                {modules.map(mod => (
-                  <tr key={mod} className="border-t border-slate-800">
-                    <td className="p-2 font-bold text-slate-200">{permissionModuleLabel(mod, t)}</td>
-                    {MATRIX_ACTIONS.map(action => {
-                      const perm = permissions.find(p => p.module_key === mod && p.permission_key === action)
-                      if (!perm)
-                        return (
-                          <td key={action} className="p-2 text-center text-slate-700">
-                            —
-                          </td>
-                        )
-                      const key = permissionKey(mod, action)
-                      const checked = rolePerms.get(key) ?? false
-                      return (
-                        <td key={action} className="p-2 text-center">
-                          <input
-                            type="checkbox"
-                            checked={checked}
-                            onChange={e =>
-                              void setRolePermission(selectedRoleId, perm.id, e.target.checked).then(() =>
-                                getRolePermissions(selectedRoleId).then(setRolePerms)
-                              )
-                            }
-                          />
-                        </td>
-                      )
-                    })}
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </div>
+        <PermissionsMatrixTab
+          roles={roles}
+          permissions={permissions}
+          selectedRoleId={selectedRoleId}
+          onSelectRole={setSelectedRoleId}
+          rolePerms={rolePerms}
+          onSetPermission={handleSetPermission}
+          onSetModulePermissions={handleSetModulePermissions}
+          onError={msg => notify(msg, true)}
+        />
       ) : subTab === 'overrides' ? (
         <div className="space-y-4">
           <div className="card-industrial grid gap-3 p-4 sm:grid-cols-2">

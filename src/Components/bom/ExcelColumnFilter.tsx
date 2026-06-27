@@ -4,6 +4,7 @@ import { Filter } from 'lucide-react'
 import { useLang } from '../../i18n/LanguageContext'
 import { getBomDistinctValues, type BomExcelColumnFilters, type BomListFilters } from '../../services/bomService'
 import type { BomFilterColumn } from '../../Utils/bomFilterFields'
+import { displayBomStationCode } from '../../Utils/bomStationCode'
 
 type Props = {
   column: BomFilterColumn
@@ -83,6 +84,7 @@ export function ExcelColumnFilter({ column, label, baseFilters, selected, onAppl
 
   function displayLabel(v: string) {
     if (v === '__BLANK__') return t('bom.excel.blank')
+    if (column === 'station_code') return displayBomStationCode(v) || v
     if (column === 'operation') {
       if (v === 'line_stopper') return t('stopper.line_stopper')
       if (v === 'car_stopper') return t('stopper.car_stopper')
@@ -154,9 +156,9 @@ export function ExcelColumnFilter({ column, label, baseFilters, selected, onAppl
           if (open) setOpen(false)
           else openMenu()
         }}
-        className={`rounded p-0.5 ${active ? 'bg-cyan-500/30 text-cyan-300' : 'text-slate-500 hover:bg-slate-800 hover:text-slate-300'}`}
+        className={`rounded p-0.5 shrink-0 ${active ? 'bg-cyan-500/30 text-cyan-300' : 'text-slate-500 hover:bg-slate-800 hover:text-slate-300'}`}
       >
-        <Filter className="h-3.5 w-3.5" />
+        <Filter className="h-3 w-3" />
       </button>
       {open &&
         createPortal(

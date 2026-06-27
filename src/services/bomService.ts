@@ -5,6 +5,7 @@ import { cardsCanConsolidate, consolidatedPayload, type ModelCardDraft } from '.
 import { effectivePartKind, effectiveSupplySource } from '../Utils/bomDefaults'
 import { bomImportLineKey, classificationToCategoryCode, normalizePartNumber } from '../Utils/partNumberNormalize'
 import { BOM_FILTER_DB_FIELD, type BomFilterColumn } from '../Utils/bomFilterFields'
+import { bomStationCodeRawVariants, displayBomStationCode, normalizeBomStationCodeText } from '../Utils/bomStationCode'
 import { upsertPart } from './partsService'
 
 function client() {
@@ -82,12 +83,16 @@ function applyBomFilters(q: any, filters: BomListFilters) {
         const field = BOM_FILTER_DB_FIELD[col]
         const hasBlank = values.includes('__BLANK__')
         const rest = values.filter(v => v !== '__BLANK__')
-        if (hasBlank && rest.length === 0) {
+        const matchValues =
+          col === 'station_code'
+            ? [...new Set(rest.flatMap(v => bomStationCodeRawVariants(v)))]
+            : rest
+        if (hasBlank && matchValues.length === 0) {
           q = q.or(`${field}.is.null,${field}.eq.`)
-        } else if (hasBlank && rest.length > 0) {
-          q = q.or(`${field}.is.null,${field}.in.(${rest.join(',')})`)
-        } else {
-          q = q.in(field, rest)
+        } else if (hasBlank && matchValues.length > 0) {
+          q = q.or(`${field}.is.null,${field}.in.(${matchValues.join(',')})`)
+        } else if (matchValues.length > 0) {
+          q = q.in(field, matchValues)
         }
       }
     }
@@ -110,7 +115,11 @@ export async function getBomItems(filters: BomListFilters = {}): Promise<BomList
 
   let q = applyBomFilters(client().from('v_bom_items_detail').select('*', { count: 'exact' }), filters)
 
-  const { data, error, count } = await q.order('station_code_text').order('part_number').range(from, to)
+  const { data, error, count } = await q
+    .order('station_sort_order', { ascending: true, nullsFirst: false })
+    .order('station_code_text', { ascending: true })
+    .order('part_number', { ascending: true })
+    .range(from, to)
   if (error) throw new Error(error.message)
 
   return {
@@ -142,7 +151,14 @@ export async function getBomDistinctValues(
     { ...filters, excel }
   )
   if (options?.search?.trim()) {
-    q = q.ilike(field, `%${options.search.trim().replace(/%/g, '')}%`)
+    const term = options.search.trim().replace(/%/g, '')
+    if (column === 'station_code') {
+      const variants = bomStationCodeRawVariants(term)
+      const patterns = variants.length > 0 ? variants : [term]
+      q = q.or(patterns.map(v => `${field}.ilike.%${v}%`).join(','))
+    } else {
+      q = q.ilike(field, `%${term}%`)
+    }
   }
 
   const { data, error } = await q.limit(2500)
@@ -157,11 +173,18 @@ export async function getBomDistinctValues(
       hasBlank = true
       continue
     }
-    seen.add(v)
+    const key = column === 'station_code' ? displayBomStationCode(v) : v
+    if (!key) {
+      hasBlank = true
+      continue
+    }
+    seen.add(key)
     if (seen.size >= limit) break
   }
 
-  const values = [...seen].sort((a, b) => a.localeCompare(b, undefined, { sensitivity: 'base' }))
+  const values = [...seen].sort((a, b) =>
+    a.localeCompare(b, undefined, { numeric: true, sensitivity: 'base' })
+  )
   if (hasBlank) values.unshift('__BLANK__')
   const truncated = (data?.length ?? 0) >= 2500 && seen.size >= limit
   return { values, truncated }
@@ -326,7 +349,7 @@ export async function createBomItem(input: BomItemCreateInput): Promise<string> 
     modelName = (vm?.name as string) ?? ''
   }
 
-  const stationCode = input.station_code_text?.trim() ?? ''
+  const stationCode = normalizeBomStationCodeText(input.station_code_text ?? '')
   const norm = normalizePartNumber(partNumber)
   const lineKey = bomImportLineKey({
     normalizedPart: norm,
@@ -426,7 +449,7 @@ export async function saveBomFromModelCards(
       quantity: Number(c.qty),
       vehicle_model_id: c.modelId,
       station_id: c.station_id || null,
-      station_code_text: c.station_code_text,
+      station_code_text: normalizeBomStationCodeText(c.station_code_text),
       station_category: c.station_category || undefined,
       supply_source: effectiveSupplySource(c.supply_source),
       model_family: familyName,

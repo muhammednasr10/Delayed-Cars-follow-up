@@ -1,4 +1,4 @@
-import { useEffect, useState, type ReactNode } from 'react'
+import { useEffect, useMemo, useState, type ReactNode } from 'react'
 import { Users } from 'lucide-react'
 import { useLang } from '../i18n/LanguageContext'
 import { Modal } from './Modal'
@@ -6,6 +6,9 @@ import { ALLOWED_MANAGER_ROLES, JOB_ROLES } from '../Types/enums'
 import type { JobRole, ResponsibleDepartment } from '../Types/enums'
 import { ASSIGNMENT_STATUSES, type AssignmentStatus, type Employee, type EmployeeInput } from '../Types/employee'
 import type { Station, WorkArea } from '../Types/settings'
+import { normalizeProductionLine, PRODUCTION_LINE_KEYS } from '../Utils/productionLines'
+import { formatStationSettingsLabel, resolveMasterStation, stationsFromSettings } from '../Utils/stationsFromSettings'
+import { workAreasFromStations } from '../Utils/workAreasFromStations'
 
 const DEPARTMENTS: ResponsibleDepartment[] = ['warehouse', 'purchasing', 'production', 'quality', 'supplier', 'management']
 
@@ -50,7 +53,7 @@ function fromEmployee(e: Employee): FormState {
     department: e.department ?? '',
     workAreaId: e.workAreaId ?? '',
     stationId: e.stationId ?? '',
-    lineName: e.lineName ?? '',
+    lineName: normalizeProductionLine(e.lineName),
     directManagerIds: e.directManagerIds.length > 0 ? e.directManagerIds : (e.directManagerId ? [e.directManagerId] : []),
     phone: e.phone ?? '',
     email: e.email ?? '',
@@ -67,11 +70,34 @@ export function EmployeeForm({ open, editing, employees, areas, stations, busy, 
   const [form, setForm] = useState<FormState>(emptyState)
   const [errors, setErrors] = useState<Record<string, string>>({})
 
+  const workAreaOptions = useMemo(
+    () => workAreasFromStations(stations, areas, editing?.workAreaId),
+    [stations, areas, editing?.workAreaId]
+  )
+
+  const stationOptions = useMemo(
+    () =>
+      stationsFromSettings(stations, {
+        workAreaId: form.workAreaId || null,
+        includeStationId: editing?.stationId
+      }),
+    [stations, form.workAreaId, editing?.stationId]
+  )
+
   useEffect(() => {
     if (!open) return
-    setForm(editing ? fromEmployee(editing) : emptyState)
+    if (editing) {
+      const next = fromEmployee(editing)
+      if (next.stationId) {
+        const current = stations.find(s => s.id === next.stationId)
+        if (current) next.stationId = resolveMasterStation(current, stations).id
+      }
+      setForm(next)
+    } else {
+      setForm(emptyState)
+    }
     setErrors({})
-  }, [open, editing])
+  }, [open, editing, stations])
 
   function set(key: keyof FormState, value: string | boolean) {
     setForm(prev => ({ ...prev, [key]: value }))
@@ -206,18 +232,40 @@ export function EmployeeForm({ open, editing, employees, areas, stations, busy, 
             </select>
           </Field>
           <Field label={t('org.f.workArea')}>
-            <select className={cls()} value={form.workAreaId} onChange={e => set('workAreaId', e.target.value)}>
+            <select className={cls()} value={form.workAreaId} onChange={e => {
+              const workAreaId = e.target.value
+              setForm(prev => ({
+                ...prev,
+                workAreaId,
+                stationId: prev.stationId && stationsFromSettings(stations, { workAreaId: workAreaId || null }).some(s => s.id === prev.stationId)
+                  ? prev.stationId
+                  : ''
+              }))
+              setErrors(prev => {
+                if (!prev.workAreaId) return prev
+                const next = { ...prev }
+                delete next.workAreaId
+                return next
+              })
+            }}>
               <option value="">—</option>
-              {areas.map(a => <option key={a.id} value={a.id}>{a.name}</option>)}
+              {workAreaOptions.map(a => <option key={a.id} value={a.id}>{a.name}</option>)}
             </select>
           </Field>
           <Field label={t('org.f.line')}>
-            <input className={cls()} value={form.lineName} onChange={e => set('lineName', e.target.value)} />
+            <select className={cls()} value={form.lineName} onChange={e => set('lineName', e.target.value)}>
+              <option value="">—</option>
+              {PRODUCTION_LINE_KEYS.map(line => (
+                <option key={line} value={line}>{t(`productionLine.${line}`)}</option>
+              ))}
+            </select>
           </Field>
           <Field label={t('org.f.station')}>
             <select className={cls()} value={form.stationId} onChange={e => set('stationId', e.target.value)}>
               <option value="">—</option>
-              {stations.map(s => <option key={s.id} value={s.id}>{s.station_number} - {s.station_name}</option>)}
+              {stationOptions.map(s => (
+                <option key={s.id} value={s.id}>{formatStationSettingsLabel(s)}</option>
+              ))}
             </select>
           </Field>
           <div className="sm:col-span-2">

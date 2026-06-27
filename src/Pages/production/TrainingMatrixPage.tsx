@@ -30,7 +30,11 @@ export function TrainingMatrixPage() {
     hasPermission('training_matrix', 'manage') ||
     hasPermission('training_matrix', 'update') ||
     hasPermission('training_matrix', 'create')
-  const canManageEmployees = hasRole('admin') || hasPermission('employees', 'update')
+  const canManageEmployees =
+    hasRole('admin') ||
+    hasPermission('employees', 'create') ||
+    hasPermission('employees', 'update') ||
+    hasPermission('employees', 'delete')
 
   const { employees } = useEmployees()
   const { skills } = useTrainingSkills()

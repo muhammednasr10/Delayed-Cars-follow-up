@@ -15,6 +15,7 @@ import { EmployeeForm } from '../../Components/EmployeeForm'
 import { EmployeeImportModal } from '../../Components/EmployeeImportModal'
 import type { Employee, EmployeeInput } from '../../Types/employee'
 import type { Station, WorkArea } from '../../Types/settings'
+import { workAreasFromStations } from '../../Utils/workAreasFromStations'
 
 type View = 'table' | 'chart'
 
@@ -22,7 +23,10 @@ export function OrgStructurePage({ embedded = false }: { embedded?: boolean }) {
   const { t } = useLang()
   const { hasRole } = useAuth()
   const { hasPermission } = usePermissions()
-  const canManage = hasRole('admin') || hasPermission('employees', 'update')
+  const canCreate = hasRole('admin') || hasPermission('employees', 'create')
+  const canUpdate = hasRole('admin') || hasPermission('employees', 'update')
+  const canDelete = hasRole('admin') || hasPermission('employees', 'delete')
+  const canManage = canCreate || canUpdate || canDelete
 
   const { employees, loading, error, reload } = useEmployees()
   const [areas, setAreas] = useState<WorkArea[]>([])
@@ -44,6 +48,11 @@ export function OrgStructurePage({ embedded = false }: { embedded?: boolean }) {
     getWorkAreas().then(setAreas).catch(() => setAreas([]))
     getStations().then(setStations).catch(() => setStations([]))
   }, [])
+
+  const stationWorkAreas = useMemo(
+    () => workAreasFromStations(stations, areas),
+    [stations, areas]
+  )
 
   const filtered = useMemo(() => {
     const term = filters.search.trim().toLowerCase()
@@ -149,7 +158,7 @@ export function OrgStructurePage({ embedded = false }: { embedded?: boolean }) {
                 <Network className="h-4 w-4" /> {t('org.chartView')}
               </button>
             </div>
-            {canManage && (
+            {canCreate && (
               <>
                 <button onClick={() => setImportOpen(true)} className="rounded-xl border border-cyan-500/40 bg-cyan-500/10 px-4 py-2 text-sm font-bold text-cyan-200 hover:bg-cyan-500/20">
                   <Upload className="mr-1 inline h-4 w-4" /> {t('org.import.btn')}
@@ -164,7 +173,7 @@ export function OrgStructurePage({ embedded = false }: { embedded?: boolean }) {
 
         {!embedded && !canManage && <p className="mt-3 text-xs text-amber-300">{t('org.noPerm')}</p>}
         <div className={embedded ? '' : 'mt-4'}>
-          <EmployeeFilters value={filters} onChange={setFilters} areas={areas} />
+          <EmployeeFilters value={filters} onChange={setFilters} areas={stationWorkAreas} />
         </div>
       </div>
 
@@ -174,7 +183,7 @@ export function OrgStructurePage({ embedded = false }: { embedded?: boolean }) {
       <div className="card-industrial overflow-hidden">
         <div className="border-b border-slate-800 px-4 py-3 text-sm text-slate-400">{t('org.count', { n: filtered.length })}</div>
         {view === 'table' && (
-          <EmployeeTable employees={filtered} canManage={canManage} onEdit={openEdit} onToggleActive={setToggleTarget} />
+          <EmployeeTable employees={filtered} canEdit={canUpdate} canToggle={canUpdate || canDelete} onEdit={openEdit} onToggleActive={setToggleTarget} />
         )}
         {view === 'chart' && <EmployeeOrgChart employees={filtered} />}
 

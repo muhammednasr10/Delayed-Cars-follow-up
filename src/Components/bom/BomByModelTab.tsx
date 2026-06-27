@@ -6,8 +6,11 @@ import { useAuth } from '../../Context/AuthContext'
 import { getVehicleModels, getStations } from '../../services/settingsService'
 import { deleteBomItem, getBomItems, type BomExcelColumnFilters, type BomListFilters } from '../../services/bomService'
 import { BOM_PARTS_DISPLAY_COLUMNS, BOM_TABLE_COL_WIDTH } from '../../Utils/bomPartsColumns'
+import { bomColumnLabelKey, BOM_COMPACT_HEADER_COLS } from '../../Utils/bomColumnHeader'
 import { groupBomItemsForDisplay, type BomDisplayGroup } from '../../Utils/bomRowGroups'
 import { buildModelFamilyGroups, isAssignableModel } from '../../Utils/vehicleModelHierarchy'
+import { masterStationsForBom, normalizeBomStationCodeText, sortBomDisplayGroups } from '../../Utils/bomStationCode'
+import { formatStationReferenceCode } from '../../Utils/stationHierarchy'
 import { BomGroupedTableRow } from './BomGroupedTableRow'
 import type { BomFilterColumn } from '../../Utils/bomFilterFields'
 import { BomFormModal } from './BomFormModal'
@@ -43,12 +46,18 @@ export function BomByModelTab({ notify }: { notify: (m: string, err?: boolean) =
   const [formMode, setFormMode] = useState<'create' | 'edit' | null>(null)
   const [editId, setEditId] = useState<string | null>(null)
   const [editIds, setEditIds] = useState<string[]>([])
-  const [deleteTarget, setDeleteTarget] = useState<{ group: BomDisplayGroup } | null>(null)
+  const [deleteTarget, setDeleteTarget] = useState<
+    { group: BomDisplayGroup; variant?: { id: string; modelName: string } } | null
+  >(null)
   const [deleting, setDeleting] = useState(false)
   const [expandedKeys, setExpandedKeys] = useState<Set<string>>(new Set())
 
   const modelPicker = useMemo(() => buildModelFamilyGroups(models), [models])
-  const displayGroups = useMemo(() => groupBomItemsForDisplay(items), [items])
+  const masterStations = useMemo(() => masterStationsForBom(stations), [stations])
+  const displayGroups = useMemo(
+    () => sortBomDisplayGroups(groupBomItemsForDisplay(items), stations),
+    [items, stations]
+  )
 
   const colCount = BOM_PARTS_DISPLAY_COLUMNS.length + (canUpdate || canDelete ? 1 : 0)
 
@@ -56,14 +65,14 @@ export function BomByModelTab({ notify }: { notify: (m: string, err?: boolean) =
     const f: Omit<BomListFilters, 'page' | 'pageSize'> = { search, excel: excelFilters }
     if (modelName) f.modelName = modelName
     if (stationId) {
-      const st = stations.find(s => s.id === stationId)
+      const st = masterStations.find(s => s.id === stationId)
       f.stationId = stationId
-      if (st) f.stationNumber = st.station_number
+      if (st) f.stationNumber = normalizeBomStationCodeText(st.station_number)
     }
     if (stopperType) f.stopperType = stopperType as BomListFilters['stopperType']
     if (noOperationOnly) f.noOperationOnly = true
     return f
-  }, [search, modelName, stationId, stations, excelFilters, stopperType, noOperationOnly])
+  }, [search, modelName, stationId, masterStations, excelFilters, stopperType, noOperationOnly])
 
   const activeExcelFilterCount = Object.values(excelFilters).filter(v => v && v.length > 0).length
 
@@ -119,8 +128,12 @@ export function BomByModelTab({ notify }: { notify: (m: string, err?: boolean) =
     if (!deleteTarget) return
     setDeleting(true)
     try {
-      for (const id of deleteTarget.group.allIds) {
-        await deleteBomItem(id)
+      if (deleteTarget.variant) {
+        await deleteBomItem(deleteTarget.variant.id)
+      } else {
+        for (const id of deleteTarget.group.allIds) {
+          await deleteBomItem(id)
+        }
       }
       setDeleteTarget(null)
       reload(t('settings.deleted'))
@@ -231,9 +244,9 @@ export function BomByModelTab({ notify }: { notify: (m: string, err?: boolean) =
               }}
             >
               <option value="">{t('bom.allStations')}</option>
-              {stations.map(s => (
+              {masterStations.map(s => (
                 <option key={s.id} value={s.id}>
-                  {s.station_number} — {s.station_name}
+                  {formatStationReferenceCode(s.station_number)} — {s.station_name}
                 </option>
               ))}
             </select>
@@ -290,25 +303,32 @@ export function BomByModelTab({ notify }: { notify: (m: string, err?: boolean) =
           </colgroup>
           <thead>
             <tr className="border-b border-slate-800">
-              {BOM_PARTS_DISPLAY_COLUMNS.map(c => (
+              {BOM_PARTS_DISPLAY_COLUMNS.map(c => {
+                const compact = BOM_COMPACT_HEADER_COLS.has(c)
+                const fullLabel = t(bomColumnLabelKey(c, false))
+                const headerLabel = compact ? t(bomColumnLabelKey(c, true)) : fullLabel
+                return (
                 <th
                   key={c}
                   className={c === 'qty_by_model' ? 'text-center' : ''}
                 >
-                  <div className="flex items-start justify-between gap-0.5">
-                    <span className="min-w-0 leading-tight">
-                      {c === 'vehicle_model' ? t('bom.model') : t(`bom.col.${c}`)}
+                  <div className="bom-th-wrap">
+                    <span
+                      className={`bom-th-label${compact ? ' bom-th-label--compact' : ''}`}
+                      title={fullLabel}
+                    >
+                      {headerLabel}
                     </span>
                     <ExcelColumnFilter
                       column={c}
-                      label={c === 'vehicle_model' ? t('bom.model') : t(`bom.col.${c}`)}
+                      label={fullLabel}
                       baseFilters={baseFilters}
                       selected={excelFilters[c]}
                       onApply={v => setColumnFilter(c, v)}
                     />
                   </div>
                 </th>
-              ))}
+              )})}
               {(canUpdate || canDelete) && (
                 <th className="bom-actions-col text-center">{t('common.actions')}</th>
               )}
@@ -342,6 +362,12 @@ export function BomByModelTab({ notify }: { notify: (m: string, err?: boolean) =
                     setEditIds(group.allIds)
                   }}
                   onDelete={() => setDeleteTarget({ group })}
+                  onEditVariant={id => {
+                    setFormMode('edit')
+                    setEditId(id)
+                    setEditIds([id])
+                  }}
+                  onDeleteVariant={v => setDeleteTarget({ group, variant: { id: v.id, modelName: v.modelName } })}
                 />
               ))
             )}
@@ -381,11 +407,13 @@ export function BomByModelTab({ notify }: { notify: (m: string, err?: boolean) =
         title={t('bom.deleteRow')}
         message={
           deleteTarget
-            ? `${deleteTarget.group.summary.part_number} — ${deleteTarget.group.summary.applicable_models_text || deleteTarget.group.summary.part_name_ar || ''}${
-                deleteTarget.group.allIds.length > 1
-                  ? ` (${t('bom.deleteGroupHint', { n: deleteTarget.group.allIds.length })})`
-                  : ''
-              }`
+            ? deleteTarget.variant
+              ? `${deleteTarget.group.summary.part_number} — ${deleteTarget.variant.modelName}`
+              : `${deleteTarget.group.summary.part_number} — ${deleteTarget.group.summary.applicable_models_text || deleteTarget.group.summary.part_name_ar || ''}${
+                  deleteTarget.group.allIds.length > 1
+                    ? ` (${t('bom.deleteGroupHint', { n: deleteTarget.group.allIds.length })})`
+                    : ''
+                }`
             : ''
         }
         confirmLabel={t('common.delete')}

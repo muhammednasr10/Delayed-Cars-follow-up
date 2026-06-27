@@ -62,10 +62,17 @@ export async function getRolePermissions(roleId: string): Promise<Map<string, bo
 }
 
 export async function setRolePermission(roleId: string, permissionId: string, allowed: boolean): Promise<void> {
-  const { error } = await client()
-    .from('role_permissions')
-    .upsert({ role_id: roleId, permission_id: permissionId, allowed }, { onConflict: 'role_id,permission_id' })
-  if (error) throw new Error(error.message)
+  const { error } = await client().rpc('set_role_permission', {
+    p_role_id: roleId,
+    p_permission_id: permissionId,
+    p_allowed: allowed
+  })
+  if (error) {
+    const { error: fallbackErr } = await client()
+      .from('role_permissions')
+      .upsert({ role_id: roleId, permission_id: permissionId, allowed }, { onConflict: 'role_id,permission_id' })
+    if (fallbackErr) throw new Error(fallbackErr.message)
+  }
 }
 
 export async function setUserPermissionOverride(

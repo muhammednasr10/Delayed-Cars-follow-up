@@ -2,6 +2,8 @@ import { useCallback, useMemo } from 'react'
 import { useLang } from '../i18n/LanguageContext'
 import { usePermissions } from '../Context/PermissionsContext'
 import { useCanAccessSettings } from './useCanAccessSettings'
+import { useCanViewPage } from './useCanViewPage'
+import { pagePermForEngineering, pagePermForProduction, pagePermForWarehouses } from '../config/pageAccess'
 import { useNavigation } from '../Context/NavigationContext'
 import type { DepartmentId } from '../Types/navigation'
 
@@ -17,14 +19,17 @@ export type NavPageItem = {
 
 export function useDepartmentNavPages() {
   const { t } = useLang()
-  const { canViewModule, loading: permsLoading } = usePermissions()
+  const { loading: permsLoading } = usePermissions()
   const { canAccess: canAccessSettings } = useCanAccessSettings()
+  const { canViewPage, loading: pagesLoading } = useCanViewPage()
   const nav = useNavigation()
 
-  const canShowEngineeringIpl = canAccessSettings
+  const navLoading = permsLoading || pagesLoading
+
+  const canShowEngineeringIpl = canAccessSettings || canViewPage(pagePermForEngineering('ipl'))
   const canShowEngineeringStations =
-    canAccessSettings || permsLoading || canViewModule('station_operations')
-  const canShowLineBalancing = permsLoading || canViewModule('station_operations')
+    canAccessSettings || navLoading || canViewPage(pagePermForEngineering('stations'))
+  const canShowLineBalancing = navLoading || canViewPage(pagePermForEngineering('lineBalancing'))
 
   const go = nav.navigate
 
@@ -40,19 +45,19 @@ export function useDepartmentNavPages() {
       {
         key: 'home',
         label: t('nav.home'),
-        visible: true,
+        visible: navLoading || canViewPage(pagePermForProduction('home')),
         onNavigate: () => navTo({ department: 'production', productionPage: 'home' })
       },
       {
         key: 'missing',
         label: t('nav.missingParts'),
-        visible: permsLoading || canViewModule('missing_parts'),
+        visible: navLoading || canViewPage(pagePermForProduction('missing')),
         onNavigate: () => navTo({ department: 'production', productionPage: 'missing' })
       },
       {
         key: 'vehicles',
         label: t('nav.productivity'),
-        visible: permsLoading || canViewModule('production'),
+        visible: navLoading || canViewPage(pagePermForProduction('vehicles')),
         onNavigate: () => navTo({ department: 'production', productionPage: 'vehicles', productivityTab: 'orders' }),
         children: [
           { key: 'orders', label: t('productivity.tabs.orders'), onClick: () => navTo({ department: 'production', productionPage: 'vehicles', productivityTab: 'orders' }) },
@@ -76,7 +81,7 @@ export function useDepartmentNavPages() {
       {
         key: 'training',
         label: t('nav.training'),
-        visible: permsLoading || canViewModule('training_matrix'),
+        visible: navLoading || canViewPage(pagePermForProduction('training')),
         onNavigate: () => navTo({ department: 'production', productionPage: 'training', trainingTab: 'org' }),
         children: (['org', 'attendance', 'manpower', 'operations', 'stationSkills', 'matrix', 'qualification', 'expiry'] as const).map(key => ({
           key,
@@ -87,48 +92,48 @@ export function useDepartmentNavPages() {
       {
         key: 'damagedParts',
         label: t('nav.damagedParts'),
-        visible: true,
+        visible: navLoading || canViewPage(pagePermForProduction('damagedParts')),
         onNavigate: () => navTo({ department: 'production', productionPage: 'damagedParts' })
       },
       {
         key: 'missions',
         label: t('nav.missions'),
-        visible: true,
+        visible: navLoading || canViewPage(pagePermForProduction('missions')),
         onNavigate: () => navTo({ department: 'production', productionPage: 'missions' })
       },
       {
         key: 'requests',
         label: t('nav.requests'),
-        visible: true,
+        visible: navLoading || canViewPage(pagePermForProduction('requests')),
         onNavigate: () => navTo({ department: 'production', productionPage: 'requests' })
       },
       {
         key: 'scratches',
         label: t('nav.scratches'),
-        visible: true,
+        visible: navLoading || canViewPage(pagePermForProduction('scratches')),
         onNavigate: () => navTo({ department: 'production', productionPage: 'scratches' })
       },
       {
         key: 'equipment',
         label: t('nav.equipment'),
-        visible: true,
+        visible: navLoading || canViewPage(pagePermForProduction('equipment')),
         onNavigate: () => navTo({ department: 'production', productionPage: 'equipment' })
       },
       {
         key: 'feedback',
         label: t('nav.feedback'),
-        visible: true,
+        visible: navLoading || canViewPage(pagePermForProduction('feedback')),
         onNavigate: () => navTo({ department: 'production', productionPage: 'feedback' })
       }
     ],
-    [canViewModule, navTo, permsLoading, t]
+    [canViewPage, navLoading, navTo, t]
   )
 
   const settingsPage = useMemo<NavPageItem>(
     () => ({
       key: 'settings',
       label: t('nav.settings'),
-      visible: canAccessSettings,
+      visible: canViewPage(pagePermForProduction('settings')),
       onNavigate: () => navTo({ department: 'production', productionPage: 'settings', settingsTab: 'models' }),
       children: (['models', 'stations', 'colors', 'areas', 'reasons', 'departments', 'users'] as const).map(key => ({
         key,
@@ -136,7 +141,7 @@ export function useDepartmentNavPages() {
         onClick: () => navTo({ department: 'production', productionPage: 'settings', settingsTab: key })
       }))
     }),
-    [canAccessSettings, navTo, t]
+    [canViewPage, navTo, t]
   )
 
   const engineeringPages = useMemo<NavPageItem[]>(
@@ -144,7 +149,7 @@ export function useDepartmentNavPages() {
       {
         key: 'home',
         label: t('nav.home'),
-        visible: true,
+        visible: navLoading || canViewPage(pagePermForEngineering('home')),
         onNavigate: () => navTo({ department: 'engineering', engineeringPage: 'home' })
       },
       {
@@ -176,7 +181,7 @@ export function useDepartmentNavPages() {
         }))
       }
     ],
-    [canShowEngineeringIpl, canShowEngineeringStations, canShowLineBalancing, navTo, t]
+    [canShowEngineeringIpl, canShowEngineeringStations, canShowLineBalancing, canViewPage, navLoading, navTo, t]
   )
 
   const warehousesPages = useMemo<NavPageItem[]>(
@@ -184,23 +189,23 @@ export function useDepartmentNavPages() {
       {
         key: 'home',
         label: t('nav.home'),
-        visible: true,
+        visible: navLoading || canViewPage(pagePermForWarehouses('home')),
         onNavigate: () => navTo({ department: 'warehouses', warehousesTab: 'home' })
       },
       {
         key: 'currentStock',
         label: t('warehouses.tabs.currentStock'),
-        visible: true,
+        visible: navLoading || canViewPage(pagePermForWarehouses('currentStock')),
         onNavigate: () => navTo({ department: 'warehouses', warehousesTab: 'currentStock' })
       },
       {
         key: 'feeding',
         label: t('warehouses.tabs.feeding'),
-        visible: true,
+        visible: navLoading || canViewPage(pagePermForWarehouses('feeding')),
         onNavigate: () => navTo({ department: 'warehouses', warehousesTab: 'feeding' })
       }
     ],
-    [navTo, t]
+    [canViewPage, navLoading, navTo, t]
   )
 
   function pagesForDepartment(dept: DepartmentId): NavPageItem[] {

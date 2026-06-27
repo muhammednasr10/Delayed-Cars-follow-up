@@ -34,6 +34,8 @@ import { DepartmentPlaceholderPage } from './Pages/shared/DepartmentPlaceholderP
 import { EngineeringHomePage } from './Pages/engineering/EngineeringHomePage'
 import { WarehousesPage } from './Pages/warehouses/WarehousesPage'
 import { useCanAccessSettings } from './hooks/useCanAccessSettings'
+import { useCanViewPage } from './hooks/useCanViewPage'
+import { pagePermForEngineering, pagePermForProduction } from './config/pageAccess'
 import { formatRoleBadge } from './Utils/roleBadge'
 import { PwaInstallPrompt } from './Components/PwaInstallPrompt'
 
@@ -42,7 +44,8 @@ export type { AppPage as Page, DepartmentId, ProductionPage, EngineeringPage } f
 function Shell() {
   const { configured, loading, session, profile, signOut, displayRole } = useAuth()
   const { canAccess: canAccessSettings } = useCanAccessSettings()
-  const { canViewModule, loading: permsLoading } = usePermissions()
+  const { loading: permsLoading } = usePermissions()
+  const { canViewPage, loading: pagesLoading } = useCanViewPage()
   const { t, lang, toggle } = useLang()
   const nav = useNavigation()
 
@@ -78,9 +81,10 @@ function Shell() {
 
   if (!session) return <LoginPage />
 
-  const canShowEngineeringIpl = canAccessSettings
+  const navLoading = permsLoading || pagesLoading
+  const canShowEngineeringIpl = canAccessSettings || canViewPage(pagePermForEngineering('ipl'))
   const canShowEngineeringStations =
-    canAccessSettings || permsLoading || canViewModule('station_operations')
+    canAccessSettings || navLoading || canViewPage(pagePermForEngineering('stations'))
 
   return (
     <VehiclesProvider>
@@ -152,17 +156,17 @@ function Shell() {
 
           {!nav.showProfile && nav.department === 'production' && (
             <>
-              {nav.productionPage === 'home' && <HomePage />}
-              {nav.productionPage === 'missing' && <MissingPartsPage />}
-              {nav.productionPage === 'vehicles' && <ProductivityPage />}
-              {nav.productionPage === 'training' && <TrainingMatrixPage />}
-              {nav.productionPage === 'damagedParts' && <DamagedPartsPage />}
-              {nav.productionPage === 'missions' && <MissionsPage />}
-              {nav.productionPage === 'requests' && <RequestsPage />}
-              {nav.productionPage === 'scratches' && <ScratchesPage />}
-              {nav.productionPage === 'equipment' && <EquipmentPage />}
-              {nav.productionPage === 'feedback' && <FeedbackPage />}
-              {nav.productionPage === 'settings' && canAccessSettings && <SettingsPage />}
+              {nav.productionPage === 'home' && (navLoading || canViewPage(pagePermForProduction('home'))) && <HomePage />}
+              {nav.productionPage === 'missing' && (navLoading || canViewPage(pagePermForProduction('missing'))) && <MissingPartsPage />}
+              {nav.productionPage === 'vehicles' && (navLoading || canViewPage(pagePermForProduction('vehicles'))) && <ProductivityPage />}
+              {nav.productionPage === 'training' && (navLoading || canViewPage(pagePermForProduction('training'))) && <TrainingMatrixPage />}
+              {nav.productionPage === 'damagedParts' && (navLoading || canViewPage(pagePermForProduction('damagedParts'))) && <DamagedPartsPage />}
+              {nav.productionPage === 'missions' && (navLoading || canViewPage(pagePermForProduction('missions'))) && <MissionsPage />}
+              {nav.productionPage === 'requests' && (navLoading || canViewPage(pagePermForProduction('requests'))) && <RequestsPage />}
+              {nav.productionPage === 'scratches' && (navLoading || canViewPage(pagePermForProduction('scratches'))) && <ScratchesPage />}
+              {nav.productionPage === 'equipment' && (navLoading || canViewPage(pagePermForProduction('equipment'))) && <EquipmentPage />}
+              {nav.productionPage === 'feedback' && (navLoading || canViewPage(pagePermForProduction('feedback'))) && <FeedbackPage />}
+              {nav.productionPage === 'settings' && canViewPage(pagePermForProduction('settings')) && <SettingsPage />}
             </>
           )}
 
@@ -171,7 +175,7 @@ function Shell() {
               {nav.engineeringPage === 'home' && <EngineeringHomePage />}
               {nav.engineeringPage === 'ipl' && canShowEngineeringIpl && <BomPage />}
               {nav.engineeringPage === 'stations' && canShowEngineeringStations && <StationsPage />}
-              {nav.engineeringPage === 'lineBalancing' && <LineBalancingPage />}
+              {nav.engineeringPage === 'lineBalancing' && (navLoading || canViewPage(pagePermForEngineering('lineBalancing'))) && <LineBalancingPage />}
               {nav.engineeringPage === 'ipl' && !canShowEngineeringIpl && (
                 <DepartmentPlaceholderPage department="engineering" onOpenProduction={() => nav.selectDepartment('production')} />
               )}

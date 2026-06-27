@@ -1,6 +1,7 @@
 import { DEFAULT_PART_KIND, DEFAULT_SUPPLY_SOURCE, effectivePartKind, effectiveSupplySource } from './bomDefaults'
 import { resolveSupplySource } from './bomDisplayFormat'
 import { formatQtyByModelRaw, maxModelQty, modelQtyFromBomRow, parseApplicableModelNames } from './bomQtyByModel'
+import { normalizeBomStationCodeText } from './bomStationCode'
 import { buildModelFamilyGroups, isAssignableModel } from './vehicleModelHierarchy'
 import type { BomItemDetail } from '../Types/bom'
 import type { VehicleModel } from '../Types/settings'
@@ -56,7 +57,7 @@ export function cardsFromBomRow(models: VehicleModel[], row: BomItemDetail): {
     part_kind: effectivePartKind(row.part_type),
     supply_source: effectiveSupplySource(row.supply_source ?? resolveSupplySource(row)),
     station_id: row.station_id ?? '',
-    station_code_text: row.station_code_text ?? '',
+    station_code_text: row.station_code_text ? normalizeBomStationCodeText(row.station_code_text) : '',
     bom_classification: row.bom_classification ?? '',
     station_category: row.station_category ?? ''
   }
@@ -161,7 +162,7 @@ export function consolidatedPayload(
     quantity: maxModelQty(entries),
     vehicle_model_id: null as string | null,
     station_id: first.station_id || null,
-    station_code_text: first.station_code_text,
+    station_code_text: normalizeBomStationCodeText(first.station_code_text),
     station_category: first.station_category || undefined,
     supply_source: effectiveSupplySource(first.supply_source),
     model_family: familyNames || undefined,

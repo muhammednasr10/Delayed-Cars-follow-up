@@ -1,9 +1,10 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { CalendarClock, Save, Settings2 } from 'lucide-react'
+import { CalendarClock, Settings2 } from 'lucide-react'
 import { useLang } from '../i18n/LanguageContext'
 import { inputCls } from './FormField'
 import { JobRoleBadge } from './EmployeeBadges'
 import { TodayAttendanceQuickEntry } from './TodayAttendanceQuickEntry'
+import { TodayAttendanceSummary } from './TodayAttendanceSummary'
 import { TodayAttendanceDefaultsModal } from './TodayAttendanceDefaultsModal'
 import {
   ATTENDANCE_STATUSES,
@@ -17,7 +18,8 @@ import {
   bulkUpsertAttendanceDays,
   dayEditToInput,
   getAttendanceDaysForDate,
-  localTodayIso
+  localTodayIso,
+  upsertAttendanceDay
 } from '../services/attendanceService'
 import { getProductionPlanDayType } from '../services/productionPlanWorkDayDailyService'
 import { compareEmployees } from '../services/employeesService'
@@ -86,9 +88,8 @@ export function TodayAttendanceTab({ employees, canManage }: Props) {
   const workDate = localTodayIso()
   const [rows, setRows] = useState<TodayRow[]>([])
   const [loading, setLoading] = useState(false)
-  const [busy, setBusy] = useState(false)
+  const [saveState, setSaveState] = useState<'idle' | 'saving' | 'saved'>('idle')
   const [error, setError] = useState('')
-  const [success, setSuccess] = useState('')
   const [quickEmployeeId, setQuickEmployeeId] = useState('')
   const [quickStatus, setQuickStatus] = useState<AttendanceDayStatus>('present')
   const [quickCheckIn, setQuickCheckIn] = useState(DEFAULT_ATTENDANCE_CHECK_IN)
@@ -96,7 +97,8 @@ export function TodayAttendanceTab({ employees, canManage }: Props) {
   const [defaultsOpen, setDefaultsOpen] = useState(false)
   const [bulkDefaults, setBulkDefaults] = useState<AttendanceBulkDefaults>(DEFAULT_ATTENDANCE_BULK)
   const [todayPlanDayType, setTodayPlanDayType] = useState<PlanDayType | null>(null)
-  const rowRefs = useRef<Map<string, HTMLTableRowElement>>(new Map())
+  const saveTimers = useRef<Map<string, ReturnType<typeof setTimeout>>>(new Map())
+  const savedTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   const activeEmployees = useMemo(
     () => [...employees].filter(e => e.isActive).sort(compareEmployees),
@@ -133,31 +135,119 @@ export function TodayAttendanceTab({ employees, canManage }: Props) {
       .finally(() => setLoading(false))
   }, [workDate, activeEmployees, t])
 
-  const patchRow = useCallback((index: number, patch: Partial<TodayRow>) => {
-    setRows(prev =>
-      prev.map((row, i) => {
-        if (i !== index) return row
-        const next = { ...row, ...patch }
-        const status = patch.status ?? row.status
-        if (!attendanceStatusHasTimes(status)) {
-          next.checkIn = ''
-          next.checkOut = ''
-        } else if (!attendanceStatusHasTimes(row.status) || !next.checkIn) {
-          next.checkIn = patch.checkIn ?? DEFAULT_ATTENDANCE_CHECK_IN
-          next.checkOut = patch.checkOut ?? DEFAULT_ATTENDANCE_CHECK_OUT
-        }
-        return next
-      })
-    )
-    setSuccess('')
+  const flashSaved = useCallback(() => {
+    setSaveState('saved')
+    if (savedTimer.current) clearTimeout(savedTimer.current)
+    savedTimer.current = setTimeout(() => setSaveState('idle'), 2000)
   }, [])
+
+  const persistRow = useCallback(
+    async (row: TodayRow) => {
+      if (!canManage) return
+      setSaveState('saving')
+      setError('')
+      try {
+        await upsertAttendanceDay(
+          dayEditToInput(row.employeeId, {
+            workDate,
+            status: row.status,
+            checkIn: row.checkIn,
+            checkOut: row.checkOut,
+            notes: row.notes
+          })
+        )
+        flashSaved()
+      } catch (e) {
+        setSaveState('idle')
+        setError(e instanceof Error ? e.message : t('common.error'))
+      }
+    },
+    [canManage, workDate, flashSaved, t]
+  )
+
+  const scheduleSaveRow = useCallback(
+    (row: TodayRow, immediate = false) => {
+      if (!canManage) return
+      const id = row.employeeId
+      const prev = saveTimers.current.get(id)
+      if (prev) clearTimeout(prev)
+      if (immediate) {
+        void persistRow(row)
+        return
+      }
+      saveTimers.current.set(
+        id,
+        setTimeout(() => {
+          saveTimers.current.delete(id)
+          void persistRow(row)
+        }, 500)
+      )
+    },
+    [canManage, persistRow]
+  )
+
+  const persistAllRows = useCallback(
+    async (nextRows: TodayRow[]) => {
+      if (!canManage) return
+      setSaveState('saving')
+      setError('')
+      try {
+        const inputs = nextRows.map(row =>
+          dayEditToInput(row.employeeId, {
+            workDate,
+            status: row.status,
+            checkIn: row.checkIn,
+            checkOut: row.checkOut,
+            notes: row.notes
+          })
+        )
+        await bulkUpsertAttendanceDays(inputs)
+        flashSaved()
+      } catch (e) {
+        setSaveState('idle')
+        setError(e instanceof Error ? e.message : t('common.error'))
+      }
+    },
+    [canManage, workDate, flashSaved, t]
+  )
+
+  useEffect(() => {
+    return () => {
+      for (const timer of saveTimers.current.values()) clearTimeout(timer)
+      if (savedTimer.current) clearTimeout(savedTimer.current)
+    }
+  }, [])
+
+  const patchRow = useCallback(
+    (index: number, patch: Partial<TodayRow>, saveImmediate = false) => {
+      let updated: TodayRow | null = null
+      setRows(prev =>
+        prev.map((row, i) => {
+          if (i !== index) return row
+          const next = { ...row, ...patch }
+          const status = patch.status ?? row.status
+          if (!attendanceStatusHasTimes(status)) {
+            next.checkIn = ''
+            next.checkOut = ''
+          } else if (!attendanceStatusHasTimes(row.status) || !next.checkIn) {
+            next.checkIn = patch.checkIn ?? DEFAULT_ATTENDANCE_CHECK_IN
+            next.checkOut = patch.checkOut ?? DEFAULT_ATTENDANCE_CHECK_OUT
+          }
+          updated = next
+          return next
+        })
+      )
+      if (updated) scheduleSaveRow(updated, saveImmediate)
+    },
+    [scheduleSaveRow]
+  )
 
   const applyQuickPatch = useCallback(
     (patch: Partial<TodayRow>) => {
       if (!quickEmployeeId) return
       const index = rows.findIndex(r => r.employeeId === quickEmployeeId)
       if (index === -1) return
-      patchRow(index, patch)
+      patchRow(index, patch, true)
     },
     [quickEmployeeId, rows, patchRow]
   )
@@ -171,7 +261,6 @@ export function TodayAttendanceTab({ employees, canManage }: Props) {
       setQuickStatus(row.status)
       setQuickCheckIn(row.checkIn || DEFAULT_ATTENDANCE_CHECK_IN)
       setQuickCheckOut(row.checkOut || DEFAULT_ATTENDANCE_CHECK_OUT)
-      rowRefs.current.get(employeeId)?.scrollIntoView({ behavior: 'smooth', block: 'nearest' })
     },
     [rows]
   )
@@ -214,39 +303,14 @@ export function TodayAttendanceTab({ employees, canManage }: Props) {
     if (!isHolidayPlanDay(todayPlanDayType)) {
       setBulkDefaults(defaults)
     }
-    setRows(prev =>
-      prev.map(row => ({
-        ...row,
-        status: defaults.status,
-        checkIn: defaults.checkIn,
-        checkOut: defaults.checkOut
-      }))
-    )
-    setSuccess('')
-  }
-
-  async function save() {
-    if (!canManage) return
-    setBusy(true)
-    setError('')
-    setSuccess('')
-    try {
-      const inputs = rows.map(row =>
-        dayEditToInput(row.employeeId, {
-          workDate,
-          status: row.status,
-          checkIn: row.checkIn,
-          checkOut: row.checkOut,
-          notes: row.notes
-        })
-      )
-      await bulkUpsertAttendanceDays(inputs)
-      setSuccess(t('attendance.today.saved'))
-    } catch (e) {
-      setError(e instanceof Error ? e.message : t('common.error'))
-    } finally {
-      setBusy(false)
-    }
+    const nextRows = rows.map(row => ({
+      ...row,
+      status: defaults.status,
+      checkIn: defaults.checkIn,
+      checkOut: defaults.checkOut
+    }))
+    setRows(nextRows)
+    void persistAllRows(nextRows)
   }
 
   return (
@@ -262,7 +326,7 @@ export function TodayAttendanceTab({ employees, canManage }: Props) {
           </div>
         </div>
         {canManage && (
-          <div className="flex flex-wrap gap-2">
+          <div className="flex flex-wrap items-center gap-2">
             <button
               type="button"
               onClick={() => setDefaultsOpen(true)}
@@ -270,14 +334,12 @@ export function TodayAttendanceTab({ employees, canManage }: Props) {
             >
               <Settings2 className="me-1 inline h-4 w-4" /> {t('attendance.today.defaultsBtn')}
             </button>
-            <button
-              type="button"
-              disabled={busy || loading}
-              onClick={() => void save()}
-              className="rounded-xl bg-violet-500 px-4 py-2 text-sm font-black text-slate-950 disabled:opacity-50"
-            >
-              <Save className="mr-1 inline h-4 w-4" /> {busy ? t('common.saving') : t('attendance.today.save')}
-            </button>
+            {saveState === 'saving' && (
+              <span className="text-xs font-bold text-violet-300">{t('common.saving')}</span>
+            )}
+            {saveState === 'saved' && (
+              <span className="text-xs font-bold text-emerald-300">{t('attendance.today.autoSaved')}</span>
+            )}
           </div>
         )}
       </div>
@@ -293,6 +355,8 @@ export function TodayAttendanceTab({ employees, canManage }: Props) {
           )}
         </div>
       )}
+
+      <TodayAttendanceSummary rows={rows} loading={loading} />
 
       <TodayAttendanceDefaultsModal
         open={defaultsOpen}
@@ -316,7 +380,6 @@ export function TodayAttendanceTab({ employees, canManage }: Props) {
       />
 
       <p className="text-xs text-slate-500">{t('attendance.today.hint')}</p>
-      {success && <div className="rounded-xl border border-emerald-500/30 bg-emerald-500/10 p-3 text-sm text-emerald-200">{success}</div>}
       {error && <div className="rounded-xl border border-red-500/30 bg-red-500/10 p-3 text-sm text-red-200">{error}</div>}
 
       <div className="overflow-x-auto rounded-2xl border border-slate-800">
@@ -339,10 +402,6 @@ export function TodayAttendanceTab({ employees, canManage }: Props) {
               {rows.map((row, i) => (
                 <tr
                   key={row.employeeId}
-                  ref={el => {
-                    if (el) rowRefs.current.set(row.employeeId, el)
-                    else rowRefs.current.delete(row.employeeId)
-                  }}
                   className={`bg-slate-900/30 hover:bg-slate-800/40 ${
                     row.employeeId === quickEmployeeId ? 'bg-violet-500/10 ring-1 ring-inset ring-violet-500/30' : ''
                   }`}

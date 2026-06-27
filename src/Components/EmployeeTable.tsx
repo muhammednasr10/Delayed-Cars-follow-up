@@ -5,12 +5,13 @@ import type { Employee } from '../Types/employee'
 
 type Props = {
   employees: Employee[]
-  canManage: boolean
+  canEdit: boolean
+  canToggle: boolean
   onEdit: (e: Employee) => void
   onToggleActive: (e: Employee) => void
 }
 
-export function EmployeeTable({ employees, canManage, onEdit, onToggleActive }: Props) {
+export function EmployeeTable({ employees, canEdit, canToggle, onEdit, onToggleActive }: Props) {
   const { t } = useLang()
 
   return (
@@ -21,7 +22,7 @@ export function EmployeeTable({ employees, canManage, onEdit, onToggleActive }: 
             {['code', 'name', 'role', 'assignmentStatus', 'department', 'workArea', 'manager', 'contact', 'status'].map(c => (
               <th key={c} className="table-cell text-xs font-black uppercase text-slate-400">{t(`org.f.${c === 'contact' ? 'phone' : c}`)}</th>
             ))}
-            {canManage && <th className="table-cell text-xs font-black uppercase text-slate-400">{t('common.actions')}</th>}
+            {(canEdit || canToggle) && <th className="table-cell text-xs font-black uppercase text-slate-400">{t('common.actions')}</th>}
           </tr>
         </thead>
         <tbody className="divide-y divide-slate-800">
@@ -46,15 +47,19 @@ export function EmployeeTable({ employees, canManage, onEdit, onToggleActive }: 
                 </div>
               </td>
               <td className="table-cell"><ActiveBadge active={e.isActive} /></td>
-              {canManage && (
+              {(canEdit || canToggle) && (
                 <td className="table-cell">
                   <div className="flex gap-2">
-                    <button onClick={() => onEdit(e)} title={t('org.edit')} className="rounded-lg bg-orange-500/15 p-2 text-orange-200 hover:bg-orange-500/25">
-                      <Pencil className="h-4 w-4" />
-                    </button>
-                    <button onClick={() => onToggleActive(e)} title={e.isActive ? t('org.deactivate') : t('org.activate')} className={`rounded-lg p-2 ${e.isActive ? 'bg-red-500/15 text-red-200 hover:bg-red-500/25' : 'bg-emerald-500/15 text-emerald-200 hover:bg-emerald-500/25'}`}>
-                      {e.isActive ? <PowerOff className="h-4 w-4" /> : <Power className="h-4 w-4" />}
-                    </button>
+                    {canEdit && (
+                      <button onClick={() => onEdit(e)} title={t('org.edit')} className="rounded-lg bg-orange-500/15 p-2 text-orange-200 hover:bg-orange-500/25">
+                        <Pencil className="h-4 w-4" />
+                      </button>
+                    )}
+                    {canToggle && (
+                      <button onClick={() => onToggleActive(e)} title={e.isActive ? t('org.deactivate') : t('org.activate')} className={`rounded-lg p-2 ${e.isActive ? 'bg-red-500/15 text-red-200 hover:bg-red-500/25' : 'bg-emerald-500/15 text-emerald-200 hover:bg-emerald-500/25'}`}>
+                        {e.isActive ? <PowerOff className="h-4 w-4" /> : <Power className="h-4 w-4" />}
+                      </button>
+                    )}
                   </div>
                 </td>
               )}
