@@ -164,7 +164,12 @@ export async function createEmployee(input: EmployeeInput): Promise<void> {
   const client = requireClient()
   const { data, error } = await client.from('employees').insert(toPayload(input)).select('id').single()
   if (error) throw new Error(translateError(error))
-  await saveEmployeeDirectManagers(data.id, input.directManagerIds)
+  try {
+    await saveEmployeeDirectManagers(data.id, input.directManagerIds)
+  } catch (e) {
+    await client.from('employees').delete().eq('id', data.id)
+    throw e
+  }
 }
 
 export async function bulkCreateEmployees(
@@ -220,11 +225,14 @@ export async function reactivateEmployee(employeeId: string): Promise<void> {
   if (error) throw new Error(error.message)
 }
 
-function translateError(error: { code?: string; message?: string }): string {
+function translateError(error: { code?: string; message?: string; details?: string }): string {
   const msg = error.message || 'Request failed'
   if (msg.includes('Circular management hierarchy')) return 'MANAGER_CYCLE'
-  if (error.code === '23505' || msg.toLowerCase().includes('employees_employee_code_key') || msg.toLowerCase().includes('duplicate')) {
-    return 'DUPLICATE_CODE'
+  if (error.code === '23505') {
+    const detail = `${msg} ${error.details ?? ''}`.toLowerCase()
+    if (detail.includes('employee_code') || detail.includes('employees_employee_code')) {
+      return 'DUPLICATE_CODE'
+    }
   }
   return msg
 }

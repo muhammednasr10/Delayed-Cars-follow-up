@@ -9,8 +9,13 @@ import type { Station, WorkArea } from '../Types/settings'
 import { normalizeProductionLine, PRODUCTION_LINE_KEYS } from '../Utils/productionLines'
 import { formatStationSettingsLabel, resolveMasterStation, stationsFromSettings } from '../Utils/stationsFromSettings'
 import { workAreasFromStations } from '../Utils/workAreasFromStations'
+import { isEmployeeCodeTaken } from '../Utils/employeeCode'
 
 const DEPARTMENTS: ResponsibleDepartment[] = ['warehouse', 'purchasing', 'production', 'quality', 'supplier', 'management']
+
+export type EmployeeFormSubmitResult =
+  | { ok: true }
+  | { ok: false; fieldErrors?: Partial<Record<'employeeCode', string>> }
 
 type Props = {
   open: boolean
@@ -20,7 +25,7 @@ type Props = {
   stations: Station[]
   busy: boolean
   onClose: () => void
-  onSubmit: (input: EmployeeInput) => Promise<boolean>
+  onSubmit: (input: EmployeeInput) => Promise<EmployeeFormSubmitResult>
 }
 
 type FormState = {
@@ -137,6 +142,11 @@ export function EmployeeForm({ open, editing, employees, areas, stations, busy, 
   function validate(): EmployeeInput | null {
     const e: Record<string, string> = {}
     if (!form.employeeCode.trim()) e.employeeCode = t('org.err.codeRequired')
+    else if (
+      isEmployeeCodeTaken(form.employeeCode, employees, editing?.id)
+    ) {
+      e.employeeCode = t('org.err.duplicateCode')
+    }
     if (!form.fullName.trim()) e.fullName = t('org.err.nameRequired')
     if (!form.jobRole) e.jobRole = t('org.err.roleRequired')
     if (form.email.trim() && !EMAIL_RE.test(form.email.trim())) e.email = t('org.err.email')
@@ -174,8 +184,10 @@ export function EmployeeForm({ open, editing, employees, areas, stations, busy, 
   async function submit() {
     const input = validate()
     if (!input) return
-    const ok = await onSubmit(input)
-    if (!ok) setErrors(prev => ({ ...prev, employeeCode: t('org.err.duplicateCode') }))
+    const result = await onSubmit(input)
+    if (!result.ok && result.fieldErrors) {
+      setErrors(prev => ({ ...prev, ...result.fieldErrors }))
+    }
   }
 
   return (

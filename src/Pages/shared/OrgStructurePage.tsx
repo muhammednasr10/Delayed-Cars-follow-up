@@ -11,7 +11,7 @@ import { Field, inputCls } from '../../Components/FormField'
 import { EmployeeFilters, emptyEmployeeFilters, type EmployeeFilterState } from '../../Components/EmployeeFilters'
 import { EmployeeTable } from '../../Components/EmployeeTable'
 import { EmployeeOrgChart } from '../../Components/EmployeeOrgChart'
-import { EmployeeForm } from '../../Components/EmployeeForm'
+import { EmployeeForm, type EmployeeFormSubmitResult } from '../../Components/EmployeeForm'
 import { EmployeeImportModal } from '../../Components/EmployeeImportModal'
 import type { Employee, EmployeeInput } from '../../Types/employee'
 import type { Station, WorkArea } from '../../Types/settings'
@@ -83,7 +83,7 @@ export function OrgStructurePage({ embedded = false }: { embedded?: boolean }) {
     setFormOpen(true)
   }
 
-  async function submitForm(input: EmployeeInput): Promise<boolean> {
+  async function submitForm(input: EmployeeInput): Promise<EmployeeFormSubmitResult> {
     setSaving(true)
     setActionError('')
     try {
@@ -92,19 +92,18 @@ export function OrgStructurePage({ embedded = false }: { embedded?: boolean }) {
       await reload()
       flash(editing ? t('settings.updated') : t('settings.added'))
       setFormOpen(false)
-      return true
+      return { ok: true }
     } catch (e) {
       const msg = e instanceof Error ? e.message : t('common.error')
       if (msg === 'DUPLICATE_CODE') {
-        setActionError(t('org.err.duplicateCode'))
-        return false
+        return { ok: false, fieldErrors: { employeeCode: t('org.err.duplicateCode') } }
       }
       if (msg === 'MANAGER_CYCLE') {
         setActionError(t('org.err.managerCycle'))
-        return false
+        return { ok: false }
       }
       setActionError(msg)
-      return false
+      return { ok: false }
     } finally {
       setSaving(false)
     }
