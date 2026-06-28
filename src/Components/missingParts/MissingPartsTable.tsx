@@ -22,6 +22,7 @@ import {
 } from '../../Utils/missingPartPageUtils'
 import type { MissingPartDetail } from '../../Types/missingPart'
 import type { MpLookupOption } from '../../Types/mpLookup'
+import { ExportableTable } from '../ExportableTable'
 export type ListTab = 'active' | 'history'
 
 type Props = {
@@ -105,6 +106,11 @@ export function MissingPartsTable({
   }
 
   return (
+    <ExportableTable
+      filename={listTab === 'history' ? 'missing-parts-archive' : 'missing-parts'}
+      title={t('mp.title')}
+      rowCount={loading ? 0 : tableRows.length}
+    >
     <div className="overflow-x-auto">
       <table className="w-full text-center">
         <thead className="bg-slate-950/90">
@@ -114,6 +120,7 @@ export function MissingPartsTable({
                 key={c}
                 className={`${c === 'actions' ? actionsCell : cell} font-black uppercase text-slate-400`}
                 style={c === 'actions' ? { insetInlineEnd: 0 } : undefined}
+                {...(c === 'actions' || c === 'select' ? { 'data-export-skip': true } : {})}
               >
                 {c === 'select' && canBulkInstall ? (
                   <input
@@ -162,7 +169,8 @@ export function MissingPartsTable({
                   onOpenNotes={onOpenNotes}
                   onEdit={onEdit}
                   onUpdate={onUpdate}
-                  onDeleteParts={() => onDeleteParts(row.displayRow.items)}
+                  onDeleteParts={onDeleteParts}
+                  deleteTargets={row.displayRow.items}
                   onComplete={onComplete}
                 />
               )
@@ -198,7 +206,8 @@ export function MissingPartsTable({
                   onOpenNotes={onOpenNotes}
                   onEdit={onEdit}
                   onUpdate={onUpdate}
-                  onDeleteParts={() => onDeleteParts(row.parts)}
+                  onDeleteParts={onDeleteParts}
+                  deleteTargets={row.parts}
                   onComplete={onComplete}
                 />
               )
@@ -226,7 +235,8 @@ export function MissingPartsTable({
                 onOpenNotes={onOpenNotes}
                 onEdit={onEdit}
                 onUpdate={onUpdate}
-                onDeleteParts={() => onDeleteParts([row.item])}
+                onDeleteParts={onDeleteParts}
+                deleteTargets={[row.item]}
                 onComplete={onComplete}
               />
             )
@@ -238,6 +248,7 @@ export function MissingPartsTable({
         <div className="p-8 text-center text-slate-400">{listTab === 'history' ? t('mp.history.empty') : t('common.noResults')}</div>
       )}
     </div>
+    </ExportableTable>
   )
 }
 
@@ -260,7 +271,8 @@ type RowProps = {
   onOpenNotes: (part: MissingPartDetail) => void
   onEdit: (part: MissingPartDetail) => void
   onUpdate: (part: MissingPartDetail) => void
-  onDeleteParts: () => void
+  onDeleteParts: (parts: MissingPartDetail[]) => void
+  deleteTargets: MissingPartDetail[]
   onComplete: (part: MissingPartDetail) => void
 }
 
@@ -293,6 +305,7 @@ function ReportGroupRow({
       }
       qty={qty}
       stationLabel={i.stationNumber ? (i.stationName ? `${i.stationNumber} · ${i.stationName}` : i.stationNumber) : '-'}
+      deleteTargets={displayRow.items}
       reasons={props.reasons}
       departments={props.departments}
       lang={lang}
@@ -342,6 +355,7 @@ function VehicleRows({
         stationLabel="—"
         reasonSummary={t('mp.multiReasonsSummary', { n: parts.length })}
         reasonClassSummary="—"
+        deleteTargets={parts}
         reasons={props.reasons}
         departments={props.departments}
         lang={lang}
@@ -379,7 +393,32 @@ function VehicleRows({
             <td className={`${cell} text-slate-400`}>
               <DateTimeCell iso={part.createdAt} lang={lang} />
             </td>
-            {props.listTab === 'active' && <td className={actionsCell} />}
+            {props.listTab === 'history' && (
+              <td className={`${cell} text-emerald-300/80`}>
+                {part.shortageResolvedAt ? formatDateTime(part.shortageResolvedAt, lang).date : '—'}
+              </td>
+            )}
+            <td data-export-skip className={actionsCell} style={{ insetInlineEnd: 0 }}>
+              {(props.listTab === 'history' || props.listTab === 'active') && (
+                <ActionsCell
+                  item={part}
+                  issueCount={1}
+                  rowOpen={part.status !== 'closed' && part.status !== 'cancelled'}
+                  archiveMode={props.listTab === 'history'}
+                  deleteTargets={[part]}
+                  canUpdateStatus={props.canUpdateStatus}
+                  canEdit={props.canEdit}
+                  canDelete={props.canDelete}
+                  showCompleteBtn={false}
+                  completingVehicleId={props.completingVehicleId}
+                  onOpenNotes={props.onOpenNotes}
+                  onEdit={props.onEdit}
+                  onUpdate={props.onUpdate}
+                  onDeleteParts={props.onDeleteParts}
+                  onComplete={props.onComplete}
+                />
+              )}
+            </td>
           </tr>
         ))}
     </>
@@ -399,6 +438,7 @@ function SinglePartRow({ item, ...props }: RowProps & { item: MissingPartDetail 
       vinCell={<span dir="ltr">{item.vin}</span>}
       qty={{ installed: item.installedQty, required: item.requiredQty }}
       stationLabel={stationLabel}
+      deleteTargets={[item]}
       reasons={props.reasons}
       departments={props.departments}
       lang={lang}
@@ -435,6 +475,7 @@ function PartDataRow({
   onEdit,
   onUpdate,
   onDeleteParts,
+  deleteTargets,
   onComplete,
   rowClassName = '',
   showCompleteBtn: showCompleteBtnOverride
@@ -460,7 +501,7 @@ function PartDataRow({
   return (
     <tr className={`bg-slate-900/30 hover:bg-slate-800/40 ${rowChecked ? 'ring-1 ring-inset ring-cyan-500/40' : ''} ${rowClassName}`}>
       {listTab === 'active' && (
-        <td className={cell}>
+        <td data-export-skip className={cell}>
           {canBulkInstall && (
             <input
               type="checkbox"
@@ -524,12 +565,14 @@ function PartDataRow({
           {item.shortageResolvedAt ? formatDateTime(item.shortageResolvedAt, lang).date : '-'}
         </td>
       )}
-      {listTab === 'active' && (
-        <td className={actionsCell} style={{ insetInlineEnd: 0 }}>
+      {(listTab === 'active' || listTab === 'history') && (
+        <td data-export-skip className={actionsCell} style={{ insetInlineEnd: 0 }}>
           <ActionsCell
             item={item}
             issueCount={issueCount}
             rowOpen={rowOpen}
+            archiveMode={listTab === 'history'}
+            deleteTargets={deleteTargets}
             canUpdateStatus={canUpdateStatus}
             canEdit={canEdit}
             canDelete={canDelete}
@@ -561,6 +604,8 @@ function ActionsCell({
   item,
   issueCount,
   rowOpen,
+  archiveMode = false,
+  deleteTargets,
   canUpdateStatus,
   canEdit,
   canDelete,
@@ -575,6 +620,8 @@ function ActionsCell({
   item: MissingPartDetail
   issueCount: number
   rowOpen: boolean
+  archiveMode?: boolean
+  deleteTargets: MissingPartDetail[]
   canUpdateStatus: boolean
   canEdit: boolean
   canDelete: boolean
@@ -583,32 +630,35 @@ function ActionsCell({
   onOpenNotes: (part: MissingPartDetail) => void
   onEdit: (part: MissingPartDetail) => void
   onUpdate: (part: MissingPartDetail) => void
-  onDeleteParts: () => void
+  onDeleteParts: (parts: MissingPartDetail[]) => void
   onComplete: (part: MissingPartDetail) => void
 }) {
   const { t } = useLang()
+  const canAct = archiveMode || rowOpen
 
   return (
     <div className="flex items-center justify-center gap-1">
-      {rowOpen && canUpdateStatus && (
+      {!archiveMode && rowOpen && canUpdateStatus && (
         <IconBtn title={t('mp.act.updateVehicle', { n: issueCount })} onClick={() => onUpdate(item)} className="text-cyan-300 hover:bg-cyan-500/20">
           <Settings2 className={iconSize} />
         </IconBtn>
       )}
-      <IconBtn title={t('mp.thread.open')} onClick={() => onOpenNotes(item)} className="text-cyan-400 hover:bg-cyan-500/20">
-        <MessageSquare className={iconSize} />
-      </IconBtn>
-      {rowOpen && canEdit && (
+      {!archiveMode && (
+        <IconBtn title={t('mp.thread.open')} onClick={() => onOpenNotes(item)} className="text-cyan-400 hover:bg-cyan-500/20">
+          <MessageSquare className={iconSize} />
+        </IconBtn>
+      )}
+      {canAct && canEdit && (
         <IconBtn title={t('mp.edit.editVehicle', { n: issueCount })} onClick={() => onEdit(item)} className="text-slate-200 hover:bg-slate-700">
           <Pencil className={iconSize} />
         </IconBtn>
       )}
-      {rowOpen && canDelete && (
-        <IconBtn title={t('common.delete')} onClick={onDeleteParts} className="text-red-300 hover:bg-red-500/20">
+      {canAct && canDelete && (
+        <IconBtn title={t('common.delete')} onClick={() => onDeleteParts(deleteTargets)} className="text-red-300 hover:bg-red-500/20">
           <Trash2 className={iconSize} />
         </IconBtn>
       )}
-      {rowOpen && showCompleteBtn && (
+      {!archiveMode && rowOpen && showCompleteBtn && (
         <IconBtn
           title={t('mp.complete')}
           onClick={() => onComplete(item)}

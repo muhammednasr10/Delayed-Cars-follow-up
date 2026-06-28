@@ -3,7 +3,7 @@ import { LayoutList, Network, Plus, Upload, Users } from 'lucide-react'
 import { useLang } from '../../i18n/LanguageContext'
 import { useAuth } from '../../Context/AuthContext'
 import { useEmployees } from '../../hooks/useEmployees'
-import { getStations, getWorkAreas } from '../../services/settingsService'
+import { getFactoryOrgUnits } from '../../services/factoryOrgService'
 import { createEmployee, reactivateEmployee, suspendEmployee, updateEmployee } from '../../services/employeesService'
 import { usePermissions } from '../../Context/PermissionsContext'
 import { Modal } from '../../Components/Modal'
@@ -13,9 +13,12 @@ import { EmployeeTable } from '../../Components/EmployeeTable'
 import { EmployeeOrgChart } from '../../Components/EmployeeOrgChart'
 import { EmployeeForm, type EmployeeFormSubmitResult } from '../../Components/EmployeeForm'
 import { EmployeeImportModal } from '../../Components/EmployeeImportModal'
+import { ExportableTable } from '../../Components/ExportableTable'
 import type { Employee, EmployeeInput } from '../../Types/employee'
-import type { Station, WorkArea } from '../../Types/settings'
-import { workAreasFromStations } from '../../Utils/workAreasFromStations'
+import type { FactoryOrgUnit } from '../../Types/factoryOrg'
+import type { WorkArea } from '../../Types/settings'
+import { employeeMatchesOrgFilter } from '../../Utils/employeeOrgPicker'
+import { getWorkAreas } from '../../services/settingsService'
 
 type View = 'table' | 'chart'
 
@@ -30,7 +33,7 @@ export function OrgStructurePage({ embedded = false }: { embedded?: boolean }) {
 
   const { employees, loading, error, reload } = useEmployees()
   const [areas, setAreas] = useState<WorkArea[]>([])
-  const [stations, setStations] = useState<Station[]>([])
+  const [orgUnits, setOrgUnits] = useState<FactoryOrgUnit[]>([])
   const [view, setView] = useState<View>('table')
   const [filters, setFilters] = useState<EmployeeFilterState>(emptyEmployeeFilters)
 
@@ -46,26 +49,20 @@ export function OrgStructurePage({ embedded = false }: { embedded?: boolean }) {
 
   useEffect(() => {
     getWorkAreas().then(setAreas).catch(() => setAreas([]))
-    getStations().then(setStations).catch(() => setStations([]))
+    getFactoryOrgUnits({ includeInactive: true }).then(setOrgUnits).catch(() => setOrgUnits([]))
   }, [])
-
-  const stationWorkAreas = useMemo(
-    () => workAreasFromStations(stations, areas),
-    [stations, areas]
-  )
 
   const filtered = useMemo(() => {
     const term = filters.search.trim().toLowerCase()
     return employees.filter(e => {
       if (term && !e.fullName.toLowerCase().includes(term) && !e.employeeCode.toLowerCase().includes(term)) return false
       if (filters.role && e.jobRole !== filters.role) return false
-      if (filters.department && e.department !== filters.department) return false
-      if (filters.workAreaId && e.workAreaId !== filters.workAreaId) return false
+      if (!employeeMatchesOrgFilter(e.factoryOrgUnitId, filters.factoryOrgUnitId, orgUnits)) return false
       if (filters.status === 'active' && !e.isActive) return false
       if (filters.status === 'inactive' && e.isActive) return false
       return true
     })
-  }, [employees, filters])
+  }, [employees, filters, orgUnits])
 
   function flash(msg: string) {
     setSuccess(msg)
@@ -172,7 +169,7 @@ export function OrgStructurePage({ embedded = false }: { embedded?: boolean }) {
 
         {!embedded && !canManage && <p className="mt-3 text-xs text-amber-300">{t('org.noPerm')}</p>}
         <div className={embedded ? '' : 'mt-4'}>
-          <EmployeeFilters value={filters} onChange={setFilters} areas={stationWorkAreas} />
+          <EmployeeFilters value={filters} onChange={setFilters} orgUnits={orgUnits} />
         </div>
       </div>
 
@@ -182,7 +179,9 @@ export function OrgStructurePage({ embedded = false }: { embedded?: boolean }) {
       <div className="card-industrial overflow-hidden">
         <div className="border-b border-slate-800 px-4 py-3 text-sm text-slate-400">{t('org.count', { n: filtered.length })}</div>
         {view === 'table' && (
-          <EmployeeTable employees={filtered} canEdit={canUpdate} canToggle={canUpdate || canDelete} onEdit={openEdit} onToggleActive={setToggleTarget} />
+          <ExportableTable filename="employees" title={t('org.title')} rowCount={filtered.length}>
+            <EmployeeTable employees={filtered} canEdit={canUpdate} canToggle={canUpdate || canDelete} onEdit={openEdit} onToggleActive={setToggleTarget} />
+          </ExportableTable>
         )}
         {view === 'chart' && <EmployeeOrgChart employees={filtered} />}
 
@@ -196,8 +195,7 @@ export function OrgStructurePage({ embedded = false }: { embedded?: boolean }) {
         open={formOpen}
         editing={editing}
         employees={employees}
-        areas={areas}
-        stations={stations}
+        orgUnits={orgUnits}
         busy={saving}
         onClose={() => setFormOpen(false)}
         onSubmit={submitForm}

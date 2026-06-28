@@ -137,7 +137,6 @@ export function WarehouseFeedingPlanTab({ warehouses, models, stations, canManag
     <div className="space-y-4">
       {canManage && (
         <WarehouseIplImportPanel
-          models={models}
           onImported={() => setIplRefreshKey(k => k + 1)}
           notify={notify}
         />

@@ -45,10 +45,10 @@ export function EngineeringHomePage() {
       canStations && {
         key: 'stations',
         title: t('nav.stations'),
-        description: t('hub.engineering.stationsDesc'),
+        description: t('settings.tabs.stations'),
         icon: Wrench,
         tone: 'text-amber-300 bg-amber-500/15',
-        onClick: () => go({ department: 'engineering', engineeringPage: 'stations' })
+        onClick: () => go({ department: 'production', productionPage: 'settings', settingsTab: 'stations' })
       },
       canLineBalancing && {
         key: 'lineBalancing',

@@ -6,6 +6,7 @@ import { useMyOrgScope } from '../../hooks/useMyOrgScope'
 import { ConfirmDialog } from '../ConfirmDialog'
 import { Field, inputCls } from '../FormField'
 import { MissionFormModal } from './MissionFormModal'
+import { ExportableTable } from '../ExportableTable'
 import {
   createTeamMission,
   deleteTeamMission,
@@ -245,7 +246,9 @@ export function MissionsBoardTab({ onChanged }: Props) {
       {success && <div className="rounded-xl border border-emerald-500/30 bg-emerald-500/10 p-3 text-sm text-emerald-200">{success}</div>}
       {error && !setupRequired && <div className="rounded-xl border border-red-500/30 bg-red-500/10 p-3 text-sm text-red-200">{error}</div>}
 
-      <div className="card-industrial overflow-x-auto">
+      <div className="card-industrial overflow-hidden">
+        <ExportableTable filename="missions" title={t('missions.title')} rowCount={filtered.length}>
+        <div className="overflow-x-auto">
         <table className="w-full text-center text-sm">
           <thead className="bg-slate-950/90">
             <tr>
@@ -254,7 +257,7 @@ export function MissionsBoardTab({ onChanged }: Props) {
               <th className={`${cell} font-black text-slate-400`}>{t('missions.cols.priority')}</th>
               <th className={`${cell} font-black text-slate-400`}>{t('missions.cols.dueDate')}</th>
               <th className={`${cell} font-black text-slate-400`}>{t('missions.cols.status')}</th>
-              {canAssignMissions && <th className={`${cell} font-black text-slate-400`}>{t('common.actions')}</th>}
+              {canAssignMissions && <th data-export-skip className={`${cell} font-black text-slate-400`}>{t('common.actions')}</th>}
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-800">
@@ -317,7 +320,7 @@ export function MissionsBoardTab({ onChanged }: Props) {
                     )}
                   </td>
                   {canAssignMissions && (
-                    <td className={cell}>
+                    <td data-export-skip className={cell}>
                       <div className="flex items-center justify-center gap-1">
                         <button type="button" onClick={() => openEdit(row)} className="rounded-lg bg-slate-800 p-2 text-cyan-300 hover:bg-slate-700">
                           <Pencil className="h-4 w-4" />
@@ -333,6 +336,8 @@ export function MissionsBoardTab({ onChanged }: Props) {
             )}
           </tbody>
         </table>
+        </div>
+        </ExportableTable>
       </div>
 
       <MissionFormModal

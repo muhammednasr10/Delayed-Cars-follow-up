@@ -117,7 +117,6 @@ export async function getBomItems(filters: BomListFilters = {}): Promise<BomList
 
   const { data, error, count } = await q
     .order('station_sort_order', { ascending: true, nullsFirst: false })
-    .order('station_code_text', { ascending: true })
     .order('part_number', { ascending: true })
     .range(from, to)
   if (error) throw new Error(error.message)

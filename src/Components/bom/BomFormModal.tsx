@@ -12,7 +12,7 @@ import {
 import { getStations, getVehicleModels } from '../../services/settingsService'
 import { BomModelCardsEditor } from './BomModelCardsEditor'
 import { BomStopperExclusionsEditor } from './BomStopperExclusionsEditor'
-import { cardsFromBomRow, cardsFromBomRows, type ModelCardDraft } from '../../Utils/bomModelCards'
+import { cardsFromBomRow, cardsFromBomRows, syncModelCardsWithFamilies, type ModelCardDraft } from '../../Utils/bomModelCards'
 import { DEFAULT_PART_KIND, DEFAULT_SUPPLY_SOURCE } from '../../Utils/bomDefaults'
 import { effectiveBomStopperType } from '../../Utils/bomStopper'
 import type { BomStopperType } from '../../Types/engineering'
@@ -42,7 +42,6 @@ export function BomFormModal({ mode, itemId, editItemIds, open, defaultVehicleMo
   const [stopperType, setStopperType] = useState<BomStopperType>('non_stopper')
   const [exclusions, setExclusions] = useState<StopperExclusionEntry[]>([])
   const [familyIds, setFamilyIds] = useState<string[]>([])
-  const [selectedModelIds, setSelectedModelIds] = useState<string[]>([])
   const [cards, setCards] = useState<ModelCardDraft[]>([])
 
   useEffect(() => {
@@ -65,8 +64,7 @@ export function BomFormModal({ mode, itemId, editItemIds, open, defaultVehicleMo
             if (m) {
               const fids = m.parent_model_id ? [m.parent_model_id] : []
               setFamilyIds(fids)
-              setSelectedModelIds([m.id])
-              setCards([
+              const initial = syncModelCardsWithFamilies(vm, fids, [
                 {
                   modelId: m.id,
                   modelName: m.name,
@@ -82,14 +80,13 @@ export function BomFormModal({ mode, itemId, editItemIds, open, defaultVehicleMo
                   station_category: ''
                 }
               ])
+              setCards(initial)
             } else {
               setFamilyIds([])
-              setSelectedModelIds([])
               setCards([])
             }
           } else {
             setFamilyIds([])
-            setSelectedModelIds([])
             setCards([])
           }
         })
@@ -111,7 +108,6 @@ export function BomFormModal({ mode, itemId, editItemIds, open, defaultVehicleMo
           setStopperType(effectiveBomStopperType(row))
           const parsed = valid.length > 1 ? cardsFromBomRows(vm, valid) : cardsFromBomRow(vm, row)
           setFamilyIds(parsed.familyIds)
-          setSelectedModelIds(parsed.cards.map(c => c.modelId))
           setCards(parsed.cards)
           try {
             const entries = await loadStopperExclusionEntries(row.id)
@@ -130,8 +126,13 @@ export function BomFormModal({ mode, itemId, editItemIds, open, defaultVehicleMo
       setError(t('bom.partNameRequired'))
       return
     }
-    if (cards.length === 0) {
+    const activeCards = cards.filter(c => Number(c.qty) > 0)
+    if (activeCards.length === 0) {
       setError(t('bom.modelRequired'))
+      return
+    }
+    if (!activeCards[0]?.part_number.trim()) {
+      setError(t('bom.partNumberRequired'))
       return
     }
     setSaving(true)
@@ -220,10 +221,8 @@ export function BomFormModal({ mode, itemId, editItemIds, open, defaultVehicleMo
             models={models}
             stations={stations}
             familyIds={familyIds}
-            selectedModelIds={selectedModelIds}
             cards={cards}
             onFamilyIdsChange={setFamilyIds}
-            onSelectedModelIdsChange={setSelectedModelIds}
             onCardsChange={setCards}
           />
 

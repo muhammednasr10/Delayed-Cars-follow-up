@@ -22,8 +22,6 @@ function previewCell(
       })
     case 'vehicle_model':
       return row.applicableModels.join(', ') || row.qtyByModel[0]?.model || ''
-    case 'bom_classification':
-      return row.bomClassification
     case 'station_code':
       return row.stationCode
     case 'qty_by_model':
@@ -50,7 +48,7 @@ export function BomExcelPreviewTable({ rows, maxRows = 40 }: { rows: ParsedBomRo
           <tr className="text-slate-500">
             {BOM_PARTS_DISPLAY_COLUMNS.map(c => (
               <th key={c} className="p-2 text-start whitespace-nowrap">
-                {c === 'vehicle_model' ? t('bom.model') : t(`bom.col.${c}`)}
+                {c === 'vehicle_model' ? t('bom.col.vehicle_model') : t(`bom.col.${c}`)}
               </th>
             ))}
           </tr>

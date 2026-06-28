@@ -33,7 +33,8 @@ import type { MissingPartDetail, MissingPartFilters } from '../../Types/missingP
 import { MissingPartsToolbar, type ListTab } from '../../Components/missingParts/MissingPartsToolbar'
 import { MissingPartsTable } from '../../Components/missingParts/MissingPartsTable'
 import { MissingPartsSummaryTab } from '../../Components/missingParts/MissingPartsSummaryTab'
-import { applyFilters, isSchemaMissing } from '../../Utils/missingPartPageUtils'
+import { applyFilters, isSchemaMissing, openVehicleShortageLines, remainingInstallLineCount } from '../../Utils/missingPartPageUtils'
+import { ConfirmDialog } from '../../Components/ConfirmDialog'
 
 export function MissingPartsPage() {
   const { t } = useLang()
@@ -59,16 +60,25 @@ export function MissingPartsPage() {
   const [completingVehicleId, setCompletingVehicleId] = useState<string | null>(null)
   const [selectedVehicleIds, setSelectedVehicleIds] = useState<Set<string>>(new Set())
   const [bulkInstalling, setBulkInstalling] = useState(false)
+  const [completeTarget, setCompleteTarget] = useState<MissingPartDetail | null>(null)
+
+  function editableMembers(row: MissingPartDetail) {
+    const members = reportGroupMembers(row, filtered)
+    return listTab === 'history' ? members : members.filter(p => p.status !== 'closed' && p.status !== 'cancelled')
+  }
 
   function vehicleContext(row: MissingPartDetail): VehicleIssuesContext {
-    const parts = filtered.filter(p => p.vehicleId === row.vehicleId && p.status !== 'closed' && p.status !== 'cancelled')
+    const parts = filtered.filter(
+      p => p.vehicleId === row.vehicleId && (listTab === 'history' || (p.status !== 'closed' && p.status !== 'cancelled'))
+    )
     return {
       vehicleId: row.vehicleId,
       vin: row.vin,
       modelName: row.modelName,
       colorName: row.colorName,
       colorHex: row.colorHex,
-      parts
+      parts,
+      allowArchived: listTab === 'history'
     }
   }
 
@@ -86,7 +96,7 @@ export function MissingPartsPage() {
   }
 
   function openEdit(row: MissingPartDetail) {
-    const members = reportGroupMembers(row, filtered).filter(p => p.status !== 'closed' && p.status !== 'cancelled')
+    const members = editableMembers(row)
     if (members.length === 0) return
     if (isReportGroup(row, filtered) && row.reportGroupId) {
       setEditGroup({
@@ -95,7 +105,8 @@ export function MissingPartsPage() {
         colorName: row.colorName,
         colorHex: row.colorHex,
         stationId: row.stationId,
-        parts: members
+        parts: members,
+        allowArchived: listTab === 'history'
       })
       setEditVehicle(null)
     } else {
@@ -233,13 +244,18 @@ export function MissingPartsPage() {
     }
   }
 
-  async function completeVehicle(row: MissingPartDetail) {
-    if (!window.confirm(t('mp.completeConfirm', { vin: row.vin }))) return
-    setCompletingVehicleId(row.vehicleId)
+  function requestCompleteVehicle(row: MissingPartDetail) {
+    setCompleteTarget(row)
+  }
+
+  async function confirmCompleteVehicle() {
+    if (!completeTarget) return
+    setCompletingVehicleId(completeTarget.vehicleId)
     setError('')
     try {
-      await completeVehicleShortage(row.vehicleId)
-      showSuccess(t('mp.completeSuccess', { vin: row.vin }))
+      await completeVehicleShortage(completeTarget.vehicleId)
+      setCompleteTarget(null)
+      showSuccess(t('mp.completeSuccess', { vin: completeTarget.vin }))
       void load()
     } catch (err) {
       setError(err instanceof Error ? err.message : t('common.error'))
@@ -247,6 +263,10 @@ export function MissingPartsPage() {
       setCompletingVehicleId(null)
     }
   }
+
+  const completeRemaining = completeTarget
+    ? remainingInstallLineCount(openVehicleShortageLines(completeTarget.vehicleId, items))
+    : 0
 
   if (setupRequired) return <SetupRequired detail={error} />
 
@@ -339,7 +359,7 @@ export function MissingPartsPage() {
             onEdit={openEdit}
             onUpdate={openUpdate}
             onDeleteParts={parts => void removeParts(parts)}
-            onComplete={row => void completeVehicle(row)}
+            onComplete={requestCompleteVehicle}
           />
         )}
       </div>
@@ -351,6 +371,24 @@ export function MissingPartsPage() {
       <VinListModal vins={vinList?.vins ?? null} modelName={vinList?.modelName} colorName={vinList?.colorName} onClose={() => setVinList(null)} />
       <MissingPartDetailModal part={detailTarget} onClose={() => setDetailTarget(null)} />
       <VehicleNotesModal target={notesTarget} onClose={() => setNotesTarget(null)} />
+
+      <ConfirmDialog
+        open={Boolean(completeTarget)}
+        title={completeRemaining > 0 ? t('mp.completePartialTitle') : t('mp.complete')}
+        message={
+          completeTarget
+            ? completeRemaining > 0
+              ? t('mp.completePartialMessage', { vin: completeTarget.vin, n: completeRemaining })
+              : t('mp.completeConfirm', { vin: completeTarget.vin })
+            : ''
+        }
+        confirmLabel={completeRemaining > 0 ? t('mp.completePartialYes') : t('common.confirm')}
+        cancelLabel={completeRemaining > 0 ? t('mp.completePartialNo') : t('common.cancel')}
+        tone="default"
+        busy={completingVehicleId === completeTarget?.vehicleId}
+        onConfirm={() => void confirmCompleteVehicle()}
+        onCancel={() => setCompleteTarget(null)}
+      />
     </section>
   )
 }

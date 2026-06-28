@@ -2,6 +2,9 @@ import { supabase } from '../lib/supabase'
 import type { AssignmentStatus } from '../Types/employee'
 import type { Employee, EmployeeInput } from '../Types/employee'
 import { JOB_ROLES, type JobRole, type ResponsibleDepartment } from '../Types/enums'
+import type { FactoryOrgUnit } from '../Types/factoryOrg'
+import { getFactoryOrgUnits } from './factoryOrgService'
+import { orgPathFromLeaf, orgPathLabel } from '../Utils/employeeOrgPicker'
 
 function requireClient() {
   if (!supabase) throw new Error('Supabase is not configured. Check .env')
@@ -17,6 +20,7 @@ type EmployeeRow = {
   work_area_id: string | null
   station_id: string | null
   line_name: string | null
+  factory_org_unit_id: string | null
   direct_manager_id: string | null
   profile_id: string | null
   phone: string | null
@@ -54,12 +58,18 @@ function sortEmployees(list: Employee[]): Employee[] {
   return [...list].sort(compareEmployees)
 }
 
-function mapRow(row: EmployeeRow, byId: Map<string, EmployeeRow>, managerIds: string[]): Employee {
+function mapRow(
+  row: EmployeeRow,
+  byId: Map<string, EmployeeRow>,
+  managerIds: string[],
+  orgUnits: FactoryOrgUnit[]
+): Employee {
   const manager = row.direct_manager_id ? byId.get(row.direct_manager_id) : null
   const managerNames = managerIds
     .map(id => byId.get(id)?.full_name)
     .filter((name): name is string => Boolean(name))
   const station = row.stations
+  const orgPath = orgPathFromLeaf(row.factory_org_unit_id, orgUnits)
   return {
     id: row.id,
     employeeCode: row.employee_code,
@@ -71,6 +81,8 @@ function mapRow(row: EmployeeRow, byId: Map<string, EmployeeRow>, managerIds: st
     stationId: row.station_id,
     stationLabel: station ? `${station.station_number} - ${station.station_name}` : null,
     lineName: row.line_name,
+    factoryOrgUnitId: row.factory_org_unit_id,
+    orgUnitLabel: orgPathLabel(orgPath, orgUnits),
     directManagerId: managerIds[0] ?? row.direct_manager_id,
     directManagerName: managerNames[0] ?? (manager ? manager.full_name : null),
     directManagerIds: managerIds,
@@ -90,7 +102,10 @@ function mapRow(row: EmployeeRow, byId: Map<string, EmployeeRow>, managerIds: st
 
 export async function getEmployees(): Promise<Employee[]> {
   const client = requireClient()
-  const { data, error } = await client.from('employees').select(SELECT)
+  const [{ data, error }, orgUnits] = await Promise.all([
+    client.from('employees').select(SELECT),
+    getFactoryOrgUnits({ includeInactive: true })
+  ])
 
   if (error) throw new Error(error.message)
   const rows = (data ?? []) as EmployeeRow[]
@@ -114,7 +129,7 @@ export async function getEmployees(): Promise<Employee[]> {
     rows.map(r => {
       const managerIds =
         managersByEmployee.get(r.id) ?? (r.direct_manager_id ? [r.direct_manager_id] : [])
-      return mapRow(r, byId, managerIds)
+      return mapRow(r, byId, managerIds, orgUnits)
     })
   )
 }
@@ -147,10 +162,11 @@ function toPayload(input: EmployeeInput): Record<string, unknown> {
     employee_code: input.employeeCode.trim(),
     full_name: input.fullName.trim(),
     job_role: input.jobRole,
-    department: input.department || null,
-    work_area_id: input.workAreaId || null,
-    station_id: input.stationId || null,
-    line_name: input.lineName?.trim() || null,
+    department: null,
+    work_area_id: null,
+    station_id: null,
+    line_name: null,
+    factory_org_unit_id: input.factoryOrgUnitId || null,
     direct_manager_id: primaryManagerId,
     phone: input.phone?.trim() || null,
     email: input.email?.trim() || null,

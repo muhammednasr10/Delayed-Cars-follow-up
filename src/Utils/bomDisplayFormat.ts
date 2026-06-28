@@ -19,6 +19,9 @@ export function formatPartKind(raw: string | null | undefined): string {
   ) {
     return 'hardware'
   }
+  if (s === 'PL' || s === 'PLASTICS' || s === 'PLASTIC' || s.includes('PLAST')) {
+    return 'plastics'
+  }
   return 'other'
 }
 
@@ -26,7 +29,9 @@ export function partKindLabel(raw: string | null | undefined, t: (k: string) => 
   const kind = formatPartKind(raw)
   if (kind === 'part') return t('bom.partKindPart')
   if (kind === 'hardware') return t('bom.partKindHardware')
-  return t('bom.partKindPart')
+  if (kind === 'plastics') return t('bom.partKindPlastics')
+  const trimmed = String(raw ?? '').trim()
+  return trimmed || t('bom.partKindPart')
 }
 
 /** CKD column → CKD or Local */

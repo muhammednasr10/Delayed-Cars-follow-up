@@ -23,7 +23,7 @@ type Row = {
   notes: string | null
   created_at: string
   updated_at: string
-  employees?: { full_name: string; employee_code: string } | { full_name: string; employee_code: string }[] | null
+  assignee?: { full_name: string; employee_code: string } | { full_name: string; employee_code: string }[] | null
   team_mission_assignees?: AssigneeRow[] | null
 }
 
@@ -47,7 +47,7 @@ function mapAssignees(rows: AssigneeRow[] | null | undefined): MissionPerson[] {
 function mapRow(row: Row): TeamMission {
   const assignees = mapAssignees(row.team_mission_assignees)
   const primary = assignees[0]
-  const emp = relOne(row.employees)
+  const emp = relOne(row.assignee)
   return {
     id: row.id,
     title: row.title,
@@ -83,10 +83,10 @@ function toPayload(input: TeamMissionInput) {
 
 const SELECT = `
   *,
-  employees(full_name, employee_code),
+  assignee:employees!team_missions_assignee_id_fkey(full_name, employee_code),
   team_mission_assignees(
     employee_id,
-    employees(full_name, employee_code)
+    employees!team_mission_assignees_employee_id_fkey(full_name, employee_code)
   )
 `
 

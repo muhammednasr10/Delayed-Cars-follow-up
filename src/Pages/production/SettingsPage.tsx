@@ -1,52 +1,40 @@
-import { useEffect, useRef, useState, type ReactNode } from 'react'
-import { Boxes, Car, ListChecks, MapPin, Palette, RefreshCcw, Settings, Users, Building2 } from 'lucide-react'
+import { useEffect, useRef, useState } from 'react'
+import { RefreshCcw, Settings } from 'lucide-react'
 import { useCanAccessSettings } from '../../hooks/useCanAccessSettings'
 import { useNavigation } from '../../Context/NavigationContext'
-import { getAllVehicleColors, getVehicleModels, getWorkAreas } from '../../services/settingsService'
-import type { VehicleColor, VehicleModel, WorkArea } from '../../Types/settings'
+import { getAllVehicleColors, getVehicleModels } from '../../services/settingsService'
+import { getFactoryOrgUnits } from '../../services/factoryOrgService'
+import type { FactoryOrgUnit } from '../../Types/factoryOrg'
+import type { VehicleColor, VehicleModel } from '../../Types/settings'
+import { SETTINGS_TAB_ORDER, type SettingsTab } from '../../Types/navigation'
 import { UsersPermissionsPanel } from '../../Components/permissions/UsersPermissionsPanel'
-import { getMpDepartmentOptions, getMpReasonOptions } from '../../services/mpLookupService'
-import type { MpLookupOption } from '../../Types/mpLookup'
 import { supabase } from '../../lib/supabase'
 import { ModelsHierarchySection } from '../../Components/ModelsHierarchySection'
+import { FactoryOrgHierarchySection } from '../../Components/FactoryOrgHierarchySection'
 import { StationsSection, type StationsSectionHandle } from '../../Components/StationsSection'
-import {
-  SettingsAreasTab,
-  SettingsColorsTab,
-  SettingsDepartmentsTab,
-  SettingsReasonsTab
-} from '../../Components/settings/SettingsLookupTabs'
-import { PageTabShell } from '../../Components/layout/PageTabShell'
+import { SettingsColorsTab } from '../../Components/settings/SettingsLookupTabs'
 import { useLang } from '../../i18n/LanguageContext'
 
-type TabKey = 'models' | 'stations' | 'colors' | 'areas' | 'reasons' | 'departments' | 'users'
-
-const tabConfig: { key: TabKey; icon: ReactNode }[] = [
-  { key: 'models', icon: <Car className="h-4 w-4" /> },
-  { key: 'stations', icon: <MapPin className="h-4 w-4" /> },
-  { key: 'colors', icon: <Palette className="h-4 w-4" /> },
-  { key: 'areas', icon: <Boxes className="h-4 w-4" /> },
-  { key: 'reasons', icon: <ListChecks className="h-4 w-4" /> },
-  { key: 'departments', icon: <Building2 className="h-4 w-4" /> },
-  { key: 'users', icon: <Users className="h-4 w-4" /> }
-]
-
-const crudTabs: TabKey[] = ['models', 'stations', 'areas', 'colors', 'reasons', 'departments']
+const crudTabs: SettingsTab[] = ['administrations', 'models', 'stations', 'colors']
 
 export function SettingsPage() {
   const { t } = useLang()
   const { canAccess: canAccessSettings } = useCanAccessSettings()
   const stationsRef = useRef<StationsSectionHandle>(null)
-  const { settingsTab: activeTab, setSettingsTab: setActiveTab } = useNavigation()
+  const { settingsTab: activeTab, setSettingsTab } = useNavigation()
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const [success, setSuccess] = useState('')
 
   const [models, setModels] = useState<VehicleModel[]>([])
-  const [areas, setAreas] = useState<WorkArea[]>([])
+  const [orgUnits, setOrgUnits] = useState<FactoryOrgUnit[]>([])
   const [colors, setColors] = useState<VehicleColor[]>([])
-  const [reasonOptions, setReasonOptions] = useState<MpLookupOption[]>([])
-  const [departmentOptions, setDepartmentOptions] = useState<MpLookupOption[]>([])
+
+  useEffect(() => {
+    if (!SETTINGS_TAB_ORDER.includes(activeTab)) {
+      setSettingsTab('administrations')
+    }
+  }, [activeTab, setSettingsTab])
 
   async function loadAll() {
     if (!supabase) {
@@ -56,18 +44,14 @@ export function SettingsPage() {
     setLoading(true)
     setError('')
     try {
-      const [modelsData, areasData, colorsData, reasonsData, departmentsData] = await Promise.all([
+      const [modelsData, orgUnitsData, colorsData] = await Promise.all([
         getVehicleModels(),
-        getWorkAreas(),
-        getAllVehicleColors(),
-        getMpReasonOptions(false),
-        getMpDepartmentOptions(false)
+        getFactoryOrgUnits({ includeInactive: true }),
+        getAllVehicleColors()
       ])
       setModels(modelsData)
-      setAreas(areasData)
+      setOrgUnits(orgUnitsData)
       setColors(colorsData)
-      setReasonOptions(reasonsData)
-      setDepartmentOptions(departmentsData)
     } catch (err) {
       setError(err instanceof Error ? err.message : t('common.error'))
     } finally {
@@ -124,32 +108,49 @@ export function SettingsPage() {
     ) : null
 
   return (
-    <PageTabShell
-      title={t('settings.title')}
-      subtitle={t('settings.subtitle')}
-      icon={<Settings className="h-6 w-6" />}
-      tabs={tabConfig.map(tab => ({ key: tab.key, label: t(`settings.tabs.${tab.key}`), icon: tab.icon }))}
-      activeTab={activeTab}
-      onTabChange={setActiveTab}
-      headerExtra={
-        crudTabs.includes(activeTab) ? (
-          <button type="button" onClick={refreshActiveTab} className="rounded-xl bg-slate-800 px-4 py-2 text-sm font-bold text-slate-100 hover:bg-slate-700">
-            <RefreshCcw className="mr-1 inline h-4 w-4" /> {t('common.refresh')}
-          </button>
-        ) : undefined
-      }
-      message={feedback}
-    >
+    <section className="space-y-4">
+      <div className="card-industrial p-3 sm:p-4">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex items-center gap-3">
+            <div className="rounded-xl bg-cyan-500/15 p-3 text-cyan-300">
+              <Settings className="h-6 w-6" />
+            </div>
+            <div>
+              <h2 className="text-lg font-black text-white">{t('settings.title')}</h2>
+              <p className="text-sm text-slate-400">
+                {t(`settings.tabs.${activeTab}`)} — {t('settings.subtitle')}
+              </p>
+            </div>
+          </div>
+          {crudTabs.includes(activeTab) && (
+            <button
+              type="button"
+              onClick={refreshActiveTab}
+              className="rounded-xl bg-slate-800 px-4 py-2 text-sm font-bold text-slate-100 hover:bg-slate-700"
+            >
+              <RefreshCcw className="mr-1 inline h-4 w-4" /> {t('common.refresh')}
+            </button>
+          )}
+        </div>
+      </div>
+
+      {feedback}
+      {activeTab === 'administrations' && (
+        <FactoryOrgHierarchySection
+          units={orgUnits}
+          busy={loading}
+          onChanged={loadAll}
+          onError={setError}
+          onSuccess={showSuccess}
+        />
+      )}
       {activeTab === 'models' && (
         <ModelsHierarchySection models={models} busy={loading} onChanged={loadAll} onError={setError} onSuccess={showSuccess} />
       )}
       {activeTab === 'stations' && (
         <StationsSection ref={stationsRef} canManage sectionTitle={t('settings.tabs.stations')} onError={setError} onSuccess={showSuccess} />
       )}
-      {activeTab === 'areas' && <SettingsAreasTab areas={areas} busy={loading} runAction={runAction} />}
       {activeTab === 'colors' && <SettingsColorsTab colors={colors} busy={loading} runAction={runAction} />}
-      {activeTab === 'reasons' && <SettingsReasonsTab reasonOptions={reasonOptions} busy={loading} runAction={runAction} />}
-      {activeTab === 'departments' && <SettingsDepartmentsTab departmentOptions={departmentOptions} busy={loading} runAction={runAction} />}
       {activeTab === 'users' && (
         <UsersPermissionsPanel
           notify={(m, err) => {
@@ -161,6 +162,6 @@ export function SettingsPage() {
           }}
         />
       )}
-    </PageTabShell>
+    </section>
   )
 }

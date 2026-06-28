@@ -1,4 +1,4 @@
-import { ChevronDown, Settings } from 'lucide-react'
+import { ChevronDown, Home, Settings } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import { DEPARTMENTS, departmentAccentClass } from '../../config/departments'
 import { useLang } from '../../i18n/LanguageContext'
@@ -7,6 +7,15 @@ import { useDepartmentNavPages } from '../../hooks/useDepartmentNavPages'
 import type { DepartmentId } from '../../Types/navigation'
 
 const IMPLEMENTED_DEPARTMENTS = new Set<DepartmentId>(['production', 'engineering', 'warehouses'])
+const DEPT_COLLAPSE_KEY = 'nav.departmentsOpen'
+
+function readDepartmentsOpen(): boolean {
+  try {
+    return localStorage.getItem(DEPT_COLLAPSE_KEY) !== 'false'
+  } catch {
+    return true
+  }
+}
 
 export function DepartmentTopBar() {
   const { t } = useLang()
@@ -14,6 +23,15 @@ export function DepartmentTopBar() {
   const { pagesForDepartment, isPageActive, selectDepartment, settingsPage, currentDepartment, showProfile } =
     useDepartmentNavPages()
   const [expandedPage, setExpandedPage] = useState<string | null>(null)
+  const [departmentsOpen, setDepartmentsOpen] = useState(readDepartmentsOpen)
+
+  useEffect(() => {
+    try {
+      localStorage.setItem(DEPT_COLLAPSE_KEY, String(departmentsOpen))
+    } catch {
+      /* ignore */
+    }
+  }, [departmentsOpen])
 
   useEffect(() => {
     if (!expandedPage) return
@@ -24,10 +42,14 @@ export function DepartmentTopBar() {
     return () => document.removeEventListener('click', onDocClick)
   }, [expandedPage])
 
-  const isSettingsActive = !showProfile && nav.department === 'production' && nav.productionPage === 'settings'
+  const isGlobalHomeActive = !showProfile && nav.showGlobalHome
+  const isSettingsActive = !showProfile && !nav.showGlobalHome && nav.department === 'production' && nav.productionPage === 'settings'
   const sectionPages = pagesForDepartment(currentDepartment).filter(p => p.visible)
   const hasSectionPages =
-    !isSettingsActive && IMPLEMENTED_DEPARTMENTS.has(currentDepartment) && sectionPages.length > 0
+    !isGlobalHomeActive &&
+    !isSettingsActive &&
+    IMPLEMENTED_DEPARTMENTS.has(currentDepartment) &&
+    sectionPages.length > 0
   const settingsTabs = settingsPage.visible ? settingsPage.children ?? [] : []
 
   function openSettings() {
@@ -35,44 +57,74 @@ export function DepartmentTopBar() {
     settingsPage.onNavigate()
   }
 
+  function toggleDepartments() {
+    setDepartmentsOpen(open => !open)
+  }
+
   return (
     <div className="sticky top-0 z-30 -mx-1 rounded-2xl border border-slate-700/70 bg-slate-950/95 p-2 shadow-lg shadow-black/25 backdrop-blur-md sm:-mx-0 sm:p-3">
       <div className="space-y-2">
         <div>
-          <p className="mb-1.5 px-1 text-[10px] font-black uppercase tracking-widest text-slate-500">{t('departments.sectionLabel')}</p>
-          <div className="flex gap-1.5 overflow-x-auto pb-0.5 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-            {DEPARTMENTS.map(dept => {
-              const Icon = dept.icon
-              const active = !showProfile && !isSettingsActive && currentDepartment === dept.id
-              return (
-                <button
-                  key={dept.id}
-                  type="button"
-                  onClick={() => selectDepartment(dept.id)}
-                  className={`flex shrink-0 items-center gap-1.5 rounded-xl px-2.5 py-2.5 text-xs font-black transition sm:px-3 sm:text-sm ${departmentAccentClass(dept.accent, active)}`}
-                  title={t(`departments.${dept.id}`)}
-                >
-                  <Icon className="h-4 w-4 shrink-0" />
-                  <span className="hidden sm:inline">{t(`departments.${dept.id}`)}</span>
-                </button>
-              )
-            })}
-            {settingsPage.visible && (
+          <button
+            type="button"
+            onClick={toggleDepartments}
+            className="mb-1.5 flex w-full items-center justify-between gap-2 rounded-lg px-1 py-0.5 text-start transition hover:bg-slate-800/50"
+            aria-expanded={departmentsOpen}
+          >
+            <p className="text-[10px] font-black uppercase tracking-widest text-slate-500">{t('departments.sectionLabel')}</p>
+            <ChevronDown className={`h-4 w-4 shrink-0 text-slate-500 transition-transform ${departmentsOpen ? '' : '-rotate-90'}`} />
+          </button>
+
+          {departmentsOpen && (
+            <div className="flex gap-1.5 overflow-x-auto pb-0.5 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
               <button
                 type="button"
-                onClick={openSettings}
+                onClick={() => nav.openGlobalHome()}
                 className={`flex shrink-0 items-center gap-1.5 rounded-xl px-2.5 py-2.5 text-xs font-black transition sm:px-3 sm:text-sm ${
-                  isSettingsActive
-                    ? 'bg-emerald-500 text-slate-950 shadow-lg shadow-emerald-900/30'
+                  isGlobalHomeActive
+                    ? 'bg-white text-slate-950 shadow-lg shadow-white/10'
                     : 'bg-slate-800 text-slate-300 hover:bg-slate-700 hover:text-white'
                 }`}
-                title={t('nav.settings')}
+                title={t('nav.globalHome')}
               >
-                <Settings className="h-4 w-4 shrink-0" />
-                <span className="hidden sm:inline">{t('nav.settings')}</span>
+                <Home className="h-4 w-4 shrink-0" />
+                <span className="hidden sm:inline">{t('nav.globalHome')}</span>
               </button>
-            )}
-          </div>
+
+              {DEPARTMENTS.map(dept => {
+                const Icon = dept.icon
+                const active = !showProfile && !isGlobalHomeActive && !isSettingsActive && currentDepartment === dept.id
+                return (
+                  <button
+                    key={dept.id}
+                    type="button"
+                    onClick={() => selectDepartment(dept.id)}
+                    className={`flex shrink-0 items-center gap-1.5 rounded-xl px-2.5 py-2.5 text-xs font-black transition sm:px-3 sm:text-sm ${departmentAccentClass(dept.accent, active)}`}
+                    title={t(`departments.${dept.id}`)}
+                  >
+                    <Icon className="h-4 w-4 shrink-0" />
+                    <span className="hidden sm:inline">{t(`departments.${dept.id}`)}</span>
+                  </button>
+                )
+              })}
+
+              {settingsPage.visible && (
+                <button
+                  type="button"
+                  onClick={openSettings}
+                  className={`flex shrink-0 items-center gap-1.5 rounded-xl px-2.5 py-2.5 text-xs font-black transition sm:px-3 sm:text-sm ${
+                    isSettingsActive
+                      ? 'bg-emerald-500 text-slate-950 shadow-lg shadow-emerald-900/30'
+                      : 'bg-slate-800 text-slate-300 hover:bg-slate-700 hover:text-white'
+                  }`}
+                  title={t('nav.settings')}
+                >
+                  <Settings className="h-4 w-4 shrink-0" />
+                  <span className="hidden sm:inline">{t('nav.settings')}</span>
+                </button>
+              )}
+            </div>
+          )}
         </div>
 
         {isSettingsActive && settingsTabs.length > 0 && (

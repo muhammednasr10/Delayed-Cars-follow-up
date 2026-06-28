@@ -2,16 +2,13 @@ import { useEffect, useMemo, useState, type ReactNode } from 'react'
 import { Users } from 'lucide-react'
 import { useLang } from '../i18n/LanguageContext'
 import { Modal } from './Modal'
+import { EmployeeOrgUnitPicker } from './EmployeeOrgUnitPicker'
 import { ALLOWED_MANAGER_ROLES, JOB_ROLES } from '../Types/enums'
-import type { JobRole, ResponsibleDepartment } from '../Types/enums'
+import type { JobRole } from '../Types/enums'
 import { ASSIGNMENT_STATUSES, type AssignmentStatus, type Employee, type EmployeeInput } from '../Types/employee'
-import type { Station, WorkArea } from '../Types/settings'
-import { normalizeProductionLine, PRODUCTION_LINE_KEYS } from '../Utils/productionLines'
-import { formatStationSettingsLabel, resolveMasterStation, stationsFromSettings } from '../Utils/stationsFromSettings'
-import { workAreasFromStations } from '../Utils/workAreasFromStations'
+import type { FactoryOrgUnit } from '../Types/factoryOrg'
 import { isEmployeeCodeTaken } from '../Utils/employeeCode'
-
-const DEPARTMENTS: ResponsibleDepartment[] = ['warehouse', 'purchasing', 'production', 'quality', 'supplier', 'management']
+import { orgPathFromLeaf, orgPathLeaf } from '../Utils/employeeOrgPicker'
 
 export type EmployeeFormSubmitResult =
   | { ok: true }
@@ -21,8 +18,7 @@ type Props = {
   open: boolean
   editing: Employee | null
   employees: Employee[]
-  areas: WorkArea[]
-  stations: Station[]
+  orgUnits: FactoryOrgUnit[]
   busy: boolean
   onClose: () => void
   onSubmit: (input: EmployeeInput) => Promise<EmployeeFormSubmitResult>
@@ -32,10 +28,7 @@ type FormState = {
   employeeCode: string
   fullName: string
   jobRole: JobRole | ''
-  department: string
-  workAreaId: string
-  stationId: string
-  lineName: string
+  orgPath: string[]
   directManagerIds: string[]
   phone: string
   email: string
@@ -45,9 +38,16 @@ type FormState = {
 }
 
 const emptyState: FormState = {
-  employeeCode: '', fullName: '', jobRole: '', department: '', workAreaId: '',
-  stationId: '', lineName: '', directManagerIds: [], phone: '', email: '', notes: '',
-  assignmentStatus: '', isActive: true
+  employeeCode: '',
+  fullName: '',
+  jobRole: '',
+  orgPath: [],
+  directManagerIds: [],
+  phone: '',
+  email: '',
+  notes: '',
+  assignmentStatus: '',
+  isActive: true
 }
 
 function fromEmployee(e: Employee): FormState {
@@ -55,10 +55,7 @@ function fromEmployee(e: Employee): FormState {
     employeeCode: e.employeeCode,
     fullName: e.fullName,
     jobRole: e.jobRole,
-    department: e.department ?? '',
-    workAreaId: e.workAreaId ?? '',
-    stationId: e.stationId ?? '',
-    lineName: normalizeProductionLine(e.lineName),
+    orgPath: orgPathFromLeaf(e.factoryOrgUnitId, []),
     directManagerIds: e.directManagerIds.length > 0 ? e.directManagerIds : (e.directManagerId ? [e.directManagerId] : []),
     phone: e.phone ?? '',
     email: e.email ?? '',
@@ -70,41 +67,26 @@ function fromEmployee(e: Employee): FormState {
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
 
-export function EmployeeForm({ open, editing, employees, areas, stations, busy, onClose, onSubmit }: Props) {
+export function EmployeeForm({ open, editing, employees, orgUnits, busy, onClose, onSubmit }: Props) {
   const { t } = useLang()
   const [form, setForm] = useState<FormState>(emptyState)
   const [errors, setErrors] = useState<Record<string, string>>({})
 
-  const workAreaOptions = useMemo(
-    () => workAreasFromStations(stations, areas, editing?.workAreaId),
-    [stations, areas, editing?.workAreaId]
-  )
-
-  const stationOptions = useMemo(
-    () =>
-      stationsFromSettings(stations, {
-        workAreaId: form.workAreaId || null,
-        includeStationId: editing?.stationId
-      }),
-    [stations, form.workAreaId, editing?.stationId]
-  )
+  const unitsById = useMemo(() => new Map(orgUnits.map(u => [u.id, u])), [orgUnits])
 
   useEffect(() => {
     if (!open) return
     if (editing) {
       const next = fromEmployee(editing)
-      if (next.stationId) {
-        const current = stations.find(s => s.id === next.stationId)
-        if (current) next.stationId = resolveMasterStation(current, stations).id
-      }
+      next.orgPath = orgPathFromLeaf(editing.factoryOrgUnitId, orgUnits)
       setForm(next)
     } else {
       setForm(emptyState)
     }
     setErrors({})
-  }, [open, editing, stations])
+  }, [open, editing, orgUnits])
 
-  function set(key: keyof FormState, value: string | boolean) {
+  function set(key: keyof Omit<FormState, 'orgPath'>, value: string | boolean) {
     setForm(prev => ({ ...prev, [key]: value }))
     setErrors(prev => {
       if (!prev[key]) return prev
@@ -114,8 +96,6 @@ export function EmployeeForm({ open, editing, employees, areas, stations, busy, 
     })
   }
 
-  // Managers must be active, not the employee being edited, and (when a role is
-  // chosen) hold an allowed parent role per the hierarchy rules.
   const allowedRoles = form.jobRole ? ALLOWED_MANAGER_ROLES[form.jobRole] : []
   const managerOptions = employees.filter(e => {
     if (!e.isActive) return false
@@ -142,9 +122,7 @@ export function EmployeeForm({ open, editing, employees, areas, stations, busy, 
   function validate(): EmployeeInput | null {
     const e: Record<string, string> = {}
     if (!form.employeeCode.trim()) e.employeeCode = t('org.err.codeRequired')
-    else if (
-      isEmployeeCodeTaken(form.employeeCode, employees, editing?.id)
-    ) {
+    else if (isEmployeeCodeTaken(form.employeeCode, employees, editing?.id)) {
       e.employeeCode = t('org.err.duplicateCode')
     }
     if (!form.fullName.trim()) e.fullName = t('org.err.nameRequired')
@@ -168,10 +146,11 @@ export function EmployeeForm({ open, editing, employees, areas, stations, busy, 
       employeeCode: form.employeeCode,
       fullName: form.fullName,
       jobRole: form.jobRole as JobRole,
-      department: (form.department || null) as ResponsibleDepartment | null,
-      workAreaId: form.workAreaId || null,
-      stationId: form.stationId || null,
-      lineName: form.lineName || null,
+      department: null,
+      workAreaId: null,
+      stationId: null,
+      lineName: null,
+      factoryOrgUnitId: orgPathLeaf(form.orgPath),
       directManagerIds: form.directManagerIds,
       phone: form.phone || null,
       email: form.email || null,
@@ -189,6 +168,11 @@ export function EmployeeForm({ open, editing, employees, areas, stations, busy, 
       setErrors(prev => ({ ...prev, ...result.fieldErrors }))
     }
   }
+
+  const orgPreview = form.orgPath
+    .map(id => unitsById.get(id)?.name)
+    .filter((name): name is string => Boolean(name))
+    .join(' / ')
 
   return (
     <Modal
@@ -220,7 +204,7 @@ export function EmployeeForm({ open, editing, employees, areas, stations, busy, 
               {JOB_ROLES.map(r => <option key={r} value={r}>{t(`jobRole.${r}`)}</option>)}
             </select>
           </Field>
-          <Field label={t('org.f.assignmentStatus')} hint={t('org.f.assignmentStatusHint')}>
+          <Field label={t('org.f.assignmentStatus')} hint={t('org.f.assignmentStatusHint')} hintAfter>
             <select className={cls()} value={form.assignmentStatus} onChange={e => set('assignmentStatus', e.target.value)}>
               <option value="">—</option>
               {ASSIGNMENT_STATUSES.map(s => (
@@ -237,49 +221,19 @@ export function EmployeeForm({ open, editing, employees, areas, stations, busy, 
         </Section>
 
         <Section title={t('org.steps.location')}>
-          <Field label={t('org.f.department')}>
-            <select className={cls()} value={form.department} onChange={e => set('department', e.target.value)}>
-              <option value="">—</option>
-              {DEPARTMENTS.map(d => <option key={d} value={d}>{t(`department.${d}`)}</option>)}
-            </select>
-          </Field>
-          <Field label={t('org.f.workArea')}>
-            <select className={cls()} value={form.workAreaId} onChange={e => {
-              const workAreaId = e.target.value
-              setForm(prev => ({
-                ...prev,
-                workAreaId,
-                stationId: prev.stationId && stationsFromSettings(stations, { workAreaId: workAreaId || null }).some(s => s.id === prev.stationId)
-                  ? prev.stationId
-                  : ''
-              }))
-              setErrors(prev => {
-                if (!prev.workAreaId) return prev
-                const next = { ...prev }
-                delete next.workAreaId
-                return next
-              })
-            }}>
-              <option value="">—</option>
-              {workAreaOptions.map(a => <option key={a.id} value={a.id}>{a.name}</option>)}
-            </select>
-          </Field>
-          <Field label={t('org.f.line')}>
-            <select className={cls()} value={form.lineName} onChange={e => set('lineName', e.target.value)}>
-              <option value="">—</option>
-              {PRODUCTION_LINE_KEYS.map(line => (
-                <option key={line} value={line}>{t(`productionLine.${line}`)}</option>
-              ))}
-            </select>
-          </Field>
-          <Field label={t('org.f.station')}>
-            <select className={cls()} value={form.stationId} onChange={e => set('stationId', e.target.value)}>
-              <option value="">—</option>
-              {stationOptions.map(s => (
-                <option key={s.id} value={s.id}>{formatStationSettingsLabel(s)}</option>
-              ))}
-            </select>
-          </Field>
+          <div className="sm:col-span-2 space-y-3">
+            <p className="text-xs text-slate-500">{t('org.f.orgUnitsHint')}</p>
+            <EmployeeOrgUnitPicker
+              units={orgUnits}
+              path={form.orgPath}
+              onChange={orgPath => setForm(prev => ({ ...prev, orgPath }))}
+            />
+            {orgPreview && (
+              <p className="rounded-xl border border-slate-700 bg-slate-900/50 px-3 py-2 text-sm text-slate-300">
+                {orgPreview}
+              </p>
+            )}
+          </div>
           <div className="sm:col-span-2">
             <Field label={t('org.f.managers')} error={errors.directManagerId} hint={t('org.f.managersHint')}>
               <div className={`max-h-44 overflow-y-auto rounded-xl border bg-slate-900/50 p-2 space-y-1 ${errors.directManagerId ? 'border-red-500/60' : 'border-slate-700'}`}>
@@ -340,12 +294,13 @@ function Section({ title, children }: { title: string; children: ReactNode }) {
   )
 }
 
-function Field({ label, required, error, hint, children }: { label: string; required?: boolean; error?: string; hint?: string; children: ReactNode }) {
+function Field({ label, required, error, hint, hintAfter, children }: { label: string; required?: boolean; error?: string; hint?: string; hintAfter?: boolean; children: ReactNode }) {
   return (
     <label className="block space-y-1.5">
       <span className="text-sm font-bold text-slate-300">{label}{required && <span className="text-red-400"> *</span>}</span>
-      {hint && <span className="block text-xs text-slate-500">{hint}</span>}
+      {hint && !hintAfter && <span className="block text-xs text-slate-500">{hint}</span>}
       {children}
+      {hint && hintAfter && <span className="block text-xs text-slate-500">{hint}</span>}
       {error && <span className="block text-xs font-semibold text-red-400">{error}</span>}
     </label>
   )

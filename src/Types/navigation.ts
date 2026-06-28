@@ -36,7 +36,9 @@ export type TrainingTab =
   | 'qualification'
   | 'expiry'
 
-export type SettingsTab = 'models' | 'stations' | 'colors' | 'areas' | 'reasons' | 'departments' | 'users'
+export const SETTINGS_TAB_ORDER = ['administrations', 'models', 'stations', 'colors', 'users'] as const
+
+export type SettingsTab = (typeof SETTINGS_TAB_ORDER)[number]
 
 export type ProductivityTab = 'orders' | 'entry' | 'exit' | 'stops' | 'workDays'
 

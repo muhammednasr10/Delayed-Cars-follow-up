@@ -5,7 +5,7 @@ import { useCanAccessSettings } from './useCanAccessSettings'
 import { useCanViewPage } from './useCanViewPage'
 import { pagePermForEngineering, pagePermForProduction, pagePermForWarehouses } from '../config/pageAccess'
 import { useNavigation } from '../Context/NavigationContext'
-import type { DepartmentId } from '../Types/navigation'
+import { SETTINGS_TAB_ORDER, type DepartmentId } from '../Types/navigation'
 
 export type NavPageChild = { key: string; label: string; onClick: () => void }
 
@@ -27,8 +27,6 @@ export function useDepartmentNavPages() {
   const navLoading = permsLoading || pagesLoading
 
   const canShowEngineeringIpl = canAccessSettings || canViewPage(pagePermForEngineering('ipl'))
-  const canShowEngineeringStations =
-    canAccessSettings || navLoading || canViewPage(pagePermForEngineering('stations'))
   const canShowLineBalancing = navLoading || canViewPage(pagePermForEngineering('lineBalancing'))
 
   const go = nav.navigate
@@ -134,8 +132,8 @@ export function useDepartmentNavPages() {
       key: 'settings',
       label: t('nav.settings'),
       visible: canViewPage(pagePermForProduction('settings')),
-      onNavigate: () => navTo({ department: 'production', productionPage: 'settings', settingsTab: 'models' }),
-      children: (['models', 'stations', 'colors', 'areas', 'reasons', 'departments', 'users'] as const).map(key => ({
+      onNavigate: () => navTo({ department: 'production', productionPage: 'settings', settingsTab: 'administrations' }),
+      children: SETTINGS_TAB_ORDER.map(key => ({
         key,
         label: t(`settings.tabs.${key}`),
         onClick: () => navTo({ department: 'production', productionPage: 'settings', settingsTab: key })
@@ -164,12 +162,6 @@ export function useDepartmentNavPages() {
         }))
       },
       {
-        key: 'stations',
-        label: t('nav.stations'),
-        visible: canShowEngineeringStations,
-        onNavigate: () => navTo({ department: 'engineering', engineeringPage: 'stations' })
-      },
-      {
         key: 'lineBalancing',
         label: t('nav.lineBalancing'),
         visible: canShowLineBalancing,
@@ -181,7 +173,7 @@ export function useDepartmentNavPages() {
         }))
       }
     ],
-    [canShowEngineeringIpl, canShowEngineeringStations, canShowLineBalancing, canViewPage, navLoading, navTo, t]
+    [canShowEngineeringIpl, canShowLineBalancing, canViewPage, navLoading, navTo, t]
   )
 
   const warehousesPages = useMemo<NavPageItem[]>(

@@ -14,13 +14,13 @@ import { VehiclesProvider } from './Context/VehiclesContext'
 import { LanguageProvider, useLang } from './i18n/LanguageContext'
 import { AppSidebar } from './Components/AppSidebar'
 import { DepartmentTopBar } from './Components/layout/DepartmentTopBar'
+import { HeaderNotificationsBell } from './Components/layout/HeaderNotificationsBell'
 import { HomePage } from './Pages/production/HomePage'
 import { MissingPartsPage } from './Pages/production/MissingPartsPage'
 import { TrainingMatrixPage } from './Pages/production/TrainingMatrixPage'
 import { SettingsPage } from './Pages/production/SettingsPage'
 import { BomPage } from './Pages/engineering/BomPage'
 import { LineBalancingPage } from './Pages/engineering/LineBalancingPage'
-import { StationsPage } from './Pages/engineering/StationsPage'
 import { ProductivityPage } from './Pages/production/ProductivityPage'
 import { DamagedPartsPage } from './Pages/production/DamagedPartsPage'
 import { MissionsPage } from './Pages/production/MissionsPage'
@@ -28,6 +28,7 @@ import { RequestsPage } from './Pages/production/RequestsPage'
 import { ScratchesPage } from './Pages/production/ScratchesPage'
 import { EquipmentPage } from './Pages/production/EquipmentPage'
 import { FeedbackPage } from './Pages/production/FeedbackPage'
+import { GlobalHomePage } from './Pages/shared/GlobalHomePage'
 import { LoginPage } from './Pages/shared/LoginPage'
 import { MyProfilePage } from './Pages/shared/MyProfilePage'
 import { DepartmentPlaceholderPage } from './Pages/shared/DepartmentPlaceholderPage'
@@ -60,6 +61,12 @@ function Shell() {
     }
   }, [canAccessSettings, nav.productionPage, nav.setProductionPage])
 
+  useEffect(() => {
+    if (nav.department === 'engineering' && nav.engineeringPage === 'stations') {
+      nav.navigate({ department: 'production', productionPage: 'settings', settingsTab: 'stations', showGlobalHome: false })
+    }
+  }, [nav.department, nav.engineeringPage, nav.navigate])
+
   if (!configured) {
     return (
       <main className="grid min-h-screen place-items-center bg-slate-950 px-4 text-slate-100">
@@ -83,8 +90,6 @@ function Shell() {
 
   const navLoading = permsLoading || pagesLoading
   const canShowEngineeringIpl = canAccessSettings || canViewPage(pagePermForEngineering('ipl'))
-  const canShowEngineeringStations =
-    canAccessSettings || navLoading || canViewPage(pagePermForEngineering('stations'))
 
   return (
     <VehiclesProvider>
@@ -111,6 +116,7 @@ function Shell() {
             </div>
 
             <div className="flex w-full flex-wrap items-center justify-end gap-2 sm:w-auto">
+              <HeaderNotificationsBell />
               <button onClick={toggle} className="touch-target rounded-xl bg-slate-800 px-3 py-2 text-sm font-bold text-slate-200 hover:bg-slate-700">
                 <Languages className="inline h-4 w-4 sm:me-1" /> <span>{lang === 'ar' ? 'EN' : 'عربي'}</span>
               </button>
@@ -145,16 +151,18 @@ function Shell() {
 
           {nav.showProfile && <MyProfilePage onBack={() => nav.closeProfile()} />}
 
-          {!nav.showProfile && nav.department !== 'production' && nav.department !== 'engineering' && nav.department !== 'warehouses' && (
+          {!nav.showProfile && nav.showGlobalHome && <GlobalHomePage />}
+
+          {!nav.showProfile && !nav.showGlobalHome && nav.department !== 'production' && nav.department !== 'engineering' && nav.department !== 'warehouses' && (
             <DepartmentPlaceholderPage
               department={nav.department}
               onOpenProduction={() => nav.selectDepartment('production')}
             />
           )}
 
-          {!nav.showProfile && nav.department === 'warehouses' && <WarehousesPage />}
+          {!nav.showProfile && !nav.showGlobalHome && nav.department === 'warehouses' && <WarehousesPage />}
 
-          {!nav.showProfile && nav.department === 'production' && (
+          {!nav.showProfile && !nav.showGlobalHome && nav.department === 'production' && (
             <>
               {nav.productionPage === 'home' && (navLoading || canViewPage(pagePermForProduction('home'))) && <HomePage />}
               {nav.productionPage === 'missing' && (navLoading || canViewPage(pagePermForProduction('missing'))) && <MissingPartsPage />}
@@ -170,16 +178,12 @@ function Shell() {
             </>
           )}
 
-          {!nav.showProfile && nav.department === 'engineering' && (
+          {!nav.showProfile && !nav.showGlobalHome && nav.department === 'engineering' && (
             <>
               {nav.engineeringPage === 'home' && <EngineeringHomePage />}
               {nav.engineeringPage === 'ipl' && canShowEngineeringIpl && <BomPage />}
-              {nav.engineeringPage === 'stations' && canShowEngineeringStations && <StationsPage />}
               {nav.engineeringPage === 'lineBalancing' && (navLoading || canViewPage(pagePermForEngineering('lineBalancing'))) && <LineBalancingPage />}
               {nav.engineeringPage === 'ipl' && !canShowEngineeringIpl && (
-                <DepartmentPlaceholderPage department="engineering" onOpenProduction={() => nav.selectDepartment('production')} />
-              )}
-              {nav.engineeringPage === 'stations' && !canShowEngineeringStations && (
                 <DepartmentPlaceholderPage department="engineering" onOpenProduction={() => nav.selectDepartment('production')} />
               )}
             </>

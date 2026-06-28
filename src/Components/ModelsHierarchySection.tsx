@@ -154,7 +154,7 @@ export function ModelsHierarchySection({ models, busy, onChanged, onError, onSuc
           <FamilyBlock
             key={g.family.id}
             group={g}
-            expanded={expanded[g.family.id] !== false}
+            expanded={expanded[g.family.id] === true}
             onToggle={() => toggleExpand(g.family.id)}
             onAddVariant={() => openAddVariant(g.family.id)}
             onEdit={openEdit}

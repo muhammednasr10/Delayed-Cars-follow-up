@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react'
 import { Package, Search } from 'lucide-react'
 import { useLang } from '../../i18n/LanguageContext'
 import { EmptyState } from '../EmptyState'
+import { ExportableTable } from '../ExportableTable'
 import { getModelPartInventory } from '../../services/warehouseService'
 import type { ModelPartInventory, Warehouse } from '../../Types/warehouse'
 import type { VehicleModel } from '../../Types/settings'
@@ -143,6 +144,7 @@ export function WarehouseCurrentStockTab({ warehouses, models }: Props) {
         ) : rows.length === 0 ? (
           <EmptyState title={t('warehouses.stock.empty')} hint={t('warehouses.stock.emptyHint')} />
         ) : (
+          <ExportableTable filename="warehouse-stock" title={t('warehouses.tabs.currentStock')} rowCount={rows.length}>
           <div className="overflow-x-auto">
             <table className="w-full min-w-[900px] text-start text-sm">
               <thead className="bg-slate-950/90">
@@ -188,6 +190,7 @@ export function WarehouseCurrentStockTab({ warehouses, models }: Props) {
               </tbody>
             </table>
           </div>
+          </ExportableTable>
         )}
       </div>
     </div>

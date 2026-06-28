@@ -2,7 +2,17 @@ import type { ParsedBomRow, BomImportValidation } from '../Types/bom'
 import { normalizeSupplySource } from './bomDisplayFormat'
 import { sanitizePartNameEn } from './partNameEn'
 import { normalizePartNumber, parseQtyByModel } from './partNumberNormalize'
-import { isT4IplSpreadsheet, parseT4IplSpreadsheetRows } from './t4IplImportParser'
+import {
+  isIplMasterWorkbook,
+  mergeBomImportValidations,
+  parseIplSheetRows,
+  type IplSheetSummary,
+  type WorkbookIplValidation
+} from './iplImportParser'
+
+export { isIplMasterWorkbook, type IplSheetSummary, type WorkbookIplValidation } from './iplImportParser'
+
+const SKIP_SHEET = /^(readme|summary|cover|index|instructions|ملخص|تعليمات|فهرس)$/i
 
 const HEADER_ALIASES: Record<string, string[]> = {
   model_family: ['model_family', 'model family', 'عائلة الموديل', 'model_family'],
@@ -109,10 +119,8 @@ export function parseBomSpreadsheetRows(rows: string[][], sheetName?: string): B
   const headerIdx = findBestHeaderRowIndex(rows)
   const headerRow = rows[headerIdx] ?? rows[0]
 
-  const forceT4 = sheetName != null && /ipl.*t4|t4.*ipl/i.test(sheetName)
-  if (forceT4 || isT4IplSpreadsheet(headerRow)) {
-    return parseT4IplSpreadsheetRows(rows, headerIdx)
-  }
+  const ipl = parseIplSheetRows(rows, sheetName ?? '', headerIdx)
+  if (ipl) return ipl
 
   const col = mapHeaders(headerRow)
   const dataStart = headerIdx + 1
@@ -214,4 +222,27 @@ export function parseBomSpreadsheetRows(rows: string[][], sheetName?: string): B
       skippedNoQty: 0
     }
   }
+}
+
+export function parseWorkbookIplSheets(sheets: { sheetName: string; rows: string[][] }[]): WorkbookIplValidation {
+  const summaries: IplSheetSummary[] = []
+  const validations: BomImportValidation[] = []
+
+  for (const { sheetName, rows } of sheets) {
+    if (SKIP_SHEET.test(sheetName.trim()) || rows.length < 2 || !rows.some(r => r.some(c => String(c).trim()))) {
+      summaries.push({ sheetName, rowCount: 0, skipped: true, skipReason: 'empty' })
+      continue
+    }
+
+    const parsed = parseBomSpreadsheetRows(rows, sheetName)
+    if (parsed.rows.length === 0) {
+      summaries.push({ sheetName, rowCount: 0, skipped: true, skipReason: 'no_rows' })
+      continue
+    }
+
+    validations.push(parsed)
+    summaries.push({ sheetName, rowCount: parsed.rows.length, skipped: false })
+  }
+
+  return { sheets: summaries, validation: mergeBomImportValidations(validations) }
 }

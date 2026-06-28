@@ -19,10 +19,10 @@ export function EmployeeTable({ employees, canEdit, canToggle, onEdit, onToggleA
       <table className="w-full min-w-[1000px] text-start">
         <thead className="bg-slate-950/90">
           <tr>
-            {['code', 'name', 'role', 'assignmentStatus', 'department', 'workArea', 'manager', 'contact', 'status'].map(c => (
+            {['code', 'name', 'role', 'assignmentStatus', 'orgUnit', 'manager', 'contact', 'status'].map(c => (
               <th key={c} className="table-cell text-xs font-black uppercase text-slate-400">{t(`org.f.${c === 'contact' ? 'phone' : c}`)}</th>
             ))}
-            {(canEdit || canToggle) && <th className="table-cell text-xs font-black uppercase text-slate-400">{t('common.actions')}</th>}
+            {(canEdit || canToggle) && <th data-export-skip className="table-cell text-xs font-black uppercase text-slate-400">{t('common.actions')}</th>}
           </tr>
         </thead>
         <tbody className="divide-y divide-slate-800">
@@ -34,8 +34,7 @@ export function EmployeeTable({ employees, canEdit, canToggle, onEdit, onToggleA
               <td className="table-cell text-slate-300">
                 {e.assignmentStatus ? t(`org.assignmentStatus.${e.assignmentStatus}`) : '-'}
               </td>
-              <td className="table-cell text-slate-300">{e.department ? t(`department.${e.department}`) : '-'}</td>
-              <td className="table-cell text-slate-300">{e.workAreaName ?? '-'}</td>
+              <td className="table-cell text-slate-300">{e.orgUnitLabel ?? '-'}</td>
               <td className="table-cell text-slate-300">
                 {e.directManagerNames.length > 0 ? e.directManagerNames.join('، ') : t('org.f.noManager')}
               </td>
@@ -48,7 +47,7 @@ export function EmployeeTable({ employees, canEdit, canToggle, onEdit, onToggleA
               </td>
               <td className="table-cell"><ActiveBadge active={e.isActive} /></td>
               {(canEdit || canToggle) && (
-                <td className="table-cell">
+                <td data-export-skip className="table-cell">
                   <div className="flex gap-2">
                     {canEdit && (
                       <button onClick={() => onEdit(e)} title={t('org.edit')} className="rounded-lg bg-orange-500/15 p-2 text-orange-200 hover:bg-orange-500/25">

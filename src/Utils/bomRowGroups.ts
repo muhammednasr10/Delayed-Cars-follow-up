@@ -120,7 +120,7 @@ function buildSummary(primary: BomItemDetail, variants: BomVariantLine[], classB
 function buildGroup(key: string, rows: BomItemDetail[]): BomDisplayGroup {
   const primary = pickPrimary(rows)
   const variants = rows.length === 1 ? variantsFromSingleRow(rows[0]) : variantsFromRows(rows)
-  const classByPartNumber = formatClassByPartNumberGroups(variants)
+  const classByPartNumber = formatClassByPartNumberGroups(variants.filter(v => v.qty > 0))
   const summary = buildSummary(primary, variants, classByPartNumber)
   return {
     key,

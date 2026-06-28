@@ -1,17 +1,12 @@
-import type { BomPartsDisplayColumn } from './bomPartsColumns'
+import type { BomMainRowColumn, BomPartsDisplayColumn } from './bomPartsColumns'
 
-export const BOM_COMPACT_HEADER_COLS = new Set<BomPartsDisplayColumn>([
-  'qty_by_model',
+export const BOM_COMPACT_HEADER_COLS = new Set<BomMainRowColumn | BomPartsDisplayColumn>([
   'station_code',
   'operation',
-  'part_kind',
-  'supply_source',
-  'vehicle_model',
-  'bom_classification',
-  'part_number'
+  'vehicle_model'
 ])
 
-export function bomColumnLabelKey(c: BomPartsDisplayColumn, compact: boolean): string {
-  if (c === 'vehicle_model') return compact ? 'bom.modelShort' : 'bom.model'
+export function bomColumnLabelKey(c: BomMainRowColumn | BomPartsDisplayColumn, compact: boolean): string {
+  if (c === 'vehicle_model') return compact ? 'bom.colShort.vehicle_model' : 'bom.col.vehicle_model'
   return compact ? `bom.colShort.${c}` : `bom.col.${c}`
 }

@@ -7,6 +7,7 @@ import { StatCard } from '../../Components/StatCard'
 import { NewVehicleEntryForm } from '../../Components/NewVehicleEntryForm'
 import { EditVehicleEntryModal } from '../../Components/EditVehicleEntryModal'
 import { SetupRequired } from '../../Components/SetupRequired'
+import { ExportableTable } from '../../Components/ExportableTable'
 import {
   DeliveryBadge
 } from '../../Components/VehicleBadges'
@@ -147,6 +148,11 @@ export function VehiclesPage({ mode = 'exit' }: Props) {
         {error && !setupRequired && <div className="m-4 rounded-xl border border-red-500/30 bg-red-500/10 p-3 text-sm text-red-200">{error}</div>}
         {actionError && <div className="m-4 rounded-xl border border-red-500/30 bg-red-500/10 p-3 text-sm text-red-200">{actionError}</div>}
 
+        <ExportableTable
+          filename={mode === 'entry' ? 'vehicles-entry' : 'vehicles-exit'}
+          title={t('vehicles.title')}
+          rowCount={filtered.length}
+        >
         <div className="overflow-x-auto">
           {mode === 'entry' ? (
             <table className="w-full min-w-[720px] text-sm">
@@ -157,7 +163,7 @@ export function VehiclesPage({ mode = 'exit' }: Props) {
                   <th className={`${entryCell} text-xs font-black uppercase text-slate-400`}>{t('vehicles.cols.vin')}</th>
                   <th className={`${entryCell} text-xs font-black uppercase text-slate-400`}>{t('vehicles.cols.po')}</th>
                   {canManage && (
-                    <th className={`${entryCell} text-xs font-black uppercase text-slate-400`}>{t('common.actions')}</th>
+                    <th data-export-skip className={`${entryCell} text-xs font-black uppercase text-slate-400`}>{t('common.actions')}</th>
                   )}
                 </tr>
               </thead>
@@ -185,7 +191,7 @@ export function VehiclesPage({ mode = 'exit' }: Props) {
                       {resolveProductionOrderLabel(v, productionOrders)}
                     </td>
                     {canManage && (
-                      <td className={entryCell}>
+                      <td data-export-skip className={entryCell}>
                         <div className="flex items-center justify-center gap-2">
                           <button
                             type="button"
@@ -222,7 +228,7 @@ export function VehiclesPage({ mode = 'exit' }: Props) {
                     </th>
                   ))}
                   {canRelease && (
-                    <th className={`${entryCell} text-xs font-black uppercase text-slate-400`}>{t('common.actions')}</th>
+                    <th data-export-skip className={`${entryCell} text-xs font-black uppercase text-slate-400`}>{t('common.actions')}</th>
                   )}
                 </tr>
               </thead>
@@ -256,7 +262,7 @@ export function VehiclesPage({ mode = 'exit' }: Props) {
                       <DeliveryBadge status={v.deliveryStatus} />
                     </td>
                     {canRelease && (
-                      <td className={entryCell}>
+                      <td data-export-skip className={entryCell}>
                         <div className="flex items-center justify-center gap-2">
                           {v.deliveryStatus === 'blocked' && (
                             <button
@@ -294,6 +300,7 @@ export function VehiclesPage({ mode = 'exit' }: Props) {
         {!loading && filtered.length === 0 && (
           <div className="p-8 text-center text-slate-400">{t('common.noResults')}</div>
         )}
+        </ExportableTable>
       </div>
 
       <EditVehicleEntryModal vehicle={editingVehicle} onClose={() => setEditingVehicle(null)} />

@@ -1,5 +1,5 @@
 import type { BomItemDetail } from '../Types/bom'
-import { formatClassificationShort, resolveSupplySource } from './bomDisplayFormat'
+import { resolveSupplySource } from './bomDisplayFormat'
 import { effectivePartKind, effectiveSupplySource } from './bomDefaults'
 import { resolvePartNameEn } from './partNameEn'
 import { effectiveBomStopperType } from './bomStopper'
@@ -21,9 +21,7 @@ export function bomPartsCellValue(row: BomItemDetail, col: BomPartsDisplayColumn
     case 'part_name_en':
       return resolvePartNameEn(row)
     case 'vehicle_model':
-      return row.vehicle_model_name || row.applicable_models_text || row.model_family || ''
-    case 'bom_classification':
-      return formatClassificationShort(row.bom_classification)
+      return row.bom_classification || row.applicable_models_text || row.vehicle_model_name || row.model_family || ''
     case 'station_code':
       return displayBomStationCode(row.station_code_text || row.station_number || '')
     case 'operation': {

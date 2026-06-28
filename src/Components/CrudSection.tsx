@@ -1,8 +1,9 @@
-import { useState, type ReactNode } from 'react'
+import { useState, type ReactNode, useRef } from 'react'
 import { Pencil, Plus, Trash2 } from 'lucide-react'
 import { useLang } from '../i18n/LanguageContext'
 import { Modal } from './Modal'
 import { ConfirmDialog } from './ConfirmDialog'
+import { TableExportButtons } from './TableExportButtons'
 
 export type CrudValues = Record<string, string>
 
@@ -16,7 +17,12 @@ export type CrudField = {
   defaultValue?: string
 }
 
-export type CrudColumn<T> = { header: string; render: (item: T) => ReactNode; className?: string }
+export type CrudColumn<T> = {
+  header: string
+  render: (item: T) => ReactNode
+  className?: string
+  exportValue?: (item: T) => string
+}
 
 export type CrudSectionProps<T> = {
   title: string
@@ -68,6 +74,7 @@ export function CrudSection<T>({
   renderWizard
 }: CrudSectionProps<T>) {
   const { t } = useLang()
+  const tableRef = useRef<HTMLDivElement>(null)
   const [formOpen, setFormOpen] = useState(false)
   const [editingId, setEditingId] = useState<string | null>(null)
   const [values, setValues] = useState<CrudValues>(emptyValues(fields))
@@ -148,7 +155,13 @@ export function CrudSection<T>({
         )}
       </div>
 
-      <div className="overflow-x-auto">
+      {items.length > 0 && (
+        <div className="flex justify-end border-b border-slate-800/70 bg-slate-950/40 px-4 py-2">
+          <TableExportButtons containerRef={tableRef} filename={title} title={title} />
+        </div>
+      )}
+
+      <div ref={tableRef} className="overflow-x-auto">
         <table className="w-full min-w-[600px] text-start">
           <thead className="bg-slate-950">
             <tr>
@@ -158,7 +171,7 @@ export function CrudSection<T>({
                 </th>
               ))}
               {canManage && (
-                <th className="table-cell text-center text-xs font-black uppercase text-slate-400">{t('common.actions')}</th>
+                <th data-export-skip className="table-cell text-center text-xs font-black uppercase text-slate-400">{t('common.actions')}</th>
               )}
             </tr>
           </thead>
@@ -178,7 +191,7 @@ export function CrudSection<T>({
                     </td>
                   ))}
                   {canManage && (
-                    <td className="table-cell text-center">
+                    <td data-export-skip className="table-cell text-center">
                       <div className="flex justify-center gap-2">
                         <button
                           onClick={() => openEdit(item)}

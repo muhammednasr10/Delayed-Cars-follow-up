@@ -57,7 +57,7 @@ export function EditMissingPartModal({ vehicle, onClose, onSaved }: Props) {
   const [error, setError] = useState('')
 
   const openParts =
-    vehicle?.parts.filter(p => p.status !== 'closed' && p.status !== 'cancelled') ?? []
+    vehicle?.parts.filter(p => vehicle.allowArchived || (p.status !== 'closed' && p.status !== 'cancelled')) ?? []
 
   useEffect(() => {
     if (!vehicle) {
@@ -112,7 +112,7 @@ export function EditMissingPartModal({ vehicle, onClose, onSaved }: Props) {
     setError('')
     try {
       for (const line of changed) {
-        if (!line.station?.id) {
+        if (!vehicle?.allowArchived && !line.station?.id) {
           setError(t('station.notFound'))
           return
         }
@@ -125,7 +125,7 @@ export function EditMissingPartModal({ vehicle, onClose, onSaved }: Props) {
           stopperType: line.stopperType,
           notes: line.notes
         })
-        if (line.station.id !== line.part.stationId) {
+        if (line.station?.id && line.station.id !== line.part.stationId) {
           await setVehicleStation(line.part.vehicleId, line.station.id)
         }
       }

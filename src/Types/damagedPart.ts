@@ -11,6 +11,7 @@ export type DamagedPartRecord = {
   isRepairable: boolean
   causedByEmployeeId: string | null
   causedByName: string | null
+  causingDepartment: string | null
   imagePath: string | null
   imageUrl: string | null
   notes: string | null
@@ -29,6 +30,7 @@ export type DamagedPartInput = {
   finalDecision: string
   isRepairable?: boolean
   causedByEmployeeId?: string | null
+  causingDepartment?: string | null
   imagePath?: string | null
   notes?: string | null
   reportedAt?: string

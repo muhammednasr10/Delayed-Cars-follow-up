@@ -21,6 +21,7 @@ type Row = {
   final_decision: string
   is_repairable: boolean
   caused_by_employee_id: string | null
+  causing_department: string | null
   image_path: string | null
   notes: string | null
   reported_at: string
@@ -57,6 +58,7 @@ function mapRow(row: Row): DamagedPartRecord {
     isRepairable: row.is_repairable,
     causedByEmployeeId: row.caused_by_employee_id,
     causedByName: employee?.full_name ?? null,
+    causingDepartment: row.causing_department,
     imagePath: row.image_path,
     imageUrl: damagedPartImageUrl(row.image_path),
     notes: row.notes,
@@ -79,6 +81,7 @@ function toPayload(input: DamagedPartInput) {
     final_decision: input.finalDecision,
     is_repairable: input.isRepairable ?? false,
     caused_by_employee_id: input.causedByEmployeeId || null,
+    causing_department: input.causingDepartment?.trim() || null,
     image_path: input.imagePath || null,
     notes: input.notes?.trim() || null,
     reported_at: input.reportedAt ?? new Date().toISOString().slice(0, 10)

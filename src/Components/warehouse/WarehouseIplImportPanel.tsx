@@ -1,23 +1,26 @@
 import { useState } from 'react'
-import { CheckCircle2, ChevronDown, ChevronUp, FileUp } from 'lucide-react'
+import { ChevronDown, ChevronUp, FileUp } from 'lucide-react'
 import { useLang } from '../../i18n/LanguageContext'
 import { useAuth } from '../../Context/AuthContext'
 import { usePermissions } from '../../Context/PermissionsContext'
 import { parseAllSpreadsheetSheets } from '../../Utils/parseSpreadsheet'
-import { parseWorkbookIplSheets } from '../../Utils/warehouseIplImportParser'
-import { runBomImport, type BomImportProgress } from '../../services/bomImportService'
-import type { BomImportSummary } from '../../Types/bom'
-import type { VehicleModel } from '../../Types/settings'
+import { parseWorkbookIplSheets } from '../../Utils/bomImportParser'
+import {
+  BomImportDoneCard,
+  BomImportErrorList,
+  BomIplSheetList,
+  bomImportPhaseLabel,
+  useBomImportRunner
+} from '../bom/bomImportUi'
 
 type Step = 'idle' | 'preview' | 'done'
 
 type Props = {
-  models: VehicleModel[]
   onImported: () => void
   notify: (msg: string, isError?: boolean) => void
 }
 
-export function WarehouseIplImportPanel({ models, onImported, notify }: Props) {
+export function WarehouseIplImportPanel({ onImported, notify }: Props) {
   const { t } = useLang()
   const { hasRole } = useAuth()
   const { hasPermission } = usePermissions()
@@ -27,29 +30,19 @@ export function WarehouseIplImportPanel({ models, onImported, notify }: Props) {
     hasPermission('bom', 'create') ||
     hasPermission('bom', 'manage')
 
+  const { busy, importProgress, summary, resetSummary, confirmImport } = useBomImportRunner(notify)
   const [open, setOpen] = useState(false)
   const [step, setStep] = useState<Step>('idle')
   const [file, setFile] = useState<File | null>(null)
   const [workbook, setWorkbook] = useState<ReturnType<typeof parseWorkbookIplSheets> | null>(null)
-  const [busy, setBusy] = useState(false)
-  const [importProgress, setImportProgress] = useState<BomImportProgress | null>(null)
-  const [summary, setSummary] = useState<BomImportSummary | null>(null)
 
   if (!canImport) return null
 
-  function phaseLabel(p: BomImportProgress): string {
-    if (p.phase === 'parts') return t('bom.importPhaseParts')
-    if (p.phase === 'bom') return t('bom.importPhaseBom')
-    return t('bom.importPhaseFinish')
-  }
-
   async function onPick(f: File) {
     setFile(f)
-    setSummary(null)
-    setBusy(true)
+    resetSummary()
     try {
-      const sheets = await parseAllSpreadsheetSheets(f)
-      const parsed = parseWorkbookIplSheets(sheets, models)
+      const parsed = parseWorkbookIplSheets(await parseAllSpreadsheetSheets(f))
       if (parsed.validation.rows.length === 0) {
         notify(t('warehouses.feeding.iplImportNoRows'), true)
         setStep('idle')
@@ -60,34 +53,20 @@ export function WarehouseIplImportPanel({ models, onImported, notify }: Props) {
       setStep('preview')
     } catch (e) {
       notify(e instanceof Error ? e.message : t('common.error'), true)
-    } finally {
-      setBusy(false)
     }
   }
 
-  async function confirmImport() {
+  async function confirm() {
     if (!file || !workbook?.validation.rows.length) return
-    setBusy(true)
-    setImportProgress({ phase: 'parts', done: 0, total: workbook.validation.rows.length })
-    try {
-      const sum = await runBomImport(
-        workbook.validation.rows,
-        {
-          fileName: file.name,
-          sheetName: 'ALL',
-          sourceFile: file.name
-        },
-        setImportProgress
-      )
-      setSummary(sum)
+    const ok = await confirmImport(
+      workbook.validation.rows,
+      file,
+      'ALL',
+      t('warehouses.feeding.iplImportDone')
+    )
+    if (ok) {
       setStep('done')
-      notify(t('warehouses.feeding.iplImportDone'))
       onImported()
-    } catch (e) {
-      notify(e instanceof Error ? e.message : t('common.error'), true)
-    } finally {
-      setBusy(false)
-      setImportProgress(null)
     }
   }
 
@@ -95,7 +74,7 @@ export function WarehouseIplImportPanel({ models, onImported, notify }: Props) {
     setStep('idle')
     setFile(null)
     setWorkbook(null)
-    setSummary(null)
+    resetSummary()
   }
 
   const activeSheets = workbook?.sheets.filter(s => !s.skipped) ?? []
@@ -115,7 +94,7 @@ export function WarehouseIplImportPanel({ models, onImported, notify }: Props) {
       {open && (
         <div className="space-y-3 border-t border-slate-800 px-4 pb-4 pt-3">
           <p className="text-xs text-slate-400">{t('warehouses.feeding.iplImportHint')}</p>
-          <p className="text-xs text-cyan-400/80">{t('bom.importT4Hint')}</p>
+          <p className="text-xs text-cyan-400/80">{t('bom.importIplMasterHint')}</p>
 
           {step === 'idle' && (
             <label className="flex cursor-pointer flex-col items-center gap-2 rounded-xl border border-dashed border-slate-700 bg-slate-900/40 p-6 hover:border-cyan-500/40">
@@ -148,39 +127,18 @@ export function WarehouseIplImportPanel({ models, onImported, notify }: Props) {
                 </span>
               </div>
 
-              <div className="max-h-36 overflow-y-auto rounded-xl border border-slate-800 bg-slate-950/50 p-2 text-xs">
-                {workbook.sheets.map(s => (
-                  <div key={s.sheetName} className="flex flex-wrap gap-2 border-b border-slate-800/60 py-1.5 last:border-0">
-                    <span className="font-mono text-slate-300" dir="ltr">
-                      {s.sheetName}
-                    </span>
-                    {s.skipped ? (
-                      <span className="text-slate-600">{t('warehouses.feeding.iplImportSkipped')}</span>
-                    ) : (
-                      <>
-                        {s.modelHint && (
-                          <span className="rounded bg-violet-500/15 px-1.5 text-violet-200" dir="ltr">
-                            {s.modelHint}
-                          </span>
-                        )}
-                        <span className="text-slate-500">
-                          {t('warehouses.feeding.iplImportRows', { n: s.rowCount })}
-                        </span>
-                      </>
-                    )}
-                  </div>
-                ))}
-              </div>
+              <BomIplSheetList
+                sheets={workbook.sheets}
+                skippedLabel={t('warehouses.feeding.iplImportSkipped')}
+                rowsLabel={n => t('warehouses.feeding.iplImportRows', { n })}
+              />
 
-              {workbook.validation.errors.length > 0 && (
-                <div className="max-h-28 overflow-y-auto rounded-xl border border-amber-500/30 bg-amber-500/10 p-2 text-xs text-amber-200">
-                  {workbook.validation.errors.slice(0, 15).map((e, i) => (
-                    <p key={i}>
-                      {t('bom.row')} {e.row}: {e.message}
-                    </p>
-                  ))}
-                </div>
-              )}
+              <BomImportErrorList
+                errors={workbook.validation.errors}
+                rowLabel={t('bom.row')}
+                max={15}
+                tone="amber"
+              />
 
               <div className="flex flex-wrap gap-2">
                 <button type="button" onClick={reset} className="rounded-xl bg-slate-800 px-4 py-2 text-sm font-bold text-slate-300">
@@ -191,14 +149,14 @@ export function WarehouseIplImportPanel({ models, onImported, notify }: Props) {
                     {t('bom.importProgress', {
                       done: importProgress.done,
                       total: importProgress.total,
-                      phase: phaseLabel(importProgress)
+                      phase: bomImportPhaseLabel(importProgress, t)
                     })}
                   </p>
                 )}
                 <button
                   type="button"
                   disabled={busy}
-                  onClick={() => void confirmImport()}
+                  onClick={() => void confirm()}
                   className="rounded-xl bg-cyan-500 px-5 py-2 text-sm font-black text-slate-950 disabled:opacity-50"
                 >
                   {busy ? t('common.saving') : t('warehouses.feeding.iplImportConfirm')}
@@ -208,20 +166,14 @@ export function WarehouseIplImportPanel({ models, onImported, notify }: Props) {
           )}
 
           {step === 'done' && summary && (
-            <div className="space-y-2 rounded-xl border border-emerald-500/30 bg-emerald-500/10 p-4">
-              <div className="flex items-center gap-2">
-                <CheckCircle2 className="h-5 w-5 text-emerald-400" />
-                <p className="font-black text-emerald-100">{t('warehouses.feeding.iplImportDone')}</p>
-              </div>
-              <ul className="text-xs text-emerald-200/90">
-                <li>{t('bom.sumParts', { c: summary.createdParts, u: summary.updatedParts })}</li>
-                <li>{t('bom.sumBom', { c: summary.createdBomItems, u: summary.updatedBomItems })}</li>
-                <li>{t('bom.sumErr', { n: summary.errorsCount })}</li>
-              </ul>
-              <button type="button" onClick={reset} className="rounded-lg bg-slate-800 px-3 py-1.5 text-xs font-bold text-slate-300">
-                {t('warehouses.feeding.iplImportAnother')}
-              </button>
-            </div>
+            <BomImportDoneCard
+              compact
+              summary={summary}
+              title={t('warehouses.feeding.iplImportDone')}
+              t={t}
+              onReset={reset}
+              resetLabel={t('warehouses.feeding.iplImportAnother')}
+            />
           )}
         </div>
       )}

@@ -112,15 +112,27 @@ export function resolveBomStationSortRank(
   row: Pick<BomItemDetail, 'station_sort_order' | 'station_code_text' | 'station_number'>,
   orderMap: Map<string, number>
 ): number {
-  if (row.station_sort_order != null && row.station_sort_order > 0) return row.station_sort_order
-
   const code = row.station_code_text || row.station_number || ''
   for (const key of stationCodeKeys(code)) {
     const hit = orderMap.get(key)
     if (hit != null) return hit
   }
 
+  if (row.station_sort_order != null && row.station_sort_order > 0) return row.station_sort_order
+
+  const numeric = stationCodeNumericRank(code)
+  if (numeric != null) return numeric * 10
+
   return code.trim() ? NO_STATION_RANK - 1 : NO_STATION_RANK
+}
+
+function stationCodeNumericRank(code: string): number | null {
+  const display = displayBomStationCode(code)
+  const st = display.match(/^ST-(\d+)$/i)
+  if (st) return parseInt(st[1], 10)
+  const pbs = display.match(/^PBS-(\d+)$/i)
+  if (pbs) return parseInt(pbs[1], 10)
+  return null
 }
 
 export function compareBomGroupsByStation(

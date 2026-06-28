@@ -2,11 +2,13 @@ import { supabase } from '../lib/supabase'
 import type { BomImportSummary, ParsedBomRow } from '../Types/bom'
 import { sanitizePartNameEn } from '../Utils/partNameEn'
 import { effectivePartKind, effectiveSupplySource } from '../Utils/bomDefaults'
+import { maxModelQty, isConsolidatedImportRow } from '../Utils/bomQtyByModel'
 import {
   bomImportLineKey,
   classificationToCategoryCode,
   normalizePartNumber,
   normalizeStationCode,
+  parseQtyByModel,
   resolveVehicleModelId
 } from '../Utils/partNumberNormalize'
 import type { PartUpsertInput } from './partsService'
@@ -196,17 +198,21 @@ export async function runBomImport(
       }
 
       const modelName = row.qtyByModel[0]?.model ?? row.applicableModels[0] ?? ''
-      const qty = row.qtyByModel[0]?.qty ?? 1
+      const consolidated = isConsolidatedImportRow(row)
+      const qtyEntries = consolidated
+        ? parseQtyByModel(row.qtyByModelRaw).map(e => ({ modelName: e.model, qty: e.qty }))
+        : [{ modelName, qty: row.qtyByModel[0]?.qty ?? 1 }]
+      const qty = consolidated ? maxModelQty(qtyEntries) : (row.qtyByModel[0]?.qty ?? 1)
       const stCode = normalizeStationCode(row.stationCode)
       const stationId = row.stationCode
         ? (stationMap.get(stCode) ?? stationMap.get(row.stationCode.toUpperCase()) ?? null)
         : null
-      const vehicleModelId = resolveVehicleModelId(modelName, modelMap)
-      const needsReview = !stationId || (!vehicleModelId && Boolean(modelName))
+      const vehicleModelId = consolidated ? null : resolveVehicleModelId(modelName, modelMap)
+      const needsReview = !stationId || (!consolidated && !vehicleModelId && Boolean(modelName))
       const lineKey = bomImportLineKey({
         normalizedPart: norm,
         stationCode: row.stationCode || '_',
-        modelName: modelName || '_'
+        modelName: consolidated ? '_' : modelName || '_'
       })
 
       lineKeys.push(lineKey)

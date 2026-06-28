@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { Plus } from 'lucide-react'
 import { useLang } from '../../i18n/LanguageContext'
 import { ScratchFormModal } from './ScratchFormModal'
+import { ExportableTable } from '../ExportableTable'
 import type { ScratchInput, ScratchRecord } from '../../Types/scratch'
 
 const cell = 'table-cell text-center align-middle whitespace-nowrap px-3 py-2.5'
@@ -60,7 +61,9 @@ export function ScratchesRecordTab({ items, onAdd }: Props) {
         <div className="rounded-xl border border-emerald-500/30 bg-emerald-500/10 p-3 text-sm text-emerald-200">{success}</div>
       )}
 
-      <div className="card-industrial overflow-x-auto">
+      <div className="card-industrial overflow-hidden">
+        <ExportableTable filename="scratches" title={t('scratches.title')} rowCount={items.length}>
+        <div className="overflow-x-auto">
         <table className="w-full text-center text-sm">
           <thead className="bg-slate-950/90">
             <tr>
@@ -91,6 +94,8 @@ export function ScratchesRecordTab({ items, onAdd }: Props) {
             )}
           </tbody>
         </table>
+        </div>
+        </ExportableTable>
       </div>
 
       <ScratchFormModal open={formOpen} onClose={() => setFormOpen(false)} onSave={handleSave} />

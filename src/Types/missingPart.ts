@@ -69,6 +69,7 @@ export type ReportGroupContext = {
   colorHex: string | null
   stationId: string | null
   parts: MissingPartDetail[]
+  allowArchived?: boolean
 }
 
 /** Shared context when editing or updating all open issues on one vehicle. */
@@ -79,6 +80,7 @@ export type VehicleIssuesContext = {
   colorName: string | null
   colorHex: string | null
   parts: MissingPartDetail[]
+  allowArchived?: boolean
 }
 
 export type ReportMissingPartInput = {

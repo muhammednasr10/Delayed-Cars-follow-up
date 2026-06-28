@@ -9,6 +9,7 @@ import { pagePermForEngineering, pagePermForProduction, pagePermForWarehouses } 
 import { useNavigation } from '../Context/NavigationContext'
 import { DEPARTMENTS, departmentAccentClass } from '../config/departments'
 import type { DepartmentId, EngineeringPage, ProductionPage } from '../Types/navigation'
+import { SETTINGS_TAB_ORDER } from '../Types/navigation'
 
 type PageChild = { key: string; label: string; onClick: () => void }
 
@@ -54,8 +55,6 @@ export function AppSidebar() {
   const navLoading = permsLoading || pagesLoading
 
   const canShowEngineeringIpl = canAccessSettings || canViewPage(pagePermForEngineering('ipl'))
-  const canShowEngineeringStations =
-    canAccessSettings || navLoading || canViewPage(pagePermForEngineering('stations'))
   const canShowLineBalancing = navLoading || canViewPage(pagePermForEngineering('lineBalancing'))
 
   const go = nav.navigate
@@ -172,9 +171,7 @@ export function AppSidebar() {
     label: t('nav.settings'),
     visible: canViewPage(pagePermForProduction('settings')),
     onNavigate: () => sidebarNav({ department: 'production', productionPage: 'settings' }, true),
-    children: (
-      ['models', 'stations', 'colors', 'areas', 'reasons', 'departments', 'users'] as const
-    ).map(key => ({
+    children: SETTINGS_TAB_ORDER.map(key => ({
       key,
       label: t(`settings.tabs.${key}`),
       onClick: () => sidebarNav({ department: 'production', productionPage: 'settings', settingsTab: key })
@@ -198,12 +195,6 @@ export function AppSidebar() {
         label: t(`bom.tabs.${key}`),
         onClick: () => sidebarNav({ department: 'engineering', engineeringPage: 'ipl', bomTab: key })
       }))
-    },
-    {
-      key: 'stations',
-      label: t('nav.stations'),
-      visible: canShowEngineeringStations,
-      onNavigate: () => sidebarNav({ department: 'engineering', engineeringPage: 'stations' })
     },
     {
       key: 'lineBalancing',

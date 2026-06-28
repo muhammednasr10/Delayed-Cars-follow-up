@@ -50,6 +50,6 @@ export default defineConfig({
     })
   ],
   optimizeDeps: {
-    include: ['papaparse', 'xlsx']
+    include: ['papaparse', 'xlsx', 'jspdf', 'html2canvas']
   }
 })

@@ -28,6 +28,7 @@ import { Modal } from '../Modal'
 import { ConfirmDialog } from '../ConfirmDialog'
 import { Field, inputCls } from '../FormField'
 import { UserAccountFormModal } from './UserAccountFormModal'
+import { ExportableTable } from '../ExportableTable'
 import { UserRequestsTab } from './UserRequestsTab'
 import { UserPasswordModal } from './UserPasswordModal'
 import { SystemRoleFormModal } from './SystemRoleFormModal'
@@ -258,7 +259,9 @@ export function UsersPermissionsPanel({ notify }: { notify: (m: string, err?: bo
               {t('permissions.addUser')}
             </button>
           </div>
-          <div className="card-industrial overflow-x-auto">
+          <div className="card-industrial overflow-hidden">
+            <ExportableTable filename="users" title={t('permissions.tabs.users')} rowCount={users.length}>
+            <div className="overflow-x-auto">
             <table className="w-full min-w-[900px] text-sm">
               <thead>
                 <tr className="border-b border-slate-800 text-[10px] font-black uppercase text-slate-500">
@@ -267,7 +270,7 @@ export function UsersPermissionsPanel({ notify }: { notify: (m: string, err?: bo
                   <th className="table-cell">{t('permissions.jobRole')}</th>
                   <th className="table-cell">{t('permissions.systemRole')}</th>
                   <th className="table-cell">{t('permissions.status')}</th>
-                  <th className="table-cell">{t('common.actions')}</th>
+                  <th data-export-skip className="table-cell">{t('common.actions')}</th>
                 </tr>
               </thead>
               <tbody>
@@ -282,7 +285,7 @@ export function UsersPermissionsPanel({ notify }: { notify: (m: string, err?: bo
                       <td className="table-cell">{u.job_role ? t(`jobRole.${u.job_role}`) : '—'}</td>
                       <td className="table-cell">{u.system_role_name_ar || '—'}</td>
                       <td className={`table-cell font-bold ${st.cls}`}>{st.label}</td>
-                      <td className="table-cell">
+                      <td data-export-skip className="table-cell">
                         <div className="flex flex-wrap items-center gap-2">
                           <button
                             type="button"
@@ -332,6 +335,8 @@ export function UsersPermissionsPanel({ notify }: { notify: (m: string, err?: bo
                 })}
               </tbody>
             </table>
+            </div>
+            </ExportableTable>
           </div>
         </>
       ) : subTab === 'requests' ? (

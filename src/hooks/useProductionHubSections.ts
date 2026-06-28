@@ -23,6 +23,7 @@ import { useCanAccessSettings } from './useCanAccessSettings'
 import { useCanReportMissingPart } from './useCanReportMissingPart'
 import { usePermissions } from '../Context/PermissionsContext'
 import { useNavigation } from '../Context/NavigationContext'
+import { SETTINGS_TAB_ORDER } from '../Types/navigation'
 import { useLang } from '../i18n/LanguageContext'
 
 export function useProductionHubSections() {
@@ -151,7 +152,7 @@ export function useProductionHubSections() {
         description: t('modules.settingsDesc'),
         icon: SettingsIcon,
         tone: 'text-emerald-300 bg-emerald-500/15',
-        onClick: () => go({ productionPage: 'settings', settingsTab: 'models' })
+        onClick: () => go({ productionPage: 'settings', settingsTab: 'administrations' })
       }
     ].filter(Boolean) as HubSection['cards']
   }
@@ -189,7 +190,7 @@ export function useProductionHubSections() {
     key: 'settingsTabs',
     title: t('hub.sections.tabs', { page: t('nav.settings') }),
     cards: canAccessSettings
-      ? (['models', 'stations', 'colors', 'areas', 'reasons', 'departments', 'users'] as const).map(key => ({
+      ? SETTINGS_TAB_ORDER.map(key => ({
           key,
           title: t(`settings.tabs.${key}`),
           icon: SettingsIcon,

@@ -1,50 +1,56 @@
+import { useMemo } from 'react'
 import { useLang } from '../i18n/LanguageContext'
 import { JOB_ROLES } from '../Types/enums'
 import type { JobRole } from '../Types/enums'
-import type { WorkArea } from '../Types/settings'
+import type { FactoryOrgUnit } from '../Types/factoryOrg'
+import { orgPathFromLeaf, orgPathLabel } from '../Utils/employeeOrgPicker'
 
 export type EmployeeFilterState = {
   search: string
   role: JobRole | ''
-  department: string
-  workAreaId: string
+  factoryOrgUnitId: string
   status: '' | 'active' | 'inactive'
 }
 
 export const emptyEmployeeFilters: EmployeeFilterState = {
   search: '',
   role: '',
-  department: '',
-  workAreaId: '',
+  factoryOrgUnitId: '',
   status: ''
 }
-
-const DEPARTMENTS = ['warehouse', 'purchasing', 'production', 'quality', 'supplier', 'management']
 
 type Props = {
   value: EmployeeFilterState
   onChange: (next: EmployeeFilterState) => void
-  areas: WorkArea[]
+  orgUnits: FactoryOrgUnit[]
 }
 
-export function EmployeeFilters({ value, onChange, areas }: Props) {
+export function EmployeeFilters({ value, onChange, orgUnits }: Props) {
   const { t } = useLang()
   const set = (patch: Partial<EmployeeFilterState>) => onChange({ ...value, ...patch })
 
+  const orgOptions = useMemo(
+    () =>
+      orgUnits
+        .filter(u => u.isActive)
+        .map(u => ({
+          id: u.id,
+          label: orgPathLabel(orgPathFromLeaf(u.id, orgUnits), orgUnits) ?? u.name
+        }))
+        .sort((a, b) => a.label.localeCompare(b.label, 'ar')),
+    [orgUnits]
+  )
+
   return (
-    <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-5">
+    <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
       <input className="input-dark" placeholder={t('org.filters.search')} value={value.search} onChange={e => set({ search: e.target.value })} />
       <select className="input-dark" value={value.role} onChange={e => set({ role: e.target.value as JobRole | '' })}>
         <option value="">{t('org.filters.role')}</option>
         {JOB_ROLES.map(r => <option key={r} value={r}>{t(`jobRole.${r}`)}</option>)}
       </select>
-      <select className="input-dark" value={value.department} onChange={e => set({ department: e.target.value })}>
-        <option value="">{t('org.filters.department')}</option>
-        {DEPARTMENTS.map(d => <option key={d} value={d}>{t(`department.${d}`)}</option>)}
-      </select>
-      <select className="input-dark" value={value.workAreaId} onChange={e => set({ workAreaId: e.target.value })}>
-        <option value="">{t('org.filters.area')}</option>
-        {areas.map(a => <option key={a.id} value={a.id}>{a.name}</option>)}
+      <select className="input-dark" value={value.factoryOrgUnitId} onChange={e => set({ factoryOrgUnitId: e.target.value })}>
+        <option value="">{t('org.filters.orgUnit')}</option>
+        {orgOptions.map(o => <option key={o.id} value={o.id}>{o.label}</option>)}
       </select>
       <select className="input-dark" value={value.status} onChange={e => set({ status: e.target.value as EmployeeFilterState['status'] })}>
         <option value="">{t('org.filters.status')}</option>

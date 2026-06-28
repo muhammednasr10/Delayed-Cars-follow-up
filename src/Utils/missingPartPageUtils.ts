@@ -1,7 +1,7 @@
 import type { MissingPartDetail, MissingPartFilters } from '../Types/missingPart'
 
 export const ACTIVE_COLS = ['select', 'vin', 'model', 'color', 'station', 'qty', 'reason', 'reasonClass', 'department', 'dateTime', 'actions'] as const
-export const HISTORY_COLS = ['vin', 'model', 'color', 'station', 'qty', 'reason', 'reasonClass', 'department', 'dateTime', 'resolvedAt'] as const
+export const HISTORY_COLS = ['vin', 'model', 'color', 'station', 'qty', 'reason', 'reasonClass', 'department', 'dateTime', 'resolvedAt', 'actions'] as const
 
 export const cell = 'table-cell-compact whitespace-nowrap text-center align-middle'
 export const actionsCell = `${cell} sticky z-10 bg-slate-900/95 shadow-[inset_8px_0_12px_rgba(0,0,0,0.3)]`
@@ -37,6 +37,16 @@ export function applyFilters(items: MissingPartDetail[], filters: MissingPartFil
 export function canCompleteVehicle(vehicleId: string, parts: MissingPartDetail[]): boolean {
   const lines = parts.filter(p => p.vehicleId === vehicleId)
   return lines.some(p => !p.shortageResolvedAt && p.status !== 'closed' && p.status !== 'cancelled')
+}
+
+export function openVehicleShortageLines(vehicleId: string, parts: MissingPartDetail[]): MissingPartDetail[] {
+  return parts.filter(
+    p => p.vehicleId === vehicleId && !p.shortageResolvedAt && p.status !== 'closed' && p.status !== 'cancelled'
+  )
+}
+
+export function remainingInstallLineCount(parts: MissingPartDetail[]): number {
+  return parts.filter(p => p.installedQty < p.requiredQty).length
 }
 
 export function isFirstVehicleRow(list: MissingPartDetail[], index: number, vehicleId: string): boolean {

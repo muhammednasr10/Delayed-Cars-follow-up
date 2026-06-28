@@ -4,6 +4,9 @@ export const DEFAULT_PART_KIND = 'P'
 /** Stored value for hardware */
 export const HARDWARE_PART_KIND = 'H/W'
 
+/** Stored value for plastics */
+export const PLASTICS_PART_KIND = 'PL'
+
 /** Stored value for CKD supplier */
 export const DEFAULT_SUPPLY_SOURCE = 'CKD'
 
@@ -25,7 +28,10 @@ export function normalizePartKindRaw(raw?: string | null): string {
   ) {
     return HARDWARE_PART_KIND
   }
-  return DEFAULT_PART_KIND
+  if (u === 'PL' || u === 'PLASTICS' || u === 'PLASTIC' || u.includes('PLAST') || s.includes('بلاستيك')) {
+    return PLASTICS_PART_KIND
+  }
+  return s
 }
 
 export function effectivePartKind(raw?: string | null): string {

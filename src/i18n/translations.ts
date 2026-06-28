@@ -10,7 +10,12 @@ export const translations = {
       save: 'حفظ', saveEdit: 'حفظ التعديل', confirm: 'تأكيد', close: 'إغلاق', loading: 'جاري التحميل...',
       saving: 'جاري الحفظ...', search: 'بحث', all: 'الكل', yes: 'نعم', no: 'لا', required: 'مطلوب', back: 'رجوع', next: 'التالي',
       actions: 'إجراءات', notes: 'ملاحظات', logout: 'خروج', items: '{n} عنصر', noData: 'لا توجد بيانات.',
-      noResults: 'لا توجد نتائج مطابقة.', error: 'حدث خطأ.', cannotUndo: 'لا يمكن التراجع.'
+      noResults: 'لا توجد نتائج مطابقة.', error: 'حدث خطأ.', cannotUndo: 'لا يمكن التراجع.', deleted: 'تم الحذف.'
+    },
+    export: {
+      excel: 'Excel',
+      pdf: 'PDF',
+      exporting: 'جاري التصدير...'
     },
     pwa: {
       installTitle: 'ثبّت التطبيق',
@@ -20,7 +25,7 @@ export const translations = {
       iosHint: 'من Safari: اضغط زر المشاركة ثم «إضافة إلى الشاشة الرئيسية».'
     },
     nav: {
-      home: 'الرئيسية', missingParts: 'نواقص السيارات', productivity: 'الإنتاجية',
+      home: 'الرئيسية', globalHome: 'الرئيسية', missingParts: 'نواقص السيارات', productivity: 'الإنتاجية',
       productionOrders: 'خطة الإنتاج',
       training: 'العمالة', ipl: 'IPL', stations: 'المحطات', lineBalancing: 'Line Balancing', settings: 'الإعدادات',
       damagedParts: 'الأجزاء التالفة', missions: 'المهمات', requests: 'الطلبات', scratches: 'الخدوش',
@@ -51,6 +56,7 @@ export const translations = {
       selectModel: 'اختر الموديل',
       selectReason: 'اختر السبب',
       selectCauser: 'ابحث باسم أو كود الموظف…',
+      selectCausingDepartment: 'اختر القسم المتسبب',
       addReasonOption: 'سبب تلف جديد',
       addDecisionOption: 'قرار نهائي جديد',
       uploadImage: 'إرفاق صورة',
@@ -66,6 +72,7 @@ export const translations = {
       errReason: 'سبب التلف مطلوب.',
       errDecision: 'القرار النهائي مطلوب.',
       errCauser: 'المتسبب مطلوب.',
+      errCausingDepartment: 'القسم المتسبب مطلوب.',
       errDate: 'تاريخ التسجيل مطلوب.',
       errImageSize: 'حجم الصورة يجب ألا يتجاوز 5 ميجابايت.',
       errImageType: 'نوع الصورة غير مدعوم (JPEG, PNG, WebP, GIF).',
@@ -75,6 +82,7 @@ export const translations = {
         part: 'الجزء',
         quantity: 'الكمية',
         causer: 'المتسبب',
+        causingDepartment: 'القسم المتسبب',
         reason: 'السبب',
         finalDecision: 'القرار النهائي',
         image: 'الصورة',
@@ -233,7 +241,7 @@ export const translations = {
       recordHint: 'سجل الخدوش المسجلة على خط الإنتاج',
       empty: 'لا توجد خدوش مسجلة.',
       vinPlaceholder: 'آخر 6 أحرف من الشاسيه أو الرقم الكامل',
-      areaPlaceholder: 'مثال: الباب الأمامي الأيمن',
+      areaOrgEmpty: 'أضف الأقسام (تريم أ، تريم ب، الشاسيه، الفاينال…) من الإعدادات → الإدارات.',
       errVin: 'رقم الشاسيه يجب أن يكون 4 أحرف على الأقل.',
       errArea: 'منطقة الخدش مطلوبة.',
       errDate: 'تاريخ التسجيل مطلوب.',
@@ -614,6 +622,22 @@ export const translations = {
     myProfile: {
       title: 'حسابي',
       subtitle: 'الصورة الشخصية، الاسم، وكلمة المرور',
+      subtitleFull: 'حسابك، هيكلك التنظيمي، حضورك، مهامك، وصلاحياتك',
+      tabs: {
+        account: 'الحساب',
+        org: 'الهيكل',
+        attendance: 'الحضور',
+        missions: 'مهامي',
+        permissions: 'صلاحياتي'
+      },
+      orgSection: 'التبعية التنظيمية',
+      orgEmpty: 'لا توجد بيانات هيكل لهذا الحساب.',
+      noEmployeeLink: 'هذا الحساب غير مرتبط بسجل موظف.',
+      attendanceSection: 'حضور الشهر',
+      attendanceReadOnly: 'عرض للقراءة فقط — التعديل من إدارة العمالة.',
+      permissionsSection: 'صلاحياتي في النظام',
+      permissionsHint: 'ما يمكنك فعله حسب دورك — للقراءة فقط.',
+      permissionsEmpty: 'لا توجد صلاحيات مفعّلة لهذا الحساب.',
       avatarSection: 'الصورة الشخصية',
       avatarHint: 'صورة بحجم أقصى 2 ميجا (JPG, PNG, WebP)',
       uploadAvatar: 'رفع صورة',
@@ -634,6 +658,14 @@ export const translations = {
       passwordMin: 'كلمة المرور الجديدة 6 أحرف على الأقل.',
       passwordMismatch: 'تأكيد كلمة المرور غير مطابق.',
       wrongCurrentPassword: 'كلمة المرور الحالية غير صحيحة.'
+    },
+    notifications: {
+      title: 'الإشعارات',
+      subtitle: 'مهام وطلبات تحتاج انتباهك',
+      empty: 'لا توجد إشعارات جديدة',
+      missions: '{n} مهمة معلّقة أو قيد التنفيذ',
+      requests: '{n} طلب فريق بانتظار الرد',
+      openProfile: 'فتح حسابي'
     },
     home: {
       welcomeTitle: 'مرحباً بك في نظام متابعة خط الإنتاج',
@@ -676,6 +708,10 @@ export const translations = {
         subtitle: 'المخزون والتغذية',
         stockDesc: 'رصيد القطع حسب الموديل',
         feedingDesc: 'خطة وتنفيذ تغذية الخط'
+      },
+      global: {
+        title: 'الرئيسية',
+        subtitle: 'اختصارات مهمة من كل الأقسام في مكان واحد'
       }
     },
     attendance: {
@@ -802,12 +838,12 @@ export const translations = {
     },
     settings: {
       title: 'الإعدادات',
-      subtitle: 'الموديلات، الألوان، تصنيف السبب، الأقسام والمستخدمين — للأدمن فقط.',
+      subtitle: 'الموديلات، الألوان، الإدارات، تصنيف السبب، الأقسام والمستخدمين — للأدمن فقط.',
       adminOnlyTitle: 'غير مصرح',
       adminOnly: 'صفحة الإعدادات متاحة لمدير النظام فقط. إذا كان دورك «viewer» في الأعلى، حدّث حسابك في Supabase (انظر README) أو اطلب من أدمن آخر ترقية دورك.',
       tabs: {
         models: 'الموديلات', stations: 'المحطات', areas: 'أماكن العمل',
-        colors: 'ألوان السيارات', reasons: 'تصنيف السبب', departments: 'القسم المسؤول',
+        colors: 'ألوان السيارات', administrations: 'الإدارات', reasons: 'تصنيف السبب', departments: 'القسم المسؤول',
         users: 'المستخدمون والصلاحيات'
       },
       addTitle: 'إضافة - {title}', editTitle: 'تعديل - {title}',
@@ -851,6 +887,23 @@ export const translations = {
         nameRequired: 'اسم الموديل مطلوب.',
         parentRequired: 'اختر الموديل الأب للفرعي.',
         hasChildren: 'لا يمكن الحذف — يوجد موديلات فرعية تحت هذا الأب.'
+      },
+      administrations: {
+        hint: 'أضف إدارات المصنع، ثم الأقسام داخل كل إدارة، ثم أقساماً فرعية داخل كل قسم.',
+        empty: 'لا توجد إدارات مسجلة بعد.',
+        name: 'الاسم',
+        nameRequired: 'الاسم مطلوب.',
+        under: 'تابع لـ',
+        addAdministration: 'إضافة إدارة',
+        addSection: 'إضافة قسم',
+        addSubsection: 'إضافة قسم فرعي',
+        hasChildren: 'لا يمكن الحذف — يوجد وحدات فرعية تحت هذا العنصر.',
+        invalidParent: 'التبعية غير صحيحة لهذا النوع.',
+        kinds: {
+          administration: 'إدارة',
+          section: 'قسم',
+          subsection: 'قسم فرعي'
+        }
       }
     },
     mp: {
@@ -929,7 +982,12 @@ export const translations = {
       actionsHint: 'الأزرار بجانب الشاسيه: «انتهاء من السيارة» | عمود «إجراءات»: تعديل · تحديث · حذف. تأكد أنك في تبويب «قائمة النواقص» وليس الأرشيف.',
       complete: 'انتهاء من السيارة',
       completeDisabledHint: 'لا توجد متابعة مفتوحة لهذه السيارة.',
-      completeConfirm: 'إنهاء متابعة النقص للسيارة {vin} ونقلها للأرشيف؟ (مستقل عن كميات التركيب)',
+      completeConfirm: 'إنهاء متابعة النقص للسيارة {vin} ونقلها للأرشيف؟',
+      completePartialTitle: 'هل ركّبت كل الأجزاء؟',
+      completePartialMessage:
+        'السيارة {vin} لا تزال تظهر فيها {n} سطر/أسطر بكميات غير مكتملة في النظام. هل ركّبت كل الأجزاء فعلاً وتريد نقلها للأرشيف؟',
+      completePartialYes: 'نعم، ركّبت كل الأجزاء',
+      completePartialNo: 'لا، لم أركّب بعد',
       completeSeparateHint: 'التركيب يحدّث الكميات فقط. الأرشيف عبر «انتهاء من السيارة» بقرار منفصل.',
       completeSuccess: 'تم أرشفة السيارة {vin} — كل القطع أُغلقت.',
       noActionsPerm: 'لا صلاحية',
@@ -1014,7 +1072,10 @@ export const translations = {
         phone: 'الهاتف', email: 'البريد الإلكتروني', notes: 'ملاحظات', status: 'السجل',
         assignmentStatus: 'حالة التعيين', assignmentStatusHint: 'من كشف العمالة — لا تغيّر تفعيل/إيقاف السجل.',
         recordActive: 'تفعيل السجل في النظام',
-        active: 'مفعّل', inactive: 'موقوف', noManager: 'بدون مدير مباشر'
+        active: 'مفعّل', inactive: 'موقوف', noManager: 'بدون مدير مباشر',
+        orgUnit: 'التبعية التنظيمية',
+        orgUnitsHint: 'اختر الإدارة ثم القسم — يظهر القسم الفرعي فقط إن وُجد في الإعدادات.',
+        orgUnitsEmpty: 'أضف الإدارات من الإعدادات أولاً.'
       },
       assignmentStatus: { 'متعين': 'متعين', 'كاجوال': 'كاجوال' },
       import: {
@@ -1042,7 +1103,7 @@ export const translations = {
           EMPTY_SHEET: 'الملف فارغ أو بدون صف عناوين وبيانات'
         }
       },
-      filters: { search: 'بحث بالاسم أو الكود...', role: 'كل المسميات', department: 'كل الأقسام', area: 'كل المناطق', status: 'كل الحالات' },
+      filters: { search: 'بحث بالاسم أو الكود...', role: 'كل المسميات', orgUnit: 'كل التبعيات', status: 'كل الحالات' },
       steps: { basic: 'البيانات الأساسية', location: 'المكان والتبعية', contact: 'التواصل والملاحظات', review: 'المراجعة' },
       err: {
         codeRequired: 'كود الموظف مطلوب.', nameRequired: 'الاسم الكامل مطلوب.', roleRequired: 'المسمى الوظيفي مطلوب.',
@@ -1425,7 +1486,7 @@ export const translations = {
       subtitle: 'قائمة أجزاء السيارة حسب المحطة والموديل',
       tabs: { parts: 'قائمة الأجزاء', compare: 'مقارنة الأرقام', categories: 'التصنيفات', import: 'استيراد Excel', dashboard: 'ملخص IPL' },
       filterModel: 'فلتر الموديل', filterStation: 'فلتر المحطة', allModels: 'كل الموديلات', allStations: 'كل المحطات',
-      modelShort: 'موديل',
+      modelShort: 'تصنيف',
       allBomSummary: 'إجمالي {n} صف BOM · {shown} معروض في الصفحة',
       selectModel: 'اختر موديلاً', selectFamily: 'اختر عائلة الموديل', qtyPerCar: 'الكمية / السيارة',
       noVariantsInFamily: 'لا توجد متغيرات لهذه العائلة — سجّلها من الإعدادات.',
@@ -1434,6 +1495,10 @@ export const translations = {
       addRow: 'إضافة جزء', editRow: 'تعديل جزء', deleteRow: 'حذف من BOM',
       selectFamilyFirst: 'اختر عائلة موديل أولاً',
       modelCards: 'بيانات كل موديل',
+      modelCardsQtyHint: 'كل موديلات العائلة تظهر هنا — ضع الكمية 0 للموديلات غير المستخدمة.',
+      familyAllZero: 'غير مستخدم في هذا الجزء',
+      breakdownNoActive: 'أدخل رقم جزء وكمية أكبر من صفر لموديل واحد على الأقل.',
+      otherModels: 'موديلات أخرى',
       partNameRequired: 'اسم الجزء (عربي أو إنجليزي) مطلوب.',
       partNumberRequired: 'رقم الجزء مطلوب.', modelRequired: 'الموديل مطلوب.', noStation: 'بدون محطة',
       multiple: 'متعدد', modelBreakdown: 'تفاصيل الموديلات', deleteGroupHint: 'يشمل {n} صفوف',
@@ -1443,7 +1508,7 @@ export const translations = {
         clearFilter: 'إزالة الفلتر', clearAllFilters: 'مسح كل الفلاتر ({n})', filtersActive: '{n} فلتر نشط',
         blank: '(فارغ)', truncated: 'عرض أول القيم فقط — ضيّق الفلتر أو ابحث'
       },
-      importT4Hint: 'يدعم ملف IPL-T4 (أعمدة T/L/C → T4T, T4L, T4C و T4 عند وجود الكميات للثلاثة)',
+      importIplMasterHint: 'ملف IPL Master (T7 + T8 + T4 + GD): يُستورد تلقائياً من كل الأوراق عند رفع الملف الكامل',
       col: {
         model_family: 'عائلة الموديل', applicable_models: 'الموديلات', station_code: 'المحطة', station_category: 'تصنيف المحطة',
         part_number: 'رقم الجزء', part_number_new: 'رقم جديد', alternative_part_no: 'بديل', part_name_ar: 'الاسم بالعربية', operation: 'نوع الإيقاف',
@@ -1455,7 +1520,7 @@ export const translations = {
         part_name_ar: 'عربي',
         part_name_en: 'EN',
         part_number: 'رقم',
-        vehicle_model: 'موديل',
+        vehicle_model: 'التصنيف',
         qty_by_model: 'كمية',
         station_code: 'محطة',
         bom_classification: 'Class',
@@ -1463,7 +1528,9 @@ export const translations = {
         supply_source: 'توريد',
         operation: 'إيقاف'
       },
-      partKindPart: 'جزء', partKindHardware: 'هاردوير', supplyCkd: 'CKD', supplyLocal: 'محلي',
+      partKindPart: 'جزء', partKindHardware: 'هاردوير', partKindPlastics: 'بلاستيكات',
+      addPresetOption: 'إضافة خيار جديد',
+      supplyCkd: 'CKD', supplyLocal: 'محلي',
       partNumber: 'رقم الجزء', partName: 'اسم الجزء', station: 'المحطة', model: 'الموديل', qty: 'الكمية',
       category: 'التصنيف', classification: 'تصنيف BOM', search: 'بحث', searchPh: 'رقم أو اسم الجزء...',
       uncategorizedOnly: 'غير مصنف فقط', needsReviewOnly: 'يحتاج مراجعة', uncategorized: 'غير مصنف',
@@ -1675,7 +1742,12 @@ export const translations = {
       save: 'Save', saveEdit: 'Save changes', confirm: 'Confirm', close: 'Close', loading: 'Loading...',
       saving: 'Saving...', search: 'Search', all: 'All', yes: 'Yes', no: 'No', required: 'required', back: 'Back', next: 'Next',
       actions: 'Actions', notes: 'Notes', logout: 'Logout', items: '{n} items', noData: 'No data.',
-      noResults: 'No matching results.', error: 'Something went wrong.', cannotUndo: 'This cannot be undone.'
+      noResults: 'No matching results.', error: 'Something went wrong.', cannotUndo: 'This cannot be undone.', deleted: 'Deleted.'
+    },
+    export: {
+      excel: 'Excel',
+      pdf: 'PDF',
+      exporting: 'Exporting...'
     },
     pwa: {
       installTitle: 'Install app',
@@ -1685,7 +1757,7 @@ export const translations = {
       iosHint: 'In Safari: tap Share, then «Add to Home Screen».'
     },
     nav: {
-      home: 'Home', missingParts: 'Vehicle Shortages', productivity: 'Productivity',
+      home: 'Home', globalHome: 'Home', missingParts: 'Vehicle Shortages', productivity: 'Productivity',
       productionOrders: 'Production plan',
       training: 'Workforce', ipl: 'IPL', stations: 'Stations', lineBalancing: 'Line Balancing', settings: 'Settings',
       damagedParts: 'Damaged parts', missions: 'Missions', requests: 'Requests', scratches: 'Scratches',
@@ -1716,6 +1788,7 @@ export const translations = {
       selectModel: 'Select model',
       selectReason: 'Select reason',
       selectCauser: 'Search by employee name or code…',
+      selectCausingDepartment: 'Select causing department',
       addReasonOption: 'New damage reason',
       addDecisionOption: 'New final decision',
       uploadImage: 'Attach photo',
@@ -1731,6 +1804,7 @@ export const translations = {
       errReason: 'Damage reason is required.',
       errDecision: 'Final decision is required.',
       errCauser: 'Causer is required.',
+      errCausingDepartment: 'Causing department is required.',
       errDate: 'Report date is required.',
       errImageSize: 'Image must be 5 MB or smaller.',
       errImageType: 'Unsupported image type (JPEG, PNG, WebP, GIF).',
@@ -1740,6 +1814,7 @@ export const translations = {
         part: 'Part',
         quantity: 'Qty',
         causer: 'Causer',
+        causingDepartment: 'Causing department',
         reason: 'Reason',
         finalDecision: 'Final decision',
         image: 'Photo',
@@ -1898,7 +1973,7 @@ export const translations = {
       recordHint: 'Scratches recorded on the production line',
       empty: 'No scratches recorded.',
       vinPlaceholder: 'Last 6 VIN characters or full number',
-      areaPlaceholder: 'e.g. front right door',
+      areaOrgEmpty: 'Add areas (Trim A, Trim B, Chassis, Final…) in Settings → Administrations.',
       errVin: 'VIN must be at least 4 characters.',
       errArea: 'Body area is required.',
       errDate: 'Record date is required.',
@@ -2279,6 +2354,22 @@ export const translations = {
     myProfile: {
       title: 'My account',
       subtitle: 'Profile photo, display name, and password',
+      subtitleFull: 'Your account, org placement, attendance, missions, and permissions',
+      tabs: {
+        account: 'Account',
+        org: 'Org',
+        attendance: 'Attendance',
+        missions: 'My missions',
+        permissions: 'My permissions'
+      },
+      orgSection: 'Organizational placement',
+      orgEmpty: 'No org data for this account.',
+      noEmployeeLink: 'This account is not linked to an employee record.',
+      attendanceSection: 'Monthly attendance',
+      attendanceReadOnly: 'Read-only view — edits are done in workforce admin.',
+      permissionsSection: 'My system permissions',
+      permissionsHint: 'What you can do in the system — read only.',
+      permissionsEmpty: 'No active permissions for this account.',
       avatarSection: 'Profile photo',
       avatarHint: 'Max 2 MB — JPG, PNG, or WebP',
       uploadAvatar: 'Upload photo',
@@ -2299,6 +2390,14 @@ export const translations = {
       passwordMin: 'New password must be at least 6 characters.',
       passwordMismatch: 'Passwords do not match.',
       wrongCurrentPassword: 'Current password is incorrect.'
+    },
+    notifications: {
+      title: 'Notifications',
+      subtitle: 'Tasks and requests that need your attention',
+      empty: 'No new notifications',
+      missions: '{n} pending or in-progress missions',
+      requests: '{n} team requests awaiting response',
+      openProfile: 'Open my account'
     },
     home: {
       welcomeTitle: 'Welcome to the assembly line tracking system',
@@ -2341,6 +2440,10 @@ export const translations = {
         subtitle: 'Stock and line feeding',
         stockDesc: 'Parts balance by model',
         feedingDesc: 'Feeding plans and actual feeding'
+      },
+      global: {
+        title: 'Home',
+        subtitle: 'Important shortcuts from every department in one place'
       }
     },
     attendance: {
@@ -2467,12 +2570,12 @@ export const translations = {
     },
     settings: {
       title: 'Settings',
-      subtitle: 'Models, colors, lookups and users — admin only.',
+      subtitle: 'Models, colors, factory administrations, lookups and users — admin only.',
       adminOnlyTitle: 'Not authorized',
       adminOnly: 'Settings are available to system administrators only.',
       tabs: {
         models: 'Models', stations: 'Stations', areas: 'Work Areas',
-        colors: 'Vehicle Colors', reasons: 'Reason class', departments: 'Responsible dept.',
+        colors: 'Vehicle Colors', administrations: 'Administrations', reasons: 'Reason class', departments: 'Responsible dept.',
         users: 'Users & Permissions'
       },
       addTitle: 'Add - {title}', editTitle: 'Edit - {title}',
@@ -2516,6 +2619,23 @@ export const translations = {
         nameRequired: 'Model name is required.',
         parentRequired: 'Select a parent for the variant.',
         hasChildren: 'Cannot delete — child variants exist under this parent.'
+      },
+      administrations: {
+        hint: 'Add factory administrations, then sections under each, then sub-sections under sections.',
+        empty: 'No administrations registered yet.',
+        name: 'Name',
+        nameRequired: 'Name is required.',
+        under: 'Under',
+        addAdministration: 'Add administration',
+        addSection: 'Add section',
+        addSubsection: 'Add sub-section',
+        hasChildren: 'Cannot delete — child units exist under this item.',
+        invalidParent: 'Invalid parent for this unit type.',
+        kinds: {
+          administration: 'Administration',
+          section: 'Section',
+          subsection: 'Sub-section'
+        }
       }
     },
     mp: {
@@ -2588,7 +2708,12 @@ export const translations = {
       actionsHint: 'Next to VIN: «Complete vehicle». In «Actions»: Edit · Update · Delete. Use the Active tab, not Archive.',
       complete: 'Complete vehicle',
       completeDisabledHint: 'No open shortage follow-up for this vehicle.',
-      completeConfirm: 'End shortage follow-up for {vin} and move to archive? (Independent of install quantities)',
+      completeConfirm: 'End shortage follow-up for {vin} and move to archive?',
+      completePartialTitle: 'Did you install all parts?',
+      completePartialMessage:
+        'Vehicle {vin} still shows {n} line(s) with incomplete quantities in the system. Did you install all parts and want to archive?',
+      completePartialYes: 'Yes, all parts installed',
+      completePartialNo: 'No, not yet',
       completeSeparateHint: 'Install updates quantities only. Archive via «Complete vehicle» as a separate step.',
       noActionsPerm: 'No permission',
       completeSuccess: 'Vehicle {vin} archived — all lines closed.',
@@ -2679,7 +2804,10 @@ export const translations = {
         phone: 'Phone', email: 'Email', notes: 'Notes', status: 'Record',
         assignmentStatus: 'Assignment status', assignmentStatusHint: 'From roster — separate from active/inactive record toggle.',
         recordActive: 'Record active in system',
-        active: 'Active', inactive: 'Inactive', noManager: 'No direct manager'
+        active: 'Active', inactive: 'Inactive', noManager: 'No direct manager',
+        orgUnit: 'Org placement',
+        orgUnitsHint: 'Pick administration then section — sub-sections appear only when defined in Settings.',
+        orgUnitsEmpty: 'Add administrations in Settings first.'
       },
       assignmentStatus: { 'متعين': 'Appointed', 'كاجوال': 'Casual' },
       import: {
@@ -2707,7 +2835,7 @@ export const translations = {
           EMPTY_SHEET: 'File is empty or has no header/data rows'
         }
       },
-      filters: { search: 'Search by name or code...', role: 'All roles', department: 'All departments', area: 'All areas', status: 'All statuses' },
+      filters: { search: 'Search by name or code...', role: 'All roles', orgUnit: 'All placements', status: 'All statuses' },
       steps: { basic: 'Basic data', location: 'Location & reporting', contact: 'Contact & notes', review: 'Review' },
       err: {
         codeRequired: 'Employee code is required.', nameRequired: 'Full name is required.', roleRequired: 'Job role is required.',
@@ -3090,7 +3218,7 @@ export const translations = {
       subtitle: 'Vehicle parts list by station and model',
       tabs: { parts: 'Parts list', compare: 'Part comparison', categories: 'Categories', import: 'Import Excel', dashboard: 'IPL dashboard' },
       filterModel: 'Model filter', filterStation: 'Station filter', allModels: 'All models', allStations: 'All stations',
-      modelShort: 'Model',
+      modelShort: 'Class',
       allBomSummary: '{n} total BOM rows · {shown} on this page',
       selectModel: 'Select a model', selectFamily: 'Select model family', qtyPerCar: 'Qty per vehicle',
       noVariantsInFamily: 'No variants for this family — register them in Settings.',
@@ -3098,6 +3226,10 @@ export const translations = {
       addRow: 'Add part', editRow: 'Edit part', deleteRow: 'Remove from BOM',
       selectFamilyFirst: 'Select a model family first',
       modelCards: 'Per-model details',
+      modelCardsQtyHint: 'All family variants are listed — set qty to 0 for models not used.',
+      familyAllZero: 'Not used on this part',
+      breakdownNoActive: 'Enter a part number and qty > 0 for at least one model.',
+      otherModels: 'Other models',
       partNameRequired: 'Part name (Arabic or English) is required.',
       partNumberRequired: 'Part number is required.', modelRequired: 'Model is required.', noStation: 'No station',
       multiple: 'Multiple', modelBreakdown: 'Model breakdown', deleteGroupHint: 'includes {n} rows',
@@ -3107,7 +3239,7 @@ export const translations = {
         clearFilter: 'Clear filter', clearAllFilters: 'Clear all filters ({n})', filtersActive: '{n} active filters',
         blank: '(Blank)', truncated: 'Showing first values only — narrow search'
       },
-      importT4Hint: 'Supports IPL-T4 files (T/L/C columns → T4T, T4L, T4C; T4 when all three have qty)',
+      importIplMasterHint: 'IPL Master workbook (T7 + T8 + T4 + GD): all IPL sheets are imported automatically',
       col: {
         model_family: 'Model family', applicable_models: 'Applicable models', station_code: 'Station', station_category: 'Station category',
         part_number: 'Part number', part_number_new: 'New part no.', alternative_part_no: 'Alternative', part_name_ar: 'Arabic name', operation: 'Stopper type',
@@ -3119,7 +3251,7 @@ export const translations = {
         part_name_ar: 'AR',
         part_name_en: 'EN',
         part_number: 'No.',
-        vehicle_model: 'Model',
+        vehicle_model: 'Classification',
         qty_by_model: 'Qty',
         station_code: 'Stn',
         bom_classification: 'Class',
@@ -3127,7 +3259,9 @@ export const translations = {
         supply_source: 'Supply',
         operation: 'Stop'
       },
-      partKindPart: 'Part', partKindHardware: 'Hardware', supplyCkd: 'CKD', supplyLocal: 'Local',
+      partKindPart: 'Part', partKindHardware: 'Hardware', partKindPlastics: 'Plastics',
+      addPresetOption: 'Add option',
+      supplyCkd: 'CKD', supplyLocal: 'Local',
       partNumber: 'Part number', partName: 'Part name', station: 'Station', model: 'Model', qty: 'Qty',
       category: 'Category', classification: 'BOM class', search: 'Search', searchPh: 'Part number or name...',
       uncategorizedOnly: 'Uncategorized only', needsReviewOnly: 'Needs review', uncategorized: 'Uncategorized',

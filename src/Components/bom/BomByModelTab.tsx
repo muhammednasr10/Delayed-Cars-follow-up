@@ -4,14 +4,23 @@ import { useLang } from '../../i18n/LanguageContext'
 import { usePermissions } from '../../Context/PermissionsContext'
 import { useAuth } from '../../Context/AuthContext'
 import { getVehicleModels, getStations } from '../../services/settingsService'
-import { deleteBomItem, getBomItems, type BomExcelColumnFilters, type BomListFilters } from '../../services/bomService'
-import { BOM_PARTS_DISPLAY_COLUMNS, BOM_TABLE_COL_WIDTH } from '../../Utils/bomPartsColumns'
+import { deleteBomItem, getBomItemById, getBomItems, saveBomFromModelCards, type BomExcelColumnFilters, type BomListFilters } from '../../services/bomService'
+import { BOM_MAIN_ROW_COLUMNS, BOM_TABLE_COL_WIDTH } from '../../Utils/bomPartsColumns'
 import { bomColumnLabelKey, BOM_COMPACT_HEADER_COLS } from '../../Utils/bomColumnHeader'
 import { groupBomItemsForDisplay, type BomDisplayGroup } from '../../Utils/bomRowGroups'
+import {
+  bomRowsByModelName,
+  buildBreakdownSaveCards,
+  cardsCanConsolidate,
+  familyIdForModel
+} from '../../Utils/bomModelCards'
+import { bomModelBreakdownLines, type BomModelLineDraft } from '../../Utils/bomModelBreakdown'
+import { effectiveBomStopperType } from '../../Utils/bomStopper'
 import { buildModelFamilyGroups, isAssignableModel } from '../../Utils/vehicleModelHierarchy'
 import { masterStationsForBom, normalizeBomStationCodeText, sortBomDisplayGroups } from '../../Utils/bomStationCode'
 import { formatStationReferenceCode } from '../../Utils/stationHierarchy'
 import { BomGroupedTableRow } from './BomGroupedTableRow'
+import { ExportableTable } from '../ExportableTable'
 import type { BomFilterColumn } from '../../Utils/bomFilterFields'
 import { BomFormModal } from './BomFormModal'
 import { ExcelColumnFilter } from './ExcelColumnFilter'
@@ -50,6 +59,7 @@ export function BomByModelTab({ notify }: { notify: (m: string, err?: boolean) =
     { group: BomDisplayGroup; variant?: { id: string; modelName: string } } | null
   >(null)
   const [deleting, setDeleting] = useState(false)
+  const [breakdownSaving, setBreakdownSaving] = useState(false)
   const [expandedKeys, setExpandedKeys] = useState<Set<string>>(new Set())
 
   const modelPicker = useMemo(() => buildModelFamilyGroups(models), [models])
@@ -59,7 +69,7 @@ export function BomByModelTab({ notify }: { notify: (m: string, err?: boolean) =
     [items, stations]
   )
 
-  const colCount = BOM_PARTS_DISPLAY_COLUMNS.length + (canUpdate || canDelete ? 1 : 0)
+  const colCount = BOM_MAIN_ROW_COLUMNS.length
 
   const baseFilters = useMemo((): Omit<BomListFilters, 'page' | 'pageSize'> => {
     const f: Omit<BomListFilters, 'page' | 'pageSize'> = { search, excel: excelFilters }
@@ -151,6 +161,65 @@ export function BomByModelTab({ notify }: { notify: (m: string, err?: boolean) =
       else next.add(key)
       return next
     })
+  }
+
+  async function saveBreakdown(group: BomDisplayGroup, draftByModel: Record<string, BomModelLineDraft>) {
+    setBreakdownSaving(true)
+    try {
+      const rows = (
+        await Promise.all(group.allIds.map(id => getBomItemById(id)))
+      ).filter((r): r is NonNullable<typeof r> => Boolean(r))
+      if (rows.length === 0) throw new Error(t('common.error'))
+
+      const { familyIds, cards } = buildBreakdownSaveCards(models, group, rows, draftByModel)
+      const active = cards.filter(c => {
+        const q = Number(c.qty)
+        return c.part_number.trim() && c.modelId && Number.isFinite(q) && q > 0
+      })
+      if (active.length === 0) throw new Error(t('bom.breakdownNoActive'))
+
+      const row = rows[0]
+      const names = {
+        part_name_ar: row.part_name_ar ?? undefined,
+        part_name_en: row.part_name_en ?? undefined,
+        notes: row.notes ?? undefined,
+        stopper_type: effectiveBomStopperType(row)
+      }
+
+      const usedIds = new Set<string>()
+      const rowByModel = bomRowsByModelName(models, rows)
+
+      if (cardsCanConsolidate(active)) {
+        const id = await saveBomFromModelCards(group.primary.id, familyIds, cards, names, models)
+        usedIds.add(id)
+      } else {
+        for (const card of active) {
+          const existing = rowByModel.get(card.modelName)
+          const editId =
+            existing?.id && !usedIds.has(existing.id) ? existing.id : usedIds.size === 0 ? group.primary.id : undefined
+          const famId = familyIdForModel(models, card.modelId)
+          const id = await saveBomFromModelCards(
+            editId,
+            famId ? [famId] : familyIds,
+            [card],
+            names,
+            models
+          )
+          usedIds.add(id)
+        }
+      }
+
+      for (const id of group.allIds) {
+        if (!usedIds.has(id)) await deleteBomItem(id)
+      }
+
+      reload(t('settings.updated'))
+    } catch (e) {
+      notify(e instanceof Error ? e.message : t('common.error'), true)
+      throw e
+    } finally {
+      setBreakdownSaving(false)
+    }
   }
 
   const selectedName = modelName || t('bom.allModels')
@@ -294,23 +363,22 @@ export function BomByModelTab({ notify }: { notify: (m: string, err?: boolean) =
       </div>
 
       <div className="card-industrial overflow-hidden">
+        <ExportableTable filename="bom-parts" title={t('bom.title')} rowCount={displayGroups.length}>
         <table className="bom-parts-table">
           <colgroup>
-            {BOM_PARTS_DISPLAY_COLUMNS.map(c => (
+            {BOM_MAIN_ROW_COLUMNS.map(c => (
               <col key={c} style={{ width: BOM_TABLE_COL_WIDTH[c] }} />
             ))}
-            {(canUpdate || canDelete) && <col className="bom-actions-col" />}
           </colgroup>
           <thead>
             <tr className="border-b border-slate-800">
-              {BOM_PARTS_DISPLAY_COLUMNS.map(c => {
+              {BOM_MAIN_ROW_COLUMNS.map(c => {
                 const compact = BOM_COMPACT_HEADER_COLS.has(c)
                 const fullLabel = t(bomColumnLabelKey(c, false))
                 const headerLabel = compact ? t(bomColumnLabelKey(c, true)) : fullLabel
                 return (
                 <th
                   key={c}
-                  className={c === 'qty_by_model' ? 'text-center' : ''}
                 >
                   <div className="bom-th-wrap">
                     <span
@@ -329,9 +397,6 @@ export function BomByModelTab({ notify }: { notify: (m: string, err?: boolean) =
                   </div>
                 </th>
               )})}
-              {(canUpdate || canDelete) && (
-                <th className="bom-actions-col text-center">{t('common.actions')}</th>
-              )}
             </tr>
           </thead>
           <tbody>
@@ -352,6 +417,7 @@ export function BomByModelTab({ notify }: { notify: (m: string, err?: boolean) =
                 <BomGroupedTableRow
                   key={group.key}
                   group={group}
+                  models={models}
                   expanded={expandedKeys.has(group.key)}
                   onToggle={() => toggleExpanded(group.key)}
                   canUpdate={canUpdate}
@@ -361,18 +427,20 @@ export function BomByModelTab({ notify }: { notify: (m: string, err?: boolean) =
                     setEditId(group.primary.id)
                     setEditIds(group.allIds)
                   }}
-                  onDelete={() => setDeleteTarget({ group })}
                   onEditVariant={id => {
                     setFormMode('edit')
                     setEditId(id)
                     setEditIds([id])
                   }}
                   onDeleteVariant={v => setDeleteTarget({ group, variant: { id: v.id, modelName: v.modelName } })}
+                  onSaveBreakdown={canUpdate ? saveBreakdown : undefined}
+                  breakdownSaving={breakdownSaving}
                 />
               ))
             )}
           </tbody>
         </table>
+        </ExportableTable>
       </div>
 
       <div className="flex items-center justify-between text-sm text-slate-400">

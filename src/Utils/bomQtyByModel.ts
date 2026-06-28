@@ -1,4 +1,5 @@
 import { parseQtyByModel } from './partNumberNormalize'
+import type { ParsedBomRow } from '../Types/bom'
 
 export type ModelQtyEntry = { modelName: string; qty: number }
 
@@ -19,6 +20,14 @@ export function formatQtyByModelRaw(entries: ModelQtyEntry[]): string {
 export function maxModelQty(entries: ModelQtyEntry[]): number {
   const nums = entries.map(e => e.qty).filter(q => Number.isFinite(q) && q > 0)
   return nums.length ? Math.max(...nums) : 1
+}
+
+/** IPL rows: one BOM line per part+station with qty_by_model_raw breakdown. */
+export function isConsolidatedImportRow(row: ParsedBomRow): boolean {
+  if (!row.modelFamily?.trim()) return false
+  if (row.qtyByModelRaw?.includes(';')) return true
+  if (row.applicableModels.length > 1) return true
+  return Boolean(row.qtyByModelRaw && row.applicableModels.length > 0)
 }
 
 /** Merge qty_by_model_raw + applicable_models into per-model qty map. */

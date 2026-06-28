@@ -11,7 +11,9 @@ export function BomPartKindCell({ row, compact }: { row: BomItemDetail; compact?
       ? 'bg-violet-500/15 text-violet-200'
       : kind === 'hardware'
         ? 'bg-amber-500/15 text-amber-200'
-        : 'bg-slate-700/50 text-slate-300'
+        : kind === 'plastics'
+          ? 'bg-fuchsia-500/15 text-fuchsia-200'
+          : 'bg-slate-700/50 text-slate-300'
   return (
     <span
       className={`inline-block rounded font-bold ${compact ? 'px-1.5 py-0.5 text-[10px]' : 'rounded-md px-2 py-0.5 text-[11px] whitespace-nowrap'} ${cls}`}

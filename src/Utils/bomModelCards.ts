@@ -2,7 +2,13 @@ import { DEFAULT_PART_KIND, DEFAULT_SUPPLY_SOURCE, effectivePartKind, effectiveS
 import { resolveSupplySource } from './bomDisplayFormat'
 import { formatQtyByModelRaw, maxModelQty, modelQtyFromBomRow, parseApplicableModelNames } from './bomQtyByModel'
 import { normalizeBomStationCodeText } from './bomStationCode'
-import { buildModelFamilyGroups, isAssignableModel } from './vehicleModelHierarchy'
+import {
+  bomModelBreakdownFamilies,
+  lineDraftFromBreakdown,
+  type BomModelLineDraft
+} from './bomModelBreakdown'
+import { buildModelFamilyGroups, inferParentNameFromVariant, isAssignableModel } from './vehicleModelHierarchy'
+import type { BomDisplayGroup } from './bomRowGroups'
 import type { BomItemDetail } from '../Types/bom'
 import type { VehicleModel } from '../Types/settings'
 
@@ -42,7 +48,6 @@ export function cardsFromBomRow(models: VehicleModel[], row: BomItemDetail): {
   familyIds: string[]
   cards: ModelCardDraft[]
 } {
-  const picker = buildModelFamilyGroups(models)
   const familyIds: string[] = []
 
   if (row.model_family) {
@@ -90,7 +95,42 @@ export function cardsFromBomRow(models: VehicleModel[], row: BomItemDetail): {
     }
   }
 
-  return { familyIds, cards }
+  if (!familyIds.length && qtyEntries.length > 0) {
+    const inferred = inferParentNameFromVariant(qtyEntries[0].modelName)
+    const fam = models.find(m => m.model_kind === 'family' && m.name === inferred)
+    if (fam) familyIds.push(fam.id)
+  }
+
+  return { familyIds, cards: syncModelCardsWithFamilies(models, familyIds, cards) }
+}
+
+export function syncModelCardsWithFamilies(
+  models: VehicleModel[],
+  familyIds: string[],
+  existing: ModelCardDraft[]
+): ModelCardDraft[] {
+  const variants = variantsForFamilies(models, familyIds)
+  if (variants.length === 0) return []
+
+  const seed = existing.find(c => c.part_number.trim()) ?? existing[0]
+  const seedFields: Partial<ModelCardDraft> | undefined = seed
+    ? {
+        part_number: seed.part_number,
+        part_number_new: seed.part_number_new,
+        alternative_part_no: seed.alternative_part_no,
+        part_kind: seed.part_kind,
+        supply_source: seed.supply_source,
+        station_id: seed.station_id,
+        station_code_text: seed.station_code_text,
+        station_category: seed.station_category
+      }
+    : undefined
+
+  return variants.map(m => {
+    const cur = existing.find(c => c.modelId === m.id)
+    if (cur) return cur
+    return emptyCard(m, seedFields ? { ...seedFields, qty: '0' } : { qty: '0' })
+  })
 }
 
 export function cardsFromBomRows(models: VehicleModel[], rows: BomItemDetail[]): {
@@ -108,11 +148,90 @@ export function cardsFromBomRows(models: VehicleModel[], rows: BomItemDetail[]):
     for (const card of parsed.cards) {
       const idx = cards.findIndex(c => c.modelId === card.modelId)
       if (idx < 0) cards.push(card)
-      else cards[idx] = { ...cards[idx], ...card }
+      else if (Number(card.qty) > 0) cards[idx] = { ...cards[idx], ...card }
     }
   }
 
-  return { familyIds, cards }
+  return { familyIds, cards: syncModelCardsWithFamilies(models, familyIds, cards) }
+}
+
+/** Build save cards from inline breakdown editor draft (all families / variants). */
+export function buildBreakdownSaveCards(
+  models: VehicleModel[],
+  group: BomDisplayGroup,
+  rows: BomItemDetail[],
+  draftByModel: Record<string, BomModelLineDraft>
+): { familyIds: string[]; cards: ModelCardDraft[] } {
+  const parsed = cardsFromBomRows(models, rows)
+  const families = bomModelBreakdownFamilies(models, group)
+  const familyIds = families.filter(f => !f.familyId.startsWith('__')).map(f => f.familyId)
+  const row = rows[0]
+  const seedCard = parsed.cards.find(c => c.part_number.trim()) ?? parsed.cards[0]
+  const seed: Partial<ModelCardDraft> = seedCard
+    ? {
+        part_number_new: seedCard.part_number_new,
+        alternative_part_no: seedCard.alternative_part_no,
+        station_id: seedCard.station_id,
+        station_code_text: seedCard.station_code_text,
+        bom_classification: seedCard.bom_classification,
+        station_category: seedCard.station_category
+      }
+    : {
+        part_number: row?.part_number ?? '',
+        part_kind: effectivePartKind(row?.part_type),
+        supply_source: effectiveSupplySource(row?.supply_source ?? resolveSupplySource(row)),
+        station_id: row?.station_id ?? '',
+        station_code_text: row?.station_code_text ? normalizeBomStationCodeText(row.station_code_text) : ''
+      }
+
+  const cards: ModelCardDraft[] = []
+  for (const fam of families) {
+    for (const line of fam.lines) {
+      const m = models.find(x => x.id === line.modelId) ?? models.find(x => x.name === line.modelName)
+      if (!m) continue
+      const draft = draftByModel[line.modelName] ?? lineDraftFromBreakdown(line, group)
+      const existing = parsed.cards.find(c => c.modelId === m.id)
+      cards.push({
+        ...(existing ?? emptyCard(m, seed)),
+        modelId: m.id,
+        modelName: m.name,
+        part_number: draft.part_number.trim(),
+        qty: draft.qty ?? '0',
+        part_kind: effectivePartKind(draft.part_kind || existing?.part_kind),
+        supply_source: effectiveSupplySource(draft.supply_source || existing?.supply_source)
+      })
+    }
+  }
+
+  return {
+    familyIds: familyIds.length > 0 ? familyIds : parsed.familyIds,
+    cards
+  }
+}
+
+/** Map existing BOM rows to model names for per-variant updates. */
+export function bomRowsByModelName(models: VehicleModel[], rows: BomItemDetail[]): Map<string, BomItemDetail> {
+  const map = new Map<string, BomItemDetail>()
+  for (const row of rows) {
+    for (const e of modelQtyFromBomRow(row)) {
+      if (e.modelName) map.set(e.modelName, row)
+    }
+    if (row.vehicle_model_id) {
+      const m = models.find(x => x.id === row.vehicle_model_id)
+      if (m) map.set(m.name, row)
+    }
+    for (const name of parseApplicableModelNames(row.applicable_models_text)) {
+      if (!map.has(name)) map.set(name, row)
+    }
+  }
+  return map
+}
+
+export function familyIdForModel(models: VehicleModel[], modelId: string): string | null {
+  const m = models.find(x => x.id === modelId)
+  if (!m?.parent_model_id) return null
+  const fam = models.find(x => x.id === m.parent_model_id && x.model_kind === 'family')
+  return fam?.id ?? null
 }
 
 export function cardsCanConsolidate(cards: ModelCardDraft[]): boolean {

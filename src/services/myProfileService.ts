@@ -1,4 +1,6 @@
 import { supabase } from '../lib/supabase'
+import { getFactoryOrgUnits } from './factoryOrgService'
+import { orgPathFromLeaf, orgPathLabel } from '../Utils/employeeOrgPicker'
 
 const AVATAR_BUCKET = 'avatars'
 const MAX_AVATAR_BYTES = 2 * 1024 * 1024
@@ -71,5 +73,55 @@ export async function changeMyPassword(
       throw new Error('WRONG_CURRENT_PASSWORD')
     }
     throw new Error(error.message)
+  }
+}
+
+export type MyEmployeeSnapshot = {
+  jobRole: string
+  assignmentStatus: string | null
+  orgUnitLabel: string | null
+  stationLabel: string | null
+  lineName: string | null
+  managerNames: string[]
+}
+
+export async function fetchMyEmployeeSnapshot(employeeId: string): Promise<MyEmployeeSnapshot | null> {
+  const { data, error } = await client()
+    .from('employees')
+    .select('job_role, assignment_status, factory_org_unit_id, line_name, stations(station_number, station_name)')
+    .eq('id', employeeId)
+    .maybeSingle()
+
+  if (error) throw new Error(error.message)
+  if (!data) return null
+
+  const units = await getFactoryOrgUnits()
+  const orgUnitLabel = orgPathLabel(orgPathFromLeaf(data.factory_org_unit_id, units), units)
+  const st = data.stations as { station_number?: string; station_name?: string } | null
+  const stationLabel = st
+    ? [st.station_number, st.station_name].filter(Boolean).join(' — ')
+    : null
+
+  const { data: mgrLinks } = await client()
+    .from('employee_direct_managers')
+    .select('manager:employees!employee_direct_managers_manager_id_fkey(full_name)')
+    .eq('employee_id', employeeId)
+    .order('sort_order')
+
+  const managerNames = (mgrLinks ?? [])
+    .map(row => {
+      const m = row.manager as { full_name?: string } | { full_name?: string }[] | null
+      if (Array.isArray(m)) return m[0]?.full_name
+      return m?.full_name
+    })
+    .filter((n): n is string => Boolean(n))
+
+  return {
+    jobRole: String(data.job_role ?? ''),
+    assignmentStatus: data.assignment_status ? String(data.assignment_status) : null,
+    orgUnitLabel,
+    stationLabel,
+    lineName: data.line_name ? String(data.line_name) : null,
+    managerNames
   }
 }
