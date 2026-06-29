@@ -12,6 +12,7 @@ export type AppAuthSession = {
 }
 
 const EXPIRY_BUFFER_MS = 60_000
+const APP_AUTH_TIMEOUT_MS = 8_000
 
 let authFailureHandler: (() => void) | null = null
 let refreshInFlight: Promise<AppAuthSession | null> | null = null
@@ -20,19 +21,19 @@ export function registerAuthFailureHandler(handler: (() => void) | null): void {
   authFailureHandler = handler
 }
 
-function jwtExpUnix(token: string): number | null {
+function decodeJwtPayload<T extends Record<string, unknown>>(token: string): T | null {
   try {
     const part = token.split('.')[1]
     if (!part) return null
-    const payload = JSON.parse(atob(part.replace(/-/g, '+').replace(/_/g, '/'))) as { exp?: number }
-    return typeof payload.exp === 'number' ? payload.exp : null
+    return JSON.parse(atob(part.replace(/-/g, '+').replace(/_/g, '/'))) as T
   } catch {
     return null
   }
 }
 
 export function sessionExpiryUnix(session: AppAuthSession): number {
-  return jwtExpUnix(session.access_token) ?? session.expires_at
+  const exp = decodeJwtPayload<{ exp?: number }>(session.access_token)?.exp
+  return typeof exp === 'number' ? exp : session.expires_at
 }
 
 export function isAccessTokenExpired(session: AppAuthSession): boolean {
@@ -53,13 +54,6 @@ export function readRawSession(): AppAuthSession | null {
   } catch {
     return null
   }
-}
-
-export function loadStoredSession(): AppAuthSession | null {
-  const session = readRawSession()
-  if (!session) return null
-  if (isAccessTokenExpired(session)) return null
-  return session
 }
 
 export function saveSession(session: AppAuthSession): void {
@@ -97,6 +91,8 @@ function sessionFromPayload(payload: LoginPayload): AppAuthSession | null {
 
 async function callAppAuth(body: Record<string, unknown>): Promise<LoginPayload | null> {
   if (!supabaseUrl || !supabaseAnonKey) return null
+  const controller = new AbortController()
+  const timeoutId = window.setTimeout(() => controller.abort(), APP_AUTH_TIMEOUT_MS)
   try {
     const res = await fetch(`${supabaseUrl}/functions/v1/app-auth`, {
       method: 'POST',
@@ -105,21 +101,22 @@ async function callAppAuth(body: Record<string, unknown>): Promise<LoginPayload 
         apikey: supabaseAnonKey,
         Authorization: `Bearer ${supabaseAnonKey}`
       },
-      body: JSON.stringify(body)
+      body: JSON.stringify(body),
+      signal: controller.signal
     })
-    if (!res.ok) return null
-    return (await res.json()) as LoginPayload
+    let payload: LoginPayload | null = null
+    try {
+      payload = (await res.json()) as LoginPayload
+    } catch {
+      payload = null
+    }
+    if (!res.ok) return payload?.error ? payload : null
+    return payload
   } catch {
     return null
+  } finally {
+    window.clearTimeout(timeoutId)
   }
-}
-
-async function tryEdgeLogin(email: string, password: string): Promise<LoginPayload | null> {
-  return callAppAuth({ action: 'login', email: email.trim(), password })
-}
-
-async function tryEdgeRefresh(refreshToken: string): Promise<LoginPayload | null> {
-  return callAppAuth({ action: 'refresh', refresh_token: refreshToken })
 }
 
 async function tryGoTrueRefresh(session: AppAuthSession): Promise<AppAuthSession | null> {
@@ -138,13 +135,19 @@ async function tryGoTrueRefresh(session: AppAuthSession): Promise<AppAuthSession
   return next
 }
 
+function isAppRefreshToken(token: string): boolean {
+  return decodeJwtPayload<{ type?: string }>(token)?.type === 'refresh'
+}
+
 export async function refreshAppSession(session: AppAuthSession): Promise<AppAuthSession | null> {
-  const edgePayload = await tryEdgeRefresh(session.refresh_token)
-  if (edgePayload?.error) return null
-  const edgeSession = edgePayload ? sessionFromPayload(edgePayload) : null
-  if (edgeSession) {
-    applySession(edgeSession)
-    return edgeSession
+  if (isAppRefreshToken(session.refresh_token)) {
+    const edgePayload = await callAppAuth({ action: 'refresh', refresh_token: session.refresh_token })
+    if (edgePayload?.error) return null
+    const edgeSession = edgePayload ? sessionFromPayload(edgePayload) : null
+    if (edgeSession) {
+      applySession(edgeSession)
+      return edgeSession
+    }
   }
   return tryGoTrueRefresh(session)
 }
@@ -170,8 +173,7 @@ export async function ensureFreshSession(): Promise<AppAuthSession | null> {
 
 export async function handleAuthApiError(message: string): Promise<boolean> {
   if (!isJwtExpiredMessage(message)) return false
-  const refreshed = await ensureFreshSession()
-  return Boolean(refreshed)
+  return Boolean(await ensureFreshSession())
 }
 
 async function tryGoTrueLogin(
@@ -213,10 +215,9 @@ export async function loginWithEmailPassword(
   email: string,
   password: string
 ): Promise<{ ok: true; session: AppAuthSession } | { ok: false; message: string }> {
-  const sb = getSupabase()
-  if (!sb) return { ok: false, message: 'Supabase غير مهيأ.' }
+  if (!getSupabase()) return { ok: false, message: 'Supabase غير مهيأ.' }
 
-  const edgePayload = await tryEdgeLogin(email, password)
+  const edgePayload = await callAppAuth({ action: 'login', email: email.trim(), password })
   if (edgePayload?.error) return { ok: false, message: payloadErrorAr(edgePayload.error) }
 
   const edgeSession = edgePayload ? sessionFromPayload(edgePayload) : null

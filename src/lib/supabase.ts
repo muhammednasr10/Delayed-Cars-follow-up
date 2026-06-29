@@ -19,14 +19,17 @@ function buildClient(): SupabaseClient | null {
       detectSessionInUrl: false
     },
     global: {
-      headers: accessToken ? { Authorization: `Bearer ${accessToken}` } : {}
+      fetch: (input, init = {}) => {
+        const headers = new Headers(init.headers)
+        if (accessToken) headers.set('Authorization', `Bearer ${accessToken}`)
+        return fetch(input, { ...init, headers })
+      }
     }
   })
 }
 
 export function setSupabaseAccessToken(token: string | null) {
   accessToken = token
-  client = buildClient()
 }
 
 export function getSupabase(): SupabaseClient | null {
@@ -35,9 +38,6 @@ export function getSupabase(): SupabaseClient | null {
   }
   return client
 }
-
-// Initialize on load
-setSupabaseAccessToken(null)
 
 export const supabase: SupabaseClient | null = new Proxy({} as SupabaseClient, {
   get(_target, prop, receiver) {
