@@ -336,7 +336,8 @@ export function TodayAttendanceTab({ employees, canManage }: Props) {
     setQuickStatus(row.status)
     setQuickCheckIn(quickCheckInRef.current)
     setQuickCheckOut(quickCheckOutRef.current)
-  }, [])
+    commitQuickEntry()
+  }, [commitQuickEntry])
 
   const onQuickStatusChange = useCallback(
     (status: AttendanceDayStatus) => {
@@ -390,11 +391,6 @@ export function TodayAttendanceTab({ employees, canManage }: Props) {
     void persistAllRows(nextRows)
   }
 
-  const unsavedCount = useMemo(
-    () => rows.filter(r => !persistedIds.has(r.employeeId)).length,
-    [rows, persistedIds]
-  )
-
   return (
     <div className="space-y-4 p-4 sm:p-5">
       <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-end sm:justify-between">
@@ -409,15 +405,6 @@ export function TodayAttendanceTab({ employees, canManage }: Props) {
         </div>
         {canManage && (
           <div className="flex flex-wrap items-center gap-2">
-            <button
-              type="button"
-              onClick={() => void persistAllRows(rowsRef.current)}
-              disabled={saveState === 'saving' || rows.length === 0}
-              className="rounded-xl bg-cyan-500 px-4 py-2 text-sm font-black text-slate-950 disabled:opacity-40"
-            >
-              {t('attendance.today.saveAll')}
-              {unsavedCount > 0 ? ` (${unsavedCount})` : ''}
-            </button>
             <button
               type="button"
               onClick={() => setDefaultsOpen(true)}
@@ -438,12 +425,6 @@ export function TodayAttendanceTab({ employees, canManage }: Props) {
       {!canManage && (
         <div className="rounded-xl border border-amber-500/30 bg-amber-500/10 p-3 text-sm text-amber-100">
           {t('attendance.today.readOnlyHint')}
-        </div>
-      )}
-
-      {canManage && (
-        <div className="rounded-xl border border-slate-700 bg-slate-900/50 p-3 text-sm text-slate-300">
-          {t('attendance.today.saveExplain')}
         </div>
       )}
 
@@ -480,10 +461,8 @@ export function TodayAttendanceTab({ employees, canManage }: Props) {
         checkOut={quickCheckOut}
         onCheckInChange={onQuickCheckInChange}
         onCheckOutChange={onQuickCheckOutChange}
-        onApply={() => commitQuickEntry()}
       />
 
-      <p className="text-xs text-slate-500">{t('attendance.today.hint')}</p>
       {error && <div className="rounded-xl border border-red-500/30 bg-red-500/10 p-3 text-sm text-red-200">{error}</div>}
 
       <div className="overflow-x-auto rounded-2xl border border-slate-800">
@@ -508,13 +487,10 @@ export function TodayAttendanceTab({ employees, canManage }: Props) {
                   key={row.employeeId}
                   className={`bg-slate-900/30 hover:bg-slate-800/40 ${
                     row.employeeId === quickEmployeeId ? 'bg-violet-500/10 ring-1 ring-inset ring-violet-500/30' : ''
-                  } ${!persistedIds.has(row.employeeId) ? 'opacity-90' : ''}`}
+                  }`}
                 >
                   <td className="table-cell font-mono font-bold text-white" dir="ltr">
                     {row.employeeCode}
-                    {!persistedIds.has(row.employeeId) && canManage && (
-                      <span className="ms-1 text-[10px] font-bold text-amber-400">*</span>
-                    )}
                   </td>
                   <td className="table-cell font-bold text-slate-100">{row.fullName}</td>
                   <td className="table-cell">
@@ -527,7 +503,7 @@ export function TodayAttendanceTab({ employees, canManage }: Props) {
                       value={row.status}
                       onChange={e => {
                         const status = e.target.value as AttendanceDayStatus
-                        patchRow(i, { status })
+                        patchRow(i, { status }, true)
                         if (row.employeeId === quickEmployeeId) {
                           setQuickStatus(status)
                           if (!attendanceStatusHasTimes(status)) {
@@ -551,7 +527,7 @@ export function TodayAttendanceTab({ employees, canManage }: Props) {
                       className={`${inputCls()} w-28 py-1.5 text-xs disabled:opacity-40`}
                       value={row.checkIn}
                       onChange={e => {
-                        patchRow(i, { checkIn: e.target.value })
+                        patchRow(i, { checkIn: e.target.value }, true)
                         if (row.employeeId === quickEmployeeId) setQuickCheckIn(e.target.value)
                       }}
                       dir="ltr"
@@ -564,7 +540,7 @@ export function TodayAttendanceTab({ employees, canManage }: Props) {
                       className={`${inputCls()} w-28 py-1.5 text-xs disabled:opacity-40`}
                       value={row.checkOut}
                       onChange={e => {
-                        patchRow(i, { checkOut: e.target.value })
+                        patchRow(i, { checkOut: e.target.value }, true)
                         if (row.employeeId === quickEmployeeId) setQuickCheckOut(e.target.value)
                       }}
                       dir="ltr"
@@ -575,7 +551,7 @@ export function TodayAttendanceTab({ employees, canManage }: Props) {
                       disabled={!canManage}
                       className={`${inputCls()} min-w-[8rem] py-1.5 text-xs`}
                       value={row.notes}
-                      onChange={e => patchRow(i, { notes: e.target.value })}
+                      onChange={e => patchRow(i, { notes: e.target.value }, true)}
                     />
                   </td>
                 </tr>

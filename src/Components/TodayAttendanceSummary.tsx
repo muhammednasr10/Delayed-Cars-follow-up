@@ -76,12 +76,6 @@ export function TodayAttendanceSummary({ rows, loading }: Props) {
       value: counts.total,
       highlight: true
     },
-    {
-      key: 'onSite',
-      label: t('attendance.today.summary.onSite'),
-      value: counts.onSite,
-      style: STATUS_STYLE.present
-    },
     ...ATTENDANCE_STATUSES.map(status => ({
       key: status,
       label: t(`attendance.status.${status}`),
@@ -97,7 +91,7 @@ export function TodayAttendanceSummary({ rows, loading }: Props) {
         <h4 className="text-sm font-black text-violet-200">{t('attendance.today.summary.title')}</h4>
         {loading && <span className="text-xs text-slate-500">{t('common.loading')}</span>}
       </div>
-      <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-9">
+      <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-8">
         {cards.map(card => {
           const style = card.style
           return (

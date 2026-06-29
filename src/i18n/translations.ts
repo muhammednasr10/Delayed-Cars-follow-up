@@ -855,13 +855,13 @@ export const translations = {
       monthly: {
         title: 'شهري',
         subtitle: 'ملخص حضور وانصراف كل موظف خلال الشهر',
-        hint: 'استخدم تبويب «تسجيل اليوم» لتسجيل حضور اليوم — يظهر فوراً في هذا الجدول بعد الحفظ.',
+        hint: 'استخدم تبويب «تسجيل اليوم» لتسجيل حضور اليوم — يُحفظ تلقائياً ويظهر هنا.',
         search: 'بحث عن موظف',
         searchPh: 'ابحث بالاسم أو الرقم الوظيفي…'
       },
       today: {
         title: 'تسجيل اليوم',
-        hint: 'غيّر الحالة أو الأوقات — يُحفظ تلقائياً بعد التغيير. الصفوف بعلامة * لم تُحفظ بعد في القاعدة.',
+        hint: 'ابحث عن الموظف واختر الحالة — يُحفظ تلقائياً ويظهر في الجدول الشهري.',
         saveAll: 'حفظ الكل',
         saveExplain:
           'لا يوجد زر حفظ منفصل لكل صف — التغيير يُحفظ تلقائياً. الافتراضي «حاضر» لا يُسجَّل في القاعدة حتى تغيّر الحالة أو تضغط «حفظ الكل». بعد الحفظ يظهر التسجيل لباقي المستخدمين والجدول الشهري.',
@@ -2783,7 +2783,7 @@ export const translations = {
       },
       today: {
         title: 'Today',
-        hint: 'Change status or times — auto-saves after edit. Rows marked * are not saved to the database yet.',
+        hint: 'Find the employee and set status — saves automatically and appears in the monthly table.',
         saveAll: 'Save all',
         saveExplain:
           'No per-row save button — edits auto-save. Default «present» is not stored until you change status or press «Save all». Other users and the monthly tab see data after save.',
