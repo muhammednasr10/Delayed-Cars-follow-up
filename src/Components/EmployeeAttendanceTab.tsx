@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { CalendarClock, Download, FileUp, Pencil } from 'lucide-react'
+import { CalendarClock, Download, FileUp, Pencil, RefreshCw, Search } from 'lucide-react'
 import { useLang } from '../i18n/LanguageContext'
 import { JobRoleBadge } from './EmployeeBadges'
 import { Modal } from './Modal'
@@ -14,6 +14,7 @@ import { exportAttendanceMonthExcel, parseAttendanceImportFile } from '../Utils/
 import type { EmployeeAttendanceSummary } from '../Types/attendance'
 import type { Employee } from '../Types/employee'
 import { compareEmployees } from '../services/employeesService'
+import { findEmployeesByQuery } from '../Utils/employeeLookup'
 
 type Props = {
   employees: Employee[]
@@ -36,6 +37,7 @@ export function EmployeeAttendanceTab({ employees, canManage }: Props) {
   const [success, setSuccess] = useState('')
   const [editRow, setEditRow] = useState<EmployeeAttendanceSummary | null>(null)
   const [importOpen, setImportOpen] = useState(false)
+  const [searchQuery, setSearchQuery] = useState('')
   const fileRef = useRef<HTMLInputElement>(null)
 
   const monthValue = `${year}-${String(month).padStart(2, '0')}`
@@ -65,10 +67,22 @@ export function EmployeeAttendanceTab({ employees, canManage }: Props) {
     void load()
   }, [load])
 
+  useEffect(() => {
+    const id = window.setInterval(() => void load(), 45_000)
+    return () => window.clearInterval(id)
+  }, [load])
+
   const sortedByIssues = useMemo(
     () => [...summaries].sort((a, b) => b.issueDays - a.issueDays || b.absentDays - a.absentDays),
     [summaries]
   )
+
+  const filteredSummaries = useMemo(() => {
+    const q = searchQuery.trim()
+    if (!q) return sortedByIssues
+    const matchedIds = new Set(findEmployeesByQuery(employees, q, 500).map(e => e.id))
+    return sortedByIssues.filter(s => matchedIds.has(s.employeeId))
+  }, [sortedByIssues, searchQuery, employees])
 
   async function handleExport() {
     try {
@@ -139,6 +153,9 @@ export function EmployeeAttendanceTab({ employees, canManage }: Props) {
               }}
             />
           </label>
+          <button type="button" onClick={() => void load()} className="rounded-xl border border-slate-600 bg-slate-800 px-4 py-2 text-sm font-bold text-slate-200 hover:bg-slate-700">
+            <RefreshCw className={`mr-1 inline h-4 w-4 ${loading ? 'animate-spin' : ''}`} /> {t('common.refresh')}
+          </button>
           <button type="button" onClick={() => void handleExport()} className="rounded-xl border border-cyan-500/40 bg-cyan-500/10 px-4 py-2 text-sm font-bold text-cyan-200 hover:bg-cyan-500/20">
             <Download className="mr-1 inline h-4 w-4" /> {t('attendance.export')}
           </button>
@@ -154,6 +171,19 @@ export function EmployeeAttendanceTab({ employees, canManage }: Props) {
       {error && <div className="rounded-xl border border-red-500/30 bg-red-500/10 p-3 text-sm text-red-200">{error}</div>}
 
       <p className="text-xs text-slate-500">{t('attendance.monthly.hint')}</p>
+
+      <label className="block space-y-1.5">
+        <span className="flex items-center gap-1.5 text-xs font-bold text-slate-400">
+          <Search className="h-3.5 w-3.5" />
+          {t('attendance.monthly.search')}
+        </span>
+        <input
+          className={inputCls()}
+          value={searchQuery}
+          onChange={e => setSearchQuery(e.target.value)}
+          placeholder={t('attendance.monthly.searchPh')}
+        />
+      </label>
 
       <div className="overflow-x-auto rounded-2xl border border-slate-800">
         <table className="w-full min-w-[720px] text-start">
@@ -175,8 +205,15 @@ export function EmployeeAttendanceTab({ employees, canManage }: Props) {
                 </td>
               </tr>
             )}
+            {!loading && filteredSummaries.length === 0 && (
+              <tr>
+                <td colSpan={canManage ? 9 : 8} className="table-cell text-center text-slate-500">
+                  {t('common.noData')}
+                </td>
+              </tr>
+            )}
             {!loading &&
-              sortedByIssues.map(s => (
+              filteredSummaries.map(s => (
                 <tr key={s.employeeId} className="bg-slate-900/30 hover:bg-slate-800/40">
                   <td className="table-cell font-mono font-bold text-white" dir="ltr">
                     {s.employeeCode}

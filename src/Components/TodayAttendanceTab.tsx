@@ -97,8 +97,10 @@ export function TodayAttendanceTab({ employees, canManage }: Props) {
   const [defaultsOpen, setDefaultsOpen] = useState(false)
   const [bulkDefaults, setBulkDefaults] = useState<AttendanceBulkDefaults>(DEFAULT_ATTENDANCE_BULK)
   const [todayPlanDayType, setTodayPlanDayType] = useState<PlanDayType | null>(null)
+  const [persistedIds, setPersistedIds] = useState<Set<string>>(new Set())
   const saveTimers = useRef<Map<string, ReturnType<typeof setTimeout>>>(new Map())
   const savedTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const rowsRef = useRef<TodayRow[]>([])
 
   const activeEmployees = useMemo(
     () => [...employees].filter(e => e.isActive).sort(compareEmployees),
@@ -106,34 +108,69 @@ export function TodayAttendanceTab({ employees, canManage }: Props) {
   )
 
   useEffect(() => {
+    rowsRef.current = rows
+  }, [rows])
+
+  const mergeRowsFromServer = useCallback(
+    (existing: Awaited<ReturnType<typeof getAttendanceDaysForDate>>, planDayType: PlanDayType | null) => {
+      setTodayPlanDayType(planDayType)
+      const initialDefaults = attendanceDefaultsFromPlanDay(planDayType, bulkDefaults)
+      const byEmployee = new Map(existing.map(d => [d.employeeId, d]))
+      setPersistedIds(new Set(existing.map(d => d.employeeId)))
+      setRows(prev => {
+        const pending = new Set(saveTimers.current.keys())
+        return activeEmployees.map(employee => {
+          if (pending.has(employee.id)) {
+            return prev.find(r => r.employeeId === employee.id) ?? buildDefaultRow(employee, initialDefaults)
+          }
+          const saved = byEmployee.get(employee.id)
+          if (!saved) return buildDefaultRow(employee, initialDefaults)
+          const times = rowTimesFromStatus(saved.status, saved.checkIn, saved.checkOut)
+          return {
+            employeeId: employee.id,
+            employeeCode: employee.employeeCode,
+            fullName: employee.fullName,
+            jobRole: employee.jobRole,
+            status: saved.status,
+            checkIn: times.checkIn,
+            checkOut: times.checkOut,
+            notes: saved.notes ?? ''
+          }
+        })
+      })
+    },
+    [activeEmployees, bulkDefaults]
+  )
+
+  const loadFromServer = useCallback(async () => {
     setLoading(true)
     setError('')
-    Promise.all([getAttendanceDaysForDate(workDate), getProductionPlanDayType(workDate)])
-      .then(([existing, planDayType]) => {
-        setTodayPlanDayType(planDayType)
-        const initialDefaults = attendanceDefaultsFromPlanDay(planDayType, bulkDefaults)
-        const byEmployee = new Map(existing.map(d => [d.employeeId, d]))
-        setRows(
-          activeEmployees.map(employee => {
-            const saved = byEmployee.get(employee.id)
-            if (!saved) return buildDefaultRow(employee, initialDefaults)
-            const times = rowTimesFromStatus(saved.status, saved.checkIn, saved.checkOut)
-            return {
-              employeeId: employee.id,
-              employeeCode: employee.employeeCode,
-              fullName: employee.fullName,
-              jobRole: employee.jobRole,
-              status: saved.status,
-              checkIn: times.checkIn,
-              checkOut: times.checkOut,
-              notes: saved.notes ?? ''
-            }
-          })
-        )
-      })
-      .catch(e => setError(e instanceof Error ? e.message : t('common.error')))
-      .finally(() => setLoading(false))
-  }, [workDate, activeEmployees, t])
+    try {
+      const [existing, planDayType] = await Promise.all([
+        getAttendanceDaysForDate(workDate),
+        getProductionPlanDayType(workDate)
+      ])
+      mergeRowsFromServer(existing, planDayType)
+    } catch (e) {
+      setError(e instanceof Error ? e.message : t('common.error'))
+    } finally {
+      setLoading(false)
+    }
+  }, [workDate, mergeRowsFromServer, t])
+
+  useEffect(() => {
+    void loadFromServer()
+  }, [loadFromServer])
+
+  useEffect(() => {
+    const id = window.setInterval(() => {
+      if (document.visibilityState === 'hidden') return
+      void getAttendanceDaysForDate(workDate)
+        .then(existing => mergeRowsFromServer(existing, todayPlanDayType))
+        .catch(() => {})
+    }, 30_000)
+    return () => window.clearInterval(id)
+  }, [workDate, mergeRowsFromServer, todayPlanDayType])
 
   const flashSaved = useCallback(() => {
     setSaveState('saved')
@@ -156,6 +193,7 @@ export function TodayAttendanceTab({ employees, canManage }: Props) {
             notes: row.notes
           })
         )
+        setPersistedIds(prev => new Set(prev).add(row.employeeId))
         flashSaved()
       } catch (e) {
         setSaveState('idle')
@@ -202,6 +240,11 @@ export function TodayAttendanceTab({ employees, canManage }: Props) {
           })
         )
         await bulkUpsertAttendanceDays(inputs)
+        setPersistedIds(prev => {
+          const next = new Set(prev)
+          for (const row of nextRows) next.add(row.employeeId)
+          return next
+        })
         flashSaved()
       } catch (e) {
         setSaveState('idle')
@@ -303,7 +346,7 @@ export function TodayAttendanceTab({ employees, canManage }: Props) {
     if (!isHolidayPlanDay(todayPlanDayType)) {
       setBulkDefaults(defaults)
     }
-    const nextRows = rows.map(row => ({
+    const nextRows = rowsRef.current.map(row => ({
       ...row,
       status: defaults.status,
       checkIn: defaults.checkIn,
@@ -312,6 +355,11 @@ export function TodayAttendanceTab({ employees, canManage }: Props) {
     setRows(nextRows)
     void persistAllRows(nextRows)
   }
+
+  const unsavedCount = useMemo(
+    () => rows.filter(r => !persistedIds.has(r.employeeId)).length,
+    [rows, persistedIds]
+  )
 
   return (
     <div className="space-y-4 p-4 sm:p-5">
@@ -329,6 +377,15 @@ export function TodayAttendanceTab({ employees, canManage }: Props) {
           <div className="flex flex-wrap items-center gap-2">
             <button
               type="button"
+              onClick={() => void persistAllRows(rowsRef.current)}
+              disabled={saveState === 'saving' || rows.length === 0}
+              className="rounded-xl bg-cyan-500 px-4 py-2 text-sm font-black text-slate-950 disabled:opacity-40"
+            >
+              {t('attendance.today.saveAll')}
+              {unsavedCount > 0 ? ` (${unsavedCount})` : ''}
+            </button>
+            <button
+              type="button"
               onClick={() => setDefaultsOpen(true)}
               className="rounded-xl border border-slate-600 bg-slate-800 px-4 py-2 text-sm font-bold text-slate-200 hover:bg-slate-700"
             >
@@ -343,6 +400,18 @@ export function TodayAttendanceTab({ employees, canManage }: Props) {
           </div>
         )}
       </div>
+
+      {!canManage && (
+        <div className="rounded-xl border border-amber-500/30 bg-amber-500/10 p-3 text-sm text-amber-100">
+          {t('attendance.today.readOnlyHint')}
+        </div>
+      )}
+
+      {canManage && (
+        <div className="rounded-xl border border-slate-700 bg-slate-900/50 p-3 text-sm text-slate-300">
+          {t('attendance.today.saveExplain')}
+        </div>
+      )}
 
       {todayPlanDayType && (
         <div className="flex flex-wrap items-center gap-2 rounded-xl border border-slate-700 bg-slate-900/50 px-3 py-2 text-sm">
@@ -404,10 +473,13 @@ export function TodayAttendanceTab({ employees, canManage }: Props) {
                   key={row.employeeId}
                   className={`bg-slate-900/30 hover:bg-slate-800/40 ${
                     row.employeeId === quickEmployeeId ? 'bg-violet-500/10 ring-1 ring-inset ring-violet-500/30' : ''
-                  }`}
+                  } ${!persistedIds.has(row.employeeId) ? 'opacity-90' : ''}`}
                 >
                   <td className="table-cell font-mono font-bold text-white" dir="ltr">
                     {row.employeeCode}
+                    {!persistedIds.has(row.employeeId) && canManage && (
+                      <span className="ms-1 text-[10px] font-bold text-amber-400">*</span>
+                    )}
                   </td>
                   <td className="table-cell font-bold text-slate-100">{row.fullName}</td>
                   <td className="table-cell">

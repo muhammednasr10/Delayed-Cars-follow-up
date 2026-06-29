@@ -855,11 +855,17 @@ export const translations = {
       monthly: {
         title: 'شهري',
         subtitle: 'ملخص حضور وانصراف كل موظف خلال الشهر',
-        hint: 'استخدم تبويب «تسجيل اليوم» لتسجيل حضور اليوم — يظهر فوراً في هذا الجدول.'
+        hint: 'استخدم تبويب «تسجيل اليوم» لتسجيل حضور اليوم — يظهر فوراً في هذا الجدول بعد الحفظ.',
+        search: 'بحث عن موظف',
+        searchPh: 'ابحث بالاسم أو الرقم الوظيفي…'
       },
       today: {
         title: 'تسجيل اليوم',
-        hint: 'غيّر الحالة أو الأوقات — يُحفظ تلقائياً ويظهر في الجدول الشهري.',
+        hint: 'غيّر الحالة أو الأوقات — يُحفظ تلقائياً بعد التغيير. الصفوف بعلامة * لم تُحفظ بعد في القاعدة.',
+        saveAll: 'حفظ الكل',
+        saveExplain:
+          'لا يوجد زر حفظ منفصل لكل صف — التغيير يُحفظ تلقائياً. الافتراضي «حاضر» لا يُسجَّل في القاعدة حتى تغيّر الحالة أو تضغط «حفظ الكل». بعد الحفظ يظهر التسجيل لباقي المستخدمين والجدول الشهري.',
+        readOnlyHint: 'عرض فقط — لا تملك صلاحية تسجيل الحضور. اطلب من مدخل البيانات أو المسؤول.',
         save: 'حفظ اليوم',
         saved: 'تم حفظ حضور اليوم — يظهر الآن في الجدول الشهري.',
         autoSaved: 'تم الحفظ تلقائياً',
@@ -2770,11 +2776,17 @@ export const translations = {
       monthly: {
         title: 'Monthly',
         subtitle: 'Per-employee attendance summary for the month',
-        hint: 'Use the «Today» tab to record today — it updates this table immediately.'
+        hint: 'Use the «Today» tab to record today — it appears here after saving.',
+        search: 'Find employee',
+        searchPh: 'Search by name or employee code…'
       },
       today: {
         title: 'Today',
-        hint: 'Change status or times — saves automatically and appears in the monthly table.',
+        hint: 'Change status or times — auto-saves after edit. Rows marked * are not saved to the database yet.',
+        saveAll: 'Save all',
+        saveExplain:
+          'No per-row save button — edits auto-save. Default «present» is not stored until you change status or press «Save all». Other users and the monthly tab see data after save.',
+        readOnlyHint: 'Read-only — you cannot record attendance. Ask data entry or an admin.',
         save: 'Save today',
         saved: "Today's attendance saved — reflected in the monthly table.",
         autoSaved: 'Saved automatically',
