@@ -28,7 +28,9 @@ $$;
 
 grant execute on function public.touch_my_presence(text) to authenticated;
 
-create or replace view public.v_user_accounts_detail as
+drop view if exists public.v_user_accounts_detail;
+
+create view public.v_user_accounts_detail as
 select
   p.id,
   p.email,
