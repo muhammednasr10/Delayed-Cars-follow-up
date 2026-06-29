@@ -20,6 +20,7 @@ type Props = {
   checkOut: string
   onCheckInChange: (value: string) => void
   onCheckOutChange: (value: string) => void
+  onApply?: () => void
 }
 
 export function TodayAttendanceQuickEntry({
@@ -32,7 +33,8 @@ export function TodayAttendanceQuickEntry({
   checkIn,
   checkOut,
   onCheckInChange,
-  onCheckOutChange
+  onCheckOutChange,
+  onApply
 }: Props) {
   const { t } = useLang()
 
@@ -96,6 +98,15 @@ export function TodayAttendanceQuickEntry({
             />
           </label>
         </div>
+        {employeeId && onApply && (
+          <button
+            type="button"
+            onClick={onApply}
+            className="rounded-xl bg-cyan-500 px-4 py-2 text-sm font-black text-slate-950 sm:col-span-2 lg:col-span-4"
+          >
+            {t('attendance.today.quickApply')}
+          </button>
+        )}
       </div>
     </div>
   )

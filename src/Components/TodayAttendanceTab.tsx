@@ -101,6 +101,11 @@ export function TodayAttendanceTab({ employees, canManage }: Props) {
   const saveTimers = useRef<Map<string, ReturnType<typeof setTimeout>>>(new Map())
   const savedTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
   const rowsRef = useRef<TodayRow[]>([])
+  const savingIds = useRef<Set<string>>(new Set())
+  const quickEmployeeIdRef = useRef('')
+  const quickStatusRef = useRef<AttendanceDayStatus>('present')
+  const quickCheckInRef = useRef(DEFAULT_ATTENDANCE_CHECK_IN)
+  const quickCheckOutRef = useRef(DEFAULT_ATTENDANCE_CHECK_OUT)
 
   const activeEmployees = useMemo(
     () => [...employees].filter(e => e.isActive).sort(compareEmployees),
@@ -120,7 +125,7 @@ export function TodayAttendanceTab({ employees, canManage }: Props) {
       setRows(prev => {
         const pending = new Set(saveTimers.current.keys())
         return activeEmployees.map(employee => {
-          if (pending.has(employee.id)) {
+          if (pending.has(employee.id) || savingIds.current.has(employee.id)) {
             return prev.find(r => r.employeeId === employee.id) ?? buildDefaultRow(employee, initialDefaults)
           }
           const saved = byEmployee.get(employee.id)
@@ -181,6 +186,7 @@ export function TodayAttendanceTab({ employees, canManage }: Props) {
   const persistRow = useCallback(
     async (row: TodayRow) => {
       if (!canManage) return
+      savingIds.current.add(row.employeeId)
       setSaveState('saving')
       setError('')
       try {
@@ -198,6 +204,8 @@ export function TodayAttendanceTab({ employees, canManage }: Props) {
       } catch (e) {
         setSaveState('idle')
         setError(e instanceof Error ? e.message : t('common.error'))
+      } finally {
+        savingIds.current.delete(row.employeeId)
       }
     },
     [canManage, workDate, flashSaved, t]
@@ -285,61 +293,87 @@ export function TodayAttendanceTab({ employees, canManage }: Props) {
     [scheduleSaveRow]
   )
 
-  const applyQuickPatch = useCallback(
-    (patch: Partial<TodayRow>) => {
-      if (!quickEmployeeId) return
-      const index = rows.findIndex(r => r.employeeId === quickEmployeeId)
+  const commitQuickEntry = useCallback(
+    (patch?: Partial<Pick<TodayRow, 'status' | 'checkIn' | 'checkOut'>>) => {
+      const empId = quickEmployeeIdRef.current
+      if (!empId || !canManage) return
+      const index = rowsRef.current.findIndex(r => r.employeeId === empId)
       if (index === -1) return
-      patchRow(index, patch, true)
+      const row = rowsRef.current[index]
+      let status = patch?.status ?? quickStatusRef.current
+      let checkIn = patch?.checkIn ?? quickCheckInRef.current
+      let checkOut = patch?.checkOut ?? quickCheckOutRef.current
+      if (!attendanceStatusHasTimes(status)) {
+        checkIn = ''
+        checkOut = ''
+      } else {
+        checkIn = checkIn || DEFAULT_ATTENDANCE_CHECK_IN
+        checkOut = checkOut || DEFAULT_ATTENDANCE_CHECK_OUT
+      }
+      quickStatusRef.current = status
+      quickCheckInRef.current = checkIn
+      quickCheckOutRef.current = checkOut
+      setQuickStatus(status)
+      setQuickCheckIn(checkIn)
+      setQuickCheckOut(checkOut)
+      patchRow(index, { status, checkIn, checkOut, notes: row.notes }, true)
     },
-    [quickEmployeeId, rows, patchRow]
+    [canManage, patchRow]
   )
 
-  const onQuickEmployeeChange = useCallback(
-    (employeeId: string) => {
-      setQuickEmployeeId(employeeId)
-      if (!employeeId) return
-      const row = rows.find(r => r.employeeId === employeeId)
-      if (!row) return
-      setQuickStatus(row.status)
-      setQuickCheckIn(row.checkIn || DEFAULT_ATTENDANCE_CHECK_IN)
-      setQuickCheckOut(row.checkOut || DEFAULT_ATTENDANCE_CHECK_OUT)
-    },
-    [rows]
-  )
+  const onQuickEmployeeChange = useCallback((employeeId: string) => {
+    quickEmployeeIdRef.current = employeeId
+    setQuickEmployeeId(employeeId)
+    if (!employeeId) return
+    const row = rowsRef.current.find(r => r.employeeId === employeeId)
+    if (!row) return
+    const checkIn = row.checkIn || DEFAULT_ATTENDANCE_CHECK_IN
+    const checkOut = row.checkOut || DEFAULT_ATTENDANCE_CHECK_OUT
+    const hasTimes = attendanceStatusHasTimes(row.status)
+    quickStatusRef.current = row.status
+    quickCheckInRef.current = hasTimes ? checkIn : ''
+    quickCheckOutRef.current = hasTimes ? checkOut : ''
+    setQuickStatus(row.status)
+    setQuickCheckIn(quickCheckInRef.current)
+    setQuickCheckOut(quickCheckOutRef.current)
+  }, [])
 
   const onQuickStatusChange = useCallback(
     (status: AttendanceDayStatus) => {
+      quickStatusRef.current = status
       setQuickStatus(status)
       if (!attendanceStatusHasTimes(status)) {
+        quickCheckInRef.current = ''
+        quickCheckOutRef.current = ''
         setQuickCheckIn('')
         setQuickCheckOut('')
-        applyQuickPatch({ status, checkIn: '', checkOut: '' })
-        return
+      } else if (!quickCheckInRef.current) {
+        quickCheckInRef.current = DEFAULT_ATTENDANCE_CHECK_IN
+        quickCheckOutRef.current = DEFAULT_ATTENDANCE_CHECK_OUT
+        setQuickCheckIn(quickCheckInRef.current)
+        setQuickCheckOut(quickCheckOutRef.current)
       }
-      const checkIn = quickCheckIn || DEFAULT_ATTENDANCE_CHECK_IN
-      const checkOut = quickCheckOut || DEFAULT_ATTENDANCE_CHECK_OUT
-      setQuickCheckIn(checkIn)
-      setQuickCheckOut(checkOut)
-      applyQuickPatch({ status, checkIn, checkOut })
+      commitQuickEntry({ status })
     },
-    [applyQuickPatch, quickCheckIn, quickCheckOut]
+    [commitQuickEntry]
   )
 
   const onQuickCheckInChange = useCallback(
     (checkIn: string) => {
+      quickCheckInRef.current = checkIn
       setQuickCheckIn(checkIn)
-      applyQuickPatch({ checkIn })
+      commitQuickEntry({ checkIn })
     },
-    [applyQuickPatch]
+    [commitQuickEntry]
   )
 
   const onQuickCheckOutChange = useCallback(
     (checkOut: string) => {
+      quickCheckOutRef.current = checkOut
       setQuickCheckOut(checkOut)
-      applyQuickPatch({ checkOut })
+      commitQuickEntry({ checkOut })
     },
-    [applyQuickPatch]
+    [commitQuickEntry]
   )
 
   function applyBulkDefaults(defaults: AttendanceBulkDefaults) {
@@ -446,6 +480,7 @@ export function TodayAttendanceTab({ employees, canManage }: Props) {
         checkOut={quickCheckOut}
         onCheckInChange={onQuickCheckInChange}
         onCheckOutChange={onQuickCheckOutChange}
+        onApply={() => commitQuickEntry()}
       />
 
       <p className="text-xs text-slate-500">{t('attendance.today.hint')}</p>
