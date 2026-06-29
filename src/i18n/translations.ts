@@ -848,6 +848,10 @@ export const translations = {
       importDone: 'تم استيراد {n} سجل',
       importNoneValid: 'لا توجد صفوف صالحة في الملف',
       hint: 'الحالات: حاضر، غياب، إجازة، مرضى، إذن، تأخير. التصدير يعطي ورقتين: تفاصيل يومية + ملخص الشهر.',
+      assemblyFilterMissing:
+        'قسم «التجميع» غير مُعرَّف في الهيكل التنظيمي — تُعرض كل العمالة مؤقتاً. طبّق migration 0108 على Supabase أو أنشئ الإنتاج/التجميع من الإعدادات.',
+      assemblyFilterEmpty:
+        'لا يوجد موظفون ضمن تبعية «الإنتاج / التجميع». تأكد من ربط العمالة بالقسم أو طبّق migration 0108.',
       monthly: {
         title: 'شهري',
         subtitle: 'ملخص حضور وانصراف كل موظف خلال الشهر',
@@ -2750,6 +2754,10 @@ export const translations = {
       importDone: 'Imported {n} records',
       importNoneValid: 'No valid rows in file',
       hint: 'Statuses: present, absent, vacation, sick, permission, late. Export has daily detail + monthly summary sheets.',
+      assemblyFilterMissing:
+        'Assembly org unit is not configured — showing all workers temporarily. Apply migration 0108 on Supabase or create Production/Assembly in settings.',
+      assemblyFilterEmpty:
+        'No employees under Production / Assembly. Link workers to that org unit or apply migration 0108.',
       monthly: {
         title: 'Monthly',
         subtitle: 'Per-employee attendance summary for the month',

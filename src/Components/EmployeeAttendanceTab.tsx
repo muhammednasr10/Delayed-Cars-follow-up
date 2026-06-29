@@ -44,7 +44,8 @@ export function EmployeeAttendanceTab({ employees, canManage }: Props) {
     setLoading(true)
     setError('')
     try {
-      const data = await getMonthlyAttendanceSummaries(year, month, true)
+      const empIds = new Set(employees.filter(e => e.isActive).map(e => e.id))
+      const data = (await getMonthlyAttendanceSummaries(year, month, true)).filter(s => empIds.has(s.employeeId))
       const order = new Map(employees.map((e, i) => [e.id, i]))
       data.sort((a, b) => {
         const ea = employees.find(e => e.id === a.employeeId)

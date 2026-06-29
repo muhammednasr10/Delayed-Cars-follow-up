@@ -36,6 +36,14 @@ export function isAssemblyWorkforceEmployee(
 
 export function filterAssemblyWorkforce(employees: Employee[], units: FactoryOrgUnit[]): Employee[] {
   const assemblyId = assemblyOrgUnitId(units)
-  if (!assemblyId) return []
+  if (!assemblyId) {
+    // قبل إعداد التبعية (migration 0108) لا نُخفي العمالة — وإلا يختفي الحضور المسجّل
+    return employees.filter(e => e.isActive)
+  }
   return employees.filter(e => isAssemblyWorkforceEmployee(e, units, assemblyId))
+}
+
+/** true عندما لم يُعثر على قسم التجميع في الهيكل التنظيمي */
+export function isAssemblyWorkforceFilterMissing(units: FactoryOrgUnit[]): boolean {
+  return units.length > 0 && assemblyOrgUnitId(units) == null
 }
