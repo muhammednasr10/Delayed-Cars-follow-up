@@ -35,6 +35,8 @@ export type UserAccountDetail = {
   department: string | null
   employment_status: string | null
   employee_is_active: boolean | null
+  last_seen_at?: string | null
+  last_seen_path?: string | null
 }
 
 export type PermissionMap = Record<string, boolean>

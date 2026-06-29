@@ -47,19 +47,21 @@ on conflict (module_key, permission_key) do nothing;
 
 -- Inherit role grants from parent page permission for tab keys.
 insert into public.role_permissions (role_id, permission_id, allowed)
-select rp.role_id, sp_child.id, rp.allowed
+select rp.role_id, sp_child.id, bool_or(rp.allowed)
 from public.system_permissions sp_parent
 join public.system_permissions sp_child
   on sp_child.module_key = 'pages'
  and sp_child.permission_key like sp_parent.permission_key || '__%'
 join public.role_permissions rp on rp.permission_id = sp_parent.id
+group by rp.role_id, sp_child.id
 on conflict (role_id, permission_id) do update set allowed = excluded.allowed;
 
 -- quality_notes: mirror qc.view for roles that have it
 insert into public.role_permissions (role_id, permission_id, allowed)
-select rp.role_id, sp_qn.id, rp.allowed
+select rp.role_id, sp_qn.id, bool_or(rp.allowed)
 from public.system_permissions sp_qc
 join public.system_permissions sp_qn on sp_qn.module_key = 'pages' and sp_qn.permission_key = 'quality_notes'
 join public.role_permissions rp on rp.permission_id = sp_qc.id
 where sp_qc.module_key = 'qc' and sp_qc.permission_key = 'view'
+group by rp.role_id, sp_qn.id
 on conflict (role_id, permission_id) do update set allowed = excluded.allowed;

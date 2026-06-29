@@ -44,6 +44,7 @@ import { useCanViewPage } from './hooks/useCanViewPage'
 import { pagePermForEngineering, pagePermForProduction } from './config/pageAccess'
 import { formatRoleBadge } from './Utils/roleBadge'
 import { PwaInstallPrompt } from './Components/PwaInstallPrompt'
+import { usePresenceHeartbeat } from './hooks/usePresenceHeartbeat'
 
 export type { AppPage as Page, DepartmentId, ProductionPage, EngineeringPage } from './Types/navigation'
 
@@ -54,6 +55,8 @@ function Shell() {
   const { canViewPage, loading: pagesLoading } = useCanViewPage()
   const { t, lang, toggle } = useLang()
   const nav = useNavigation()
+
+  usePresenceHeartbeat(Boolean(session))
 
   let badgeRole = formatRoleBadge(profile, displayRole, t)
   if (profileIsAdmin(profile) && badgeRole === t('permissions.roleCodes.viewer')) {

@@ -16,7 +16,6 @@ import {
   blockUser,
   deactivateUserAccount,
   getUserAccounts,
-  getUserOverrides,
   removeUserPermissionOverride,
   unblockUser
 } from '../../services/userAccountsService'
@@ -34,12 +33,9 @@ import { UserRequestsTab } from './UserRequestsTab'
 import { UserPasswordModal } from './UserPasswordModal'
 import { SystemRoleFormModal } from './SystemRoleFormModal'
 import { PermissionsMatrixTab } from './PermissionsMatrixTab'
-import {
-  formatPermissionLabel,
-  permissionModuleLabel
-} from '../../Utils/permissionLabels'
+import { ActiveUsersTab } from './ActiveUsersTab'
 
-type SubTab = 'users' | 'roles' | 'matrix' | 'overrides' | 'blocked' | 'requests'
+type SubTab = 'users' | 'roles' | 'matrix' | 'activeUsers' | 'blocked' | 'requests'
 
 export function UsersPermissionsPanel({ notify }: { notify: (m: string, err?: boolean) => void }) {
   const { t, lang } = useLang()
@@ -66,11 +62,6 @@ export function UsersPermissionsPanel({ notify }: { notify: (m: string, err?: bo
   const [passwordUser, setPasswordUser] = useState<UserAccountDetail | null>(null)
   const [blockModal, setBlockModal] = useState<UserAccountDetail | null>(null)
   const [blockReason, setBlockReason] = useState('')
-  const [overrideUserId, setOverrideUserId] = useState('')
-  const [overridePermId, setOverridePermId] = useState('')
-  const [overrideAllowed, setOverrideAllowed] = useState(true)
-  const [overrideReason, setOverrideReason] = useState('')
-  const [userOverrides, setUserOverrides] = useState<Awaited<ReturnType<typeof getUserOverrides>>>([])
   const [busy, setBusy] = useState(false)
   const [openRequestCount, setOpenRequestCount] = useState(0)
 
@@ -291,16 +282,6 @@ export function UsersPermissionsPanel({ notify }: { notify: (m: string, err?: bo
     })
   }, [matrixMode, selectedMatrixUserId, permissions, users])
 
-  useEffect(() => {
-    if (!overrideUserId) {
-      setUserOverrides([])
-      return
-    }
-    getUserOverrides(overrideUserId)
-      .then(setUserOverrides)
-      .catch(() => setUserOverrides([]))
-  }, [overrideUserId])
-
   function userStatus(u: UserAccountDetail): { label: string; cls: string } {
     if (u.is_blocked) return { label: t('permissions.statusBlocked'), cls: 'text-red-300' }
     if (!u.is_active) return { label: t('permissions.statusInactive'), cls: 'text-slate-400' }
@@ -361,7 +342,7 @@ export function UsersPermissionsPanel({ notify }: { notify: (m: string, err?: bo
     { key: 'requests', label: t('permissions.tabs.requests'), badge: openRequestCount },
     { key: 'roles', label: t('permissions.tabs.roles') },
     { key: 'matrix', label: t('permissions.tabs.matrix') },
-    { key: 'overrides', label: t('permissions.tabs.overrides') },
+    { key: 'activeUsers', label: t('permissions.tabs.activeUsers') },
     { key: 'blocked', label: t('permissions.tabs.blocked') }
   ]
 
@@ -551,99 +532,8 @@ export function UsersPermissionsPanel({ notify }: { notify: (m: string, err?: bo
           onSetPermissions={handleSetPermissions}
           onError={msg => notify(msg, true)}
         />
-      ) : subTab === 'overrides' ? (
-        <div className="space-y-4">
-          <div className="card-industrial grid gap-3 p-4 sm:grid-cols-2">
-            <Field label={t('permissions.user')}>
-              <select className={inputCls()} value={overrideUserId} onChange={e => setOverrideUserId(e.target.value)}>
-                <option value="">—</option>
-                {users.map(u => (
-                  <option key={u.id} value={u.id}>
-                    {u.email}
-                  </option>
-                ))}
-              </select>
-            </Field>
-            <Field label={t('permissions.permission')}>
-              <select className={inputCls()} value={overridePermId} onChange={e => setOverridePermId(e.target.value)}>
-                <option value="">—</option>
-                {permissions.map(p => (
-                  <option key={p.id} value={p.id}>
-                    {formatPermissionLabel(p.module_key, p.permission_key, t)}
-                  </option>
-                ))}
-              </select>
-            </Field>
-            <label className="flex items-center gap-2 text-sm">
-              <input type="checkbox" checked={overrideAllowed} onChange={e => setOverrideAllowed(e.target.checked)} />
-              {t('permissions.allow')}
-            </label>
-            <Field label={t('permissions.reason')}>
-              <input className={inputCls()} value={overrideReason} onChange={e => setOverrideReason(e.target.value)} />
-            </Field>
-            <button
-              type="button"
-              disabled={!overrideUserId || !overridePermId}
-              className="rounded-xl bg-cyan-500 px-4 py-2 font-black text-slate-950 disabled:opacity-40 sm:col-span-2"
-              onClick={() =>
-                void setUserPermissionOverride(overrideUserId, overridePermId, overrideAllowed, overrideReason).then(
-                  () => {
-                    notify(t('settings.updated'))
-                    void reloadPerms()
-                    return getUserOverrides(overrideUserId).then(setUserOverrides)
-                  }
-                )
-              }
-            >
-              {t('permissions.savePermissions')}
-            </button>
-          </div>
-          {overrideUserId && (
-            <div className="card-industrial p-4">
-              <h4 className="mb-2 text-sm font-black text-slate-300">{t('permissions.existingOverrides')}</h4>
-              {userOverrides.length === 0 ? (
-                <p className="text-sm text-slate-500">{t('common.noData')}</p>
-              ) : (
-                <ul className="space-y-2">
-                  {userOverrides.map(row => {
-                    const sp = row.system_permissions as
-                      | { module_key: string; permission_key: string }
-                      | { module_key: string; permission_key: string }[]
-                      | null
-                    const perm = Array.isArray(sp) ? sp[0] : sp
-                    return (
-                      <li
-                        key={row.id as string}
-                        className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-slate-800 px-3 py-2 text-sm"
-                      >
-                        <span>
-                          {perm ? formatPermissionLabel(perm.module_key, perm.permission_key, t) : '—'} —{' '}
-                          <span className={row.allowed ? 'text-emerald-400' : 'text-red-400'}>
-                            {row.allowed ? t('permissions.allow') : t('permissions.deny')}
-                          </span>
-                          {row.reason ? <span className="text-slate-500"> ({row.reason})</span> : null}
-                        </span>
-                        <button
-                          type="button"
-                          className="text-xs text-red-400"
-                          onClick={() =>
-                            void removeUserPermissionOverride(overrideUserId, row.permission_id as string).then(() => {
-                              notify(t('settings.deleted'))
-                              void reloadPerms()
-                              return getUserOverrides(overrideUserId).then(setUserOverrides)
-                            })
-                          }
-                        >
-                          {t('common.delete')}
-                        </button>
-                      </li>
-                    )
-                  })}
-                </ul>
-              )}
-            </div>
-          )}
-        </div>
+      ) : subTab === 'activeUsers' ? (
+        <ActiveUsersTab notify={notify} />
       ) : (
         <div className="card-industrial p-4">
           <ul className="space-y-2">

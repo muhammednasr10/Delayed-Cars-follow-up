@@ -1736,7 +1736,7 @@ export const translations = {
       col: { station: 'المحطة', operation: 'العملية', type: 'التصنيف', time: 'الزمن (د)', hw: 'أدوات' }
     },
     permissions: {
-      tabs: { users: 'المستخدمون', requests: 'طلبات المستخدمين', roles: 'الأدوار', matrix: 'مصفوفة الصلاحيات', overrides: 'استثناءات', blocked: 'الحسابات المحظورة' },
+      tabs: { users: 'المستخدمون', requests: 'طلبات المستخدمين', roles: 'الأدوار', matrix: 'مصفوفة الصلاحيات', activeUsers: 'المستخدمون النشطون', blocked: 'الحسابات المحظورة' },
       userEmail: 'البريد', linkedEmployee: 'الموظف المرتبط', jobRole: 'المسمى الوظيفي', systemRole: 'دور النظام', status: 'الحالة',
       statusBlocked: 'محظور', statusInactive: 'غير نشط', statusUnlinked: 'غير مرتبط بموظف', statusEmployeeStopped: 'موظف موقوف', statusActive: 'نشط',
       userBlocked: 'تم حظر المستخدم.', userUnblocked: 'تم إلغاء الحظر.', userDeactivated: 'تم إيقاف الحساب.',
@@ -1753,6 +1753,15 @@ export const translations = {
       roleCode: 'رمز الدور', roleNameAr: 'اسم الدور (عربي)', roleNameEn: 'اسم الدور (إنجليزي)', roleDescription: 'الوصف',
       roleValidation: 'رمز الدور والاسم العربي مطلوبان.', systemRoleHint: 'الأدوار المدمجة: يمكن تعديل الاسم والوصف فقط.',
       inactive: 'غير نشط', deny: 'مرفوض', existingOverrides: 'استثناءات مسجّلة',
+      activeUsers: {
+        title: 'المستخدمون النشطون',
+        subtitle: 'من فتح التطبيق خلال آخر {minutes} دقائق',
+        online: 'متصل',
+        lastSeen: 'آخر نشاط',
+        currentPage: 'آخر صفحة',
+        empty: 'لا يوجد مستخدمون متصلون حالياً',
+        count: '{n} مستخدم نشط الآن'
+      },
       deactivateUserTitle: 'إيقاف حساب المستخدم', deactivateUserMsg: 'إيقاف حساب {email}؟ لن يستطيع تسجيل الدخول.',
       deleteRoleTitle: 'حذف الدور', deleteRoleMsg: 'حذف الدور «{name}»؟ لا يمكن التراجع.',
       roleCodes: {
@@ -3641,7 +3650,7 @@ export const translations = {
       col: { station: 'Station', operation: 'Operation', type: 'Class', time: 'Time (min)', hw: 'HW' }
     },
     permissions: {
-      tabs: { users: 'Users', requests: 'User requests', roles: 'Roles', matrix: 'Permission matrix', overrides: 'Overrides', blocked: 'Blocked accounts' },
+      tabs: { users: 'Users', requests: 'User requests', roles: 'Roles', matrix: 'Permission matrix', activeUsers: 'Active users', blocked: 'Blocked accounts' },
       userEmail: 'Email', linkedEmployee: 'Linked employee', jobRole: 'Job role', systemRole: 'System role', status: 'Status',
       statusBlocked: 'Blocked', statusInactive: 'Inactive', statusUnlinked: 'Not linked', statusEmployeeStopped: 'Employee stopped', statusActive: 'Active',
       userBlocked: 'User blocked.', userUnblocked: 'User unblocked.', userDeactivated: 'Account deactivated.',
@@ -3658,6 +3667,15 @@ export const translations = {
       roleCode: 'Role code', roleNameAr: 'Role name (Arabic)', roleNameEn: 'Role name (English)', roleDescription: 'Description',
       roleValidation: 'Role code and Arabic name are required.', systemRoleHint: 'Built-in roles: only names and description can be edited.',
       inactive: 'inactive', deny: 'Denied', existingOverrides: 'Existing overrides',
+      activeUsers: {
+        title: 'Active users',
+        subtitle: 'Opened the app in the last {minutes} minutes',
+        online: 'Online',
+        lastSeen: 'Last activity',
+        currentPage: 'Last page',
+        empty: 'No users are online right now',
+        count: '{n} active user(s) now'
+      },
       deactivateUserTitle: 'Deactivate user account', deactivateUserMsg: 'Deactivate {email}? They will not be able to sign in.',
       deleteRoleTitle: 'Delete role', deleteRoleMsg: 'Delete role «{name}»? This cannot be undone.',
       roleCodes: {
