@@ -87,6 +87,22 @@ export async function getAllocationLines(dayId: string): Promise<ManpowerAllocat
   return (data ?? []).map(r => mapLine(r as LineRow))
 }
 
+export async function getEmployeeAllocationsForDate(
+  employeeId: string,
+  allocationDate: string
+): Promise<ManpowerAllocationLine[]> {
+  const { data, error } = await client()
+    .from('v_manpower_allocation_lines')
+    .select('*')
+    .eq('assigned_employee_id', employeeId)
+    .eq('allocation_date', allocationDate)
+    .order('vehicle_model_name', { nullsFirst: false })
+    .order('station_number')
+    .order('operation_name_ar')
+  if (error) throw new Error(error.message)
+  return (data ?? []).map(r => mapLine(r as LineRow))
+}
+
 export async function clearAllocationLines(dayId: string): Promise<void> {
   const { error } = await client().from('manpower_allocation_lines').delete().eq('day_id', dayId)
   if (error) throw new Error(error.message)

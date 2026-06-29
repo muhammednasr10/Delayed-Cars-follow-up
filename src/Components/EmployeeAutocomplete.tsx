@@ -11,9 +11,20 @@ type Props = {
   onChange: (employeeId: string) => void
   activeOnly?: boolean
   placeholder?: string
+  /** When true, empty value means "unknown" and can be picked from the list. */
+  allowUnknown?: boolean
+  unknownLabel?: string
 }
 
-export function EmployeeAutocomplete({ employees, value, onChange, activeOnly = true, placeholder }: Props) {
+export function EmployeeAutocomplete({
+  employees,
+  value,
+  onChange,
+  activeOnly = true,
+  placeholder,
+  allowUnknown = false,
+  unknownLabel
+}: Props) {
   const { t } = useLang()
   const pool = useMemo(() => (activeOnly ? employees.filter(e => e.isActive) : employees), [employees, activeOnly])
   const selected = useMemo(() => pool.find(e => e.id === value) ?? null, [pool, value])
@@ -22,9 +33,13 @@ export function EmployeeAutocomplete({ employees, value, onChange, activeOnly = 
   const [open, setOpen] = useState(false)
   const boxRef = useRef<HTMLDivElement>(null)
 
+  const resolvedUnknownLabel = unknownLabel ?? t('common.unknown')
+
   useEffect(() => {
-    setQuery(selected ? employeeLookupLabel(selected) : '')
-  }, [selected])
+    if (selected) setQuery(employeeLookupLabel(selected))
+    else if (allowUnknown) setQuery(resolvedUnknownLabel)
+    else setQuery('')
+  }, [selected, allowUnknown, resolvedUnknownLabel])
 
   useEffect(() => {
     function onDocClick(e: MouseEvent) {
@@ -42,10 +57,19 @@ export function EmployeeAutocomplete({ employees, value, onChange, activeOnly = 
     setOpen(false)
   }
 
-  function clear() {
+  function pickUnknown() {
     onChange('')
-    setQuery('')
+    setQuery(resolvedUnknownLabel)
     setOpen(false)
+  }
+
+  function clear() {
+    if (allowUnknown) pickUnknown()
+    else {
+      onChange('')
+      setQuery('')
+      setOpen(false)
+    }
   }
 
   function tryPickFromQuery() {
@@ -61,7 +85,22 @@ export function EmployeeAutocomplete({ employees, value, onChange, activeOnly = 
     setQuery(next)
     setOpen(true)
     if (selected && employeeLookupLabel(selected) !== next.trim()) onChange('')
+    else if (allowUnknown && !selected && next.trim() !== resolvedUnknownLabel) onChange('')
   }
+
+  function onFocusInput() {
+    if (allowUnknown && !value && query === resolvedUnknownLabel) setQuery('')
+    setOpen(true)
+  }
+
+  function onBlurInput() {
+    window.setTimeout(() => {
+      if (selected) return
+      if (allowUnknown && !value) setQuery(resolvedUnknownLabel)
+    }, 150)
+  }
+
+  const showUnknownSelected = allowUnknown && !value && query === resolvedUnknownLabel
 
   return (
     <div className="relative" ref={boxRef}>
@@ -78,11 +117,12 @@ export function EmployeeAutocomplete({ employees, value, onChange, activeOnly = 
           </button>
         )}
         <input
-          className={`${inputCls()} ltr:pl-9 ltr:pr-9 rtl:pr-9 rtl:pl-9`}
+          className={`${inputCls()} ltr:pl-9 ltr:pr-9 rtl:pr-9 rtl:pl-9 ${showUnknownSelected ? 'text-slate-400' : ''}`}
           value={query}
           placeholder={placeholder ?? t('manpower.daily.lookupPh')}
           onChange={e => onQueryChange(e.target.value)}
-          onFocus={() => setOpen(true)}
+          onFocus={onFocusInput}
+          onBlur={onBlurInput}
           onKeyDown={e => {
             if (e.key === 'Enter') {
               e.preventDefault()
@@ -93,9 +133,21 @@ export function EmployeeAutocomplete({ employees, value, onChange, activeOnly = 
         />
       </div>
 
-      {open && query.trim().length > 0 && !selected && (
+      {open && !selected && (allowUnknown || query.trim().length > 0) && (
         <ul className="absolute z-30 mt-1 max-h-48 w-full overflow-auto rounded-xl border border-slate-700 bg-slate-900 py-1 shadow-xl">
-          {matches.length === 0 ? (
+          {allowUnknown && (
+            <li>
+              <button
+                type="button"
+                className="flex w-full px-3 py-2 text-start text-sm font-bold text-slate-400 hover:bg-slate-800"
+                onMouseDown={e => e.preventDefault()}
+                onClick={pickUnknown}
+              >
+                {resolvedUnknownLabel}
+              </button>
+            </li>
+          )}
+          {query.trim().length > 0 && matches.length === 0 ? (
             <li className="px-3 py-2 text-xs text-slate-500">{t('manpower.daily.noMatches')}</li>
           ) : (
             matches.map(emp => (

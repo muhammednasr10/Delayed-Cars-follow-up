@@ -9,9 +9,10 @@ import { pagePermForEngineering, pagePermForProduction, pagePermForWarehouses } 
 import { useNavigation } from '../Context/NavigationContext'
 import { DEPARTMENTS, departmentAccentClass } from '../config/departments'
 import type { DepartmentId, EngineeringPage, ProductionPage } from '../Types/navigation'
-import { SETTINGS_TAB_ORDER } from '../Types/navigation'
+import { WORKER_PROFILE_TAB_ORDER } from '../Types/navigation'
+import { SETTINGS_TAB_ORDER, PRODUCTION_AREA_ORDER } from '../Types/navigation'
 
-type PageChild = { key: string; label: string; onClick: () => void }
+type PageChild = { key: string; label: string; onClick: () => void; visible?: boolean }
 
 type SidebarPage = {
   key: string
@@ -56,6 +57,7 @@ export function AppSidebar() {
 
   const canShowEngineeringIpl = canAccessSettings || canViewPage(pagePermForEngineering('ipl'))
   const canShowLineBalancing = navLoading || canViewPage(pagePermForEngineering('lineBalancing'))
+  const canShowSop = navLoading || canViewPage(pagePermForEngineering('sop'))
 
   const go = nav.navigate
 
@@ -64,49 +66,61 @@ export function AppSidebar() {
     go({ ...patch, showProfile: false, closeSidebar: keepSidebarOpen ? false : true })
   }
 
+  const productionAreaPages: SidebarPage[] = PRODUCTION_AREA_ORDER.map(key => ({
+    key,
+    label: t(`departments.productionArea.${key}`),
+    visible: true,
+    onNavigate: () =>
+      sidebarNav({
+        department: 'production',
+        productionArea: key,
+        ...(key === 'assembly' ? { productionPage: 'home' } : {})
+      })
+  }))
+
   const productionPages: SidebarPage[] = [
     {
       key: 'home',
       label: t('nav.home'),
       visible: navLoading || canViewPage(pagePermForProduction('home')),
-      onNavigate: () => sidebarNav({ department: 'production', productionPage: 'home' })
+      onNavigate: () => sidebarNav({ department: 'production', productionArea: 'assembly', productionPage: 'home' })
     },
     {
       key: 'missing',
       label: t('nav.missingParts'),
       visible: navLoading || canViewPage(pagePermForProduction('missing')),
-      onNavigate: () => sidebarNav({ department: 'production', productionPage: 'missing' })
+      onNavigate: () => sidebarNav({ department: 'production', productionArea: 'assembly', productionPage: 'missing' })
     },
     {
       key: 'vehicles',
       label: t('nav.productivity'),
       visible: navLoading || canViewPage(pagePermForProduction('vehicles')),
-      onNavigate: () => sidebarNav({ department: 'production', productionPage: 'vehicles' }, true),
+      onNavigate: () => sidebarNav({ department: 'production', productionArea: 'assembly', productionPage: 'vehicles' }, true),
       children: [
         {
           key: 'orders',
           label: t('productivity.tabs.orders'),
-          onClick: () => sidebarNav({ department: 'production', productionPage: 'vehicles', productivityTab: 'orders' })
+          onClick: () => sidebarNav({ department: 'production', productionArea: 'assembly', productionPage: 'vehicles', productivityTab: 'orders' })
         },
         {
           key: 'entry',
           label: t('productivity.tabs.entry'),
-          onClick: () => sidebarNav({ department: 'production', productionPage: 'vehicles', productivityTab: 'entry' })
+          onClick: () => sidebarNav({ department: 'production', productionArea: 'assembly', productionPage: 'vehicles', productivityTab: 'entry' })
         },
         {
           key: 'exit',
           label: t('productivity.tabs.exit'),
-          onClick: () => sidebarNav({ department: 'production', productionPage: 'vehicles', productivityTab: 'exit' })
+          onClick: () => sidebarNav({ department: 'production', productionArea: 'assembly', productionPage: 'vehicles', productivityTab: 'exit' })
         },
         {
           key: 'stops',
           label: t('productivity.tabs.stops'),
-          onClick: () => sidebarNav({ department: 'production', productionPage: 'vehicles', productivityTab: 'stops' })
+          onClick: () => sidebarNav({ department: 'production', productionArea: 'assembly', productionPage: 'vehicles', productivityTab: 'stops' })
         },
         {
           key: 'workDays',
           label: t('productionOrders.tabs.workDays'),
-          onClick: () => sidebarNav({ department: 'production', productionPage: 'vehicles', productivityTab: 'workDays' })
+          onClick: () => sidebarNav({ department: 'production', productionArea: 'assembly', productionPage: 'vehicles', productivityTab: 'workDays' })
         },
         {
           key: 'planOrders',
@@ -114,67 +128,84 @@ export function AppSidebar() {
           onClick: () =>
             sidebarNav({
               department: 'production',
-              productionPage: 'vehicles',
+              productionArea: 'assembly', productionPage: 'vehicles',
               productivityTab: 'orders',
               productionPlanTab: 'planOrders'
             })
         }
       ]
     },
-    {
-      key: 'training',
-      label: t('nav.training'),
-      visible: navLoading || canViewPage(pagePermForProduction('training')),
-      onNavigate: () => sidebarNav({ department: 'production', productionPage: 'training' }, true),
-      children: (
-        ['org', 'attendance', 'manpower', 'operations', 'stationSkills', 'matrix', 'qualification', 'expiry'] as const
-      ).map(key => ({
-        key,
-        label: t(`training.tabs.${key}`),
-        onClick: () => sidebarNav({ department: 'production', productionPage: 'training', trainingTab: key })
-      }))
-    },
-    {
-      key: 'damagedParts',
+      {
+        key: 'training',
+        label: t('nav.training'),
+        visible: navLoading || canViewPage(pagePermForProduction('training')),
+        onNavigate: () => sidebarNav({ department: 'production', productionArea: 'assembly', productionPage: 'training' }, true),
+        children: (
+          ['org', 'attendance', 'manpower', 'operations', 'stationSkills', 'matrix', 'qualification', 'expiry'] as const
+        ).map(key => ({
+          key,
+          label: t(`training.tabs.${key}`),
+          onClick: () => sidebarNav({ department: 'production', productionArea: 'assembly', productionPage: 'training', trainingTab: key })
+        }))
+      },
+      {
+        key: 'workerProfile',
+        label: t('nav.workerProfile'),
+        visible: navLoading || canViewPage(pagePermForProduction('workerProfile')),
+        onNavigate: () => sidebarNav({ department: 'production', productionArea: 'assembly', productionPage: 'workerProfile' }, true),
+        children: WORKER_PROFILE_TAB_ORDER.map(key => ({
+          key,
+          label: t(`workerProfile.tabs.${key}`),
+          onClick: () =>
+            sidebarNav({
+              department: 'production',
+              productionArea: 'assembly',
+              productionPage: 'workerProfile',
+              workerProfileTab: key
+            })
+        }))
+      },
+      {
+        key: 'damagedParts',
       label: t('nav.damagedParts'),
       visible: navLoading || canViewPage(pagePermForProduction('damagedParts')),
-      onNavigate: () => sidebarNav({ department: 'production', productionPage: 'damagedParts' })
+      onNavigate: () => sidebarNav({ department: 'production', productionArea: 'assembly', productionPage: 'damagedParts' })
     },
     {
       key: 'missions',
       label: t('nav.missions'),
       visible: navLoading || canViewPage(pagePermForProduction('missions')),
-      onNavigate: () => sidebarNav({ department: 'production', productionPage: 'requests' })
+      onNavigate: () => sidebarNav({ department: 'production', productionArea: 'assembly', productionPage: 'missions' })
     },
     {
       key: 'scratches',
       label: t('nav.scratches'),
       visible: navLoading || canViewPage(pagePermForProduction('scratches')),
-      onNavigate: () => sidebarNav({ department: 'production', productionPage: 'scratches' })
+      onNavigate: () => sidebarNav({ department: 'production', productionArea: 'assembly', productionPage: 'scratches' })
     },
     {
       key: 'equipment',
       label: t('nav.equipment'),
       visible: navLoading || canViewPage(pagePermForProduction('equipment')),
-      onNavigate: () => sidebarNav({ department: 'production', productionPage: 'equipment' })
+      onNavigate: () => sidebarNav({ department: 'production', productionArea: 'assembly', productionPage: 'equipment' })
     },
-    {
-      key: 'feedback',
-      label: t('nav.feedback'),
-      visible: navLoading || canViewPage(pagePermForProduction('feedback')),
-      onNavigate: () => sidebarNav({ department: 'production', productionPage: 'feedback' })
-    }
-  ]
+      {
+        key: 'feedback',
+        label: t('nav.feedback'),
+        visible: navLoading || canViewPage(pagePermForProduction('feedback')),
+        onNavigate: () => sidebarNav({ department: 'production', productionArea: 'assembly', productionPage: 'feedback' })
+      }
+    ]
 
   const settingsSidebarPage: SidebarPage = {
     key: 'settings',
     label: t('nav.settings'),
     visible: canViewPage(pagePermForProduction('settings')),
-    onNavigate: () => sidebarNav({ department: 'production', productionPage: 'settings' }, true),
+    onNavigate: () => sidebarNav({ department: 'production', productionArea: 'assembly', productionPage: 'settings' }, true),
     children: SETTINGS_TAB_ORDER.map(key => ({
       key,
       label: t(`settings.tabs.${key}`),
-      onClick: () => sidebarNav({ department: 'production', productionPage: 'settings', settingsTab: key })
+      onClick: () => sidebarNav({ department: 'production', productionArea: 'assembly', productionPage: 'settings', settingsTab: key })
     }))
   }
 
@@ -190,7 +221,7 @@ export function AppSidebar() {
       label: t('nav.ipl'),
       visible: canShowEngineeringIpl,
       onNavigate: () => sidebarNav({ department: 'engineering', engineeringPage: 'ipl' }, true),
-      children: (['parts', 'compare', 'categories', 'import', 'dashboard'] as const).map(key => ({
+      children: (['parts', 'partsGd', 'compare', 'categories', 'import', 'dashboard'] as const).map(key => ({
         key,
         label: t(`bom.tabs.${key}`),
         onClick: () => sidebarNav({ department: 'engineering', engineeringPage: 'ipl', bomTab: key })
@@ -208,6 +239,12 @@ export function AppSidebar() {
         label: t(`lineBalancing.tabs.${key}`),
         onClick: () => sidebarNav({ department: 'engineering', engineeringPage: 'lineBalancing', lineBalancingTab: key })
       }))
+    },
+    {
+      key: 'sop',
+      label: t('nav.sop'),
+      visible: canShowSop,
+      onNavigate: () => sidebarNav({ department: 'engineering', engineeringPage: 'sop' })
     }
   ]
 
@@ -246,6 +283,37 @@ export function AppSidebar() {
     return !nav.showProfile && nav.department === 'warehouses' && nav.warehousesTab === key
   }
 
+  function isQualityActive(_key: string) {
+    return !nav.showProfile && nav.department === 'quality'
+  }
+
+  function isHrActive(_key: string) {
+    return !nav.showProfile && nav.department === 'hr'
+  }
+
+  const hrPages: SidebarPage[] = [
+    {
+      key: 'employees',
+      label: t('training.tabs.org'),
+      visible: navLoading || canViewPage(pagePermForProduction('training')),
+      onNavigate: () => sidebarNav({ department: 'hr' })
+    }
+  ]
+
+  const qualityPages: SidebarPage[] = [
+    {
+      key: 'notes',
+      label: t('qualityNotes.title'),
+      visible: true,
+      onNavigate: () => sidebarNav({ department: 'quality', qualityTab: 'record' }),
+      children: (['record', 'study'] as const).map(key => ({
+        key,
+        label: t(`qualityNotes.tabs.${key}`),
+        onClick: () => sidebarNav({ department: 'quality', qualityTab: key })
+      }))
+    }
+  ]
+
   const warehousesPages: SidebarPage[] = [
     {
       key: 'home',
@@ -267,15 +335,19 @@ export function AppSidebar() {
     }
   ]
 
+  function isProductionAreaActive(key: string) {
+    return !nav.showProfile && nav.department === 'production' && nav.productionArea === key && nav.productionPage !== 'settings'
+  }
+
   function isProductionActive(key: string) {
-    return !nav.showProfile && nav.department === 'production' && nav.productionPage === key
+    return !nav.showProfile && nav.department === 'production' && nav.productionArea === 'assembly' && nav.productionPage === key
   }
 
   function isEngineeringActive(key: string) {
     return !nav.showProfile && nav.department === 'engineering' && nav.engineeringPage === key
   }
 
-  function renderPages(scope: 'production' | 'engineering' | 'warehouses', pages: SidebarPage[], isActive: (key: string) => boolean) {
+  function renderPages(scope: 'production' | 'engineering' | 'warehouses' | 'quality' | 'hr', pages: SidebarPage[], isActive: (key: string) => boolean) {
     return (
       <ul className="mt-1 space-y-0.5 border-s border-slate-700/60 ps-2">
         {pages
@@ -304,7 +376,7 @@ export function AppSidebar() {
                 </button>
                 {hasChildren && pageOpen && (
                   <ul className="mt-0.5 space-y-0.5 border-s border-slate-800 ps-2">
-                    {page.children!.map(child => (
+                    {page.children!.filter(c => c.visible !== false).map(child => (
                       <li key={child.key}>
                         <button
                           type="button"
@@ -376,6 +448,8 @@ export function AppSidebar() {
             const isProduction = dept.id === 'production'
             const isEngineering = dept.id === 'engineering'
             const isWarehouses = dept.id === 'warehouses'
+            const isQuality = dept.id === 'quality'
+            const isHr = dept.id === 'hr'
 
             return (
               <div key={dept.id} className="mb-2">
@@ -393,10 +467,13 @@ export function AppSidebar() {
                   />
                 </button>
 
-                {deptOpen && isProduction && renderPages('production', productionPages, isProductionActive)}
+                {deptOpen && isProduction && renderPages('production', productionAreaPages, isProductionAreaActive)}
+                {deptOpen && isProduction && nav.productionArea === 'assembly' && renderPages('production', productionPages, isProductionActive)}
                 {deptOpen && isEngineering && renderPages('engineering', engineeringPages, isEngineeringActive)}
                 {deptOpen && isWarehouses && renderPages('warehouses', warehousesPages, isWarehousesActive)}
-                {deptOpen && !isProduction && !isEngineering && !isWarehouses && (
+                {deptOpen && isQuality && renderPages('quality', qualityPages, isQualityActive)}
+                {deptOpen && isHr && renderPages('hr', hrPages, isHrActive)}
+                {deptOpen && !isProduction && !isEngineering && !isWarehouses && !isQuality && !isHr && (
                   <p className="mt-2 px-3 text-xs leading-relaxed text-slate-500">{t('departments.placeholderDesc')}</p>
                 )}
               </div>

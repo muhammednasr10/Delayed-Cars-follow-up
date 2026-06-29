@@ -159,7 +159,10 @@ export async function recordQc(vehicleId: string, result: 'pass' | 'fail', missi
 }
 
 export async function setVehicleStation(vehicleId: string, stationId: string | null): Promise<void> {
-  const { error } = await requireClient().from('vehicles').update({ current_station_id: stationId }).eq('id', vehicleId)
+  const { error } = await requireClient().rpc('set_vehicle_current_station', {
+    p_vehicle_id: vehicleId,
+    p_station_id: stationId
+  })
   if (error) throw new Error(error.message)
 }
 

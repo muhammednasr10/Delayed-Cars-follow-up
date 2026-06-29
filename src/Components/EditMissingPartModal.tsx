@@ -11,6 +11,7 @@ import type { VehicleIssuesContext } from '../Types/missingPart'
 import type { MissingPartDetail } from '../Types/missingPart'
 import type { PriorityLevel, StopperType } from '../Types/enums'
 import { useMpLookups } from '../hooks/useMpLookups'
+import { useFormatError } from '../hooks/useFormatError'
 import { MpLookupSelect } from './MpLookupSelect'
 const PRIORITIES: PriorityLevel[] = ['low', 'normal', 'high', 'critical']
 const STOPPER_TYPES: StopperType[] = ['line_stopper', 'car_stopper']
@@ -33,6 +34,11 @@ type LineDraft = {
   notes: string
 }
 
+function stationChanged(d: LineDraft): boolean {
+  if (d.station == null) return false
+  return (d.station.id ?? null) !== (d.part.stationId ?? null)
+}
+
 function lineChanged(d: LineDraft): boolean {
   const p = d.part
   return (
@@ -43,13 +49,14 @@ function lineChanged(d: LineDraft): boolean {
     d.priority !== p.priority ||
     d.stopperType !== p.stopperType ||
     (d.notes.trim() || '') !== (p.notes ?? '') ||
-    (d.station?.id ?? null) !== (p.stationId ?? null)
+    stationChanged(d)
   )
 }
 
 export function EditMissingPartModal({ vehicle, onClose, onSaved }: Props) {
   const { t } = useLang()
   const { reasons, departments } = useMpLookups()
+  const formatError = useFormatError()
   const { hasRole } = useAuth()
   const canCreateStation = hasRole('admin', 'production', 'warehouse')
   const [lines, setLines] = useState<LineDraft[]>([])
@@ -112,7 +119,8 @@ export function EditMissingPartModal({ vehicle, onClose, onSaved }: Props) {
     setError('')
     try {
       for (const line of changed) {
-        if (!vehicle?.allowArchived && !line.station?.id) {
+        const stationDirty = stationChanged(line)
+        if (!vehicle?.allowArchived && stationDirty && !line.station?.id) {
           setError(t('station.notFound'))
           return
         }
@@ -125,14 +133,14 @@ export function EditMissingPartModal({ vehicle, onClose, onSaved }: Props) {
           stopperType: line.stopperType,
           notes: line.notes
         })
-        if (line.station?.id && line.station.id !== line.part.stationId) {
+        if (stationDirty && line.station?.id) {
           await setVehicleStation(line.part.vehicleId, line.station.id)
         }
       }
       onSaved()
       onClose()
     } catch (err) {
-      setError(err instanceof Error ? err.message : t('common.error'))
+      setError(formatError(err))
     } finally {
       setBusy(false)
     }

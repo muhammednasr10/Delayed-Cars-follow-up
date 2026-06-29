@@ -83,7 +83,7 @@ function RankTable({
 
 export function DamagedPartsSummaryTab({ items, filters, reasons, decisions, hasActiveFilter }: Props) {
   const { t, lang } = useLang()
-  const stats = useMemo(() => buildDamagedPartSummary(items), [items])
+  const stats = useMemo(() => buildDamagedPartSummary(items, t('damagedParts.unknownCauser')), [items, t])
   const topN = filters.topLimit
 
   const topParts = useMemo(() => sliceTopRows(stats.byPart, topN), [stats.byPart, topN])

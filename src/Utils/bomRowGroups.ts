@@ -1,7 +1,8 @@
 import type { BomItemDetail } from '../Types/bom'
-import { formatClassByPartNumberGroups, classLabelForVariant, resolveSupplySource } from './bomDisplayFormat'
+import { formatClassByPartNumberGroups, resolveSupplySource } from './bomDisplayFormat'
 import { effectivePartKind, effectiveSupplySource } from './bomDefaults'
 import { maxModelQty, modelQtyFromBomRow } from './bomQtyByModel'
+import { normalizeArabicPartNameForGrouping, normalizeEnglishPartNameForGrouping } from './bomPartNameNormalize'
 
 export type BomVariantLine = {
   id: string
@@ -25,9 +26,12 @@ export type BomDisplayGroup = {
 }
 
 function bomDisplayGroupKey(row: BomItemDetail): string {
-  const ar = (row.part_name_ar ?? row.part_name ?? '').trim().toLowerCase()
-  const en = (row.part_name_en ?? '').trim().toLowerCase()
-  if (ar || en) return `n:${ar}|${en}`
+  const ar = normalizeArabicPartNameForGrouping(row.part_name_ar ?? row.part_name ?? '')
+  if (ar) return `ar:${ar}`
+
+  const en = normalizeEnglishPartNameForGrouping(row.part_name_en ?? '')
+  if (en) return `en:${en}`
+
   return `p:${row.normalized_part_number || row.part_number.trim().toUpperCase()}`
 }
 
@@ -54,26 +58,44 @@ function variantsFromSingleRow(row: BomItemDetail): BomVariantLine[] {
   ]
 }
 
+function variantMergeKey(v: BomVariantLine): string {
+  return `${v.modelName.trim()}|${v.part_number.trim().toUpperCase()}`
+}
+
 function variantsFromRows(rows: BomItemDetail[]): BomVariantLine[] {
-  const out: BomVariantLine[] = []
-  const seen = new Set<string>()
+  const map = new Map<string, BomVariantLine>()
   for (const row of rows) {
     for (const v of variantsFromSingleRow(row)) {
-      const k = `${v.modelName}|${v.id}`
-      if (v.modelName && seen.has(k)) continue
-      if (v.modelName) seen.add(k)
-      out.push(v)
+      if (!v.modelName.trim()) continue
+      const k = variantMergeKey(v)
+      const prev = map.get(k)
+      if (!prev || v.qty > prev.qty) map.set(k, v)
     }
   }
-  return out.sort((a, b) => a.modelName.localeCompare(b.modelName))
+  return [...map.values()].sort((a, b) => a.modelName.localeCompare(b.modelName, 'ar'))
 }
 
 function pickPrimary(rows: BomItemDetail[]): BomItemDetail {
   return (
     rows.find(r => r.qty_by_model_raw?.includes(';')) ??
     rows.find(r => parseApplicableModelNames(r.applicable_models_text).length > 1) ??
-    rows[0]
+    rows.reduce((best, row) => {
+      const arLen = (row.part_name_ar ?? row.part_name ?? '').trim().length
+      const bestLen = (best.part_name_ar ?? best.part_name ?? '').trim().length
+      return arLen > bestLen ? row : best
+    }, rows[0])
   )
+}
+
+function pickBestPartName(rows: BomItemDetail[], kind: 'ar' | 'en'): string {
+  const values = rows
+    .map(row => {
+      if (kind === 'ar') return (row.part_name_ar ?? row.part_name ?? '').trim()
+      return (row.part_name_en ?? '').trim()
+    })
+    .filter(Boolean)
+  if (values.length === 0) return ''
+  return [...values].sort((a, b) => b.length - a.length)[0]
 }
 
 function parseApplicableModelNames(text: string | null | undefined): string[] {
@@ -89,16 +111,26 @@ function allSame(values: string[]): boolean {
   return trimmed.every(v => v === trimmed[0])
 }
 
-function buildSummary(primary: BomItemDetail, variants: BomVariantLine[], classByPartNumber: string): BomItemDetail {
+function buildSummary(
+  primary: BomItemDetail,
+  variants: BomVariantLine[],
+  classByPartNumber: string,
+  rows: BomItemDetail[]
+): BomItemDetail {
   const models = [...new Set(variants.map(v => v.modelName).filter(Boolean))]
   const qtyRaw = variants
     .filter(v => v.modelName)
     .map(v => `${v.modelName}=${v.qty}`)
     .join('; ')
   const entries = variants.filter(v => v.modelName).map(v => ({ modelName: v.modelName, qty: v.qty }))
+  const bestAr = pickBestPartName(rows, 'ar')
+  const bestEn = pickBestPartName(rows, 'en')
 
   return {
     ...primary,
+    part_name_ar: bestAr || primary.part_name_ar || primary.part_name,
+    part_name: bestAr || primary.part_name_ar || primary.part_name,
+    part_name_en: bestEn || primary.part_name_en,
     part_number: allSame(variants.map(v => v.part_number)) ? variants[0]?.part_number ?? primary.part_number : primary.part_number,
     applicable_models_text: models.join(', '),
     vehicle_model_name: null,
@@ -120,8 +152,9 @@ function buildSummary(primary: BomItemDetail, variants: BomVariantLine[], classB
 function buildGroup(key: string, rows: BomItemDetail[]): BomDisplayGroup {
   const primary = pickPrimary(rows)
   const variants = rows.length === 1 ? variantsFromSingleRow(rows[0]) : variantsFromRows(rows)
-  const classByPartNumber = formatClassByPartNumberGroups(variants.filter(v => v.qty > 0))
-  const summary = buildSummary(primary, variants, classByPartNumber)
+  const activeVariants = variants.filter(v => v.qty > 0)
+  const classByPartNumber = formatClassByPartNumberGroups(activeVariants.length > 0 ? activeVariants : variants)
+  const summary = buildSummary(primary, variants, classByPartNumber, rows)
   return {
     key,
     primary,
@@ -129,11 +162,11 @@ function buildGroup(key: string, rows: BomItemDetail[]): BomDisplayGroup {
     variants,
     classByPartNumber,
     allIds: rows.map(r => r.id),
-    expandable: variants.length > 1
+    expandable: variants.length > 1 || rows.length > 1
   }
 }
 
-/** Group paginated BOM rows that share the same part identity (name / number). */
+/** Group BOM rows that share the same (normalized) Arabic part name. */
 export function groupBomItemsForDisplay(items: BomItemDetail[]): BomDisplayGroup[] {
   const order: string[] = []
   const buckets = new Map<string, BomItemDetail[]>()

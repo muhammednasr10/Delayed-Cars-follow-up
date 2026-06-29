@@ -11,14 +11,17 @@ export type AppPagePermissionKey =
   | 'production_scratches'
   | 'production_equipment'
   | 'production_feedback'
+  | 'production_worker_profile'
   | 'production_settings'
   | 'engineering_home'
   | 'engineering_ipl'
   | 'engineering_stations'
   | 'engineering_line_balancing'
+  | 'engineering_sop'
   | 'warehouses_home'
   | 'warehouses_stock'
   | 'warehouses_feeding'
+  | 'quality_notes'
 
 export type AppPageDef = {
   permKey: AppPagePermissionKey
@@ -41,14 +44,17 @@ export const APP_PAGE_DEFINITIONS: AppPageDef[] = [
   { permKey: 'production_scratches', labelKey: 'nav.scratches', descKey: 'permissions.matrix.pageDesc.production_scratches', fallbackModule: 'production', defaultVisible: true },
   { permKey: 'production_equipment', labelKey: 'nav.equipment', descKey: 'permissions.matrix.pageDesc.production_equipment', fallbackModule: 'production', defaultVisible: true },
   { permKey: 'production_feedback', labelKey: 'nav.feedback', descKey: 'permissions.matrix.pageDesc.production_feedback', fallbackModule: 'production', defaultVisible: true },
+  { permKey: 'production_worker_profile', labelKey: 'nav.workerProfile', descKey: 'permissions.matrix.pageDesc.production_worker_profile', fallbackModule: 'production', defaultVisible: true },
   { permKey: 'production_settings', labelKey: 'nav.settings', descKey: 'permissions.matrix.pageDesc.production_settings' },
   { permKey: 'engineering_home', labelKey: 'nav.home', descKey: 'permissions.matrix.pageDesc.engineering_home', defaultVisible: true },
   { permKey: 'engineering_ipl', labelKey: 'nav.ipl', descKey: 'permissions.matrix.pageDesc.engineering_ipl', fallbackModule: 'bom' },
   { permKey: 'engineering_stations', labelKey: 'nav.stations', descKey: 'permissions.matrix.pageDesc.engineering_stations', fallbackModule: 'station_operations' },
   { permKey: 'engineering_line_balancing', labelKey: 'nav.lineBalancing', descKey: 'permissions.matrix.pageDesc.engineering_line_balancing', fallbackModule: 'station_operations' },
+  { permKey: 'engineering_sop', labelKey: 'nav.sop', descKey: 'permissions.matrix.pageDesc.engineering_sop', fallbackModule: 'station_operations' },
   { permKey: 'warehouses_home', labelKey: 'nav.home', descKey: 'permissions.matrix.pageDesc.warehouses_home', fallbackModule: 'inventory', defaultVisible: true },
   { permKey: 'warehouses_stock', labelKey: 'warehouses.tabs.currentStock', descKey: 'permissions.matrix.pageDesc.warehouses_stock', fallbackModule: 'inventory' },
-  { permKey: 'warehouses_feeding', labelKey: 'warehouses.tabs.feeding', descKey: 'permissions.matrix.pageDesc.warehouses_feeding', fallbackModule: 'inventory' }
+  { permKey: 'warehouses_feeding', labelKey: 'warehouses.tabs.feeding', descKey: 'permissions.matrix.pageDesc.warehouses_feeding', fallbackModule: 'inventory' },
+  { permKey: 'quality_notes', labelKey: 'qualityNotes.title', descKey: 'permissions.matrix.pageDesc.quality_notes', fallbackModule: 'qc', defaultVisible: true }
 ]
 
 const PAGE_BY_PRODUCTION: Record<string, AppPagePermissionKey> = {
@@ -62,6 +68,7 @@ const PAGE_BY_PRODUCTION: Record<string, AppPagePermissionKey> = {
   scratches: 'production_scratches',
   equipment: 'production_equipment',
   feedback: 'production_feedback',
+  workerProfile: 'production_worker_profile',
   settings: 'production_settings'
 }
 
@@ -69,7 +76,8 @@ const PAGE_BY_ENGINEERING: Record<string, AppPagePermissionKey> = {
   home: 'engineering_home',
   ipl: 'engineering_ipl',
   stations: 'engineering_stations',
-  lineBalancing: 'engineering_line_balancing'
+  lineBalancing: 'engineering_line_balancing',
+  sop: 'engineering_sop'
 }
 
 const PAGE_BY_WAREHOUSES: Record<string, AppPagePermissionKey> = {

@@ -1,4 +1,5 @@
 import type { DamagedPartFilters, DamagedPartRecord } from '../Types/damagedPart'
+import { UNKNOWN_CAUSER_FILTER } from './damagedPartCauser'
 
 function inDateRange(iso: string, from: string, to: string): boolean {
   const day = iso.slice(0, 10)
@@ -13,7 +14,11 @@ export function applyDamagedPartFilters(items: DamagedPartRecord[], filters: Dam
     if (filters.modelName && row.modelName !== filters.modelName) return false
     if (filters.damageReason && row.damageReason !== filters.damageReason) return false
     if (filters.finalDecision && row.finalDecision !== filters.finalDecision) return false
-    if (filters.causedByEmployeeId && row.causedByEmployeeId !== filters.causedByEmployeeId) return false
+    if (filters.causedByEmployeeId) {
+      if (filters.causedByEmployeeId === UNKNOWN_CAUSER_FILTER) {
+        if (row.causedByEmployeeId) return false
+      } else if (row.causedByEmployeeId !== filters.causedByEmployeeId) return false
+    }
     if (!inDateRange(row.reportedAt, filters.dateFrom, filters.dateTo)) return false
     if (!q) return true
     const hay = [row.partNumber, row.partName, row.causedByName, row.modelName, row.notes]

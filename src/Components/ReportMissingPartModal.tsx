@@ -9,9 +9,11 @@ import { getStations, getVehicleColors, getVehicleModels } from '../services/set
 import type { MissingPartLineInput } from '../Types/missingPart'
 import type { PriorityLevel, StopperType } from '../Types/enums'
 import type { Station, VehicleColor, VehicleModel } from '../Types/settings'
+import { useFormatError } from '../hooks/useFormatError'
 import { useMpLookups } from '../hooks/useMpLookups'
 import { MpLookupCreatableSelect } from './MpLookupCreatableSelect'
 import { defaultDepartmentCode, defaultReasonCode } from '../Utils/mpLookupLabel'
+import { isValidVinLength } from '../Utils/vinValidation'
 
 const PRIORITIES: PriorityLevel[] = ['low', 'normal', 'high', 'critical']
 const STOPPER_TYPES: StopperType[] = ['line_stopper', 'car_stopper']
@@ -69,6 +71,7 @@ type Props = {
 
 export function ReportMissingPartModal({ open, onClose, onReported }: Props) {
   const { t } = useLang()
+  const formatError = useFormatError()
   const { reasons, departments, addReason, addDepartment } = useMpLookups()
   const [models, setModels] = useState<VehicleModel[]>([])
   const [colors, setColors] = useState<VehicleColor[]>([])
@@ -108,7 +111,7 @@ export function ReportMissingPartModal({ open, onClose, onReported }: Props) {
         setColors(c)
         setStations(st)
       })
-      .catch(err => setFormError(err instanceof Error ? err.message : t('common.error')))
+      .catch(err => setFormError(formatError(err)))
       .finally(() => setListsLoading(false))
   }, [open, t])
 
@@ -168,7 +171,7 @@ export function ReportMissingPartModal({ open, onClose, onReported }: Props) {
       const vinList = line.vins.map(v => v.trim()).filter(Boolean)
       if (vinList.length !== line.vehicleCount) missing.push(t('mp.errIssueVins', { n: li + 1 }))
       for (let vi = 0; vi < vinList.length; vi++) {
-        if (vinList[vi].length < 6) missing.push(t('mp.errIssueVinIndex', { issue: li + 1, vin: vi + 1 }))
+        if (!isValidVinLength(vinList[vi])) missing.push(t('mp.errIssueVinIndex', { issue: li + 1, vin: vi + 1 }))
       }
     }
 
@@ -211,7 +214,7 @@ export function ReportMissingPartModal({ open, onClose, onReported }: Props) {
       onReported?.(t('mp.batchSuccess', { cars: totalCars, parts: totalRecords }))
       onClose()
     } catch (err) {
-      setFormError(err instanceof Error ? err.message : t('common.error'))
+      setFormError(formatError(err))
     } finally {
       setSubmitting(false)
     }

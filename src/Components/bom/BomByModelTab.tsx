@@ -4,7 +4,7 @@ import { useLang } from '../../i18n/LanguageContext'
 import { usePermissions } from '../../Context/PermissionsContext'
 import { useAuth } from '../../Context/AuthContext'
 import { getVehicleModels, getStations } from '../../services/settingsService'
-import { deleteBomItem, getBomItemById, getBomItems, saveBomFromModelCards, type BomExcelColumnFilters, type BomListFilters } from '../../services/bomService'
+import { deleteBomItem, getBomItemById, getBomItemsAll, saveBomFromModelCards, type BomExcelColumnFilters, type BomListFilters } from '../../services/bomService'
 import { BOM_MAIN_ROW_COLUMNS, BOM_TABLE_COL_WIDTH } from '../../Utils/bomPartsColumns'
 import { bomColumnLabelKey, BOM_COMPACT_HEADER_COLS } from '../../Utils/bomColumnHeader'
 import { groupBomItemsForDisplay, type BomDisplayGroup } from '../../Utils/bomRowGroups'
@@ -17,6 +17,7 @@ import {
 import { bomModelBreakdownLines, type BomModelLineDraft } from '../../Utils/bomModelBreakdown'
 import { effectiveBomStopperType } from '../../Utils/bomStopper'
 import { buildModelFamilyGroups, isAssignableModel } from '../../Utils/vehicleModelHierarchy'
+import { filterBomItemsByLineScope, filterModelFamilyPicker, type BomLineScope } from '../../Utils/bomModelScope'
 import { masterStationsForBom, normalizeBomStationCodeText, sortBomDisplayGroups } from '../../Utils/bomStationCode'
 import { formatStationReferenceCode } from '../../Utils/stationHierarchy'
 import { BomGroupedTableRow } from './BomGroupedTableRow'
@@ -31,7 +32,13 @@ import type { VehicleModel, Station } from '../../Types/settings'
 
 const PAGE_SIZE = 100
 
-export function BomByModelTab({ notify }: { notify: (m: string, err?: boolean) => void }) {
+export function BomByModelTab({
+  notify,
+  lineScope = 'main'
+}: {
+  notify: (m: string, err?: boolean) => void
+  lineScope?: BomLineScope
+}) {
   const { t } = useLang()
   const { hasRole } = useAuth()
   const { hasPermission } = usePermissions()
@@ -62,12 +69,18 @@ export function BomByModelTab({ notify }: { notify: (m: string, err?: boolean) =
   const [breakdownSaving, setBreakdownSaving] = useState(false)
   const [expandedKeys, setExpandedKeys] = useState<Set<string>>(new Set())
 
-  const modelPicker = useMemo(() => buildModelFamilyGroups(models), [models])
+  const modelPicker = useMemo(() => filterModelFamilyPicker(buildModelFamilyGroups(models), lineScope), [models, lineScope])
   const masterStations = useMemo(() => masterStationsForBom(stations), [stations])
+  const scopedItems = useMemo(() => filterBomItemsByLineScope(items, lineScope), [items, lineScope])
   const displayGroups = useMemo(
-    () => sortBomDisplayGroups(groupBomItemsForDisplay(items), stations),
-    [items, stations]
+    () => sortBomDisplayGroups(groupBomItemsForDisplay(scopedItems), stations),
+    [scopedItems, stations]
   )
+  const pagedGroups = useMemo(() => {
+    const start = (page - 1) * PAGE_SIZE
+    return displayGroups.slice(start, start + PAGE_SIZE)
+  }, [displayGroups, page])
+  const groupTotal = displayGroups.length
 
   const colCount = BOM_MAIN_ROW_COLUMNS.length
 
@@ -89,16 +102,17 @@ export function BomByModelTab({ notify }: { notify: (m: string, err?: boolean) =
   const load = useCallback(async () => {
     setLoading(true)
     try {
-      const list = await getBomItems({ ...baseFilters, page, pageSize: PAGE_SIZE })
+      const list = await getBomItemsAll(baseFilters)
       setItems(list.items)
       setTotal(list.total)
       setFilteredCount(list.total)
+      if (list.truncated) notify(t('bom.mergeTruncated'), true)
     } catch (e) {
       notify(e instanceof Error ? e.message : t('common.error'), true)
     } finally {
       setLoading(false)
     }
-  }, [baseFilters, page, notify, t])
+  }, [baseFilters, notify, t])
 
   useEffect(() => {
     Promise.all([getVehicleModels(), getStations()])
@@ -171,7 +185,7 @@ export function BomByModelTab({ notify }: { notify: (m: string, err?: boolean) =
       ).filter((r): r is NonNullable<typeof r> => Boolean(r))
       if (rows.length === 0) throw new Error(t('common.error'))
 
-      const { familyIds, cards } = buildBreakdownSaveCards(models, group, rows, draftByModel)
+      const { familyIds, cards } = buildBreakdownSaveCards(models, group, rows, draftByModel, stations)
       const active = cards.filter(c => {
         const q = Number(c.qty)
         return c.part_number.trim() && c.modelId && Number.isFinite(q) && q > 0
@@ -354,8 +368,10 @@ export function BomByModelTab({ notify }: { notify: (m: string, err?: boolean) =
 
         <p className="mt-3 border-t border-slate-800/80 pt-3 text-xs text-slate-500">
           {modelName
-            ? t('bom.modelBomSummary', { model: selectedName, n: filteredCount ?? 0, shown: total })
-            : t('bom.allBomSummary', { n: filteredCount ?? total, shown: total })}
+            ? t('bom.modelBomSummary', { model: selectedName, n: filteredCount ?? 0, shown: groupTotal })
+            : lineScope === 'gd'
+              ? t('bom.gdBomSummary', { n: filteredCount ?? total, shown: groupTotal })
+              : t('bom.allBomSummary', { n: filteredCount ?? total, shown: groupTotal })}
           {activeExcelFilterCount > 0 && (
             <span className="ms-2 text-cyan-400">· {t('bom.excel.filtersActive', { n: activeExcelFilterCount })}</span>
           )}
@@ -363,7 +379,7 @@ export function BomByModelTab({ notify }: { notify: (m: string, err?: boolean) =
       </div>
 
       <div className="card-industrial overflow-hidden">
-        <ExportableTable filename="bom-parts" title={t('bom.title')} rowCount={displayGroups.length}>
+        <ExportableTable filename="bom-parts" title={t('bom.title')} rowCount={pagedGroups.length}>
         <table className="bom-parts-table">
           <colgroup>
             {BOM_MAIN_ROW_COLUMNS.map(c => (
@@ -406,18 +422,19 @@ export function BomByModelTab({ notify }: { notify: (m: string, err?: boolean) =
                   {t('common.loading')}
                 </td>
               </tr>
-            ) : displayGroups.length === 0 ? (
+            ) : pagedGroups.length === 0 ? (
               <tr>
                 <td colSpan={colCount} className="text-slate-400">
                   {t('bom.noModelBom')}
                 </td>
               </tr>
             ) : (
-              displayGroups.map(group => (
+              pagedGroups.map(group => (
                 <BomGroupedTableRow
                   key={group.key}
                   group={group}
                   models={models}
+                  stations={stations}
                   expanded={expandedKeys.has(group.key)}
                   onToggle={() => toggleExpanded(group.key)}
                   canUpdate={canUpdate}
@@ -444,13 +461,15 @@ export function BomByModelTab({ notify }: { notify: (m: string, err?: boolean) =
       </div>
 
       <div className="flex items-center justify-between text-sm text-slate-400">
-        <span>{t('bom.rowCount', { n: total })}</span>
+        <span>
+          {t('bom.mergedRowCount', { rows: total, groups: groupTotal })}
+        </span>
         <div className="flex gap-2">
           <button type="button" disabled={page <= 1} className="rounded-lg bg-slate-800 px-3 py-1 font-bold disabled:opacity-40" onClick={() => setPage(p => p - 1)}>
             {t('common.back')}
           </button>
           <span className="px-2 py-1">{page}</span>
-          <button type="button" disabled={page * PAGE_SIZE >= total} className="rounded-lg bg-slate-800 px-3 py-1 font-bold disabled:opacity-40" onClick={() => setPage(p => p + 1)}>
+          <button type="button" disabled={page * PAGE_SIZE >= groupTotal} className="rounded-lg bg-slate-800 px-3 py-1 font-bold disabled:opacity-40" onClick={() => setPage(p => p + 1)}>
             {t('common.next')}
           </button>
         </div>

@@ -14,18 +14,27 @@ export type BomModelBreakdownLine = {
 }
 
 export type BomModelLineDraft = {
+  active: boolean
   qty: string
   part_number: string
   part_kind: string
   supply_source: string
+  station_code_text: string
 }
 
 export function lineDraftFromBreakdown(line: BomModelBreakdownLine, group: BomDisplayGroup): BomModelLineDraft {
+  const active = line.qty > 0
+  const variant = line.variant
+  const groupStation = group.primary.station_code_text || group.primary.station_number || ''
   return {
-    qty: line.qty > 0 ? String(line.qty) : '0',
-    part_number: line.variant?.part_number?.trim() || group.primary.part_number || '',
-    part_kind: effectivePartKind(line.variant?.part_kind || group.primary.part_type),
-    supply_source: defaultSupplySourceValue(line.variant?.supply_source || group.primary.supply_source)
+    active,
+    qty: active ? String(line.qty) : '',
+    part_number: active ? variant?.part_number?.trim() || group.primary.part_number || '' : '',
+    part_kind: effectivePartKind(variant?.part_kind || group.primary.part_type),
+    supply_source: defaultSupplySourceValue(variant?.supply_source || group.primary.supply_source),
+    station_code_text: active
+      ? variant?.station_code?.trim() || groupStation
+      : ''
   }
 }
 

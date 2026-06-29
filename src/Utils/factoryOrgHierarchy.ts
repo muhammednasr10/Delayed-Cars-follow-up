@@ -6,6 +6,12 @@ function compareUnits(a: FactoryOrgUnit, b: FactoryOrgUnit): number {
   return a.name.localeCompare(b.name, 'ar')
 }
 
+export function nextFactoryOrgSortOrder(units: FactoryOrgUnit[], parentId: string | null): number {
+  const siblings = units.filter(u => (u.parentId ?? null) === parentId)
+  if (siblings.length === 0) return 1
+  return Math.max(...siblings.map(s => s.sortOrder ?? 0)) + 1
+}
+
 export function buildFactoryOrgTree(units: FactoryOrgUnit[]): FactoryOrgUnitNode[] {
   const byParent = new Map<string | null, FactoryOrgUnit[]>()
   for (const unit of units) {

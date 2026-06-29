@@ -13,6 +13,7 @@ export function isAssignableModel(m: VehicleModel): boolean {
 }
 
 const GD_VARIANT_NAMES = new Set(['K50', 'K51', 'F10', 'K52', 'K53', 'F12'])
+export { GD_VARIANT_NAMES }
 
 /** GD: one aggregate target on the family row. */
 export const GD_AGGREGATE_FAMILY = 'GD'

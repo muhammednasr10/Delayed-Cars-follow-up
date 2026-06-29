@@ -6,13 +6,14 @@ import { bomPartsCellValue } from '../../Utils/bomPartsCellValue'
 import { displayBomStationCode } from '../../Utils/bomStationCode'
 import { bomModelBreakdownLines, type BomModelLineDraft } from '../../Utils/bomModelBreakdown'
 import type { BomDisplayGroup, BomVariantLine } from '../../Utils/bomRowGroups'
-import type { VehicleModel } from '../../Types/settings'
+import type { Station, VehicleModel } from '../../Types/settings'
 import { BomStopperCell } from './BomStopperCell'
 import { BomModelBreakdownPanel } from './BomModelBreakdownPanel'
 
 type Props = {
   group: BomDisplayGroup
   models: VehicleModel[]
+  stations: Station[]
   expanded: boolean
   onToggle: () => void
   canUpdate: boolean
@@ -49,9 +50,11 @@ function partNameCell(
         <ChevronDown className="h-3.5 w-3.5 shrink-0 text-slate-500" />
       )}
       <span className="min-w-0">{label || '—'}</span>
-      <span className="shrink-0 rounded bg-violet-500/20 px-1 py-0.5 text-[9px] font-bold text-violet-300">
-        {modelCount}
-      </span>
+      {modelCount > 0 && (
+        <span className="shrink-0 rounded bg-violet-500/20 px-1 py-0.5 text-[9px] font-bold text-violet-300">
+          {modelCount}
+        </span>
+      )}
     </button>
   )
 }
@@ -59,6 +62,7 @@ function partNameCell(
 export function BomGroupedTableRow({
   group,
   models,
+  stations,
   expanded,
   onToggle,
   canUpdate,
@@ -73,6 +77,7 @@ export function BomGroupedTableRow({
   const row = group.summary
   const colCount = BOM_MAIN_ROW_COLUMNS.length
   const breakdown = useMemo(() => bomModelBreakdownLines(models, group), [models, group])
+  const activeQtyCount = useMemo(() => breakdown.filter(l => l.qty > 0).length, [breakdown])
   const expandable = breakdown.length >= 1
 
   return (
@@ -91,9 +96,9 @@ export function BomGroupedTableRow({
               title={title || undefined}
             >
               {c === 'part_name_ar' ? (
-                partNameCell(expandable, breakdown.length, expanded, onToggle, bomPartsCellValue(row, c))
+                partNameCell(expandable, activeQtyCount, expanded, onToggle, bomPartsCellValue(row, c))
               ) : c === 'part_name_en' && expandable ? (
-                partNameCell(expandable, breakdown.length, expanded, onToggle, bomPartsCellValue(row, c))
+                partNameCell(expandable, activeQtyCount, expanded, onToggle, bomPartsCellValue(row, c))
               ) : c === 'vehicle_model' ? (
                 <span className="font-bold leading-snug text-violet-200" title={group.classByPartNumber || undefined}>
                   {group.classByPartNumber || '—'}
@@ -125,6 +130,7 @@ export function BomGroupedTableRow({
             <BomModelBreakdownPanel
               group={group}
               models={models}
+              stations={stations}
               canUpdate={canUpdate && Boolean(onSaveBreakdown)}
               canDelete={canDelete}
               saving={breakdownSaving}

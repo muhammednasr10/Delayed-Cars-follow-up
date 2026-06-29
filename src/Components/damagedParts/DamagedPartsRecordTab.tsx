@@ -4,6 +4,7 @@ import { useLang } from '../../i18n/LanguageContext'
 import { ConfirmDialog } from '../ConfirmDialog'
 import { DamagedPartFormModal } from './DamagedPartFormModal'
 import { ExportableTable } from '../ExportableTable'
+import { useFormatError } from '../../hooks/useFormatError'
 import { useDamagedPartsLookups } from '../../hooks/useDamagedPartsLookups'
 import {
   createDamagedPart,
@@ -39,6 +40,7 @@ type Props = {
 
 export function DamagedPartsRecordTab({ items, loading, models, employees, onReload, onSuccess, onError }: Props) {
   const { t, lang } = useLang()
+  const formatError = useFormatError()
   const { reasons, decisions } = useDamagedPartsLookups()
   const [formOpen, setFormOpen] = useState(false)
   const [editing, setEditing] = useState<DamagedPartRecord | null>(null)
@@ -83,10 +85,7 @@ export function DamagedPartsRecordTab({ items, loading, models, employees, onRel
       onSuccess?.(editingId ? t('damagedParts.updated') : t('damagedParts.saved'))
       await onReload()
     } catch (e) {
-      const msg = e instanceof Error ? e.message : t('common.error')
-      if (msg === 'IMAGE_TOO_LARGE') onError?.(t('damagedParts.errImageSize'))
-      else if (msg === 'IMAGE_INVALID_TYPE') onError?.(t('damagedParts.errImageType'))
-      else onError?.(msg)
+      onError?.(formatError(e))
     } finally {
       setSaving(false)
     }
@@ -99,7 +98,7 @@ export function DamagedPartsRecordTab({ items, loading, models, employees, onRel
       onSuccess?.(t('damagedParts.repairableUpdated'))
       await onReload()
     } catch (e) {
-      onError?.(e instanceof Error ? e.message : t('common.error'))
+      onError?.(formatError(e))
     } finally {
       setSaving(false)
     }
@@ -114,7 +113,7 @@ export function DamagedPartsRecordTab({ items, loading, models, employees, onRel
       onSuccess?.(t('common.deleted'))
       await onReload()
     } catch (e) {
-      onError?.(e instanceof Error ? e.message : t('common.error'))
+      onError?.(formatError(e))
     } finally {
       setSaving(false)
     }
@@ -189,7 +188,9 @@ export function DamagedPartsRecordTab({ items, loading, models, employees, onRel
                   <td className={`${cell} font-mono text-white`} dir="ltr">
                     {row.quantity}
                   </td>
-                  <td className={`${cell} font-bold text-slate-100`}>{row.causedByName ?? '—'}</td>
+                  <td className={`${cell} font-bold text-slate-100`}>
+                    {row.causedByName ?? t('damagedParts.unknownCauser')}
+                  </td>
                   <td className={`${cell} text-slate-200`}>{dpLookupLabel(reasons, row.damageReason, lang)}</td>
                   <td className={cell}>{decisionBadge(row.finalDecision)}</td>
                   <td data-export-skip className={cell}>

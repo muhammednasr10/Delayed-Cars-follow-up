@@ -90,6 +90,45 @@ export async function setUserPermissionOverride(
   if (error) throw new Error(error.message)
 }
 
+export type UserPermissionState = {
+  effective: Map<string, boolean>
+  roleBase: Map<string, boolean>
+  overrideKeys: Set<string>
+}
+
+/** صلاحيات المستخدم الفعلية = دور النظام + استثناءات المستخدم */
+export async function getUserEffectivePermissions(
+  allPermissions: SystemPermission[],
+  userId: string,
+  systemRoleId: string | null
+): Promise<UserPermissionState> {
+  const { getUserOverrides } = await import('./userAccountsService')
+  const roleBase = systemRoleId ? await getRolePermissions(systemRoleId) : new Map<string, boolean>()
+  const overrideRows = await getUserOverrides(userId)
+
+  const overrideByPermId = new Map<string, boolean>()
+  const overrideKeys = new Set<string>()
+  for (const row of overrideRows) {
+    const permId = row.permission_id as string
+    overrideByPermId.set(permId, Boolean(row.allowed))
+    const raw = row.system_permissions as
+      | { module_key: string; permission_key: string }
+      | { module_key: string; permission_key: string }[]
+      | null
+    const sp = Array.isArray(raw) ? raw[0] : raw
+    if (sp) overrideKeys.add(permissionKey(sp.module_key, sp.permission_key))
+  }
+
+  const effective = new Map<string, boolean>()
+  for (const p of allPermissions) {
+    const key = permissionKey(p.module_key, p.permission_key)
+    const ov = overrideByPermId.get(p.id)
+    effective.set(key, ov !== undefined ? ov : (roleBase.get(key) ?? false))
+  }
+
+  return { effective, roleBase, overrideKeys }
+}
+
 export type SystemRoleInput = {
   roleCode: string
   roleNameAr: string

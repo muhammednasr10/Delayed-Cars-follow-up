@@ -37,7 +37,7 @@ function toRows(map: Map<string, { label: string; code?: string; records: number
   return [...map.values()].sort((a, b) => b.quantity - a.quantity || b.records - a.records || a.label.localeCompare(b.label, 'ar'))
 }
 
-export function buildDamagedPartSummary(items: DamagedPartRecord[]): DamagedPartSummaryStats {
+export function buildDamagedPartSummary(items: DamagedPartRecord[], unknownCauserLabel = '—'): DamagedPartSummaryStats {
   const byModel = new Map<string, { label: string; code?: string; records: number; quantity: number }>()
   const byReason = new Map<string, { label: string; code?: string; records: number; quantity: number }>()
   const byDecision = new Map<string, { label: string; code?: string; records: number; quantity: number }>()
@@ -59,7 +59,7 @@ export function buildDamagedPartSummary(items: DamagedPartRecord[]): DamagedPart
     bump(byDecision, row.finalDecision, row.finalDecision, row.quantity, row.finalDecision)
 
     const causerKey = row.causedByEmployeeId ?? '__none__'
-    const causerLabel = row.causedByName ?? '—'
+    const causerLabel = row.causedByName ?? unknownCauserLabel
     bump(byCauser, causerKey, causerLabel, row.quantity)
 
     const partLabel = row.partName ? `${row.partNumber} · ${row.partName}` : row.partNumber

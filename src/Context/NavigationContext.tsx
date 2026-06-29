@@ -4,18 +4,22 @@ import type {
   DepartmentId,
   EngineeringPage,
   LineBalancingTab,
+  ProductionArea,
   ProductionPage,
   ProductionPlanTab,
   ProductivityTab,
   SettingsTab,
   TrainingTab,
   WarehousesTab,
-  WarehousesFeedingSubTab
+  WarehousesFeedingSubTab,
+  QualityTab,
+  WorkerProfileTab
 } from '../Types/navigation'
 import type { ProfileTab } from '../Types/profile'
 
 type NavState = {
   department: DepartmentId
+  productionArea: ProductionArea
   productionPage: ProductionPage
   engineeringPage: EngineeringPage
   showProfile: boolean
@@ -29,6 +33,8 @@ type NavState = {
   productionPlanTab: ProductionPlanTab
   warehousesTab: WarehousesTab
   warehousesFeedingSubTab: WarehousesFeedingSubTab
+  qualityTab: QualityTab
+  workerProfileTab: WorkerProfileTab
   sidebarOpen: boolean
 }
 
@@ -36,6 +42,7 @@ type NavigatePatch = Partial<
   Pick<
     NavState,
     | 'department'
+    | 'productionArea'
     | 'productionPage'
     | 'engineeringPage'
     | 'showProfile'
@@ -49,11 +56,14 @@ type NavigatePatch = Partial<
     | 'productionPlanTab'
     | 'warehousesTab'
     | 'warehousesFeedingSubTab'
+    | 'qualityTab'
+    | 'workerProfileTab'
   >
 > & { closeSidebar?: boolean }
 
 type NavigationContextValue = NavState & {
   selectDepartment: (department: DepartmentId, keepSidebarOpen?: boolean) => void
+  setProductionArea: (area: ProductionArea) => void
   setProductionPage: (page: ProductionPage) => void
   setEngineeringPage: (page: EngineeringPage) => void
   openProfile: (tab?: ProfileTab) => void
@@ -67,6 +77,8 @@ type NavigationContextValue = NavState & {
   setProductionPlanTab: (tab: ProductionPlanTab) => void
   setWarehousesTab: (tab: WarehousesTab) => void
   setWarehousesFeedingSubTab: (tab: WarehousesFeedingSubTab) => void
+  setQualityTab: (tab: QualityTab) => void
+  setWorkerProfileTab: (tab: WorkerProfileTab) => void
   setSidebarOpen: (open: boolean) => void
   navigate: (patch: NavigatePatch) => void
 }
@@ -75,6 +87,7 @@ const NavigationContext = createContext<NavigationContextValue | undefined>(unde
 
 const initialState: NavState = {
   department: 'production',
+  productionArea: 'assembly',
   productionPage: 'home',
   engineeringPage: 'home',
   showProfile: false,
@@ -88,6 +101,8 @@ const initialState: NavState = {
   productionPlanTab: 'planOrders',
   warehousesTab: 'home',
   warehousesFeedingSubTab: 'plan',
+  qualityTab: 'record',
+  workerProfileTab: 'data',
   sidebarOpen: false
 }
 
@@ -98,15 +113,17 @@ export function NavigationProvider({ children }: { children: ReactNode }) {
     setState(prev => {
       const leavesGlobalHome =
         patch.department != null ||
+        patch.productionArea != null ||
         patch.productionPage != null ||
         patch.engineeringPage != null ||
-        patch.warehousesTab != null
+        patch.warehousesTab != null ||
+        patch.qualityTab != null
       return {
         ...prev,
         ...patch,
         showProfile:
           patch.showProfile ??
-          (patch.productionPage != null || patch.engineeringPage != null || patch.department != null
+          (patch.productionArea != null || patch.productionPage != null || patch.engineeringPage != null || patch.department != null
             ? false
             : prev.showProfile),
         showGlobalHome:
@@ -125,9 +142,12 @@ export function NavigationProvider({ children }: { children: ReactNode }) {
         department,
         showProfile: false,
         showGlobalHome: false,
-        ...(changed && department === 'production' ? { productionPage: 'home' as const } : {}),
+        ...(changed && department === 'production'
+          ? { productionArea: 'assembly' as const, productionPage: 'home' as const }
+          : {}),
         ...(changed && department === 'engineering' ? { engineeringPage: 'home' as const } : {}),
         ...(changed && department === 'warehouses' ? { warehousesTab: 'home' as const } : {}),
+        ...(changed && department === 'quality' ? { qualityTab: 'record' as const } : {}),
         sidebarOpen: keepSidebarOpen ? prev.sidebarOpen : false
       }
     })
@@ -137,6 +157,7 @@ export function NavigationProvider({ children }: { children: ReactNode }) {
     () => ({
       ...state,
       selectDepartment,
+      setProductionArea: area => navigate({ productionArea: area, showProfile: false, closeSidebar: false }),
       setProductionPage: page => navigate({ productionPage: page, showProfile: false, closeSidebar: false }),
       setEngineeringPage: page => navigate({ engineeringPage: page, showProfile: false, closeSidebar: false }),
       openProfile: (tab = 'account') =>
@@ -151,6 +172,8 @@ export function NavigationProvider({ children }: { children: ReactNode }) {
       setProductionPlanTab: productionPlanTab => setState(prev => ({ ...prev, productionPlanTab })),
       setWarehousesTab: warehousesTab => setState(prev => ({ ...prev, warehousesTab })),
       setWarehousesFeedingSubTab: warehousesFeedingSubTab => setState(prev => ({ ...prev, warehousesFeedingSubTab })),
+      setQualityTab: qualityTab => setState(prev => ({ ...prev, qualityTab })),
+      setWorkerProfileTab: workerProfileTab => setState(prev => ({ ...prev, workerProfileTab })),
       setSidebarOpen: sidebarOpen => setState(prev => ({ ...prev, sidebarOpen })),
       navigate
     }),

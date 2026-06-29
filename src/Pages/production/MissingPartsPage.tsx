@@ -4,6 +4,7 @@ import { useLang } from '../../i18n/LanguageContext'
 import { useMpLookups } from '../../hooks/useMpLookups'
 import { useCanReportMissingPart } from '../../hooks/useCanReportMissingPart'
 import { useCanManageMissingPart } from '../../hooks/useCanManageMissingPart'
+import { useFormatError } from '../../hooks/useFormatError'
 import { SetupRequired } from '../../Components/SetupRequired'
 import { ReportMissingPartModal } from '../../Components/ReportMissingPartModal'
 import { UpdateMissingPartModal, type UpdateVehicleContext } from '../../Components/UpdateMissingPartModal'
@@ -41,6 +42,7 @@ export function MissingPartsPage() {
   const { reasons, departments } = useMpLookups()
   const { canReport, role } = useCanReportMissingPart()
   const { canEdit, canDelete, canInstall, canUpdateStatus, canComplete } = useCanManageMissingPart()
+  const formatError = useFormatError()
   const canBulkInstall = canInstall && canUpdateStatus
 
   const [items, setItems] = useState<MissingPartDetail[]>([])
@@ -122,7 +124,7 @@ export function MissingPartsPage() {
       setItems(await getMissingParts())
       setSetupRequired(false)
     } catch (err) {
-      const message = err instanceof Error ? err.message : t('common.error')
+      const message = formatError(err)
       setSetupRequired(isSchemaMissing(message))
       setError(message)
     } finally {
@@ -211,7 +213,7 @@ export function MissingPartsPage() {
       showSuccess(t('mp.bulk.installSuccess', { vehicles: result.vehicles, lines: result.lines }))
       await load()
     } catch (err) {
-      setError(err instanceof Error ? err.message : t('common.error'))
+      setError(formatError(err))
     } finally {
       setBulkInstalling(false)
     }
@@ -240,7 +242,7 @@ export function MissingPartsPage() {
       showSuccess(t('common.deleted'))
       void load()
     } catch (err) {
-      setError(err instanceof Error ? err.message : t('common.error'))
+      setError(formatError(err))
     }
   }
 
@@ -258,7 +260,7 @@ export function MissingPartsPage() {
       showSuccess(t('mp.completeSuccess', { vin: completeTarget.vin }))
       void load()
     } catch (err) {
-      setError(err instanceof Error ? err.message : t('common.error'))
+      setError(formatError(err))
     } finally {
       setCompletingVehicleId(null)
     }

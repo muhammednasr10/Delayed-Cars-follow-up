@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { GraduationCap } from 'lucide-react'
 import { useNavigation } from '../../Context/NavigationContext'
 import { useLang } from '../../i18n/LanguageContext'
@@ -7,7 +7,9 @@ import { usePermissions } from '../../Context/PermissionsContext'
 import { useEmployees } from '../../hooks/useEmployees'
 import { useEmployeeTrainingRecords, useStationRequiredSkills, useTrainingSkills } from '../../hooks/useTraining'
 import { useEmployeeStationLevels } from '../../hooks/useEmployeeStationLevels'
+import { getFactoryOrgUnits } from '../../services/factoryOrgService'
 import { getStations, getVehicleModels } from '../../services/settingsService'
+import { filterAssemblyWorkforce } from '../../Utils/assemblyWorkforce'
 import { OrgStructurePage } from '../shared/OrgStructurePage'
 import { PageTabShell } from '../../Components/layout/PageTabShell'
 import { WorkforceAttendanceSection } from '../../Components/WorkforceAttendanceSection'
@@ -18,6 +20,7 @@ import { StationQualificationTab } from '../../Components/training/StationQualif
 import { TrainingExpiryDashboard } from '../../Components/training/TrainingExpiryDashboard'
 import { OperationQualificationTab } from '../../Components/training/OperationQualificationTab'
 import type { Station, VehicleModel } from '../../Types/settings'
+import type { FactoryOrgUnit } from '../../Types/factoryOrg'
 
 type Tab = 'org' | 'attendance' | 'manpower' | 'operations' | 'stationSkills' | 'matrix' | 'qualification' | 'expiry'
 const TABS: Tab[] = ['org', 'attendance', 'manpower', 'operations', 'stationSkills', 'matrix', 'qualification', 'expiry']
@@ -36,7 +39,9 @@ export function TrainingMatrixPage() {
     hasPermission('employees', 'update') ||
     hasPermission('employees', 'delete')
 
-  const { employees } = useEmployees()
+  const { employees: allEmployees } = useEmployees()
+  const [orgUnits, setOrgUnits] = useState<FactoryOrgUnit[]>([])
+  const employees = useMemo(() => filterAssemblyWorkforce(allEmployees, orgUnits), [allEmployees, orgUnits])
   const { skills } = useTrainingSkills()
   const { required } = useStationRequiredSkills()
   const { records, reload: reloadRecords } = useEmployeeTrainingRecords()
@@ -50,6 +55,7 @@ export function TrainingMatrixPage() {
   useEffect(() => {
     getStations().then(setStations).catch(() => setStations([]))
     getVehicleModels().then(setModels).catch(() => setModels([]))
+    getFactoryOrgUnits({ includeInactive: true }).then(setOrgUnits).catch(() => setOrgUnits([]))
   }, [])
 
   function notify(msg: string, isError = false) {
@@ -85,7 +91,7 @@ export function TrainingMatrixPage() {
         </>
       }
     >
-      {tab === 'org' && <OrgStructurePage embedded />}
+      {tab === 'org' && <OrgStructurePage embedded workforceScope="assembly" />}
       {tab === 'attendance' && <WorkforceAttendanceSection employees={employees} canManage={canManageEmployees} />}
       {tab === 'manpower' && (
         <WorkforceManpowerSection stations={stations} employees={employees} models={models} canManage={canManageEmployees} />

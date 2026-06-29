@@ -3,6 +3,7 @@ import { Minus, Plus, Settings2 } from 'lucide-react'
 import { useLang } from '../i18n/LanguageContext'
 import { useMpLookups } from '../hooks/useMpLookups'
 import { mpLookupLabel } from '../Utils/mpLookupLabel'
+import { useFormatError } from '../hooks/useFormatError'
 import { useCanManageMissingPart } from '../hooks/useCanManageMissingPart'
 import { Modal } from './Modal'
 import { MissingStatusChip } from './StatusChips'
@@ -26,6 +27,7 @@ export function UpdateMissingPartModal({ vehicle, onClose, onChanged }: Props) {
   const { t, lang } = useLang()
   const { reasons, departments } = useMpLookups()
   const { canInstall, canUpdateStatus } = useCanManageMissingPart()
+  const formatError = useFormatError()
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
   const [lines, setLines] = useState<LineDraft[]>([])
@@ -80,7 +82,7 @@ export function UpdateMissingPartModal({ vehicle, onClose, onChanged }: Props) {
       onChanged()
       onClose()
     } catch (err) {
-      setError(err instanceof Error ? err.message : t('common.error'))
+      setError(formatError(err))
     } finally {
       setBusy(false)
     }

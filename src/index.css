@@ -72,6 +72,37 @@ textarea {
 .bom-parts-table thead th {
   @apply border-b border-slate-600 px-1.5 py-1.5 text-[11px] font-bold leading-tight text-slate-100;
   vertical-align: bottom;
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  background-color: rgb(30 41 59 / 0.95);
+}
+
+.bom-breakdown-table {
+  table-layout: fixed;
+  width: 100%;
+  min-width: 42rem;
+}
+
+.bom-breakdown-table th,
+.bom-breakdown-table td {
+  @apply px-2 py-1.5 text-xs align-middle text-slate-200;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+
+.bom-breakdown-table thead tr {
+  @apply bg-slate-800/70;
+}
+
+.bom-breakdown-table thead th {
+  @apply border-b border-slate-600 px-1.5 py-1.5 text-[11px] font-bold leading-tight text-slate-100;
+  vertical-align: bottom;
+  background-color: rgb(30 41 59 / 0.95);
+}
+
+.bom-breakdown-table .bom-th-label {
+  @apply font-bold text-slate-100;
 }
 
 .bom-parts-table thead th span {

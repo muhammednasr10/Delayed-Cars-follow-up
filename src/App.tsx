@@ -21,6 +21,7 @@ import { TrainingMatrixPage } from './Pages/production/TrainingMatrixPage'
 import { SettingsPage } from './Pages/production/SettingsPage'
 import { BomPage } from './Pages/engineering/BomPage'
 import { LineBalancingPage } from './Pages/engineering/LineBalancingPage'
+import { SopPage } from './Pages/engineering/SopPage'
 import { ProductivityPage } from './Pages/production/ProductivityPage'
 import { DamagedPartsPage } from './Pages/production/DamagedPartsPage'
 import { MissionsPage } from './Pages/production/MissionsPage'
@@ -28,10 +29,14 @@ import { RequestsPage } from './Pages/production/RequestsPage'
 import { ScratchesPage } from './Pages/production/ScratchesPage'
 import { EquipmentPage } from './Pages/production/EquipmentPage'
 import { FeedbackPage } from './Pages/production/FeedbackPage'
+import { WorkerProfilePage } from './Pages/production/WorkerProfilePage'
+import { ProductionAreaPlaceholderPage } from './Pages/production/ProductionAreaPlaceholderPage'
 import { GlobalHomePage } from './Pages/shared/GlobalHomePage'
 import { LoginPage } from './Pages/shared/LoginPage'
 import { MyProfilePage } from './Pages/shared/MyProfilePage'
 import { DepartmentPlaceholderPage } from './Pages/shared/DepartmentPlaceholderPage'
+import { QualityPage } from './Pages/quality/QualityPage'
+import { HrPage } from './Pages/hr/HrPage'
 import { EngineeringHomePage } from './Pages/engineering/EngineeringHomePage'
 import { WarehousesPage } from './Pages/warehouses/WarehousesPage'
 import { useCanAccessSettings } from './hooks/useCanAccessSettings'
@@ -63,7 +68,7 @@ function Shell() {
 
   useEffect(() => {
     if (nav.department === 'engineering' && nav.engineeringPage === 'stations') {
-      nav.navigate({ department: 'production', productionPage: 'settings', settingsTab: 'stations', showGlobalHome: false })
+      nav.navigate({ department: 'production', productionArea: 'assembly', productionPage: 'settings', settingsTab: 'stations', showGlobalHome: false })
     }
   }, [nav.department, nav.engineeringPage, nav.navigate])
 
@@ -153,7 +158,7 @@ function Shell() {
 
           {!nav.showProfile && nav.showGlobalHome && <GlobalHomePage />}
 
-          {!nav.showProfile && !nav.showGlobalHome && nav.department !== 'production' && nav.department !== 'engineering' && nav.department !== 'warehouses' && (
+          {!nav.showProfile && !nav.showGlobalHome && nav.department !== 'production' && nav.department !== 'engineering' && nav.department !== 'warehouses' && nav.department !== 'quality' && nav.department !== 'hr' && (
             <DepartmentPlaceholderPage
               department={nav.department}
               onOpenProduction={() => nav.selectDepartment('production')}
@@ -162,19 +167,31 @@ function Shell() {
 
           {!nav.showProfile && !nav.showGlobalHome && nav.department === 'warehouses' && <WarehousesPage />}
 
+          {!nav.showProfile && !nav.showGlobalHome && nav.department === 'quality' && <QualityPage />}
+
+          {!nav.showProfile && !nav.showGlobalHome && nav.department === 'hr' && <HrPage />}
+
           {!nav.showProfile && !nav.showGlobalHome && nav.department === 'production' && (
             <>
-              {nav.productionPage === 'home' && (navLoading || canViewPage(pagePermForProduction('home'))) && <HomePage />}
-              {nav.productionPage === 'missing' && (navLoading || canViewPage(pagePermForProduction('missing'))) && <MissingPartsPage />}
-              {nav.productionPage === 'vehicles' && (navLoading || canViewPage(pagePermForProduction('vehicles'))) && <ProductivityPage />}
-              {nav.productionPage === 'training' && (navLoading || canViewPage(pagePermForProduction('training'))) && <TrainingMatrixPage />}
-              {nav.productionPage === 'damagedParts' && (navLoading || canViewPage(pagePermForProduction('damagedParts'))) && <DamagedPartsPage />}
-              {nav.productionPage === 'missions' && (navLoading || canViewPage(pagePermForProduction('missions'))) && <MissionsPage />}
-              {nav.productionPage === 'requests' && (navLoading || canViewPage(pagePermForProduction('requests'))) && <RequestsPage />}
-              {nav.productionPage === 'scratches' && (navLoading || canViewPage(pagePermForProduction('scratches'))) && <ScratchesPage />}
-              {nav.productionPage === 'equipment' && (navLoading || canViewPage(pagePermForProduction('equipment'))) && <EquipmentPage />}
-              {nav.productionPage === 'feedback' && (navLoading || canViewPage(pagePermForProduction('feedback'))) && <FeedbackPage />}
               {nav.productionPage === 'settings' && canViewPage(pagePermForProduction('settings')) && <SettingsPage />}
+              {nav.productionArea !== 'assembly' && nav.productionPage !== 'settings' && (
+                <ProductionAreaPlaceholderPage area={nav.productionArea} />
+              )}
+              {nav.productionArea === 'assembly' && (
+                <>
+                  {nav.productionPage === 'home' && (navLoading || canViewPage(pagePermForProduction('home'))) && <HomePage />}
+                  {nav.productionPage === 'missing' && (navLoading || canViewPage(pagePermForProduction('missing'))) && <MissingPartsPage />}
+                  {nav.productionPage === 'vehicles' && (navLoading || canViewPage(pagePermForProduction('vehicles'))) && <ProductivityPage />}
+                  {nav.productionPage === 'training' && (navLoading || canViewPage(pagePermForProduction('training'))) && <TrainingMatrixPage />}
+                  {nav.productionPage === 'damagedParts' && (navLoading || canViewPage(pagePermForProduction('damagedParts'))) && <DamagedPartsPage />}
+                  {nav.productionPage === 'missions' && (navLoading || canViewPage(pagePermForProduction('missions'))) && <MissionsPage />}
+                  {nav.productionPage === 'requests' && (navLoading || canViewPage(pagePermForProduction('requests'))) && <RequestsPage />}
+                  {nav.productionPage === 'scratches' && (navLoading || canViewPage(pagePermForProduction('scratches'))) && <ScratchesPage />}
+                  {nav.productionPage === 'equipment' && (navLoading || canViewPage(pagePermForProduction('equipment'))) && <EquipmentPage />}
+                  {nav.productionPage === 'feedback' && (navLoading || canViewPage(pagePermForProduction('feedback'))) && <FeedbackPage />}
+                  {nav.productionPage === 'workerProfile' && (navLoading || canViewPage(pagePermForProduction('workerProfile'))) && <WorkerProfilePage />}
+                </>
+              )}
             </>
           )}
 
@@ -183,6 +200,7 @@ function Shell() {
               {nav.engineeringPage === 'home' && <EngineeringHomePage />}
               {nav.engineeringPage === 'ipl' && canShowEngineeringIpl && <BomPage />}
               {nav.engineeringPage === 'lineBalancing' && (navLoading || canViewPage(pagePermForEngineering('lineBalancing'))) && <LineBalancingPage />}
+              {nav.engineeringPage === 'sop' && (navLoading || canViewPage(pagePermForEngineering('sop'))) && <SopPage />}
               {nav.engineeringPage === 'ipl' && !canShowEngineeringIpl && (
                 <DepartmentPlaceholderPage department="engineering" onOpenProduction={() => nav.selectDepartment('production')} />
               )}

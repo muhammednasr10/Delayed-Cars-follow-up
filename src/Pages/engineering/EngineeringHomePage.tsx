@@ -1,5 +1,6 @@
 import {
   BarChart3,
+  BookOpen,
   ClipboardList,
   FileUp,
   GitCompare,
@@ -27,6 +28,7 @@ export function EngineeringHomePage() {
   const canIpl = canAccessSettings
   const canStations = canAccessSettings || permsLoading || canViewModule('station_operations')
   const canLineBalancing = permsLoading || canViewModule('station_operations')
+  const canSop = permsLoading || canViewModule('station_operations')
 
   const go = nav.navigate
 
@@ -48,7 +50,7 @@ export function EngineeringHomePage() {
         description: t('settings.tabs.stations'),
         icon: Wrench,
         tone: 'text-amber-300 bg-amber-500/15',
-        onClick: () => go({ department: 'production', productionPage: 'settings', settingsTab: 'stations' })
+        onClick: () => go({ department: 'production', productionArea: 'assembly', productionPage: 'settings', settingsTab: 'stations' })
       },
       canLineBalancing && {
         key: 'lineBalancing',
@@ -57,6 +59,14 @@ export function EngineeringHomePage() {
         icon: Route,
         tone: 'text-violet-300 bg-violet-500/15',
         onClick: () => go({ department: 'engineering', engineeringPage: 'lineBalancing', lineBalancingTab: 'operations' })
+      },
+      canSop && {
+        key: 'sop',
+        title: t('nav.sop'),
+        description: t('hub.engineering.sopDesc'),
+        icon: BookOpen,
+        tone: 'text-fuchsia-300 bg-fuchsia-500/15',
+        onClick: () => go({ department: 'engineering', engineeringPage: 'sop' })
       }
     ].filter(Boolean) as HubSection['cards']
   }
@@ -68,6 +78,7 @@ export function EngineeringHomePage() {
       ? (
           [
             { key: 'parts', tab: 'parts' as const, icon: ClipboardList, tone: 'text-cyan-300 bg-cyan-500/15' },
+            { key: 'partsGd', tab: 'partsGd' as const, icon: ClipboardList, tone: 'text-emerald-300 bg-emerald-500/15' },
             { key: 'compare', tab: 'compare' as const, icon: GitCompare, tone: 'text-blue-300 bg-blue-500/15' },
             { key: 'categories', tab: 'categories' as const, icon: Settings2, tone: 'text-emerald-300 bg-emerald-500/15' },
             { key: 'import', tab: 'import' as const, icon: FileUp, tone: 'text-amber-300 bg-amber-500/15' },

@@ -10,6 +10,30 @@ export const BOM_MAIN_ROW_COLUMNS = [
 export type BomMainRowColumn = (typeof BOM_MAIN_ROW_COLUMNS)[number]
 
 /** Expanded model-detail sub-table columns. */
+export const BOM_BREAKDOWN_COLUMNS = [
+  'active',
+  'vehicle_model',
+  'station_code',
+  'part_number',
+  'qty_by_model',
+  'part_kind',
+  'supply_source'
+] as const
+
+export type BomBreakdownColumn = (typeof BOM_BREAKDOWN_COLUMNS)[number]
+
+export const BOM_BREAKDOWN_COL_WIDTH: Record<BomBreakdownColumn | 'actions', string> = {
+  active: '3rem',
+  vehicle_model: '6rem',
+  station_code: '5.5rem',
+  part_number: '7.5rem',
+  qty_by_model: '4.5rem',
+  part_kind: '5.5rem',
+  supply_source: '5.5rem',
+  actions: '4.5rem'
+}
+
+/** Expanded model-detail sub-table columns (legacy). */
 export const BOM_DETAIL_COLUMNS = [
   'vehicle_model',
   'part_number',

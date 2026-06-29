@@ -70,7 +70,7 @@ export function useGlobalHubSections() {
         icon: LogIn,
         tone: 'text-emerald-300 bg-emerald-500/15',
         kind: 'action' as const,
-        onClick: () => go({ department: 'production', productionPage: 'vehicles', productivityTab: 'entry' })
+        onClick: () => go({ department: 'production', productionArea: 'assembly', productionPage: 'vehicles', productivityTab: 'entry' })
       },
       (permsLoading || canViewModule('production')) && {
         key: 'recordExit',
@@ -79,7 +79,7 @@ export function useGlobalHubSections() {
         icon: LogOut,
         tone: 'text-violet-300 bg-violet-500/15',
         kind: 'action' as const,
-        onClick: () => go({ department: 'production', productionPage: 'vehicles', productivityTab: 'exit' })
+        onClick: () => go({ department: 'production', productionArea: 'assembly', productionPage: 'vehicles', productivityTab: 'exit' })
       },
       (permsLoading || canViewModule('missing_parts')) && {
         key: 'missing',
@@ -87,7 +87,7 @@ export function useGlobalHubSections() {
         description: t('modules.missingPartsDesc'),
         icon: AlertTriangle,
         tone: 'text-red-300 bg-red-500/15',
-        onClick: () => go({ department: 'production', productionPage: 'missing' })
+        onClick: () => go({ department: 'production', productionArea: 'assembly', productionPage: 'missing' })
       },
       (permsLoading || canViewModule('production')) && {
         key: 'vehicles',
@@ -95,7 +95,7 @@ export function useGlobalHubSections() {
         description: t('modules.vehiclesDesc'),
         icon: Car,
         tone: 'text-cyan-300 bg-cyan-500/15',
-        onClick: () => go({ department: 'production', productionPage: 'vehicles', productivityTab: 'orders' })
+        onClick: () => go({ department: 'production', productionArea: 'assembly', productionPage: 'vehicles', productivityTab: 'orders' })
       },
       (permsLoading || canViewModule('training_matrix')) && {
         key: 'training',
@@ -103,7 +103,7 @@ export function useGlobalHubSections() {
         description: t('modules.trainingDesc'),
         icon: GraduationCap,
         tone: 'text-blue-300 bg-blue-500/15',
-        onClick: () => go({ department: 'production', productionPage: 'training', trainingTab: 'org' })
+        onClick: () => go({ department: 'production', productionArea: 'assembly', productionPage: 'training', trainingTab: 'org' })
       },
       {
         key: 'damagedParts',
@@ -111,7 +111,7 @@ export function useGlobalHubSections() {
         description: t('modules.damagedPartsDesc'),
         icon: PackageX,
         tone: 'text-orange-300 bg-orange-500/15',
-        onClick: () => go({ department: 'production', productionPage: 'damagedParts' })
+        onClick: () => go({ department: 'production', productionArea: 'assembly', productionPage: 'damagedParts' })
       },
       {
         key: 'missions',
@@ -119,7 +119,7 @@ export function useGlobalHubSections() {
         description: t('modules.missionsDesc'),
         icon: ListTodo,
         tone: 'text-amber-300 bg-amber-500/15',
-        onClick: () => go({ department: 'production', productionPage: 'missions' })
+        onClick: () => go({ department: 'production', productionArea: 'assembly', productionPage: 'missions' })
       },
       {
         key: 'requests',
@@ -127,7 +127,7 @@ export function useGlobalHubSections() {
         description: t('modules.requestsDesc'),
         icon: ClipboardList,
         tone: 'text-violet-300 bg-violet-500/15',
-        onClick: () => go({ department: 'production', productionPage: 'requests' })
+        onClick: () => go({ department: 'production', productionArea: 'assembly', productionPage: 'requests' })
       },
       canAccessSettings && {
         key: 'settings',
@@ -135,7 +135,7 @@ export function useGlobalHubSections() {
         description: t('modules.settingsDesc'),
         icon: SettingsIcon,
         tone: 'text-emerald-300 bg-emerald-500/15',
-        onClick: () => go({ department: 'production', productionPage: 'settings', settingsTab: SETTINGS_TAB_ORDER[0] })
+        onClick: () => go({ department: 'production', productionArea: 'assembly', productionPage: 'settings', settingsTab: SETTINGS_TAB_ORDER[0] })
       }
     ].filter(Boolean) as HubSection['cards']
   }
@@ -175,7 +175,7 @@ export function useGlobalHubSections() {
         description: t('settings.tabs.stations'),
         icon: Wrench,
         tone: 'text-amber-300 bg-amber-500/15',
-        onClick: () => go({ department: 'production', productionPage: 'settings', settingsTab: 'stations' })
+        onClick: () => go({ department: 'production', productionArea: 'assembly', productionPage: 'settings', settingsTab: 'stations' })
       },
       canLineBalancing && {
         key: 'lineBalancing',

@@ -6,6 +6,7 @@ import { SetupRequired } from '../../Components/SetupRequired'
 import { DamagedPartsRecordTab } from '../../Components/damagedParts/DamagedPartsRecordTab'
 import { DamagedPartsSummaryTab } from '../../Components/damagedParts/DamagedPartsSummaryTab'
 import { DamagedPartsFiltersBar } from '../../Components/damagedParts/DamagedPartsFiltersBar'
+import { useFormatError } from '../../hooks/useFormatError'
 import { useDamagedPartsLookups } from '../../hooks/useDamagedPartsLookups'
 import { getDamagedParts } from '../../services/damagedPartsService'
 import { getEmployees } from '../../services/employeesService'
@@ -25,6 +26,7 @@ function isSchemaMissing(message: string): boolean {
 export function DamagedPartsPage() {
   const { t } = useLang()
   const { reasons, decisions } = useDamagedPartsLookups()
+  const formatError = useFormatError()
   const [activeTab, setActiveTab] = useState<Tab>('record')
   const [items, setItems] = useState<DamagedPartRecord[]>([])
   const [models, setModels] = useState<VehicleModel[]>([])
@@ -42,14 +44,14 @@ export function DamagedPartsPage() {
       setItems(await getDamagedParts())
       setSetupRequired(false)
     } catch (e) {
-      const msg = e instanceof Error ? e.message : t('common.error')
+      const msg = formatError(e)
       setSetupRequired(isSchemaMissing(msg))
       setError(msg)
       setItems([])
     } finally {
       setLoading(false)
     }
-  }, [t])
+  }, [formatError])
 
   useEffect(() => {
     void load()

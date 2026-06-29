@@ -146,7 +146,6 @@ export function DamagedPartFormModal({ open, models, employees, editing, onClose
     if (!Number.isFinite(qty) || qty <= 0) return t('damagedParts.errQty')
     if (!form.damageReason) return t('damagedParts.errReason')
     if (!form.finalDecision) return t('damagedParts.errDecision')
-    if (!form.causedByEmployeeId) return t('damagedParts.errCauser')
     if (!form.causingDepartment) return t('damagedParts.errCausingDepartment')
     if (!form.reportedAt) return t('damagedParts.errDate')
     return null
@@ -168,7 +167,7 @@ export function DamagedPartFormModal({ open, models, employees, editing, onClose
         damageReason: form.damageReason,
         finalDecision: form.finalDecision,
         isRepairable: form.isRepairable,
-        causedByEmployeeId: form.causedByEmployeeId,
+        causedByEmployeeId: form.causedByEmployeeId || null,
         causingDepartment: form.causingDepartment,
         imagePath: editing?.imagePath ?? null,
         notes: form.notes.trim() || null,
@@ -276,10 +275,12 @@ export function DamagedPartFormModal({ open, models, employees, editing, onClose
           </Field>
         </div>
 
-        <Field label={t('damagedParts.cols.causer')} required>
+        <Field label={t('damagedParts.cols.causer')}>
           <EmployeeAutocomplete
             employees={employees}
             value={form.causedByEmployeeId}
+            allowUnknown
+            unknownLabel={t('damagedParts.unknownCauser')}
             onChange={id => {
               const employee = employees.find(e => e.id === id)
               setForm(prev => ({

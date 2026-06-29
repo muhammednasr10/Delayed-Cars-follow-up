@@ -18,11 +18,19 @@ import type { Employee, EmployeeInput } from '../../Types/employee'
 import type { FactoryOrgUnit } from '../../Types/factoryOrg'
 import type { WorkArea } from '../../Types/settings'
 import { employeeMatchesOrgFilter } from '../../Utils/employeeOrgPicker'
+import { assemblyOrgPath, filterAssemblyWorkforce, isAssemblyWorkforceEmployee } from '../../Utils/assemblyWorkforce'
 import { getWorkAreas } from '../../services/settingsService'
 
 type View = 'table' | 'chart'
+export type WorkforceScope = 'all' | 'assembly'
 
-export function OrgStructurePage({ embedded = false }: { embedded?: boolean }) {
+export function OrgStructurePage({
+  embedded = false,
+  workforceScope = 'all'
+}: {
+  embedded?: boolean
+  workforceScope?: WorkforceScope
+}) {
   const { t } = useLang()
   const { hasRole } = useAuth()
   const { hasPermission } = usePermissions()
@@ -52,9 +60,14 @@ export function OrgStructurePage({ embedded = false }: { embedded?: boolean }) {
     getFactoryOrgUnits({ includeInactive: true }).then(setOrgUnits).catch(() => setOrgUnits([]))
   }, [])
 
+  const isAssemblyScope = workforceScope === 'assembly'
+  const canCreateScoped = canCreate && !isAssemblyScope
+  const canManageScoped = canManage && !isAssemblyScope
+
   const filtered = useMemo(() => {
     const term = filters.search.trim().toLowerCase()
     return employees.filter(e => {
+      if (isAssemblyScope && !isAssemblyWorkforceEmployee(e, orgUnits)) return false
       if (term && !e.fullName.toLowerCase().includes(term) && !e.employeeCode.toLowerCase().includes(term)) return false
       if (filters.role && e.jobRole !== filters.role) return false
       if (!employeeMatchesOrgFilter(e.factoryOrgUnitId, filters.factoryOrgUnitId, orgUnits)) return false
@@ -62,7 +75,7 @@ export function OrgStructurePage({ embedded = false }: { embedded?: boolean }) {
       if (filters.status === 'inactive' && e.isActive) return false
       return true
     })
-  }, [employees, filters, orgUnits])
+  }, [employees, filters, orgUnits, isAssemblyScope])
 
   function flash(msg: string) {
     setSuccess(msg)
@@ -139,7 +152,13 @@ export function OrgStructurePage({ embedded = false }: { embedded?: boolean }) {
               <div className="rounded-xl bg-cyan-500/15 p-3 text-cyan-300"><Users className="h-6 w-6" /></div>
               <div>
                 <h2 className="text-xl font-black text-white">{t('org.title')}</h2>
-                <p className="text-sm text-slate-400">{t('org.subtitle')}</p>
+                <p className="text-sm text-slate-400">
+                  {isAssemblyScope
+                    ? t('org.assemblySubtitle')
+                    : !embedded
+                      ? t('org.hrSubtitle')
+                      : t('org.subtitle')}
+                </p>
               </div>
             </div>
           </div>
@@ -154,7 +173,7 @@ export function OrgStructurePage({ embedded = false }: { embedded?: boolean }) {
                 <Network className="h-4 w-4" /> {t('org.chartView')}
               </button>
             </div>
-            {canCreate && (
+            {canCreateScoped && (
               <>
                 <button onClick={() => setImportOpen(true)} className="rounded-xl border border-cyan-500/40 bg-cyan-500/10 px-4 py-2 text-sm font-bold text-cyan-200 hover:bg-cyan-500/20">
                   <Upload className="mr-1 inline h-4 w-4" /> {t('org.import.btn')}
@@ -167,7 +186,10 @@ export function OrgStructurePage({ embedded = false }: { embedded?: boolean }) {
           </div>
         </div>
 
-        {!embedded && !canManage && <p className="mt-3 text-xs text-amber-300">{t('org.noPerm')}</p>}
+        {!embedded && !canManageScoped && !canUpdate && <p className="mt-3 text-xs text-amber-300">{t('org.noPerm')}</p>}
+        {isAssemblyScope && (
+          <p className={`text-xs text-cyan-200/90 ${embedded ? '' : 'mt-3'}`}>{t('org.assemblyWorkforceHint')}</p>
+        )}
         <div className={embedded ? '' : 'mt-4'}>
           <EmployeeFilters value={filters} onChange={setFilters} orgUnits={orgUnits} />
         </div>
@@ -194,8 +216,9 @@ export function OrgStructurePage({ embedded = false }: { embedded?: boolean }) {
       <EmployeeForm
         open={formOpen}
         editing={editing}
-        employees={employees}
+        employees={isAssemblyScope ? filterAssemblyWorkforce(employees, orgUnits) : employees}
         orgUnits={orgUnits}
+        defaultOrgPath={isAssemblyScope ? assemblyOrgPath(orgUnits) : undefined}
         busy={saving}
         onClose={() => setFormOpen(false)}
         onSubmit={submitForm}

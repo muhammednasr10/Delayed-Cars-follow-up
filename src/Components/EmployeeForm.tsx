@@ -19,6 +19,7 @@ type Props = {
   editing: Employee | null
   employees: Employee[]
   orgUnits: FactoryOrgUnit[]
+  defaultOrgPath?: string[]
   busy: boolean
   onClose: () => void
   onSubmit: (input: EmployeeInput) => Promise<EmployeeFormSubmitResult>
@@ -67,7 +68,7 @@ function fromEmployee(e: Employee): FormState {
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
 
-export function EmployeeForm({ open, editing, employees, orgUnits, busy, onClose, onSubmit }: Props) {
+export function EmployeeForm({ open, editing, employees, orgUnits, defaultOrgPath, busy, onClose, onSubmit }: Props) {
   const { t } = useLang()
   const [form, setForm] = useState<FormState>(emptyState)
   const [errors, setErrors] = useState<Record<string, string>>({})
@@ -81,10 +82,13 @@ export function EmployeeForm({ open, editing, employees, orgUnits, busy, onClose
       next.orgPath = orgPathFromLeaf(editing.factoryOrgUnitId, orgUnits)
       setForm(next)
     } else {
-      setForm(emptyState)
+      setForm({
+        ...emptyState,
+        orgPath: defaultOrgPath?.length ? [...defaultOrgPath] : []
+      })
     }
     setErrors({})
-  }, [open, editing, orgUnits])
+  }, [open, editing, orgUnits, defaultOrgPath])
 
   function set(key: keyof Omit<FormState, 'orgPath'>, value: string | boolean) {
     setForm(prev => ({ ...prev, [key]: value }))

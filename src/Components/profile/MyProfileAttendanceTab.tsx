@@ -2,39 +2,61 @@ import { useEffect, useMemo, useState } from 'react'
 import { CalendarDays, ChevronLeft, ChevronRight } from 'lucide-react'
 import { useAuth } from '../../Context/AuthContext'
 import { useLang } from '../../i18n/LanguageContext'
-import { getEmployeeAttendanceMonth } from '../../services/attendanceService'
-import type { AttendanceDayEdit } from '../../Types/attendance'
+import {
+  getEmployeeAttendanceMonth,
+  getEmployeeAttendanceSummary,
+  localTodayIso
+} from '../../services/attendanceService'
+import type { AttendanceDayEdit, EmployeeAttendanceSummary } from '../../Types/attendance'
 
-export function MyProfileAttendanceTab() {
+type Props = {
+  /** عند العرض من بروفايل العامل — يُمرَّر صراحةً بدل الاعتماد على حساب المستخدم فقط */
+  employeeId?: string | null
+  employeeName?: string | null
+}
+
+export function MyProfileAttendanceTab({ employeeId: employeeIdProp, employeeName }: Props = {}) {
   const { t, lang } = useLang()
   const { profile } = useAuth()
-  const employeeId = profile?.employee_id ?? null
+  const employeeId = employeeIdProp ?? profile?.employee_id ?? null
   const now = new Date()
   const [year, setYear] = useState(now.getFullYear())
   const [month, setMonth] = useState(now.getMonth() + 1)
   const [rows, setRows] = useState<AttendanceDayEdit[]>([])
+  const [summary, setSummary] = useState<EmployeeAttendanceSummary | null>(null)
   const [loading, setLoading] = useState(false)
   const [err, setErr] = useState('')
+  const today = localTodayIso()
 
   useEffect(() => {
     if (!employeeId) return
     setLoading(true)
     setErr('')
-    void getEmployeeAttendanceMonth(employeeId, year, month)
-      .then(setRows)
+    void Promise.all([
+      getEmployeeAttendanceMonth(employeeId, year, month),
+      getEmployeeAttendanceSummary(employeeId, year, month)
+    ])
+      .then(([monthRows, monthSummary]) => {
+        setRows(monthRows)
+        setSummary(monthSummary)
+      })
       .catch(e => setErr(e instanceof Error ? e.message : t('common.error')))
       .finally(() => setLoading(false))
   }, [employeeId, year, month, t])
 
-  const summary = useMemo(() => {
-    const s = { present: 0, absent: 0, vacation: 0, sick: 0, permission: 0, late: 0 }
-    const today = new Date().toISOString().slice(0, 10)
-    for (const r of rows) {
-      if (r.workDate > today) continue
-      if (r.status in s) s[r.status as keyof typeof s]++
+  const summaryCounts = useMemo(() => {
+    if (summary) {
+      return {
+        present: summary.presentDays,
+        absent: summary.absentDays,
+        vacation: summary.vacationDays,
+        sick: summary.sickDays,
+        permission: summary.permissionDays,
+        late: summary.lateDays
+      }
     }
-    return s
-  }, [rows])
+    return { present: 0, absent: 0, vacation: 0, sick: 0, permission: 0, late: 0 }
+  }, [summary])
 
   function shiftMonth(delta: number) {
     const d = new Date(year, month - 1 + delta, 1)
@@ -56,7 +78,10 @@ export function MyProfileAttendanceTab() {
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div className="flex items-center gap-2 text-emerald-300">
           <CalendarDays className="h-5 w-5" />
-          <h3 className="text-sm font-black uppercase tracking-wide text-slate-400">{t('myProfile.attendanceSection')}</h3>
+          <div>
+            <h3 className="text-sm font-black uppercase tracking-wide text-slate-400">{t('myProfile.attendanceSection')}</h3>
+            {employeeName && <p className="text-xs text-slate-500">{employeeName}</p>}
+          </div>
         </div>
         <div className="flex items-center gap-2">
           <button type="button" onClick={() => shiftMonth(-1)} className="rounded-lg bg-slate-800 p-2 hover:bg-slate-700">
@@ -72,7 +97,7 @@ export function MyProfileAttendanceTab() {
       <div className="flex flex-wrap gap-2 text-xs">
         {(['present', 'absent', 'vacation', 'sick', 'permission', 'late'] as const).map(key => (
           <span key={key} className="rounded-full bg-slate-800 px-2.5 py-1 text-slate-300">
-            {t(`attendance.status.${key}`)}: <strong className="text-white">{summary[key]}</strong>
+            {t(`attendance.status.${key}`)}: <strong className="text-white">{summaryCounts[key]}</strong>
           </span>
         ))}
       </div>
@@ -93,7 +118,7 @@ export function MyProfileAttendanceTab() {
             </thead>
             <tbody>
               {rows
-                .filter(r => r.workDate <= new Date().toISOString().slice(0, 10))
+                .filter(r => r.workDate <= today)
                 .map(r => (
                   <tr key={r.workDate} className="border-t border-slate-800/80">
                     <td className="px-3 py-2 font-mono text-slate-300" dir="ltr">

@@ -56,7 +56,7 @@ export function useProductionHubSections() {
         icon: LogIn,
         tone: 'text-emerald-300 bg-emerald-500/15',
         kind: 'action' as const,
-        onClick: () => go({ productionPage: 'vehicles', productivityTab: 'entry' })
+        onClick: () => go({ productionArea: 'assembly', productionPage: 'vehicles', productivityTab: 'entry' })
       },
       (permsLoading || canViewModule('production')) && {
         key: 'recordExit',
@@ -65,7 +65,7 @@ export function useProductionHubSections() {
         icon: LogOut,
         tone: 'text-violet-300 bg-violet-500/15',
         kind: 'action' as const,
-        onClick: () => go({ productionPage: 'vehicles', productivityTab: 'exit' })
+        onClick: () => go({ productionArea: 'assembly', productionPage: 'vehicles', productivityTab: 'exit' })
       }
     ].filter(Boolean) as HubSection['cards']
   }
@@ -80,7 +80,7 @@ export function useProductionHubSections() {
         description: t('modules.missingPartsDesc'),
         icon: AlertTriangle,
         tone: 'text-red-300 bg-red-500/15',
-        onClick: () => go({ productionPage: 'missing' })
+        onClick: () => go({ productionArea: 'assembly', productionPage: 'missing' })
       },
       (permsLoading || canViewModule('production')) && {
         key: 'vehicles',
@@ -88,7 +88,7 @@ export function useProductionHubSections() {
         description: t('modules.vehiclesDesc'),
         icon: Car,
         tone: 'text-cyan-300 bg-cyan-500/15',
-        onClick: () => go({ productionPage: 'vehicles', productivityTab: 'orders' })
+        onClick: () => go({ productionArea: 'assembly', productionPage: 'vehicles', productivityTab: 'orders' })
       },
       (permsLoading || canViewModule('training_matrix')) && {
         key: 'training',
@@ -96,7 +96,7 @@ export function useProductionHubSections() {
         description: t('modules.trainingDesc'),
         icon: GraduationCap,
         tone: 'text-blue-300 bg-blue-500/15',
-        onClick: () => go({ productionPage: 'training', trainingTab: 'org' })
+        onClick: () => go({ productionArea: 'assembly', productionPage: 'training', trainingTab: 'org' })
       },
       {
         key: 'damagedParts',
@@ -104,7 +104,7 @@ export function useProductionHubSections() {
         description: t('modules.damagedPartsDesc'),
         icon: PackageX,
         tone: 'text-orange-300 bg-orange-500/15',
-        onClick: () => go({ productionPage: 'damagedParts' })
+        onClick: () => go({ productionArea: 'assembly', productionPage: 'damagedParts' })
       },
       {
         key: 'missions',
@@ -112,7 +112,7 @@ export function useProductionHubSections() {
         description: t('modules.missionsDesc'),
         icon: ListTodo,
         tone: 'text-amber-300 bg-amber-500/15',
-        onClick: () => go({ productionPage: 'missions' })
+        onClick: () => go({ productionArea: 'assembly', productionPage: 'missions' })
       },
       {
         key: 'requests',
@@ -120,7 +120,7 @@ export function useProductionHubSections() {
         description: t('modules.requestsDesc'),
         icon: ClipboardList,
         tone: 'text-violet-300 bg-violet-500/15',
-        onClick: () => go({ productionPage: 'requests' })
+        onClick: () => go({ productionArea: 'assembly', productionPage: 'requests' })
       },
       {
         key: 'scratches',
@@ -128,7 +128,7 @@ export function useProductionHubSections() {
         description: t('modules.scratchesDesc'),
         icon: ScanLine,
         tone: 'text-rose-300 bg-rose-500/15',
-        onClick: () => go({ productionPage: 'scratches' })
+        onClick: () => go({ productionArea: 'assembly', productionPage: 'scratches' })
       },
       {
         key: 'equipment',
@@ -136,7 +136,7 @@ export function useProductionHubSections() {
         description: t('modules.equipmentDesc'),
         icon: Wrench,
         tone: 'text-sky-300 bg-sky-500/15',
-        onClick: () => go({ productionPage: 'equipment' })
+        onClick: () => go({ productionArea: 'assembly', productionPage: 'equipment' })
       },
       {
         key: 'feedback',
@@ -144,7 +144,7 @@ export function useProductionHubSections() {
         description: t('modules.feedbackDesc'),
         icon: MessageSquareText,
         tone: 'text-indigo-300 bg-indigo-500/15',
-        onClick: () => go({ productionPage: 'feedback' })
+        onClick: () => go({ productionArea: 'assembly', productionPage: 'feedback' })
       },
       canAccessSettings && {
         key: 'settings',
@@ -152,7 +152,7 @@ export function useProductionHubSections() {
         description: t('modules.settingsDesc'),
         icon: SettingsIcon,
         tone: 'text-emerald-300 bg-emerald-500/15',
-        onClick: () => go({ productionPage: 'settings', settingsTab: 'administrations' })
+        onClick: () => go({ productionArea: 'assembly', productionPage: 'settings', settingsTab: 'administrations' })
       }
     ].filter(Boolean) as HubSection['cards']
   }
@@ -162,12 +162,12 @@ export function useProductionHubSections() {
     title: t('hub.sections.tabs', { page: t('nav.productivity') }),
     cards: (permsLoading || canViewModule('production'))
       ? [
-          { key: 'orders', title: t('productivity.tabs.orders'), icon: ClipboardList, tone: 'text-cyan-300 bg-cyan-500/15', onClick: () => go({ productionPage: 'vehicles', productivityTab: 'orders' }) },
-          { key: 'entry', title: t('productivity.tabs.entry'), icon: LogIn, tone: 'text-cyan-300 bg-cyan-500/15', onClick: () => go({ productionPage: 'vehicles', productivityTab: 'entry' }) },
-          { key: 'exit', title: t('productivity.tabs.exit'), icon: LogOut, tone: 'text-cyan-300 bg-cyan-500/15', onClick: () => go({ productionPage: 'vehicles', productivityTab: 'exit' }) },
-          { key: 'stops', title: t('productivity.tabs.stops'), icon: AlertOctagon, tone: 'text-red-300 bg-red-500/15', onClick: () => go({ productionPage: 'vehicles', productivityTab: 'stops' }) },
-          { key: 'workDays', title: t('productionOrders.tabs.workDays'), icon: CalendarClock, tone: 'text-violet-300 bg-violet-500/15', onClick: () => go({ productionPage: 'vehicles', productivityTab: 'workDays' }) },
-          { key: 'planOrders', title: t('productionOrders.tabs.planOrders'), icon: LayoutGrid, tone: 'text-violet-300 bg-violet-500/15', onClick: () => go({ productionPage: 'vehicles', productivityTab: 'orders', productionPlanTab: 'planOrders' }) }
+          { key: 'orders', title: t('productivity.tabs.orders'), icon: ClipboardList, tone: 'text-cyan-300 bg-cyan-500/15', onClick: () => go({ productionArea: 'assembly', productionPage: 'vehicles', productivityTab: 'orders' }) },
+          { key: 'entry', title: t('productivity.tabs.entry'), icon: LogIn, tone: 'text-cyan-300 bg-cyan-500/15', onClick: () => go({ productionArea: 'assembly', productionPage: 'vehicles', productivityTab: 'entry' }) },
+          { key: 'exit', title: t('productivity.tabs.exit'), icon: LogOut, tone: 'text-cyan-300 bg-cyan-500/15', onClick: () => go({ productionArea: 'assembly', productionPage: 'vehicles', productivityTab: 'exit' }) },
+          { key: 'stops', title: t('productivity.tabs.stops'), icon: AlertOctagon, tone: 'text-red-300 bg-red-500/15', onClick: () => go({ productionArea: 'assembly', productionPage: 'vehicles', productivityTab: 'stops' }) },
+          { key: 'workDays', title: t('productionOrders.tabs.workDays'), icon: CalendarClock, tone: 'text-violet-300 bg-violet-500/15', onClick: () => go({ productionArea: 'assembly', productionPage: 'vehicles', productivityTab: 'workDays' }) },
+          { key: 'planOrders', title: t('productionOrders.tabs.planOrders'), icon: LayoutGrid, tone: 'text-violet-300 bg-violet-500/15', onClick: () => go({ productionArea: 'assembly', productionPage: 'vehicles', productivityTab: 'orders', productionPlanTab: 'planOrders' }) }
         ]
       : []
   }
@@ -181,7 +181,7 @@ export function useProductionHubSections() {
           title: t(`training.tabs.${key}`),
           icon: Users,
           tone: 'text-blue-300 bg-blue-500/15',
-          onClick: () => go({ productionPage: 'training', trainingTab: key })
+          onClick: () => go({ productionArea: 'assembly', productionPage: 'training', trainingTab: key })
         }))
       : []
   }
@@ -195,7 +195,7 @@ export function useProductionHubSections() {
           title: t(`settings.tabs.${key}`),
           icon: SettingsIcon,
           tone: 'text-emerald-300 bg-emerald-500/15',
-          onClick: () => go({ productionPage: 'settings', settingsTab: key })
+          onClick: () => go({ productionArea: 'assembly', productionPage: 'settings', settingsTab: key })
         }))
       : []
   }

@@ -1,6 +1,7 @@
 import { Filter, RotateCcw } from 'lucide-react'
 import { useLang } from '../../i18n/LanguageContext'
 import { dpLookupLabel } from '../../Utils/dpLookupLabel'
+import { UNKNOWN_CAUSER_FILTER } from '../../Utils/damagedPartCauser'
 import type { DamagedPartFilters, DamagedPartRecord } from '../../Types/damagedPart'
 import type { MpLookupOption } from '../../Types/mpLookup'
 import type { Employee } from '../../Types/employee'
@@ -32,6 +33,7 @@ export function DamagedPartsFiltersBar({
 
   const modelOptions = [...new Set(items.map(i => i.modelName).filter(Boolean))].sort((a, b) => a.localeCompare(b, 'ar'))
   const causerIds = new Set(items.map(i => i.causedByEmployeeId).filter(Boolean) as string[])
+  const hasUnknownCausers = items.some(i => !i.causedByEmployeeId)
   const causerOptions = employees
     .filter(e => causerIds.has(e.id))
     .sort((a, b) => a.fullName.localeCompare(b.fullName, 'ar'))
@@ -91,6 +93,9 @@ export function DamagedPartsFiltersBar({
           onChange={e => onChange({ causedByEmployeeId: e.target.value })}
         >
           <option value="">{t('damagedParts.filters.allCausers')}</option>
+          {hasUnknownCausers && (
+            <option value={UNKNOWN_CAUSER_FILTER}>{t('damagedParts.unknownCauser')}</option>
+          )}
           {causerOptions.map(e => (
             <option key={e.id} value={e.id}>
               {e.fullName}

@@ -129,6 +129,31 @@ export async function getBomItems(filters: BomListFilters = {}): Promise<BomList
   }
 }
 
+const BOM_FETCH_CHUNK = 200
+const BOM_GROUPING_MAX_ROWS = 8000
+
+/** Load all BOM rows matching filters (for client-side name merge). */
+export async function getBomItemsAll(
+  filters: Omit<BomListFilters, 'page' | 'pageSize'> = {},
+  maxRows = BOM_GROUPING_MAX_ROWS
+): Promise<{ items: BomItemDetail[]; total: number; truncated: boolean }> {
+  const first = await getBomItems({ ...filters, page: 1, pageSize: BOM_FETCH_CHUNK })
+  const total = first.total
+  if (total <= first.items.length || total > maxRows) {
+    return { items: first.items, total, truncated: total > maxRows }
+  }
+
+  const pageCount = Math.ceil(total / BOM_FETCH_CHUNK)
+  const rest = await Promise.all(
+    Array.from({ length: pageCount - 1 }, (_, i) => getBomItems({ ...filters, page: i + 2, pageSize: BOM_FETCH_CHUNK }))
+  )
+  return {
+    items: [...first.items, ...rest.flatMap(batch => batch.items)],
+    total,
+    truncated: false
+  }
+}
+
 export async function getBomItemById(id: string): Promise<BomItemDetail | null> {
   const { data, error } = await client().from('v_bom_items_detail').select('*').eq('id', id).maybeSingle()
   if (error) throw new Error(error.message)

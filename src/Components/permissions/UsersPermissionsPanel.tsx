@@ -7,6 +7,7 @@ import {
   getAllSystemRoles,
   getRolePermissions,
   getSystemPermissions,
+  getUserEffectivePermissions,
   permissionKey,
   setRolePermission,
   setUserPermissionOverride
@@ -52,7 +53,12 @@ export function UsersPermissionsPanel({ notify }: { notify: (m: string, err?: bo
   const [employees, setEmployees] = useState<Employee[]>([])
   const [loading, setLoading] = useState(true)
   const [selectedRoleId, setSelectedRoleId] = useState('')
+  const [matrixMode, setMatrixMode] = useState<'role' | 'user'>('role')
+  const [selectedMatrixUserId, setSelectedMatrixUserId] = useState('')
   const [rolePerms, setRolePerms] = useState<Map<string, boolean>>(new Map())
+  const [userMatrixPerms, setUserMatrixPerms] = useState<Map<string, boolean>>(new Map())
+  const [userRoleBasePerms, setUserRoleBasePerms] = useState<Map<string, boolean>>(new Map())
+  const [userOverrideKeys, setUserOverrideKeys] = useState<Set<string>>(new Set())
   const [userForm, setUserForm] = useState<{ mode: 'create' | 'edit'; user: UserAccountDetail | null } | null>(null)
   const [roleForm, setRoleForm] = useState<SystemRole | null | 'new'>(null)
   const [deleteUser, setDeleteUser] = useState<UserAccountDetail | null>(null)
@@ -74,7 +80,25 @@ export function UsersPermissionsPanel({ notify }: { notify: (m: string, err?: bo
     setRolePerms(next)
   }
 
+  async function refreshUserMatrixPerms() {
+    if (!selectedMatrixUserId) {
+      setUserMatrixPerms(new Map())
+      setUserRoleBasePerms(new Map())
+      setUserOverrideKeys(new Set())
+      return
+    }
+    const user = users.find(u => u.id === selectedMatrixUserId)
+    const state = await getUserEffectivePermissions(permissions, selectedMatrixUserId, user?.system_role_id ?? null)
+    setUserMatrixPerms(state.effective)
+    setUserRoleBasePerms(state.roleBase)
+    setUserOverrideKeys(state.overrideKeys)
+  }
+
   async function handleSetPermission(permissionId: string, allowed: boolean) {
+    if (matrixMode === 'user') {
+      await handleSetUserMatrixPermission(permissionId, allowed)
+      return
+    }
     const perm = permissions.find(p => p.id === permissionId)
     if (perm) {
       const key = permissionKey(perm.module_key, perm.permission_key)
@@ -90,7 +114,116 @@ export function UsersPermissionsPanel({ notify }: { notify: (m: string, err?: bo
     }
   }
 
+  async function handleSetUserMatrixPermission(permissionId: string, allowed: boolean) {
+    if (!selectedMatrixUserId) return
+    const perm = permissions.find(p => p.id === permissionId)
+    if (!perm) return
+    const key = permissionKey(perm.module_key, perm.permission_key)
+    const roleDefault = userRoleBasePerms.get(key) ?? false
+
+    setUserMatrixPerms(prev => new Map(prev).set(key, allowed))
+    setUserOverrideKeys(prev => {
+      const next = new Set(prev)
+      if (allowed === roleDefault) next.delete(key)
+      else next.add(key)
+      return next
+    })
+
+    try {
+      if (allowed === roleDefault) {
+        await removeUserPermissionOverride(selectedMatrixUserId, permissionId)
+      } else {
+        await setUserPermissionOverride(selectedMatrixUserId, permissionId, allowed)
+      }
+      await refreshUserMatrixPerms()
+      await reloadPerms()
+    } catch (e) {
+      await refreshUserMatrixPerms()
+      notify(e instanceof Error ? e.message : t('common.error'), true)
+      throw e
+    }
+  }
+
+  async function handleSetPermissions(permissionIds: string[], allowed: boolean) {
+    if (!permissionIds.length) return
+    if (matrixMode === 'user') {
+      if (!selectedMatrixUserId) return
+      setUserMatrixPerms(prev => {
+        const next = new Map(prev)
+        for (const id of permissionIds) {
+          const perm = permissions.find(p => p.id === id)
+          if (!perm) continue
+          next.set(permissionKey(perm.module_key, perm.permission_key), allowed)
+        }
+        return next
+      })
+      try {
+        for (const id of permissionIds) {
+          const perm = permissions.find(p => p.id === id)
+          if (!perm) continue
+          const key = permissionKey(perm.module_key, perm.permission_key)
+          const roleDefault = userRoleBasePerms.get(key) ?? false
+          if (allowed === roleDefault) await removeUserPermissionOverride(selectedMatrixUserId, id)
+          else await setUserPermissionOverride(selectedMatrixUserId, id, allowed)
+        }
+        await refreshUserMatrixPerms()
+        await reloadPerms()
+      } catch (e) {
+        await refreshUserMatrixPerms()
+        notify(e instanceof Error ? e.message : t('common.error'), true)
+        throw e
+      }
+      return
+    }
+    setRolePerms(prev => {
+      const next = new Map(prev)
+      for (const id of permissionIds) {
+        const perm = permissions.find(p => p.id === id)
+        if (!perm) continue
+        next.set(permissionKey(perm.module_key, perm.permission_key), allowed)
+      }
+      return next
+    })
+    try {
+      await Promise.all(permissionIds.map(id => setRolePermission(selectedRoleId, id, allowed)))
+      await refreshRolePerms()
+    } catch (e) {
+      await refreshRolePerms()
+      notify(e instanceof Error ? e.message : t('common.error'), true)
+      throw e
+    }
+  }
+
   async function handleSetModulePermissions(moduleKey: string, allowed: boolean) {
+    if (matrixMode === 'user') {
+      if (!selectedMatrixUserId) return
+      const modPerms = permissions.filter(p => p.module_key === moduleKey)
+      setUserMatrixPerms(prev => {
+        const next = new Map(prev)
+        for (const p of modPerms) {
+          next.set(permissionKey(p.module_key, p.permission_key), allowed)
+        }
+        return next
+      })
+      try {
+        for (const p of modPerms) {
+          const key = permissionKey(p.module_key, p.permission_key)
+          const roleDefault = userRoleBasePerms.get(key) ?? false
+          if (allowed === roleDefault) {
+            await removeUserPermissionOverride(selectedMatrixUserId, p.id)
+          } else {
+            await setUserPermissionOverride(selectedMatrixUserId, p.id, allowed)
+          }
+        }
+        await refreshUserMatrixPerms()
+        await reloadPerms()
+      } catch (e) {
+        await refreshUserMatrixPerms()
+        notify(e instanceof Error ? e.message : t('common.error'), true)
+        throw e
+      }
+      return
+    }
     const modPerms = permissions.filter(p => p.module_key === moduleKey)
     setRolePerms(prev => {
       const next = new Map(prev)
@@ -148,6 +281,15 @@ export function UsersPermissionsPanel({ notify }: { notify: (m: string, err?: bo
     if (!selectedRoleId) return
     getRolePermissions(selectedRoleId).then(setRolePerms).catch(() => setRolePerms(new Map()))
   }, [selectedRoleId])
+
+  useEffect(() => {
+    if (matrixMode !== 'user' || !selectedMatrixUserId || permissions.length === 0) return
+    void refreshUserMatrixPerms().catch(() => {
+      setUserMatrixPerms(new Map())
+      setUserRoleBasePerms(new Map())
+      setUserOverrideKeys(new Set())
+    })
+  }, [matrixMode, selectedMatrixUserId, permissions, users])
 
   useEffect(() => {
     if (!overrideUserId) {
@@ -393,13 +535,20 @@ export function UsersPermissionsPanel({ notify }: { notify: (m: string, err?: bo
         </>
       ) : subTab === 'matrix' ? (
         <PermissionsMatrixTab
+          mode={matrixMode}
+          onModeChange={setMatrixMode}
           roles={roles}
+          users={users}
           permissions={permissions}
           selectedRoleId={selectedRoleId}
+          selectedUserId={selectedMatrixUserId}
           onSelectRole={setSelectedRoleId}
-          rolePerms={rolePerms}
+          onSelectUser={setSelectedMatrixUserId}
+          rolePerms={matrixMode === 'user' ? userMatrixPerms : rolePerms}
+          overrideKeys={matrixMode === 'user' ? userOverrideKeys : undefined}
+          roleBasePerms={matrixMode === 'user' ? userRoleBasePerms : undefined}
           onSetPermission={handleSetPermission}
-          onSetModulePermissions={handleSetModulePermissions}
+          onSetPermissions={handleSetPermissions}
           onError={msg => notify(msg, true)}
         />
       ) : subTab === 'overrides' ? (

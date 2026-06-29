@@ -7,6 +7,7 @@ import {
   type AppPagePermissionKey,
   pageDefByPermKey
 } from '../config/pageAccess'
+import { resolveTabPagePerm } from '../config/pageTabAccess'
 
 export function useCanViewPage() {
   const { permissions, hasPermission, loading } = usePermissions()
@@ -30,7 +31,11 @@ export function useCanViewPage() {
       }
 
       if (pagesConfigured) {
-        return Boolean(permissions[key])
+        if (permissions[key] === true) return true
+        if (permissions[key] === false) return false
+        // صفحة جديدة لم تُضبط بعد في الأدوار — نفس منطق الافتراضي
+        if (def?.fallbackModule) return hasPermission(def.fallbackModule, 'view')
+        return def?.defaultVisible ?? false
       }
 
       if (permissions[key] === true) return true
@@ -47,5 +52,14 @@ export function useCanViewPage() {
     [canViewPage]
   )
 
-  return { canViewPage, canViewPageDef, loading: loading || settingsLoading }
+  const canViewTab = useCallback(
+    (parentPerm: AppPagePermissionKey, tabKey: string): boolean => {
+      if (loading || settingsLoading) return true
+      const parentVisible = canViewPage(parentPerm)
+      return resolveTabPagePerm(parentPerm, tabKey, permissions, pagesConfigured, parentVisible)
+    },
+    [canViewPage, permissions, pagesConfigured, loading, settingsLoading]
+  )
+
+  return { canViewPage, canViewTab, canViewPageDef, loading: loading || settingsLoading }
 }

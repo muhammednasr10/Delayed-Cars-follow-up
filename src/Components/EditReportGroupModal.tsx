@@ -10,6 +10,7 @@ import type { ReportGroupContext } from '../Types/missingPart'
 import type { PriorityLevel, StopperType } from '../Types/enums'
 import type { Station } from '../Types/settings'
 import { useMpLookups } from '../hooks/useMpLookups'
+import { useFormatError } from '../hooks/useFormatError'
 import { MpLookupSelect } from './MpLookupSelect'
 
 const PRIORITIES: PriorityLevel[] = ['low', 'normal', 'high', 'critical']
@@ -24,6 +25,7 @@ type Props = {
 export function EditReportGroupModal({ group, onClose, onSaved }: Props) {
   const { t } = useLang()
   const { reasons, departments } = useMpLookups()
+  const formatError = useFormatError()
   const { hasRole } = useAuth()
   const canCreateStation = hasRole('admin', 'production', 'warehouse')
   const [station, setStation] = useState<Station | null>(null)
@@ -60,12 +62,15 @@ export function EditReportGroupModal({ group, onClose, onSaved }: Props) {
   const vins = group.parts.map(p => p.vin).sort((a, b) => a.localeCompare(b))
 
   async function save() {
-    if (!group) return
+    if (!group || !sample) return
     if (!partDescription.trim()) {
       setError(t('mp.edit.partRequired'))
       return
     }
-    if (!station?.id) {
+
+    const stationDirty = station != null && (station.id ?? null) !== (sample.stationId ?? null)
+    const effectiveStationId = station?.id ?? sample.stationId ?? null
+    if (!group.allowArchived && stationDirty && !effectiveStationId) {
       setError(t('station.notFound'))
       return
     }
@@ -83,14 +88,14 @@ export function EditReportGroupModal({ group, onClose, onSaved }: Props) {
           stopperType,
           notes
         })
-        if (part.stationId !== station.id) {
-          await setVehicleStation(part.vehicleId, station.id)
+        if (stationDirty && effectiveStationId && part.stationId !== effectiveStationId) {
+          await setVehicleStation(part.vehicleId, effectiveStationId)
         }
       }
       onSaved()
       onClose()
     } catch (err) {
-      setError(err instanceof Error ? err.message : t('common.error'))
+      setError(formatError(err))
     } finally {
       setBusy(false)
     }

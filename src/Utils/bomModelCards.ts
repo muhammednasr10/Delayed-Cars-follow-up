@@ -1,7 +1,7 @@
 import { DEFAULT_PART_KIND, DEFAULT_SUPPLY_SOURCE, effectivePartKind, effectiveSupplySource } from './bomDefaults'
 import { resolveSupplySource } from './bomDisplayFormat'
 import { formatQtyByModelRaw, maxModelQty, modelQtyFromBomRow, parseApplicableModelNames } from './bomQtyByModel'
-import { normalizeBomStationCodeText } from './bomStationCode'
+import { normalizeBomStationCodeText, findMasterStationByCode } from './bomStationCode'
 import {
   bomModelBreakdownFamilies,
   lineDraftFromBreakdown,
@@ -10,7 +10,7 @@ import {
 import { buildModelFamilyGroups, inferParentNameFromVariant, isAssignableModel } from './vehicleModelHierarchy'
 import type { BomDisplayGroup } from './bomRowGroups'
 import type { BomItemDetail } from '../Types/bom'
-import type { VehicleModel } from '../Types/settings'
+import type { VehicleModel, Station } from '../Types/settings'
 
 export type ModelCardDraft = {
   modelId: string
@@ -160,7 +160,8 @@ export function buildBreakdownSaveCards(
   models: VehicleModel[],
   group: BomDisplayGroup,
   rows: BomItemDetail[],
-  draftByModel: Record<string, BomModelLineDraft>
+  draftByModel: Record<string, BomModelLineDraft>,
+  stations: Station[] = []
 ): { familyIds: string[]; cards: ModelCardDraft[] } {
   const parsed = cardsFromBomRows(models, rows)
   const families = bomModelBreakdownFamilies(models, group)
@@ -191,14 +192,18 @@ export function buildBreakdownSaveCards(
       if (!m) continue
       const draft = draftByModel[line.modelName] ?? lineDraftFromBreakdown(line, group)
       const existing = parsed.cards.find(c => c.modelId === m.id)
+      const stationText = draft.active ? normalizeBomStationCodeText(draft.station_code_text) : ''
+      const matchedStation = stationText ? findMasterStationByCode(stations, stationText) : null
       cards.push({
         ...(existing ?? emptyCard(m, seed)),
         modelId: m.id,
         modelName: m.name,
-        part_number: draft.part_number.trim(),
-        qty: draft.qty ?? '0',
+        part_number: draft.active ? draft.part_number.trim() : '',
+        qty: draft.active && draft.qty.trim() ? draft.qty : '0',
         part_kind: effectivePartKind(draft.part_kind || existing?.part_kind),
-        supply_source: effectiveSupplySource(draft.supply_source || existing?.supply_source)
+        supply_source: effectiveSupplySource(draft.supply_source || existing?.supply_source),
+        station_code_text: stationText,
+        station_id: draft.active ? matchedStation?.id ?? existing?.station_id ?? '' : ''
       })
     }
   }

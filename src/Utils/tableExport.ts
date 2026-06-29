@@ -4,6 +4,10 @@ import type { TableExportColumn, TableExportData } from './tableExportTypes'
 export type { TableExportColumn, TableExportData } from './tableExportTypes'
 export { buildExportData, extractTableData } from './tableExportTypes'
 
+function sanitizeFilename(name: string): string {
+  return name.replace(/[<>:"/\\|?*]+/g, '_').trim() || 'export'
+}
+
 export function exportTableToExcel(data: TableExportData, filename: string, sheetName = 'Export'): void {
   if (data.rows.length === 0) return
   const wb = XLSX.utils.book_new()
@@ -19,10 +23,6 @@ export async function exportTableToPdf(
   rtl = true
 ): Promise<void> {
   if (data.rows.length === 0) return
-  const { renderTablePdf } = await import('./tableExportTypes')
+  const { renderTablePdf } = await import('./tableExportPdf')
   await renderTablePdf(data, filename, title, rtl)
-}
-
-function sanitizeFilename(name: string): string {
-  return name.replace(/[<>:"/\\|?*]+/g, '_').trim() || 'export'
 }

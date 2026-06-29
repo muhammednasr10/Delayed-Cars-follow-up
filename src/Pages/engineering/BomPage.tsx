@@ -9,7 +9,7 @@ import { PartCategoriesTab } from '../../Components/bom/PartCategoriesTab'
 import { BomImportTab } from '../../Components/bom/BomImportTab'
 import { BomDashboardTab } from '../../Components/bom/BomDashboardTab'
 
-type Tab = 'parts' | 'compare' | 'categories' | 'import' | 'dashboard'
+type Tab = 'parts' | 'partsGd' | 'compare' | 'categories' | 'import' | 'dashboard'
 
 export function BomPage({ embedded = false }: { embedded?: boolean }) {
   const { t } = useLang()
@@ -25,6 +25,7 @@ export function BomPage({ embedded = false }: { embedded?: boolean }) {
 
   const tabs: { key: Tab; label: string }[] = [
     { key: 'parts', label: t('bom.tabs.parts') },
+    { key: 'partsGd', label: t('bom.tabs.partsGd') },
     { key: 'compare', label: t('bom.tabs.compare') },
     { key: 'categories', label: t('bom.tabs.categories') },
     { key: 'import', label: t('bom.tabs.import') },
@@ -41,7 +42,8 @@ export function BomPage({ embedded = false }: { embedded?: boolean }) {
 
   const content = (
     <>
-      {tab === 'parts' && <BomByModelTab notify={notify} />}
+      {tab === 'parts' && <BomByModelTab notify={notify} lineScope="main" />}
+      {tab === 'partsGd' && <BomByModelTab notify={notify} lineScope="gd" />}
       {tab === 'compare' && <PartComparisonTab />}
       {tab === 'categories' && <PartCategoriesTab notify={notify} />}
       {tab === 'import' && <BomImportTab notify={notify} />}

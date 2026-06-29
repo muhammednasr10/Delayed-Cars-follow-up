@@ -228,6 +228,29 @@ export async function getEmployeeAttendanceMonth(
   return buildMonthDayEdits(year, month, days)
 }
 
+export async function getEmployeeAttendanceForDate(
+  employeeId: string,
+  workDate: string
+): Promise<AttendanceDay | null> {
+  const { data, error } = await requireClient()
+    .from('employee_attendance_days')
+    .select('*')
+    .eq('employee_id', employeeId)
+    .eq('work_date', workDate)
+    .maybeSingle()
+  if (error) throw new Error(error.message)
+  return data ? mapDay(data as DayRow) : null
+}
+
+export async function getEmployeeAttendanceSummary(
+  employeeId: string,
+  year: number,
+  month: number
+): Promise<EmployeeAttendanceSummary | null> {
+  const summaries = await getMonthlyAttendanceSummaries(year, month, true)
+  return summaries.find(s => s.employeeId === employeeId) ?? null
+}
+
 export async function getAttendanceDaysForMonth(year: number, month: number): Promise<AttendanceDay[]> {
   const { start, end } = monthBounds(year, month)
   const { data, error } = await requireClient()

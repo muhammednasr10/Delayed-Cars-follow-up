@@ -10,7 +10,7 @@ import {
   updateFactoryOrgUnit
 } from '../services/factoryOrgService'
 import type { FactoryOrgUnit, FactoryOrgUnitKind, FactoryOrgUnitNode } from '../Types/factoryOrg'
-import { buildFactoryOrgTree, factoryOrgUnitKindLabel } from '../Utils/factoryOrgHierarchy'
+import { buildFactoryOrgTree, factoryOrgUnitKindLabel, nextFactoryOrgSortOrder } from '../Utils/factoryOrgHierarchy'
 
 type Props = {
   units: FactoryOrgUnit[]
@@ -31,7 +31,7 @@ export function FactoryOrgHierarchySection({ units, busy, onChanged, onError, on
   const [expanded, setExpanded] = useState<Record<string, boolean>>({})
   const [formMode, setFormMode] = useState<FormMode>(null)
   const [name, setName] = useState('')
-  const [sortOrder, setSortOrder] = useState('0')
+  const [sortOrder, setSortOrder] = useState(1)
   const [saving, setSaving] = useState(false)
   const [deleteTarget, setDeleteTarget] = useState<FactoryOrgUnit | null>(null)
 
@@ -48,19 +48,19 @@ export function FactoryOrgHierarchySection({ units, busy, onChanged, onError, on
   function openAddAdministration() {
     setFormMode({ kind: 'administration', parent: null, editing: null })
     setName('')
-    setSortOrder('0')
+    setSortOrder(nextFactoryOrgSortOrder(units, null))
   }
 
   function openAddChild(parent: FactoryOrgUnit, kind: FactoryOrgUnitKind) {
     setFormMode({ kind, parent, editing: null })
     setName('')
-    setSortOrder('0')
+    setSortOrder(nextFactoryOrgSortOrder(units, parent.id))
   }
 
   function openEdit(unit: FactoryOrgUnit) {
     setFormMode({ kind: unit.unitKind, parent: null, editing: unit })
     setName(unit.name)
-    setSortOrder(String(unit.sortOrder))
+    setSortOrder(unit.sortOrder)
   }
 
   function closeForm() {
@@ -89,14 +89,14 @@ export function FactoryOrgHierarchySection({ units, busy, onChanged, onError, on
       if (formMode.editing) {
         await updateFactoryOrgUnit(formMode.editing.id, {
           name: trimmed,
-          sortOrder: Number(sortOrder) || 0
+          sortOrder
         })
       } else {
         await createFactoryOrgUnit({
           name: trimmed,
           unitKind: formMode.kind,
           parentId: formMode.parent?.id ?? null,
-          sortOrder: Number(sortOrder) || 0
+          sortOrder
         })
       }
       await onChanged()
@@ -201,14 +201,11 @@ export function FactoryOrgHierarchySection({ units, busy, onChanged, onError, on
           <Field label={t('settings.administrations.name')} required>
             <input className={inputCls()} value={name} onChange={e => setName(e.target.value)} />
           </Field>
-          <Field label={t('settings.fields.sortOrder')}>
-            <input
-              type="number"
-              className={inputCls()}
-              value={sortOrder}
-              onChange={e => setSortOrder(e.target.value)}
-            />
-          </Field>
+          {!formMode?.editing && (
+            <p className="text-xs text-slate-500">
+              {t('settings.administrations.autoSortOrder', { n: sortOrder })}
+            </p>
+          )}
         </div>
       </Modal>
 

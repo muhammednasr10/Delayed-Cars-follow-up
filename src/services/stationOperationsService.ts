@@ -2,6 +2,7 @@ import { supabase } from '../lib/supabase'
 import { operationCodeFor } from '../Utils/timeStudyParser'
 import {
   formatStationDisplayCode,
+  formatStationWorkerDisplayCode,
   inferParentStationCode,
   normalizeStationReferenceCode,
   normalizeStationBaseCode,
@@ -470,6 +471,49 @@ export async function getOperationIdsForModels(modelIds: string[]): Promise<Set<
   }
 
   return ids
+}
+
+export type LineBalanceWorkerLine = {
+  stationId: string
+  stationNumber: string
+  displayCode: string
+}
+
+/** Worker lines (e.g. PBS01-L1) at a master station that have operations for the given model(s). */
+export async function getWorkerLinesForStationAndModels(
+  masterStationId: string,
+  modelIds: string[]
+): Promise<LineBalanceWorkerLine[]> {
+  if (!masterStationId || modelIds.length === 0) return []
+
+  const opIds = await getOperationIdsForModels(modelIds)
+  const groups = await getParentStationOperationsGroups(opIds && opIds.size > 0 ? opIds : null)
+
+  let parent = groups.find(g => g.stationId === masterStationId)
+  if (!parent) {
+    const { data: row } = await client()
+      .from('stations')
+      .select('station_number')
+      .eq('id', masterStationId)
+      .maybeSingle()
+    if (row) {
+      const code = normalizeStationReferenceCode(String(row.station_number))
+      parent = groups.find(g => normalizeStationReferenceCode(g.stationNumber) === code)
+    }
+  }
+  if (!parent) return []
+
+  return parent.workers
+    .map(w => ({
+      stationId: w.stationId,
+      stationNumber: w.stationNumber,
+      displayCode: formatStationWorkerDisplayCode(w.displayCode || w.stationNumber)
+    }))
+    .sort(
+      (a, b) =>
+        (workerIndexFromStationCode(a.stationNumber) ?? 99) - (workerIndexFromStationCode(b.stationNumber) ?? 99) ||
+        a.displayCode.localeCompare(b.displayCode, undefined, { numeric: true, sensitivity: 'base' })
+    )
 }
 
 export async function updateStationWorker1Summary(stationId: string, summary: string): Promise<void> {

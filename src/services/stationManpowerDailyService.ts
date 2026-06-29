@@ -73,6 +73,72 @@ export async function getAllStationManpowerForDate(workDate: string): Promise<St
   return (data ?? []).map(r => mapRow(r as Row))
 }
 
+export type EmployeeDailyStationAssignment = {
+  workDate: string
+  stationId: string
+  stationNumber: string
+  stationName: string
+  vehicleModelId: string | null
+  vehicleModelName: string | null
+}
+
+export async function getEmployeeStationManpowerForDate(
+  employeeId: string,
+  workDate: string
+): Promise<EmployeeDailyStationAssignment[]> {
+  const { data, error } = await requireClient()
+    .from('station_manpower_daily')
+    .select(
+      `
+      work_date,
+      station_id,
+      vehicle_model_id,
+      stations!inner(station_number, station_name),
+      vehicle_models(name)
+    `
+    )
+    .eq('work_date', workDate)
+    .eq('employee_id', employeeId)
+
+  if (error) throw new Error(error.message)
+
+  return (data ?? []).flatMap(row => {
+    const station = relOne(
+      row.stations as { station_number: string; station_name: string } | { station_number: string; station_name: string }[] | null
+    )
+    if (!station) return []
+    const model = relOne(row.vehicle_models as { name: string } | { name: string }[] | null)
+    return [
+      {
+        workDate: row.work_date as string,
+        stationId: row.station_id as string,
+        stationNumber: station.station_number,
+        stationName: station.station_name,
+        vehicleModelId: (row.vehicle_model_id as string | null) ?? null,
+        vehicleModelName: model?.name ?? null
+      }
+    ]
+  })
+}
+
+/** صفوف توزيع موديل محدّد لمحطات معيّنة (للتحقق من تجاوز القالب العام). */
+export async function getModelScopeManpowerForStations(
+  workDate: string,
+  stationIds: string[]
+): Promise<StationManpowerDailyRow[]> {
+  if (stationIds.length === 0) return []
+
+  const { data, error } = await requireClient()
+    .from('station_manpower_daily')
+    .select('id, work_date, station_id, employee_id, vehicle_model_id, notes')
+    .eq('work_date', workDate)
+    .in('station_id', stationIds)
+    .not('vehicle_model_id', 'is', null)
+
+  if (error) throw new Error(error.message)
+  return (data ?? []).map(r => mapRow(r as Row))
+}
+
 export async function getWorkerOperationLabels(
   workDate: string,
   vehicleModelId: string | null = null

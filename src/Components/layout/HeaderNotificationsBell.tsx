@@ -44,6 +44,7 @@ export function HeaderNotificationsBell() {
     setOpen(false)
     nav.navigate({
       department: 'production',
+      productionArea: 'assembly',
       productionPage: 'missions',
       showProfile: false,
       showGlobalHome: false,
@@ -55,6 +56,7 @@ export function HeaderNotificationsBell() {
     setOpen(false)
     nav.navigate({
       department: 'production',
+      productionArea: 'assembly',
       productionPage: 'requests',
       showProfile: false,
       showGlobalHome: false,
