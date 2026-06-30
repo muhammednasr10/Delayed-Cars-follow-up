@@ -1,5 +1,5 @@
 import { supabase } from '../lib/supabase'
-import type { ProductionLineStop, ProductionLineStopInput } from '../Types/productionStop'
+import type { ProductionLineStop, ProductionLineStopInput, ProductionStopType } from '../Types/productionStop'
 
 function requireClient() {
   if (!supabase) throw new Error('Supabase غير مهيأ. تحقق من ملف .env')
@@ -9,6 +9,8 @@ function requireClient() {
 type Row = {
   id: string
   stop_reason: string
+  stop_type: ProductionStopType
+  vehicle_model_id: string | null
   started_at: string
   ended_at: string
   department: string
@@ -16,12 +18,17 @@ type Row = {
   notes: string | null
   created_at: string
   updated_at: string
+  vehicle_models?: { name: string } | { name: string }[] | null
 }
 
 function mapRow(row: Row): ProductionLineStop {
+  const modelJoin = Array.isArray(row.vehicle_models) ? row.vehicle_models[0] : row.vehicle_models
   return {
     id: row.id,
     stopReason: row.stop_reason,
+    stopType: row.stop_type ?? 'partial',
+    vehicleModelId: row.vehicle_model_id,
+    vehicleModelName: modelJoin?.name ?? null,
     startedAt: row.started_at,
     endedAt: row.ended_at,
     department: row.department,
@@ -35,6 +42,8 @@ function mapRow(row: Row): ProductionLineStop {
 function toPayload(input: ProductionLineStopInput) {
   return {
     stop_reason: input.stopReason.trim(),
+    stop_type: input.stopType,
+    vehicle_model_id: input.vehicleModelId?.trim() || null,
     started_at: input.startedAt,
     ended_at: input.endedAt,
     department: input.department,
@@ -43,8 +52,10 @@ function toPayload(input: ProductionLineStopInput) {
   }
 }
 
+const STOP_SELECT = '*, vehicle_models(name)'
+
 export async function getProductionLineStops(year?: number, month?: number): Promise<ProductionLineStop[]> {
-  let query = requireClient().from('production_line_stops').select('*').order('started_at', { ascending: false })
+  let query = requireClient().from('production_line_stops').select(STOP_SELECT).order('started_at', { ascending: false })
 
   if (year && month) {
     const start = `${year}-${String(month).padStart(2, '0')}-01`
@@ -60,13 +71,13 @@ export async function getProductionLineStops(year?: number, month?: number): Pro
 }
 
 export async function createProductionLineStop(input: ProductionLineStopInput): Promise<ProductionLineStop> {
-  const { data, error } = await requireClient().from('production_line_stops').insert(toPayload(input)).select('*').single()
+  const { data, error } = await requireClient().from('production_line_stops').insert(toPayload(input)).select(STOP_SELECT).single()
   if (error) throw new Error(error.message)
   return mapRow(data as Row)
 }
 
 export async function updateProductionLineStop(id: string, input: ProductionLineStopInput): Promise<ProductionLineStop> {
-  const { data, error } = await requireClient().from('production_line_stops').update(toPayload(input)).eq('id', id).select('*').single()
+  const { data, error } = await requireClient().from('production_line_stops').update(toPayload(input)).eq('id', id).select(STOP_SELECT).single()
   if (error) throw new Error(error.message)
   return mapRow(data as Row)
 }

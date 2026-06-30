@@ -17,6 +17,8 @@ import {
   type ModelColumn
 } from '../services/exitProductivityService'
 import { getVehicleModels } from '../services/settingsService'
+import { ProductivityDelayReasonCell } from './productivity/ProductivityDelayReasonCell'
+import { useProductivityDelayReasons } from '../hooks/useProductivityDelayReasons'
 
 const cell = 'table-cell text-center align-middle'
 const stickyCell = `${cell} sticky start-0 z-10 bg-slate-900`
@@ -52,6 +54,7 @@ export function ExitProductivityMonthlyTab() {
   const dates = useMemo(() => listDatesInMonth(year, month), [year, month])
   const modelRows = useMemo(() => productivityModelRows(models), [models])
   const columns = useMemo(() => buildModelColumns(models), [models])
+  const { reasonsByDate, setReason, flushSave } = useProductivityDelayReasons('exit', year, month, canManage)
 
   const load = useCallback(async () => {
     setLoading(true)
@@ -206,7 +209,7 @@ export function ExitProductivityMonthlyTab() {
       </div>
 
       <div className="card-industrial overflow-x-auto">
-        <table className="w-full min-w-[900px] text-sm">
+        <table className="w-full min-w-[1080px] text-sm">
           <thead className="bg-slate-950/90">
             <tr>
               <th className={`${stickyHead} min-w-[72px] text-xs font-black uppercase text-emerald-300`}>
@@ -220,6 +223,9 @@ export function ExitProductivityMonthlyTab() {
                   {col.label}
                 </th>
               ))}
+              <th className={`${cell} min-w-[11rem] text-xs font-black uppercase text-amber-200`}>
+                {t('productivity.monthly.delayReasons')}
+              </th>
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-800">
@@ -236,6 +242,15 @@ export function ExitProductivityMonthlyTab() {
                       {renderColumnValue(col, workDate)}
                     </td>
                   ))}
+                  <td className={`${cell} align-top`}>
+                    <ProductivityDelayReasonCell
+                      value={reasonsByDate.get(workDate) ?? ''}
+                      canManage={canManage}
+                      placeholder={t('productivity.monthly.delayReasonsPlaceholder')}
+                      onChange={value => setReason(workDate, value)}
+                      onBlur={() => flushSave(workDate)}
+                    />
+                  </td>
                 </tr>
               )
             })}
@@ -249,6 +264,7 @@ export function ExitProductivityMonthlyTab() {
                   {columnMonthTotal(col) || '—'}
                 </td>
               ))}
+              <td className={cell} />
             </tr>
           </tbody>
         </table>

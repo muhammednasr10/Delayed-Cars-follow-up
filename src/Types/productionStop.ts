@@ -1,6 +1,11 @@
+export type ProductionStopType = 'partial' | 'full'
+
 export type ProductionLineStop = {
   id: string
   stopReason: string
+  stopType: ProductionStopType
+  vehicleModelId: string | null
+  vehicleModelName: string | null
   startedAt: string
   endedAt: string
   department: string
@@ -12,6 +17,8 @@ export type ProductionLineStop = {
 
 export type ProductionLineStopInput = {
   stopReason: string
+  stopType: ProductionStopType
+  vehicleModelId?: string | null
   startedAt: string
   endedAt: string
   department: string

@@ -12,6 +12,7 @@ type Props = {
   hasActiveFilter: boolean
   filteredVehicleCount: number
   tabVehicleCount: number
+  variant?: 'active' | 'archive'
 }
 
 function StatPill({ label, value, tone = 'cyan' }: { label: string; value: string; tone?: 'cyan' | 'amber' | 'emerald' | 'rose' | 'slate' }) {
@@ -85,15 +86,24 @@ function BreakdownTable({
   )
 }
 
-export function MissingPartsSummaryTab({ items, reasons, departments, hasActiveFilter, filteredVehicleCount, tabVehicleCount }: Props) {
+export function MissingPartsSummaryTab({
+  items,
+  reasons,
+  departments,
+  hasActiveFilter,
+  filteredVehicleCount,
+  tabVehicleCount,
+  variant = 'active'
+}: Props) {
   const { t, lang } = useLang()
-  const stats = useMemo(() => buildMissingPartSummary(items), [items])
+  const stats = useMemo(() => buildMissingPartSummary(items, variant), [items, variant])
+  const isArchive = variant === 'archive'
 
   return (
     <div className="space-y-4 p-4 sm:p-5">
       <div>
-        <h3 className="text-sm font-black text-cyan-200">{t('mp.summary.title')}</h3>
-        <p className="mt-1 text-sm text-slate-400">{t('mp.summary.hint')}</p>
+        <h3 className="text-sm font-black text-cyan-200">{t(isArchive ? 'mp.summary.archiveTitle' : 'mp.summary.title')}</h3>
+        <p className="mt-1 text-sm text-slate-400">{t(isArchive ? 'mp.summary.archiveHint' : 'mp.summary.hint')}</p>
         <p className="mt-2 text-sm font-bold text-cyan-300">
           {hasActiveFilter
             ? t('mp.filterVehicleCountFiltered', { n: filteredVehicleCount, total: tabVehicleCount })
@@ -101,12 +111,16 @@ export function MissingPartsSummaryTab({ items, reasons, departments, hasActiveF
         </p>
       </div>
 
-      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-5">
+      <div className={`grid grid-cols-1 gap-3 ${isArchive ? 'sm:grid-cols-2' : 'sm:grid-cols-2 xl:grid-cols-5'}`}>
         <StatPill label={t('mp.summary.vehicles')} value={String(stats.vehicleCount)} />
         <StatPill label={t('mp.summary.lines')} value={String(stats.lineCount)} tone="slate" />
-        <StatPill label={t('mp.summary.pendingVehicles')} value={String(stats.pendingInstallVehicles)} tone="amber" />
-        <StatPill label={t('mp.summary.pendingLines')} value={String(stats.pendingInstallLines)} tone="rose" />
-        <StatPill label={t('mp.summary.readyArchive')} value={String(stats.fullyInstalledVehicles)} tone="emerald" />
+        {!isArchive && (
+          <>
+            <StatPill label={t('mp.summary.pendingVehicles')} value={String(stats.pendingInstallVehicles)} tone="amber" />
+            <StatPill label={t('mp.summary.pendingLines')} value={String(stats.pendingInstallLines)} tone="rose" />
+            <StatPill label={t('mp.summary.readyArchive')} value={String(stats.fullyInstalledVehicles)} tone="emerald" />
+          </>
+        )}
       </div>
 
       <div className="grid grid-cols-1 gap-4 xl:grid-cols-2">

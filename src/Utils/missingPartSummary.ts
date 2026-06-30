@@ -29,9 +29,42 @@ function mapToRows(map: Map<string, { vehicles: Set<string>; lines: number }>, c
     .sort((a, b) => b.lines - a.lines || b.vehicles - a.vehicles)
 }
 
-export function buildMissingPartSummary(items: MissingPartDetail[]): MissingPartSummaryStats {
-  const open = items.filter(p => !p.shortageResolvedAt && p.status !== 'closed' && p.status !== 'cancelled')
-  const vehicleIds = new Set(open.map(p => p.vehicleId))
+export function buildMissingPartSummary(items: MissingPartDetail[], mode: 'active' | 'archive' = 'active'): MissingPartSummaryStats {
+  const rows =
+    mode === 'archive'
+      ? items.filter(p => !!p.shortageResolvedAt)
+      : items.filter(p => !p.shortageResolvedAt && p.status !== 'closed' && p.status !== 'cancelled')
+
+  const vehicleIds = new Set(rows.map(p => p.vehicleId))
+
+  if (mode === 'archive') {
+    const byModel = new Map<string, { vehicles: Set<string>; lines: number }>()
+    const byDepartment = new Map<string, { vehicles: Set<string>; lines: number }>()
+    const byReason = new Map<string, { vehicles: Set<string>; lines: number }>()
+    const byStation = new Map<string, { vehicles: Set<string>; lines: number }>()
+
+    for (const row of rows) {
+      bumpMap(byModel, row.modelName || '—', row.vehicleId)
+      bumpMap(byDepartment, row.department || '—', row.vehicleId)
+      bumpMap(byReason, row.reason || '—', row.vehicleId)
+      const station = row.stationNumber ? `${row.stationNumber}${row.stationName ? ` · ${row.stationName}` : ''}` : '—'
+      bumpMap(byStation, station, row.vehicleId)
+    }
+
+    return {
+      vehicleCount: vehicleIds.size,
+      lineCount: rows.length,
+      pendingInstallLines: 0,
+      pendingInstallVehicles: 0,
+      fullyInstalledVehicles: vehicleIds.size,
+      byModel: mapToRows(byModel) as MissingPartSummaryStats['byModel'],
+      byDepartment: mapToRows(byDepartment, true) as MissingPartSummaryStats['byDepartment'],
+      byReason: mapToRows(byReason, true) as MissingPartSummaryStats['byReason'],
+      byStation: mapToRows(byStation) as MissingPartSummaryStats['byStation']
+    }
+  }
+
+  const open = rows
 
   const pendingLines = open.filter(p => p.installedQty < p.requiredQty)
   const pendingVehicleIds = new Set(pendingLines.map(p => p.vehicleId))

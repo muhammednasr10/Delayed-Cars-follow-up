@@ -103,6 +103,11 @@ export function AppSidebar() {
           onClick: () => sidebarNav({ department: 'production', productionArea: 'assembly', productionPage: 'vehicles', productivityTab: 'orders' })
         },
         {
+          key: 'workDays',
+          label: t('productionOrders.tabs.workDays'),
+          onClick: () => sidebarNav({ department: 'production', productionArea: 'assembly', productionPage: 'vehicles', productivityTab: 'workDays' })
+        },
+        {
           key: 'entry',
           label: t('productivity.tabs.entry'),
           onClick: () => sidebarNav({ department: 'production', productionArea: 'assembly', productionPage: 'vehicles', productivityTab: 'entry' })
@@ -118,9 +123,9 @@ export function AppSidebar() {
           onClick: () => sidebarNav({ department: 'production', productionArea: 'assembly', productionPage: 'vehicles', productivityTab: 'stops' })
         },
         {
-          key: 'workDays',
-          label: t('productionOrders.tabs.workDays'),
-          onClick: () => sidebarNav({ department: 'production', productionArea: 'assembly', productionPage: 'vehicles', productivityTab: 'workDays' })
+          key: 'summary',
+          label: t('productivity.tabs.summary'),
+          onClick: () => sidebarNav({ department: 'production', productionArea: 'assembly', productionPage: 'vehicles', productivityTab: 'summary' })
         },
         {
           key: 'planOrders',

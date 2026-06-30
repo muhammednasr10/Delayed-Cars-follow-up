@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import { AlertOctagon, Pencil, Plus, RefreshCcw, Trash2 } from 'lucide-react'
+import { AlertOctagon, Pencil, Plus, Trash2 } from 'lucide-react'
 import { useAuth } from '../../Context/AuthContext'
 import { useLang } from '../../i18n/LanguageContext'
 import { useMpLookups } from '../../hooks/useMpLookups'
@@ -9,6 +9,8 @@ import { Modal } from '../Modal'
 import { ConfirmDialog } from '../ConfirmDialog'
 import { MpLookupCreatableSelect } from '../MpLookupCreatableSelect'
 import { Field, inputCls } from '../FormField'
+import { TableExportButtons } from '../TableExportButtons'
+import type { TableExportColumn } from '../../Utils/tableExport'
 import {
   createProductionLineStop,
   deleteProductionLineStop,
@@ -17,10 +19,19 @@ import {
   updateProductionLineStop
 } from '../../services/productionStopService'
 import { getProductionPlanWorkDays } from '../../services/productionPlanWorkDaysService'
-import type { ProductionLineStop, ProductionLineStopInput } from '../../Types/productionStop'
+import type { ProductionLineStop, ProductionLineStopInput, ProductionStopType } from '../../Types/productionStop'
+import { getVehicleModels } from '../../services/settingsService'
+import type { VehicleModel } from '../../Types/settings'
 import { fromDatetimeLocalValue, toDatetimeLocalValue } from '../../Utils/datetimeLocal'
 
 const cell = 'table-cell text-center align-middle whitespace-nowrap px-3 py-2.5'
+
+type DeptSummaryRow = {
+  code: string
+  label: string
+  lost: number
+  minutes: number
+}
 
 function currentYm() {
   const d = new Date()
@@ -32,6 +43,8 @@ function emptyForm(): ProductionLineStopInput {
   const end = new Date(now.getTime() + 30 * 60_000)
   return {
     stopReason: '',
+    stopType: 'partial',
+    vehicleModelId: null,
     startedAt: now.toISOString(),
     endedAt: end.toISOString(),
     department: '',
@@ -67,6 +80,7 @@ export function ProductionStopsTab() {
   const [saving, setSaving] = useState(false)
   const [deleteTarget, setDeleteTarget] = useState<ProductionLineStop | null>(null)
   const [taktMinutes, setTaktMinutes] = useState<number | null>(null)
+  const [models, setModels] = useState<VehicleModel[]>([])
 
   const monthValue = `${year}-${String(month).padStart(2, '0')}`
 
@@ -89,6 +103,13 @@ export function ProductionStopsTab() {
   useEffect(() => {
     void load()
   }, [load])
+
+  useEffect(() => {
+    if (!formOpen) return
+    void getVehicleModels()
+      .then(list => setModels(list.filter(m => m.is_active)))
+      .catch(() => setModels([]))
+  }, [formOpen])
 
   useEffect(() => {
     if (!formOpen) return
@@ -125,18 +146,55 @@ export function ProductionStopsTab() {
     [items]
   )
 
-  function formatDt(iso: string) {
-    const d = new Date(iso)
-    if (Number.isNaN(d.getTime())) return '—'
-    const locale = lang === 'ar' ? 'ar-EG' : 'en-GB'
-    return d.toLocaleString(locale, { dateStyle: 'short', timeStyle: 'short' })
-  }
+  const byDepartment = useMemo((): DeptSummaryRow[] => {
+    const map = new Map<string, { lost: number; minutes: number }>()
+    for (const item of items) {
+      const cur = map.get(item.department) ?? { lost: 0, minutes: 0 }
+      map.set(item.department, {
+        lost: cur.lost + item.lostVehicles,
+        minutes: cur.minutes + stopDurationMinutes(item.startedAt, item.endedAt)
+      })
+    }
+    return [...map.entries()]
+      .map(([code, stats]) => ({
+        code,
+        label: mpLookupLabel(departments, code, lang),
+        lost: stats.lost,
+        minutes: stats.minutes
+      }))
+      .sort((a, b) => b.lost - a.lost || b.minutes - a.minutes)
+  }, [items, departments, lang])
+
+  const deptExportColumns = useMemo(
+    (): TableExportColumn<DeptSummaryRow & { downtimeLabel: string }>[] => [
+      { label: t('productivity.stops.deptSummaryCols.department'), value: r => r.label },
+      { label: t('productivity.stops.deptSummaryCols.lost'), value: r => r.lost },
+      { label: t('productivity.stops.deptSummaryCols.downtime'), value: r => r.downtimeLabel }
+    ],
+    [t]
+  )
+
+  const deptExportRows = useMemo(
+    () =>
+      byDepartment.map(row => ({
+        ...row,
+        downtimeLabel: formatDuration(row.minutes)
+      })),
+    [byDepartment, t]
+  )
 
   function formatDuration(minutes: number) {
     if (minutes < 60) return t('productivity.stops.durationMinutes', { n: minutes })
     const h = Math.floor(minutes / 60)
     const m = minutes % 60
     return m > 0 ? t('productivity.stops.durationHoursMinutes', { h, m }) : t('productivity.stops.durationHours', { h })
+  }
+
+  function formatDt(iso: string) {
+    const d = new Date(iso)
+    if (Number.isNaN(d.getTime())) return '—'
+    const locale = lang === 'ar' ? 'ar-EG' : 'en-GB'
+    return d.toLocaleString(locale, { dateStyle: 'short', timeStyle: 'short' })
   }
 
   function applyLostFromDuration(input: ProductionLineStopInput): ProductionLineStopInput {
@@ -162,6 +220,8 @@ export function ProductionStopsTab() {
     setEditing(row)
     setForm({
       stopReason: row.stopReason,
+      stopType: row.stopType,
+      vehicleModelId: row.vehicleModelId,
       startedAt: row.startedAt,
       endedAt: row.endedAt,
       department: row.department,
@@ -170,6 +230,16 @@ export function ProductionStopsTab() {
     })
     setFormError('')
     setFormOpen(true)
+  }
+
+  function stopTypeLabel(type: ProductionStopType) {
+    return type === 'full' ? t('productivity.stops.stopTypeFull') : t('productivity.stops.stopTypePartial')
+  }
+
+  function modelLabel(modelId: string | null, fallbackName: string | null) {
+    if (fallbackName) return fallbackName
+    if (!modelId) return '—'
+    return models.find(m => m.id === modelId)?.name ?? '—'
   }
 
   function validate(): string | null {
@@ -222,7 +292,7 @@ export function ProductionStopsTab() {
   return (
     <div className="space-y-4">
       <div className="card-industrial p-4 sm:p-5">
-        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
           <div className="flex items-center gap-3">
             <div className="rounded-xl bg-red-500/15 p-3 text-red-300">
               <AlertOctagon className="h-6 w-6" />
@@ -232,33 +302,18 @@ export function ProductionStopsTab() {
               <p className="text-sm text-slate-400">{t('productivity.stops.subtitle')}</p>
             </div>
           </div>
-          <div className="flex flex-wrap items-center gap-2">
-            <input
-              type="month"
-              className={inputCls()}
-              value={monthValue}
-              onChange={e => {
-                const [y, m] = e.target.value.split('-').map(Number)
-                if (y && m) {
-                  setYear(y)
-                  setMonth(m)
-                }
-              }}
-            />
-            <button type="button" onClick={() => void load()} className="rounded-xl bg-slate-800 px-3 py-2 text-slate-200 hover:bg-slate-700">
-              <RefreshCcw className="h-4 w-4" />
-            </button>
-            {canManage && (
-              <button
-                type="button"
-                onClick={openCreate}
-                className="inline-flex items-center gap-1.5 rounded-xl bg-cyan-500 px-4 py-2 text-sm font-black text-slate-950 hover:bg-cyan-400"
-              >
-                <Plus className="h-4 w-4" />
-                {t('productivity.stops.add')}
-              </button>
-            )}
-          </div>
+          <input
+            type="month"
+            className={`${inputCls()} w-full sm:w-auto sm:min-w-[10rem]`}
+            value={monthValue}
+            onChange={e => {
+              const [y, m] = e.target.value.split('-').map(Number)
+              if (y && m) {
+                setYear(y)
+                setMonth(m)
+              }
+            }}
+          />
         </div>
 
         <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-3">
@@ -266,6 +321,55 @@ export function ProductionStopsTab() {
           <StatPill label={t('productivity.stops.totalLost')} value={String(totals.lostVehicles)} tone="amber" />
           <StatPill label={t('productivity.stops.totalDowntime')} value={formatDuration(totals.minutes)} tone="red" />
         </div>
+
+        <div className="mt-4 rounded-xl border border-slate-800 bg-slate-950/50 p-4">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <h4 className="text-sm font-black text-slate-300">{t('productivity.stops.deptSummaryTitle')}</h4>
+            {byDepartment.length > 0 && (
+              <TableExportButtons
+                filename={`stops-dept-summary-${monthValue}`}
+                title={t('productivity.stops.deptSummaryExportTitle', { month: monthValue })}
+                columns={deptExportColumns}
+                rows={deptExportRows}
+              />
+            )}
+          </div>
+          {byDepartment.length === 0 ? (
+            <p className="mt-2 text-sm text-slate-500">{t('productivity.stops.deptSummaryEmpty')}</p>
+          ) : (
+            <div className="mt-3 overflow-x-auto">
+              <table className="w-full text-center text-sm">
+                <thead>
+                  <tr className="border-b border-slate-800 text-slate-400">
+                    <th className={`${cell} font-black`}>{t('productivity.stops.deptSummaryCols.department')}</th>
+                    <th className={`${cell} font-black`}>{t('productivity.stops.deptSummaryCols.lost')}</th>
+                    <th className={`${cell} font-black`}>{t('productivity.stops.deptSummaryCols.downtime')}</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-800">
+                  {byDepartment.map(row => (
+                    <tr key={row.code} className="hover:bg-slate-900/40">
+                      <td className={`${cell} font-bold text-white`}>{row.label}</td>
+                      <td className={`${cell} font-black text-amber-300`}>{row.lost}</td>
+                      <td className={`${cell} font-mono text-cyan-300`}>{formatDuration(row.minutes)}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
+
+        {canManage && (
+          <button
+            type="button"
+            onClick={openCreate}
+            className="mt-4 flex w-full items-center justify-center gap-2 rounded-2xl bg-cyan-500 px-6 py-4 text-base font-black text-slate-950 shadow-lg shadow-cyan-900/25 transition hover:bg-cyan-400 sm:text-lg"
+          >
+            <Plus className="h-5 w-5" />
+            {t('productivity.stops.add')}
+          </button>
+        )}
       </div>
 
       {setupRequired && (
@@ -282,6 +386,8 @@ export function ProductionStopsTab() {
         <table className="w-full text-center text-sm">
           <thead className="bg-slate-950/90">
             <tr>
+              <th className={`${cell} font-black text-slate-400`}>{t('productivity.stops.cols.model')}</th>
+              <th className={`${cell} font-black text-slate-400`}>{t('productivity.stops.cols.stopType')}</th>
               <th className={`${cell} font-black text-slate-400`}>{t('productivity.stops.cols.reason')}</th>
               <th className={`${cell} font-black text-slate-400`}>{t('productivity.stops.cols.from')}</th>
               <th className={`${cell} font-black text-slate-400`}>{t('productivity.stops.cols.to')}</th>
@@ -296,6 +402,16 @@ export function ProductionStopsTab() {
               const mins = stopDurationMinutes(row.startedAt, row.endedAt)
               return (
                 <tr key={row.id} className="bg-slate-900/30 hover:bg-slate-800/40">
+                  <td className={`${cell} text-slate-300`}>{modelLabel(row.vehicleModelId, row.vehicleModelName)}</td>
+                  <td className={cell}>
+                    <span
+                      className={`inline-block rounded-lg px-2 py-0.5 text-xs font-bold ${
+                        row.stopType === 'full' ? 'bg-red-500/20 text-red-200' : 'bg-amber-500/20 text-amber-200'
+                      }`}
+                    >
+                      {stopTypeLabel(row.stopType)}
+                    </span>
+                  </td>
                   <td className={`${cell} max-w-[200px] truncate font-bold text-white`} title={row.stopReason}>
                     {row.stopReason}
                   </td>
@@ -353,6 +469,40 @@ export function ProductionStopsTab() {
       >
         <div className="space-y-4">
           {formError && <div className="rounded-xl border border-red-500/30 bg-red-500/10 p-3 text-sm text-red-200">{formError}</div>}
+          <Field label={t('productivity.stops.fields.model')}>
+            <select
+              className={inputCls()}
+              value={form.vehicleModelId ?? ''}
+              onChange={e => setForm(p => ({ ...p, vehicleModelId: e.target.value || null }))}
+            >
+              <option value="">{t('productivity.stops.noModel')}</option>
+              {models.map(m => (
+                <option key={m.id} value={m.id}>
+                  {m.parent_name ? `${m.parent_name} — ${m.name}` : m.name}
+                </option>
+              ))}
+            </select>
+          </Field>
+          <Field label={t('productivity.stops.fields.stopType')} required>
+            <div className="flex flex-wrap gap-2">
+              {(['partial', 'full'] as const).map(type => (
+                <button
+                  key={type}
+                  type="button"
+                  onClick={() => setForm(p => ({ ...p, stopType: type }))}
+                  className={`rounded-xl px-4 py-2 text-sm font-bold transition ${
+                    form.stopType === type
+                      ? type === 'full'
+                        ? 'bg-red-500 text-white'
+                        : 'bg-amber-500 text-slate-950'
+                      : 'bg-slate-800 text-slate-300 hover:bg-slate-700'
+                  }`}
+                >
+                  {stopTypeLabel(type)}
+                </button>
+              ))}
+            </div>
+          </Field>
           <Field label={t('productivity.stops.fields.reason')} required>
             <input
               className={inputCls()}

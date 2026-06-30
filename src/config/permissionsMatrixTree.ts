@@ -39,7 +39,45 @@ export const PERMISSIONS_MATRIX_TREE: MatrixTreeNode[] = [
         labelKey: 'nav.missingParts',
         descKey: 'permissions.matrix.pageDesc.production_missing',
         pagePerm: 'production_missing',
-        actionModules: [{ moduleKey: 'missing_parts' }]
+        actionModules: [
+          {
+            moduleKey: 'missing_parts',
+            actions: [
+              'view',
+              'create',
+              'filter',
+              'update_status',
+              'notes',
+              'update',
+              'delete',
+              'complete',
+              'bulk_install',
+              'export'
+            ]
+          }
+        ],
+        children: [
+          {
+            id: 'mp_active',
+            labelKey: 'mp.tabs.active',
+            pagePerm: 'production_missing__active'
+          },
+          {
+            id: 'mp_summary',
+            labelKey: 'mp.tabs.summary',
+            pagePerm: 'production_missing__summary'
+          },
+          {
+            id: 'mp_history',
+            labelKey: 'mp.tabs.history',
+            pagePerm: 'production_missing__history'
+          },
+          {
+            id: 'mp_hist_summary',
+            labelKey: 'mp.tabs.historySummary',
+            pagePerm: 'production_missing__historySummary'
+          }
+        ]
       },
       {
         id: 'prod_vehicles',
@@ -51,6 +89,12 @@ export const PERMISSIONS_MATRIX_TREE: MatrixTreeNode[] = [
             id: 'prod_veh_orders',
             labelKey: 'productivity.tabs.orders',
             pagePerm: 'production_productivity__orders',
+            actionModules: productionTabActions()
+          },
+          {
+            id: 'prod_veh_workdays',
+            labelKey: 'productionOrders.tabs.workDays',
+            pagePerm: 'production_productivity__workDays',
             actionModules: productionTabActions()
           },
           {
@@ -72,9 +116,9 @@ export const PERMISSIONS_MATRIX_TREE: MatrixTreeNode[] = [
             actionModules: productionTabActions()
           },
           {
-            id: 'prod_veh_workdays',
-            labelKey: 'productionOrders.tabs.workDays',
-            pagePerm: 'production_productivity__workDays',
+            id: 'prod_veh_summary',
+            labelKey: 'productivity.tabs.summary',
+            pagePerm: 'production_productivity__summary',
             actionModules: productionTabActions()
           },
           {

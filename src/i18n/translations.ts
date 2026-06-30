@@ -426,7 +426,7 @@ export const translations = {
     productivity: {
       title: 'الإنتاجية',
       subtitle: 'متابعة دخول السيارات للخط وخروجها للتسليم',
-      tabs: { orders: 'خطة الإنتاج', entry: 'إنتاجية الدخول', exit: 'إنتاجية الخروج', stops: 'التوقفات', summary: 'ملخص الإنتاجية' },
+      tabs: { orders: 'خطة الإنتاج', workDays: 'أيام العمل', entry: 'إنتاجية الدخول', exit: 'إنتاجية الخروج', stops: 'التوقفات', summary: 'ملخص الإنتاجية' },
       entryTitle: 'إنتاجية الدخول',
       entrySubtitle: 'السيارات على الخط — تسجيل دخول جديد ومتابعة الإنتاج',
       exitTitle: 'إنتاجية الخروج',
@@ -450,7 +450,9 @@ export const translations = {
         syncFromDaily: 'تحديث من اليومي',
         syncedFromDaily: 'تم ملء الأرقام من إنتاجية الدخول اليومية وحفظها.',
         hint: 'أدخل عدد السيارات لكل موديل أب ويوم — يُحفظ تلقائياً، أو اضغط «تحديث من اليومي» لجلب العدد من تسجيلات الدخول.',
-        noModels: 'لا توجد موديلات أب في الإعدادات.'
+        noModels: 'لا توجد موديلات أب في الإعدادات.',
+        delayReasons: 'أسباب تأخير الإنتاجية',
+        delayReasonsPlaceholder: 'مثال: توقف خط، نقص قطعة، عطل معدة…'
       },
       exitMonthly: {
         title: 'إنتاجية الخروج الشهرية',
@@ -487,7 +489,20 @@ export const translations = {
         errTimeOrder: 'وقت النهاية يجب أن يكون بعد وقت البداية.',
         errLost: 'عدد السيارات الضائعة غير صالح.',
         lostAutoHint: 'يُحسب تلقائياً: مدة التوقف ÷ زمن التاكت ({takt} د) — يمكنك التعديل يدوياً.',
+        noModel: '— بدون موديل —',
+        stopTypePartial: 'جزئي',
+        stopTypeFull: 'كلي',
+        deptSummaryTitle: 'ملخص حسب القسم المسؤول',
+        deptSummaryExportTitle: 'ملخص توقفات الخط — {month}',
+        deptSummaryEmpty: 'لا توجد توقفات في هذا الشهر.',
+        deptSummaryCols: {
+          department: 'القسم المسؤول',
+          lost: 'السيارات الضائعة',
+          downtime: 'وقت التوقف'
+        },
         fields: {
+          model: 'الموديل',
+          stopType: 'نوع التوقف',
           reason: 'سبب التوقف',
           from: 'من',
           to: 'إلى',
@@ -496,6 +511,8 @@ export const translations = {
           notes: 'ملاحظات'
         },
         cols: {
+          model: 'الموديل',
+          stopType: 'نوع التوقف',
           reason: 'سبب التوقف',
           from: 'من',
           to: 'إلى',
@@ -506,7 +523,7 @@ export const translations = {
       },
       summary: {
         title: 'ملخص الإنتاجية',
-        subtitle: 'جدول يومي يجمع إنتاجية الدخول والخروج وسيارات التوقفات والعجز',
+        subtitle: 'جدول يومي يجمع إنتاجية الدخول والخروج والتوقفات — الساعات والعجز من بيانات تبويب أيام العمل',
         deficitHint: 'العجز الإجمالي = إنتاجية الدخول − إنتاجية الخروج − سيارات التوقفات (لكل يوم).',
         cols: {
           date: 'التاريخ',
@@ -565,7 +582,7 @@ export const translations = {
       },
       tabs: {
         planOrders: 'الخطة والأوامر',
-        workDays: 'ملخص الإنتاجية'
+        workDays: 'أيام العمل'
       },
       workDaysTab: {
         title: 'أيام العمل',
@@ -1067,7 +1084,8 @@ export const translations = {
       addPartLine: 'إضافة قطعة', batchHint: '{lines} قطعة × {cars} سيارة = {total} سجل نقص.',
       batchSuccess: 'تم التسجيل: {cars} سيارة · {parts} سجل نقص',
       errAllVins: 'أدخل رقم شاسيه لكل سيارة حسب العدد المحدد.',
-      errVinIndex: 'شاسيه رقم {n}: يجب 4 أحرف على الأقل.',
+      errDuplicateVin: 'لا يمكن تكرار نفس رقم الشاسيه في نفس التبليغ.',
+      errVinIndex: 'شاسيه رقم {n}: يجب 4 أرقام بالضبط.',
       errOnePart: 'أضف قطعة ناقصة واحدة على الأقل.',
       errOneIssue: 'أضف مشكلة واحدة على الأقل (وصف السبب).',
       selectVariant: 'اختر الموديل الفرعي',
@@ -1099,10 +1117,12 @@ export const translations = {
         kindModel: 'موديل',
         noMatches: 'لا توجد اقتراحات مطابقة'
       },
-      tabs: { active: 'قائمة النواقص', history: 'الأرشيف / منتهية', summary: 'ملخص النواقص' },
+      tabs: { active: 'قائمة النواقص', summary: 'ملخص النواقص', history: 'الأرشيف', historySummary: 'ملخص الأرشيف' },
       summary: {
         title: 'ملخص النواقص الحالية',
         hint: 'نظرة عامة على السيارات المفتوحة والأسباب والأقسام والمحطات — مع احترام الفلاتر أعلاه.',
+        archiveTitle: 'ملخص الأرشيف',
+        archiveHint: 'نظرة عامة على السيارات المنتهية والأسباب والأقسام والمحطات — مع احترام الفلاتر أعلاه.',
         vehicles: 'سيارات',
         lines: 'سجلات النقص',
         pendingVehicles: 'سيارات بكميات متبقية',
@@ -1124,6 +1144,10 @@ export const translations = {
       completePartialNo: 'لا، لم أركّب بعد',
       completeSeparateHint: 'التركيب يحدّث الكميات فقط. الأرشيف عبر «انتهاء من السيارة» بقرار منفصل.',
       completeSuccess: 'تم أرشفة السيارة {vin} — كل القطع أُغلقت.',
+      completeAllConfirm: 'هل ركّبت كل السيارات؟',
+      completeAllMessage: 'سيتم إنهاء متابعة النقص ونقل {n} سيارة للأرشيف.',
+      completeAllYes: 'نعم، ركّبت كل السيارات',
+      completeAllSuccess: 'تم أرشفة {n} سيارة.',
       noActionsPerm: 'لا صلاحية',
       deleteConfirm: 'حذف سجل النقص «{part}»؟',
       detail: { title: 'تفاصيل النقص', stopper: 'عند الإنهاء (نوع الإيقاف)' },
@@ -1853,6 +1877,10 @@ export const translations = {
         pageDesc: {
           production_home: 'الصفحة الرئيسية لقسم الإنتاج',
           production_missing: 'صفحة تقارير نقص السيارات والقطع',
+          production_missing__active: 'تبويب قائمة النواقص النشطة',
+          production_missing__summary: 'تبويب ملخص النواقص',
+          production_missing__history: 'تبويب الأرشيف',
+          production_missing__historySummary: 'تبويب ملخص الأرشيف',
           production_productivity: 'صفحة الإنتاجية وأوامر الإنتاج',
           production_training: 'العمالة، الحضور، التدريب والتأهيل',
           production_damaged_parts: 'تسجيل ومتابعة القطع التالفة',
@@ -1875,12 +1903,17 @@ export const translations = {
         },
         actionDesc: {
           view: 'فتح الشاشة وقراءة البيانات',
-          create: 'إضافة سجلات جديدة',
-          update: 'تعديل البيانات الموجودة',
-          delete: 'حذف أو إيقاف السجلات',
+          create: 'تسجيل نقص جديد (تبليغ نقص)',
+          filter: 'استخدام البحث والفلاتر (محطة، موديل، قسم)',
+          update_status: 'أيقونة تحديث الكميات المركّبة للسيارة',
+          notes: 'أيقونة ملاحظات السيارة ومتابعة النقص',
+          update: 'أيقونة تعديل سجلات النقص',
+          delete: 'أيقونة حذف سجلات النقص',
+          complete: 'أيقونة انتهاء من السيارة (الأرشفة)',
+          bulk_install: 'تحديد السيارات والتركيب الجماعي',
           approve: 'اعتماد أو تأكيد العمليات',
           import: 'استيراد بيانات من ملفات',
-          export: 'تصدير البيانات إلى ملفات',
+          export: 'تصدير PDF و Excel من الجدول',
           print: 'طباعة التقارير',
           manage: 'إدارة كاملة للوحدة (مستخدمون، إعدادات متقدمة)',
           assign: 'تعيين مهام أو موارد لأشخاص',
@@ -1905,8 +1938,22 @@ export const translations = {
         settings: 'الإعدادات'
       },
       action: {
-        view: 'عرض', create: 'إنشاء', update: 'تعديل', delete: 'حذف', approve: 'اعتماد',
-        import: 'استيراد', export: 'تصدير', manage: 'إدارة', print: 'طباعة', assign: 'تعيين', override: 'تجاوز'
+        view: 'عرض',
+        create: 'تسجيل نقص',
+        filter: 'الفلاتر',
+        update_status: 'تحديث الكميات',
+        notes: 'ملاحظات',
+        update: 'تعديل',
+        delete: 'حذف',
+        complete: 'انتهاء السيارة',
+        bulk_install: 'تركيب جماعي',
+        approve: 'اعتماد',
+        import: 'استيراد',
+        export: 'تصدير',
+        manage: 'إدارة',
+        print: 'طباعة',
+        assign: 'تعيين',
+        override: 'تجاوز'
       },
       user: 'المستخدم', permission: 'الصلاحية', allow: 'مسموح', reason: 'السبب', savePermissions: 'حفظ الصلاحيات',
       linkUserEmployee: 'ربط مستخدم بموظف', employee: 'الموظف', noEmployee: 'بدون موظف',
@@ -2348,7 +2395,7 @@ export const translations = {
     productivity: {
       title: 'Productivity',
       subtitle: 'Track vehicles entering the line and exiting for delivery',
-      tabs: { orders: 'Production plan', entry: 'Entry productivity', exit: 'Exit productivity', stops: 'Line stops', summary: 'Productivity summary' },
+      tabs: { orders: 'Production plan', workDays: 'Working days', entry: 'Entry productivity', exit: 'Exit productivity', stops: 'Line stops', summary: 'Productivity summary' },
       entryTitle: 'Entry productivity',
       entrySubtitle: 'Vehicles on the line — register new entries and track production',
       exitTitle: 'Exit productivity',
@@ -2372,7 +2419,9 @@ export const translations = {
         syncFromDaily: 'Sync from daily',
         syncedFromDaily: 'Filled from daily entry records and saved.',
         hint: 'Enter car counts per parent model and day — auto-saved, or use Sync from daily to pull from entry registrations.',
-        noModels: 'No parent models configured in Settings.'
+        noModels: 'No parent models configured in Settings.',
+        delayReasons: 'Productivity delay reasons',
+        delayReasonsPlaceholder: 'e.g. line stop, part shortage, equipment fault…'
       },
       exitMonthly: {
         title: 'Monthly exit productivity',
@@ -2409,7 +2458,20 @@ export const translations = {
         errTimeOrder: 'End time must be after start time.',
         errLost: 'Invalid lost vehicle count.',
         lostAutoHint: 'Auto: stop duration ÷ takt time ({takt} min) — you can edit manually.',
+        noModel: '— No model —',
+        stopTypePartial: 'Partial',
+        stopTypeFull: 'Full',
+        deptSummaryTitle: 'Summary by responsible department',
+        deptSummaryExportTitle: 'Line stops summary — {month}',
+        deptSummaryEmpty: 'No stops recorded this month.',
+        deptSummaryCols: {
+          department: 'Responsible department',
+          lost: 'Lost vehicles',
+          downtime: 'Downtime'
+        },
         fields: {
+          model: 'Model',
+          stopType: 'Stop type',
           reason: 'Stop reason',
           from: 'From',
           to: 'To',
@@ -2418,6 +2480,8 @@ export const translations = {
           notes: 'Notes'
         },
         cols: {
+          model: 'Model',
+          stopType: 'Stop type',
           reason: 'Stop reason',
           from: 'From',
           to: 'To',
@@ -2428,7 +2492,7 @@ export const translations = {
       },
       summary: {
         title: 'Productivity summary',
-        subtitle: 'Daily table: entry, exit, stop losses and total deficit',
+        subtitle: 'Daily table: entry, exit and stops — hours and deficit from the Working days tab',
         deficitHint: 'Total deficit = entry productivity − exit productivity − stop lost vehicles (per day).',
         cols: {
           date: 'Date',
@@ -2487,7 +2551,7 @@ export const translations = {
       },
       tabs: {
         planOrders: 'Plan & orders',
-        workDays: 'Productivity summary'
+        workDays: 'Working days'
       },
       workDaysTab: {
         title: 'Working days',
@@ -2982,8 +3046,9 @@ export const translations = {
       deleteGroupConfirm: 'Delete {n} shortage records for «{part}»?',
       addPartLine: 'Add part', batchHint: '{lines} parts × {cars} vehicles = {total} shortage records.',
       batchSuccess: 'Recorded: {cars} vehicles · {parts} shortage lines',
-      errAllVins: 'Enter a VIN for each vehicle in the count.',
-      errVinIndex: 'VIN #{n}: must be at least 4 characters.',
+      errAllVins: 'Enter a chassis number for each vehicle in the count.',
+      errDuplicateVin: 'The same chassis number cannot be used twice in one report.',
+      errVinIndex: 'Chassis #{n}: must be exactly 4 digits.',
       errOnePart: 'Add at least one missing part.',
       errOneIssue: 'Add at least one issue (reason description).',
       selectVariant: 'Select variant model',
@@ -3015,10 +3080,12 @@ export const translations = {
         kindModel: 'Model',
         noMatches: 'No matching suggestions'
       },
-      tabs: { active: 'Active shortages', history: 'Archive / completed', summary: 'Shortages summary' },
+      tabs: { active: 'Active shortages', summary: 'Shortages summary', history: 'Archive', historySummary: 'Archive summary' },
       summary: {
         title: 'Current shortages overview',
         hint: 'Open vehicles, reasons, departments and stations — respects the filters above.',
+        archiveTitle: 'Archive overview',
+        archiveHint: 'Completed vehicles, reasons, departments and stations — respects the filters above.',
         vehicles: 'Vehicles',
         lines: 'Shortage lines',
         pendingVehicles: 'Vehicles with remaining qty',
@@ -3041,6 +3108,10 @@ export const translations = {
       completeSeparateHint: 'Install updates quantities only. Archive via «Complete vehicle» as a separate step.',
       noActionsPerm: 'No permission',
       completeSuccess: 'Vehicle {vin} archived — all lines closed.',
+      completeAllConfirm: 'Did you install all vehicles?',
+      completeAllMessage: 'Shortage follow-up will end and {n} vehicle(s) will move to archive.',
+      completeAllYes: 'Yes, all vehicles installed',
+      completeAllSuccess: '{n} vehicle(s) archived.',
       deleteConfirm: 'Delete shortage record «{part}»?',
       detail: { title: 'Shortage details', stopper: 'Stopper (line / car)' },
       edit: {
@@ -3774,6 +3845,10 @@ export const translations = {
         pageDesc: {
           production_home: 'Production department home',
           production_missing: 'Vehicle and parts shortage reports',
+          production_missing__active: 'Active shortages list tab',
+          production_missing__summary: 'Shortages summary tab',
+          production_missing__history: 'Archive tab',
+          production_missing__historySummary: 'Archive summary tab',
           production_productivity: 'Productivity and production orders',
           production_training: 'Workforce, attendance, training',
           production_damaged_parts: 'Damaged parts tracking',
@@ -3796,12 +3871,17 @@ export const translations = {
         },
         actionDesc: {
           view: 'Open screen and read data',
-          create: 'Add new records',
-          update: 'Edit existing data',
-          delete: 'Delete or deactivate records',
+          create: 'Report a new shortage',
+          filter: 'Use search and filters (station, model, department)',
+          update_status: 'Update installed quantities icon',
+          notes: 'Vehicle notes and follow-up icon',
+          update: 'Edit shortage records icon',
+          delete: 'Delete shortage records icon',
+          complete: 'Complete vehicle (archive) icon',
+          bulk_install: 'Select vehicles and bulk install',
           approve: 'Approve or confirm operations',
           import: 'Import data from files',
-          export: 'Export data to files',
+          export: 'Export PDF and Excel from table',
           print: 'Print reports',
           manage: 'Full module administration',
           assign: 'Assign tasks or resources to people',
@@ -3826,8 +3906,22 @@ export const translations = {
         settings: 'Settings'
       },
       action: {
-        view: 'View', create: 'Create', update: 'Update', delete: 'Delete', approve: 'Approve',
-        import: 'Import', export: 'Export', manage: 'Manage', print: 'Print', assign: 'Assign', override: 'Override'
+        view: 'View',
+        create: 'Report shortage',
+        filter: 'Filters',
+        update_status: 'Update qty',
+        notes: 'Notes',
+        update: 'Edit',
+        delete: 'Delete',
+        complete: 'Complete vehicle',
+        bulk_install: 'Bulk install',
+        approve: 'Approve',
+        import: 'Import',
+        export: 'Export',
+        manage: 'Manage',
+        print: 'Print',
+        assign: 'Assign',
+        override: 'Override'
       },
       user: 'User', permission: 'Permission', allow: 'Allowed', reason: 'Reason', savePermissions: 'Save permissions',
       linkUserEmployee: 'Link user to employee', employee: 'Employee', noEmployee: 'No employee',

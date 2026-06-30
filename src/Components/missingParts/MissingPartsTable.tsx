@@ -18,7 +18,9 @@ import {
   canCompleteVehicle,
   cell,
   formatDateTime,
-  iconSize
+  iconSize,
+  isMissingPartRowOpen,
+  uniqueVehicleReps
 } from '../../Utils/missingPartPageUtils'
 import type { MissingPartDetail } from '../../Types/missingPart'
 import type { MpLookupOption } from '../../Types/mpLookup'
@@ -32,9 +34,11 @@ type Props = {
   reasons: MpLookupOption[]
   departments: MpLookupOption[]
   canBulkInstall: boolean
+  canExport: boolean
   canEdit: boolean
   canDelete: boolean
   canUpdateStatus: boolean
+  canNotes: boolean
   canComplete: boolean
   selectableVehicleIds: Set<string>
   selectedVehicleIds: Set<string>
@@ -51,6 +55,7 @@ type Props = {
   onUpdate: (part: MissingPartDetail) => void
   onDeleteParts: (parts: MissingPartDetail[]) => void
   onComplete: (part: MissingPartDetail) => void
+  onCompleteAll: (parts: MissingPartDetail[]) => void
 }
 
 export function MissingPartsTable({
@@ -60,9 +65,11 @@ export function MissingPartsTable({
   reasons,
   departments,
   canBulkInstall,
+  canExport,
   canEdit,
   canDelete,
   canUpdateStatus,
+  canNotes,
   canComplete,
   selectableVehicleIds,
   selectedVehicleIds,
@@ -78,18 +85,29 @@ export function MissingPartsTable({
   onEdit,
   onUpdate,
   onDeleteParts,
-  onComplete
+  onComplete,
+  onCompleteAll
 }: Props) {
   const { t, lang } = useLang()
   const cols = listTab === 'history' ? HISTORY_COLS : ACTIVE_COLS
   const tableRows = buildMissingPartTableRows(filtered)
   const [expandedVehicles, setExpandedVehicles] = useState<Set<string>>(() => new Set())
+  const [expandedGroups, setExpandedGroups] = useState<Set<string>>(() => new Set())
 
   function toggleVehicleExpand(vehicleId: string) {
     setExpandedVehicles(prev => {
       const next = new Set(prev)
       if (next.has(vehicleId)) next.delete(vehicleId)
       else next.add(vehicleId)
+      return next
+    })
+  }
+
+  function toggleGroupExpand(groupKey: string) {
+    setExpandedGroups(prev => {
+      const next = new Set(prev)
+      if (next.has(groupKey)) next.delete(groupKey)
+      else next.add(groupKey)
       return next
     })
   }
@@ -110,6 +128,7 @@ export function MissingPartsTable({
       filename={listTab === 'history' ? 'missing-parts-archive' : 'missing-parts'}
       title={t('mp.title')}
       rowCount={loading ? 0 : tableRows.length}
+      showExport={canExport}
     >
     <div className="overflow-x-auto">
       <table className="w-full text-center">
@@ -146,10 +165,13 @@ export function MissingPartsTable({
         <tbody className="divide-y divide-slate-800">
           {tableRows.map(row => {
             if (row.kind === 'report-group') {
+              const expanded = expandedGroups.has(row.displayRow.key)
               return (
                 <ReportGroupRow
                   key={row.displayRow.key}
                   displayRow={row.displayRow}
+                  expanded={expanded}
+                  onToggleExpand={() => toggleGroupExpand(row.displayRow.key)}
                   listTab={listTab}
                   filtered={filtered}
                   reasons={reasons}
@@ -158,13 +180,13 @@ export function MissingPartsTable({
                   canEdit={canEdit}
                   canDelete={canDelete}
                   canUpdateStatus={canUpdateStatus}
+                  canNotes={canNotes}
                   canComplete={canComplete}
                   bulkInstalling={bulkInstalling}
                   completingVehicleId={completingVehicleId}
                   rowChecked={rowChecked(row)}
                   rowSelectable={rowSelectable(row)}
                   onToggleRowSelection={() => onToggleRowSelection(row)}
-                  onOpenVinList={onOpenVinList}
                   onOpenDetail={onOpenDetail}
                   onOpenNotes={onOpenNotes}
                   onEdit={onEdit}
@@ -172,6 +194,7 @@ export function MissingPartsTable({
                   onDeleteParts={onDeleteParts}
                   deleteTargets={row.displayRow.items}
                   onComplete={onComplete}
+                  onCompleteAll={onCompleteAll}
                 />
               )
             }
@@ -195,6 +218,7 @@ export function MissingPartsTable({
                   canEdit={canEdit}
                   canDelete={canDelete}
                   canUpdateStatus={canUpdateStatus}
+                  canNotes={canNotes}
                   canComplete={canComplete}
                   bulkInstalling={bulkInstalling}
                   completingVehicleId={completingVehicleId}
@@ -209,6 +233,7 @@ export function MissingPartsTable({
                   onDeleteParts={onDeleteParts}
                   deleteTargets={row.parts}
                   onComplete={onComplete}
+                  onCompleteAll={onCompleteAll}
                 />
               )
             }
@@ -225,6 +250,7 @@ export function MissingPartsTable({
                 canEdit={canEdit}
                 canDelete={canDelete}
                 canUpdateStatus={canUpdateStatus}
+                canNotes={canNotes}
                 canComplete={canComplete}
                 bulkInstalling={bulkInstalling}
                 completingVehicleId={completingVehicleId}
@@ -238,6 +264,7 @@ export function MissingPartsTable({
                 onDeleteParts={onDeleteParts}
                 deleteTargets={[row.item]}
                 onComplete={onComplete}
+                onCompleteAll={onCompleteAll}
               />
             )
           })}
@@ -261,6 +288,7 @@ type RowProps = {
   canEdit: boolean
   canDelete: boolean
   canUpdateStatus: boolean
+  canNotes: boolean
   canComplete: boolean
   bulkInstalling: boolean
   completingVehicleId: string | null
@@ -274,43 +302,122 @@ type RowProps = {
   onDeleteParts: (parts: MissingPartDetail[]) => void
   deleteTargets: MissingPartDetail[]
   onComplete: (part: MissingPartDetail) => void
+  onCompleteAll: (parts: MissingPartDetail[]) => void
 }
 
 function ReportGroupRow({
   displayRow,
-  onOpenVinList,
+  expanded,
+  onToggleExpand,
   ...props
-}: RowProps & { displayRow: Extract<MissingPartDisplayRow, { kind: 'group' }>; onOpenVinList: Props['onOpenVinList'] }) {
+}: RowProps & {
+  displayRow: Extract<MissingPartDisplayRow, { kind: 'group' }>
+  expanded: boolean
+  onToggleExpand: () => void
+}) {
   const { t, lang } = useLang()
   const i = primaryItem(displayRow)
   const groupVins = displayRow.items.map(x => x.vin)
   const qty = aggregateQty(displayRow.items)
   const issueCount = displayRow.items.length
+  const vehicleReps = uniqueVehicleReps(displayRow.items)
 
   return (
-    <PartDataRow
-      {...props}
-      item={i}
-      issueCount={issueCount}
-      isGroup
-      vinCell={
-        <button
-          type="button"
-          onClick={() => onOpenVinList(groupVins, i.modelName, i.colorName)}
-          className="text-cyan-300 hover:text-cyan-200 hover:underline"
-          title={t('mp.vinListModal.open')}
-        >
-          {t('mp.vinCount', { n: groupVins.length })}
-        </button>
-      }
-      qty={qty}
-      stationLabel={i.stationNumber ? (i.stationName ? `${i.stationNumber} · ${i.stationName}` : i.stationNumber) : '-'}
-      deleteTargets={displayRow.items}
-      reasons={props.reasons}
-      departments={props.departments}
-      lang={lang}
-      showCompleteBtn={false}
-    />
+    <>
+      <PartDataRow
+        {...props}
+        item={i}
+        issueCount={issueCount}
+        isGroup
+        vinCell={
+          <div className="flex items-center justify-center gap-1">
+            <button
+              type="button"
+              onClick={onToggleExpand}
+              className="rounded-md p-1 text-cyan-300 hover:bg-slate-800"
+              title={expanded ? t('mp.collapseReasons') : t('mp.expandReasons')}
+              aria-expanded={expanded}
+            >
+              {expanded ? <ChevronDown className="h-4 w-4" /> : <ChevronLeft className="h-4 w-4 rtl:rotate-180" />}
+            </button>
+            <span className="text-cyan-300">{t('mp.vinCount', { n: groupVins.length })}</span>
+          </div>
+        }
+        qty={qty}
+        stationLabel={i.stationNumber ? (i.stationName ? `${i.stationNumber} · ${i.stationName}` : i.stationNumber) : '-'}
+        deleteTargets={displayRow.items}
+        reasons={props.reasons}
+        departments={props.departments}
+        lang={lang}
+        relatedParts={displayRow.items}
+        completeRep={vehicleReps[0] ?? i}
+        completeAllReps={vehicleReps.length > 1 ? vehicleReps : undefined}
+        rowClassName={expanded ? 'bg-slate-800/50' : ''}
+      />
+      {expanded &&
+        vehicleReps.map((rep, index) => {
+          const vehicleParts = displayRow.items.filter(p => p.vehicleId === rep.vehicleId)
+          const vehicleQty = aggregateQty(vehicleParts)
+          return (
+            <tr key={rep.vehicleId} className="bg-slate-950/60">
+              {props.listTab === 'active' && <td className={cell} />}
+              <td className={`${cell} font-mono font-bold text-slate-200`} dir="ltr">
+                <span className="me-2 text-slate-500">{index + 1}</span>
+                {rep.vin}
+              </td>
+              <td className={cell}>{rep.modelName}</td>
+              <td className={cell}>
+                {rep.colorName ? (
+                  <span className="inline-flex items-center justify-center gap-1.5">
+                    <span
+                      className="inline-block h-3 w-3 rounded-full ring-1 ring-slate-500"
+                      style={{ backgroundColor: rep.colorHex ?? '#fff' }}
+                    />
+                    {rep.colorName}
+                  </span>
+                ) : (
+                  '—'
+                )}
+              </td>
+              <td className={cell}>—</td>
+              <td className={cell}>
+                <span className="font-mono tabular-nums">
+                  <span className="text-cyan-200">{vehicleQty.installed}</span>
+                  <span className="text-slate-500">/</span>
+                  <span className="text-slate-200">{vehicleQty.required}</span>
+                </span>
+              </td>
+              <td className={cell} colSpan={3} />
+              <td className={`${cell} text-slate-400`}>
+                <DateTimeCell iso={rep.createdAt} lang={lang} />
+              </td>
+              {props.listTab === 'history' && <td className={cell} />}
+              <td data-export-skip className={actionsCell} style={{ insetInlineEnd: 0 }}>
+                <ActionsCell
+                  item={rep}
+                  issueCount={vehicleParts.length}
+                  rowOpen={isMissingPartRowOpen(vehicleParts)}
+                  archiveMode={props.listTab === 'history'}
+                  filtered={props.filtered}
+                  deleteTargets={vehicleParts}
+                  canUpdateStatus={props.canUpdateStatus}
+                  canNotes={props.canNotes}
+                  canEdit={props.canEdit}
+                  canDelete={props.canDelete}
+                  canComplete={props.canComplete}
+                  completeRep={rep}
+                  completingVehicleId={props.completingVehicleId}
+                  onOpenNotes={props.onOpenNotes}
+                  onEdit={props.onEdit}
+                  onUpdate={props.onUpdate}
+                  onDeleteParts={props.onDeleteParts}
+                  onComplete={props.onComplete}
+                />
+              </td>
+            </tr>
+          )
+        })}
+    </>
   )
 }
 
@@ -359,6 +466,8 @@ function VehicleRows({
         reasons={props.reasons}
         departments={props.departments}
         lang={lang}
+        relatedParts={parts}
+        completeRep={primary}
         rowClassName={expanded ? 'bg-slate-800/50' : ''}
       />
       {expanded &&
@@ -405,11 +514,13 @@ function VehicleRows({
                   issueCount={1}
                   rowOpen={part.status !== 'closed' && part.status !== 'cancelled'}
                   archiveMode={props.listTab === 'history'}
+                  filtered={props.filtered}
                   deleteTargets={[part]}
                   canUpdateStatus={props.canUpdateStatus}
+                  canNotes={props.canNotes}
                   canEdit={props.canEdit}
                   canDelete={props.canDelete}
-                  showCompleteBtn={false}
+                  canComplete={false}
                   completingVehicleId={props.completingVehicleId}
                   onOpenNotes={props.onOpenNotes}
                   onEdit={props.onEdit}
@@ -442,6 +553,7 @@ function SinglePartRow({ item, ...props }: RowProps & { item: MissingPartDetail 
       reasons={props.reasons}
       departments={props.departments}
       lang={lang}
+      completeRep={item}
     />
   )
 }
@@ -464,6 +576,7 @@ function PartDataRow({
   canEdit,
   canDelete,
   canUpdateStatus,
+  canNotes,
   canComplete,
   bulkInstalling,
   completingVehicleId,
@@ -477,8 +590,11 @@ function PartDataRow({
   onDeleteParts,
   deleteTargets,
   onComplete,
+  onCompleteAll,
   rowClassName = '',
-  showCompleteBtn: showCompleteBtnOverride
+  relatedParts,
+  completeRep,
+  completeAllReps
 }: RowProps & {
   item: MissingPartDetail
   issueCount: number
@@ -490,13 +606,14 @@ function PartDataRow({
   reasonClassSummary?: string
   lang: string
   rowClassName?: string
-  showCompleteBtn?: boolean
+  relatedParts?: MissingPartDetail[]
+  completeRep?: MissingPartDetail
+  completeAllReps?: MissingPartDetail[]
 }) {
   const { t } = useLang()
-  const rowOpen = item.status !== 'closed' && item.status !== 'cancelled'
-  const canArchiveVehicle = canCompleteVehicle(item.vehicleId, filtered)
-  const showCompleteBtn =
-    showCompleteBtnOverride ?? (listTab === 'active' && canComplete && canArchiveVehicle && !isGroup)
+  const rowScope = relatedParts ?? [item]
+  const rowOpen = isMissingPartRowOpen(rowScope)
+  const completeTarget = completeRep ?? item
 
   return (
     <tr className={`bg-slate-900/30 hover:bg-slate-800/40 ${rowChecked ? 'ring-1 ring-inset ring-cyan-500/40' : ''} ${rowClassName}`}>
@@ -572,17 +689,22 @@ function PartDataRow({
             issueCount={issueCount}
             rowOpen={rowOpen}
             archiveMode={listTab === 'history'}
+            filtered={filtered}
             deleteTargets={deleteTargets}
             canUpdateStatus={canUpdateStatus}
+            canNotes={canNotes}
             canEdit={canEdit}
             canDelete={canDelete}
-            showCompleteBtn={showCompleteBtn}
+            canComplete={canComplete}
+            completeRep={completeTarget}
+            completeAllReps={completeAllReps}
             completingVehicleId={completingVehicleId}
             onOpenNotes={onOpenNotes}
             onEdit={onEdit}
             onUpdate={onUpdate}
             onDeleteParts={onDeleteParts}
             onComplete={onComplete}
+            onCompleteAll={onCompleteAll}
           />
         </td>
       )}
@@ -605,36 +727,52 @@ function ActionsCell({
   issueCount,
   rowOpen,
   archiveMode = false,
+  filtered,
   deleteTargets,
   canUpdateStatus,
+  canNotes,
   canEdit,
   canDelete,
-  showCompleteBtn,
+  canComplete,
+  completeRep,
+  completeAllReps,
   completingVehicleId,
   onOpenNotes,
   onEdit,
   onUpdate,
   onDeleteParts,
-  onComplete
+  onComplete,
+  onCompleteAll
 }: {
   item: MissingPartDetail
   issueCount: number
   rowOpen: boolean
   archiveMode?: boolean
+  filtered: MissingPartDetail[]
   deleteTargets: MissingPartDetail[]
   canUpdateStatus: boolean
+  canNotes: boolean
   canEdit: boolean
   canDelete: boolean
-  showCompleteBtn: boolean
+  canComplete: boolean
+  completeRep?: MissingPartDetail
+  completeAllReps?: MissingPartDetail[]
   completingVehicleId: string | null
   onOpenNotes: (part: MissingPartDetail) => void
   onEdit: (part: MissingPartDetail) => void
   onUpdate: (part: MissingPartDetail) => void
   onDeleteParts: (parts: MissingPartDetail[]) => void
   onComplete: (part: MissingPartDetail) => void
+  onCompleteAll?: (parts: MissingPartDetail[]) => void
 }) {
   const { t } = useLang()
   const canAct = archiveMode || rowOpen
+  const target = completeRep ?? item
+  const completeAll = completeAllReps && completeAllReps.length > 1
+  const canArchiveSingle = canCompleteVehicle(target.vehicleId, filtered)
+  const canArchiveAnyInGroup = completeAllReps?.some(rep => canCompleteVehicle(rep.vehicleId, filtered)) ?? false
+  const groupBusy = completeAllReps?.some(rep => completingVehicleId === rep.vehicleId) ?? false
+  const singleBusy = completingVehicleId === target.vehicleId
 
   return (
     <div className="flex items-center justify-center gap-1">
@@ -643,7 +781,7 @@ function ActionsCell({
           <Settings2 className={iconSize} />
         </IconBtn>
       )}
-      {!archiveMode && (
+      {!archiveMode && rowOpen && canNotes && (
         <IconBtn title={t('mp.thread.open')} onClick={() => onOpenNotes(item)} className="text-cyan-400 hover:bg-cyan-500/20">
           <MessageSquare className={iconSize} />
         </IconBtn>
@@ -658,11 +796,22 @@ function ActionsCell({
           <Trash2 className={iconSize} />
         </IconBtn>
       )}
-      {!archiveMode && rowOpen && showCompleteBtn && (
+      {!archiveMode && rowOpen && canComplete && completeAll && onCompleteAll && (
         <IconBtn
-          title={t('mp.complete')}
-          onClick={() => onComplete(item)}
-          className={`text-emerald-400 hover:bg-emerald-500/20 ${completingVehicleId === item.vehicleId ? 'opacity-35' : ''}`}
+          title={canArchiveAnyInGroup ? t('mp.completeAllConfirm') : t('mp.completeDisabledHint')}
+          disabled={!canArchiveAnyInGroup || groupBusy}
+          onClick={() => onCompleteAll(completeAllReps)}
+          className="text-emerald-400 hover:bg-emerald-500/20 disabled:cursor-not-allowed disabled:opacity-35"
+        >
+          <CheckCircle2 className={iconSize} />
+        </IconBtn>
+      )}
+      {!archiveMode && rowOpen && canComplete && !completeAll && (
+        <IconBtn
+          title={canArchiveSingle ? t('mp.complete') : t('mp.completeDisabledHint')}
+          disabled={!canArchiveSingle || singleBusy}
+          onClick={() => onComplete(target)}
+          className="text-emerald-400 hover:bg-emerald-500/20 disabled:cursor-not-allowed disabled:opacity-35"
         >
           <CheckCircle2 className={iconSize} />
         </IconBtn>
@@ -671,9 +820,21 @@ function ActionsCell({
   )
 }
 
-function IconBtn({ title, onClick, className, children }: { title: string; onClick: () => void; className: string; children: ReactNode }) {
+function IconBtn({
+  title,
+  onClick,
+  className,
+  disabled,
+  children
+}: {
+  title: string
+  onClick: () => void
+  className: string
+  disabled?: boolean
+  children: ReactNode
+}) {
   return (
-    <button type="button" title={title} onClick={onClick} className={`rounded-md p-1.5 ${className}`}>
+    <button type="button" title={title} disabled={disabled} onClick={onClick} className={`rounded-md p-1.5 ${className}`}>
       {children}
     </button>
   )

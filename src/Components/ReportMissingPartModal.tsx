@@ -13,15 +13,14 @@ import { useFormatError } from '../hooks/useFormatError'
 import { useMpLookups } from '../hooks/useMpLookups'
 import { MpLookupCreatableSelect } from './MpLookupCreatableSelect'
 import { defaultDepartmentCode, defaultReasonCode } from '../Utils/mpLookupLabel'
-import { isValidVinLength } from '../Utils/vinValidation'
+import { isValidVinLength, normalizeChassisVin } from '../Utils/vinValidation'
 
 const PRIORITIES: PriorityLevel[] = ['low', 'normal', 'high', 'critical']
 const STOPPER_TYPES: StopperType[] = ['line_stopper', 'car_stopper']
 
-type IssueLineDraft = MissingPartLineInput & {
+type IssueLineDraft = Omit<MissingPartLineInput, 'vins'> & {
   key: string
   station: Station | null
-  vehicleCount: number
 }
 
 function resizeVins(count: number, prev: string[]): string[] {
@@ -39,9 +38,7 @@ function newIssueLine(): IssueLineDraft {
     reason: '',
     department: '',
     stationId: null,
-    station: null,
-    vehicleCount: 1,
-    vins: ['']
+    station: null
   }
 }
 
@@ -52,6 +49,8 @@ type VehicleForm = {
   priority: PriorityLevel
   stopperType: StopperType
   notes: string
+  vehicleCount: number
+  vins: string[]
 }
 
 const emptyVehicle: VehicleForm = {
@@ -60,7 +59,9 @@ const emptyVehicle: VehicleForm = {
   colorId: null,
   priority: 'normal',
   stopperType: 'car_stopper',
-  notes: ''
+  notes: '',
+  vehicleCount: 1,
+  vins: ['']
 }
 
 type Props = {
@@ -123,23 +124,13 @@ export function ReportMissingPartModal({ open, onClose, onReported }: Props) {
     patchIssue(key, { station, stationId: station?.id ?? null })
   }
 
-  function setLineVehicleCount(key: string, n: number) {
-    const c = Math.max(1, Math.min(20, n))
-    setIssues(prev =>
-      prev.map(l => {
-        if (l.key !== key) return l
-        return { ...l, vehicleCount: c, vins: resizeVins(c, l.vins) }
-      })
-    )
+  function setVehicleCount(n: number) {
+    const count = Math.max(1, Math.min(20, n))
+    setVehicle(prev => ({ ...prev, vehicleCount: count, vins: resizeVins(count, prev.vins) }))
   }
 
-  function updateLineVin(key: string, index: number, value: string) {
-    setIssues(prev =>
-      prev.map(l => {
-        if (l.key !== key) return l
-        return { ...l, vins: l.vins.map((v, i) => (i === index ? value : v)) }
-      })
-    )
+  function updateVehicleVin(index: number, value: string) {
+    setVehicle(prev => ({ ...prev, vins: prev.vins.map((v, i) => (i === index ? value : v)) }))
   }
 
   function addIssue() {
@@ -165,14 +156,17 @@ export function ReportMissingPartModal({ open, onClose, onReported }: Props) {
     const validIssues = issues.filter(l => l.partDescription.trim())
     if (validIssues.length === 0) missing.push(t('mp.errOneIssue'))
 
+    const vinList = vehicle.vins.map(v => normalizeChassisVin(v)).filter(Boolean)
+    if (vinList.length !== vehicle.vehicleCount) missing.push(t('mp.errAllVins'))
+    for (let vi = 0; vi < vinList.length; vi++) {
+      if (!isValidVinLength(vinList[vi])) missing.push(t('mp.errVinIndex', { n: vi + 1 }))
+    }
+    const uniqueVins = new Set(vinList)
+    if (uniqueVins.size !== vinList.length) missing.push(t('mp.errDuplicateVin'))
+
     for (let li = 0; li < validIssues.length; li++) {
       const line = validIssues[li]
       if (!line.stationId) missing.push(t('mp.errIssueStation', { n: li + 1 }))
-      const vinList = line.vins.map(v => v.trim()).filter(Boolean)
-      if (vinList.length !== line.vehicleCount) missing.push(t('mp.errIssueVins', { n: li + 1 }))
-      for (let vi = 0; vi < vinList.length; vi++) {
-        if (!isValidVinLength(vinList[vi])) missing.push(t('mp.errIssueVinIndex', { issue: li + 1, vin: vi + 1 }))
-      }
     }
 
     if (missing.length > 0) {
@@ -183,35 +177,26 @@ export function ReportMissingPartModal({ open, onClose, onReported }: Props) {
     setSubmitting(true)
     setFormError('')
     try {
-      let totalCars = 0
-      let totalRecords = 0
-      for (const line of validIssues) {
-        const vinList = line.vins.map(v => v.trim())
-        const result = await reportMissingPartsBatch({
-          vins: vinList,
-          modelId: vehicle.modelId,
-          parts: [
-            {
-              partDescription: line.partDescription.trim(),
-              requiredQty: 1,
-              reason: line.reason,
-              department: line.department,
-              stationId: line.stationId,
-              vins: vinList
-            }
-          ],
-          colorId: vehicle.colorId,
-          stationId: line.stationId,
+      const normalizedVins = vehicle.vins.map(v => normalizeChassisVin(v))
+      const result = await reportMissingPartsBatch({
+        vins: normalizedVins,
+        modelId: vehicle.modelId,
+        parts: validIssues.map(line => ({
+          partDescription: line.partDescription.trim(),
+          requiredQty: 1,
           reason: line.reason,
           department: line.department,
-          priority: vehicle.priority,
-          stopperType: vehicle.stopperType,
-          notes: vehicle.notes || undefined
-        })
-        totalCars += result.vehicle_count
-        totalRecords += result.missing_part_count
-      }
-      onReported?.(t('mp.batchSuccess', { cars: totalCars, parts: totalRecords }))
+          stationId: line.stationId
+        })),
+        colorId: vehicle.colorId,
+        stationId: validIssues[0]?.stationId ?? null,
+        reason: validIssues[0]?.reason,
+        department: validIssues[0]?.department,
+        priority: vehicle.priority,
+        stopperType: vehicle.stopperType,
+        notes: vehicle.notes || undefined
+      })
+      onReported?.(t('mp.batchSuccess', { cars: result.vehicle_count, parts: result.missing_part_count }))
       onClose()
     } catch (err) {
       setFormError(formatError(err))
@@ -220,9 +205,7 @@ export function ReportMissingPartModal({ open, onClose, onReported }: Props) {
     }
   }
 
-  const totalRecords = issues
-    .filter(l => l.partDescription.trim())
-    .reduce((s, l) => s + l.vehicleCount, 0)
+  const totalRecords = issues.filter(l => l.partDescription.trim()).length * vehicle.vehicleCount
 
   return (
     <Modal
@@ -294,6 +277,36 @@ export function ReportMissingPartModal({ open, onClose, onReported }: Props) {
                 </select>
               )}
             </Field>
+            <Field label={t('mp.f.vehicleCount')} required>
+              <input
+                type="number"
+                min={1}
+                max={20}
+                className="input-dark"
+                value={vehicle.vehicleCount}
+                onChange={e => setVehicleCount(Number(e.target.value) || 1)}
+              />
+            </Field>
+          </div>
+          <div className="space-y-2 rounded-xl border border-slate-800 bg-slate-950/40 p-3">
+            <p className="text-[10px] font-bold uppercase text-slate-500">
+              {vehicle.vehicleCount === 1 ? t('mp.singleVinTitle') : t('mp.vinListTitle')}
+            </p>
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+              {vehicle.vins.map((vin, vi) => (
+                <Field key={vi} label={vehicle.vehicleCount === 1 ? t('mp.f.vin') : t('mp.f.vinN', { n: vi + 1 })} required>
+                  <input
+                    className="input-dark font-mono"
+                    dir="ltr"
+                    inputMode="numeric"
+                    maxLength={4}
+                    value={vin}
+                    onChange={e => updateVehicleVin(vi, e.target.value.replace(/\D/g, '').slice(0, 4))}
+                    placeholder="0000"
+                  />
+                </Field>
+              ))}
+            </div>
           </div>
         </section>
 
@@ -342,17 +355,7 @@ export function ReportMissingPartModal({ open, onClose, onReported }: Props) {
                   />
                 </Field>
 
-                <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
-                  <Field label={t('mp.f.vehicleCount')} required>
-                    <input
-                      type="number"
-                      min={1}
-                      max={20}
-                      className="input-dark"
-                      value={line.vehicleCount}
-                      onChange={e => setLineVehicleCount(line.key, Number(e.target.value) || 1)}
-                    />
-                  </Field>
+                <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                   <Field label={t('mp.cols.reasonClass')}>
                     <MpLookupCreatableSelect
                       options={reasons}
@@ -371,23 +374,6 @@ export function ReportMissingPartModal({ open, onClose, onReported }: Props) {
                       addLabel={t('mp.addDepartmentOption')}
                     />
                   </Field>
-                </div>
-
-                <div className="space-y-2 rounded-xl border border-slate-800 bg-slate-950/40 p-3">
-                  <p className="text-[10px] font-bold uppercase text-slate-500">
-                    {line.vehicleCount === 1 ? t('mp.singleVinTitle') : t('mp.vinListTitle')}
-                  </p>
-                  {line.vins.map((vin, vi) => (
-                    <Field key={vi} label={line.vehicleCount === 1 ? t('mp.f.vin') : t('mp.f.vinN', { n: vi + 1 })} required>
-                      <input
-                        className="input-dark font-mono"
-                        dir="ltr"
-                        value={vin}
-                        onChange={e => updateLineVin(line.key, vi, e.target.value)}
-                        placeholder="VIN"
-                      />
-                    </Field>
-                  ))}
                 </div>
               </div>
             ))}

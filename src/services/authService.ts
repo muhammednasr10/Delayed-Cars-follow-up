@@ -218,7 +218,13 @@ export async function loginWithEmailPassword(
   if (!getSupabase()) return { ok: false, message: 'Supabase غير مهيأ.' }
 
   const edgePayload = await callAppAuth({ action: 'login', email: email.trim(), password })
-  if (edgePayload?.error) return { ok: false, message: payloadErrorAr(edgePayload.error) }
+  if (edgePayload?.error) {
+    const edgeError = payloadErrorAr(edgePayload.error)
+    if (isEdgeAuthUnavailable(edgePayload.error)) {
+      return tryGoTrueLogin(email, password)
+    }
+    return { ok: false, message: edgeError }
+  }
 
   const edgeSession = edgePayload ? sessionFromPayload(edgePayload) : null
   if (edgeSession) {
@@ -229,11 +235,21 @@ export async function loginWithEmailPassword(
   return tryGoTrueLogin(email, password)
 }
 
+function isEdgeAuthUnavailable(error: string): boolean {
+  const normalized = error.toLowerCase()
+  return (
+    normalized.includes('server configuration missing') ||
+    normalized.includes('method not allowed') ||
+    normalized.includes('unknown action')
+  )
+}
+
 function payloadErrorAr(error: string): string {
   const map: Record<string, string> = {
     'Invalid email or password': 'البريد أو كلمة المرور غير صحيحة.',
     'Account is blocked or inactive': 'الحساب موقوف أو غير نشط.',
-    'Linked employee is not active': 'الموظف المرتبط بالحساب غير نشط.'
+    'Linked employee is not active': 'الموظف المرتبط بالحساب غير نشط.',
+    'Server configuration missing': 'إعداد خادم الدخول غير مكتمل — جرّب مرة أخرى أو تواصل مع المسؤول.'
   }
   return map[error] ?? error
 }

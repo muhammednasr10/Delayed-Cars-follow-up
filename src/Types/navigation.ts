@@ -49,7 +49,7 @@ export const SETTINGS_TAB_ORDER = ['administrations', 'models', 'stations', 'col
 
 export type SettingsTab = (typeof SETTINGS_TAB_ORDER)[number]
 
-export type ProductivityTab = 'orders' | 'entry' | 'exit' | 'stops' | 'workDays'
+export type ProductivityTab = 'orders' | 'workDays' | 'entry' | 'exit' | 'stops' | 'summary'
 
 export type ProductionPlanTab = 'planOrders'
 

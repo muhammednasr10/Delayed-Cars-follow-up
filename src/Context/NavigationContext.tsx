@@ -137,12 +137,13 @@ export function NavigationProvider({ children }: { children: ReactNode }) {
   const selectDepartment = useCallback((department: DepartmentId, keepSidebarOpen = false) => {
     setState(prev => {
       const changed = prev.department !== department
+      const leavingSettings = department === 'production' && prev.productionPage === 'settings'
       return {
         ...prev,
         department,
         showProfile: false,
         showGlobalHome: false,
-        ...(changed && department === 'production'
+        ...(department === 'production' && (changed || (leavingSettings && !keepSidebarOpen))
           ? { productionArea: 'assembly' as const, productionPage: 'home' as const }
           : {}),
         ...(changed && department === 'engineering' ? { engineeringPage: 'home' as const } : {}),

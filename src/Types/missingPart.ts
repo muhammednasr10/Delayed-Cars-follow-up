@@ -52,12 +52,16 @@ export type UpdateMissingPartInput = {
   notes?: string
 }
 
-export type MissingPartLineInput = {
+export type MissingPartBatchLineInput = {
   partDescription: string
   requiredQty: number
   reason: MissingPartReason
   department: ResponsibleDepartment
   stationId: string | null
+}
+
+/** Per-line input when each issue may target different VINs (legacy / grouped UI). */
+export type MissingPartLineInput = MissingPartBatchLineInput & {
   vins: string[]
 }
 
@@ -100,7 +104,7 @@ export type ReportMissingPartInput = {
 export type ReportMissingPartsBatchInput = {
   vins: string[]
   modelId: string
-  parts: MissingPartLineInput[]
+  parts: MissingPartBatchLineInput[]
   colorId?: string | null
   stationId?: string | null
   reason: MissingPartReason

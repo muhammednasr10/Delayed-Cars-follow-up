@@ -1,4 +1,6 @@
 import type { UserRole } from '../Types/enums'
+import type { PermissionMap } from '../Types/permissions'
+import { permissionKey } from '../services/permissionsService'
 
 const PRODUCTION_SYSTEM_ROLES = new Set([
   'supervisor',
@@ -7,10 +9,27 @@ const PRODUCTION_SYSTEM_ROLES = new Set([
   'engineer'
 ])
 
-type AuthBits = {
+export type MissingPartsActionBits = {
   isAdmin: boolean
   hasRole: (...roles: UserRole[]) => boolean
   systemRoleCode: string | null
+  permissions: PermissionMap
+}
+
+/** Explicit allow/deny from matrix wins; otherwise legacy default. */
+export function resolveMissingPartAction(
+  bits: MissingPartsActionBits,
+  action: string,
+  legacyDefault: () => boolean
+): boolean {
+  const key = permissionKey('missing_parts', action)
+  if (bits.permissions[key] === true) return true
+  if (bits.permissions[key] === false) return false
+  if (bits.isAdmin || bits.permissions[permissionKey('users', 'manage')]) return true
+  return legacyDefault()
+}
+
+type AuthBits = MissingPartsActionBits & {
   hasPermission: (module: string, action: string) => boolean
 }
 
@@ -27,25 +46,23 @@ function productionLike(bits: AuthBits): boolean {
 
 /** Mirrors DB can_manage_missing_parts + UI expectations. */
 export function canManageMissingParts(bits: AuthBits) {
-  const canEdit =
-    elevated(bits) ||
-    productionLike(bits) ||
-    bits.hasRole('warehouse', 'purchasing') ||
-    bits.hasPermission('missing_parts', 'update')
+  const canEdit = resolveMissingPartAction(bits, 'update', () =>
+    elevated(bits) || productionLike(bits) || bits.hasRole('warehouse', 'purchasing')
+  )
 
-  const canInstall =
-    elevated(bits) || bits.hasRole('admin', 'production') || bits.hasPermission('missing_parts', 'update')
+  const canInstall = resolveMissingPartAction(bits, 'bulk_install', () =>
+    elevated(bits) || bits.hasRole('admin', 'production')
+  )
 
-  const canUpdateStatus =
-    canInstall || bits.hasRole('quality') || bits.hasPermission('missing_parts', 'approve')
+  const canUpdateStatus = resolveMissingPartAction(bits, 'update_status', () =>
+    elevated(bits) || bits.hasRole('admin', 'production', 'quality') || bits.hasPermission('missing_parts', 'approve')
+  )
 
-  const canComplete =
-    elevated(bits) ||
-    productionLike(bits) ||
-    bits.hasPermission('missing_parts', 'update') ||
-    bits.hasPermission('missing_parts', 'approve')
+  const canComplete = resolveMissingPartAction(bits, 'complete', () =>
+    elevated(bits) || productionLike(bits) || bits.hasPermission('missing_parts', 'approve')
+  )
 
-  const canDelete = elevated(bits) || bits.hasRole('admin')
+  const canDelete = resolveMissingPartAction(bits, 'delete', () => elevated(bits) || bits.hasRole('admin'))
 
   return { canEdit, canDelete, canInstall, canUpdateStatus, canComplete }
 }

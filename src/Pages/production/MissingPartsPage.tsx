@@ -2,8 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { PackageCheck } from 'lucide-react'
 import { useLang } from '../../i18n/LanguageContext'
 import { useMpLookups } from '../../hooks/useMpLookups'
-import { useCanReportMissingPart } from '../../hooks/useCanReportMissingPart'
-import { useCanManageMissingPart } from '../../hooks/useCanManageMissingPart'
+import { useMissingPartsUiPermissions } from '../../hooks/useMissingPartsUiPermissions'
 import { useFormatError } from '../../hooks/useFormatError'
 import { SetupRequired } from '../../Components/SetupRequired'
 import { ReportMissingPartModal } from '../../Components/ReportMissingPartModal'
@@ -34,17 +33,27 @@ import type { MissingPartDetail, MissingPartFilters } from '../../Types/missingP
 import { MissingPartsToolbar, type ListTab } from '../../Components/missingParts/MissingPartsToolbar'
 import { MissingPartsTable } from '../../Components/missingParts/MissingPartsTable'
 import { MissingPartsSummaryTab } from '../../Components/missingParts/MissingPartsSummaryTab'
-import { applyFilters, isSchemaMissing, openVehicleShortageLines, remainingInstallLineCount } from '../../Utils/missingPartPageUtils'
+import { applyFilters, isSchemaMissing, openVehicleShortageLines, remainingInstallLineCount, uniqueVehicleReps } from '../../Utils/missingPartPageUtils'
 import { ConfirmDialog } from '../../Components/ConfirmDialog'
 
 export function MissingPartsPage() {
   const { t } = useLang()
   const { reasons, departments } = useMpLookups()
-  const { canReport, role } = useCanReportMissingPart()
-  const { canEdit, canDelete, canInstall, canUpdateStatus, canComplete } = useCanManageMissingPart()
+  const {
+    role,
+    visibleTabs,
+    canReport,
+    canFilter,
+    canExport,
+    canUpdateStatus,
+    canNotes,
+    canEdit,
+    canDelete,
+    canComplete,
+    canBulkInstallAndUpdate
+  } = useMissingPartsUiPermissions()
   const formatError = useFormatError()
-  const canBulkInstall = canInstall && canUpdateStatus
-
+  const canBulkInstall = canBulkInstallAndUpdate
   const [items, setItems] = useState<MissingPartDetail[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
@@ -63,6 +72,13 @@ export function MissingPartsPage() {
   const [selectedVehicleIds, setSelectedVehicleIds] = useState<Set<string>>(new Set())
   const [bulkInstalling, setBulkInstalling] = useState(false)
   const [completeTarget, setCompleteTarget] = useState<MissingPartDetail | null>(null)
+  const [completeAllTargets, setCompleteAllTargets] = useState<MissingPartDetail[] | null>(null)
+
+  useEffect(() => {
+    if (!visibleTabs.includes(listTab)) {
+      setListTab(visibleTabs[0] ?? 'active')
+    }
+  }, [listTab, visibleTabs])
 
   function editableMembers(row: MissingPartDetail) {
     const members = reportGroupMembers(row, filtered)
@@ -156,7 +172,10 @@ export function MissingPartsPage() {
   const historyItems = useMemo(() => items.filter(i => !!i.shortageResolvedAt), [items])
   const activeVehicleCount = useMemo(() => new Set(activeItems.map(i => i.vehicleId)).size, [activeItems])
   const historyVehicleCount = useMemo(() => new Set(historyItems.map(i => i.vehicleId)).size, [historyItems])
-  const tabSource = listTab === 'history' ? historyItems : activeItems
+  const tabSource = useMemo(() => {
+    if (listTab === 'history' || listTab === 'historySummary') return historyItems
+    return activeItems
+  }, [listTab, historyItems, activeItems])
   const filtered = useMemo(() => applyFilters(tabSource, filters), [tabSource, filters])
   const tableRows = useMemo(() => buildMissingPartTableRows(filtered), [filtered])
   const tabVehicleCount = useMemo(() => new Set(tabSource.map(i => i.vehicleId)).size, [tabSource])
@@ -247,7 +266,13 @@ export function MissingPartsPage() {
   }
 
   function requestCompleteVehicle(row: MissingPartDetail) {
+    setCompleteAllTargets(null)
     setCompleteTarget(row)
+  }
+
+  function requestCompleteAll(parts: MissingPartDetail[]) {
+    setCompleteTarget(null)
+    setCompleteAllTargets(uniqueVehicleReps(parts))
   }
 
   async function confirmCompleteVehicle() {
@@ -258,6 +283,28 @@ export function MissingPartsPage() {
       await completeVehicleShortage(completeTarget.vehicleId)
       setCompleteTarget(null)
       showSuccess(t('mp.completeSuccess', { vin: completeTarget.vin }))
+      void load()
+    } catch (err) {
+      setError(formatError(err))
+    } finally {
+      setCompletingVehicleId(null)
+    }
+  }
+
+  async function confirmCompleteAll() {
+    if (!completeAllTargets?.length) return
+    setCompletingVehicleId(completeAllTargets[0].vehicleId)
+    setError('')
+    const targets = [...completeAllTargets]
+    try {
+      let archived = 0
+      for (const rep of targets) {
+        if (!openVehicleShortageLines(rep.vehicleId, items).length) continue
+        await completeVehicleShortage(rep.vehicleId)
+        archived += 1
+      }
+      setCompleteAllTargets(null)
+      showSuccess(t('mp.completeAllSuccess', { n: archived || targets.length }))
       void load()
     } catch (err) {
       setError(formatError(err))
@@ -277,6 +324,8 @@ export function MissingPartsPage() {
       <div className="card-industrial overflow-hidden">
         <MissingPartsToolbar
           listTab={listTab}
+          visibleTabs={visibleTabs}
+          canUseFilters={canFilter}
           onListTabChange={setListTab}
           activeCount={activeVehicleCount}
           historyCount={historyVehicleCount}
@@ -318,7 +367,7 @@ export function MissingPartsPage() {
           </div>
         )}
 
-        {listTab === 'summary' ? (
+        {listTab === 'summary' || listTab === 'historySummary' ? (
           <MissingPartsSummaryTab
             items={filtered}
             reasons={reasons}
@@ -326,18 +375,21 @@ export function MissingPartsPage() {
             hasActiveFilter={hasActiveFilter}
             filteredVehicleCount={filteredVehicleCount}
             tabVehicleCount={tabVehicleCount}
+            variant={listTab === 'historySummary' ? 'archive' : 'active'}
           />
         ) : (
           <MissingPartsTable
-            listTab={listTab}
+            listTab={listTab === 'history' ? 'history' : 'active'}
             filtered={filtered}
             loading={loading}
             reasons={reasons}
             departments={departments}
             canBulkInstall={canBulkInstall}
+            canExport={canExport}
             canEdit={canEdit}
             canDelete={canDelete}
             canUpdateStatus={canUpdateStatus}
+            canNotes={canNotes}
             canComplete={canComplete}
             selectableVehicleIds={selectableVehicleIds}
             selectedVehicleIds={selectedVehicleIds}
@@ -362,6 +414,7 @@ export function MissingPartsPage() {
             onUpdate={openUpdate}
             onDeleteParts={parts => void removeParts(parts)}
             onComplete={requestCompleteVehicle}
+            onCompleteAll={requestCompleteAll}
           />
         )}
       </div>
@@ -375,21 +428,44 @@ export function MissingPartsPage() {
       <VehicleNotesModal target={notesTarget} onClose={() => setNotesTarget(null)} />
 
       <ConfirmDialog
-        open={Boolean(completeTarget)}
-        title={completeRemaining > 0 ? t('mp.completePartialTitle') : t('mp.complete')}
-        message={
-          completeTarget
-            ? completeRemaining > 0
-              ? t('mp.completePartialMessage', { vin: completeTarget.vin, n: completeRemaining })
-              : t('mp.completeConfirm', { vin: completeTarget.vin })
-            : ''
+        open={Boolean(completeTarget || completeAllTargets)}
+        title={
+          completeAllTargets
+            ? t('mp.completeAllConfirm')
+            : completeRemaining > 0
+              ? t('mp.completePartialTitle')
+              : t('mp.complete')
         }
-        confirmLabel={completeRemaining > 0 ? t('mp.completePartialYes') : t('common.confirm')}
-        cancelLabel={completeRemaining > 0 ? t('mp.completePartialNo') : t('common.cancel')}
+        message={
+          completeAllTargets
+            ? t('mp.completeAllMessage', { n: completeAllTargets.length })
+            : completeTarget
+              ? completeRemaining > 0
+                ? t('mp.completePartialMessage', { vin: completeTarget.vin, n: completeRemaining })
+                : t('mp.completeConfirm', { vin: completeTarget.vin })
+              : ''
+        }
+        confirmLabel={
+          completeAllTargets
+            ? t('mp.completeAllYes')
+            : completeRemaining > 0
+              ? t('mp.completePartialYes')
+              : t('common.confirm')
+        }
+        cancelLabel={
+          completeAllTargets
+            ? t('mp.completePartialNo')
+            : completeRemaining > 0
+              ? t('mp.completePartialNo')
+              : t('common.cancel')
+        }
         tone="default"
-        busy={completingVehicleId === completeTarget?.vehicleId}
-        onConfirm={() => void confirmCompleteVehicle()}
-        onCancel={() => setCompleteTarget(null)}
+        busy={Boolean(completingVehicleId)}
+        onConfirm={() => void (completeAllTargets ? confirmCompleteAll() : confirmCompleteVehicle())}
+        onCancel={() => {
+          setCompleteTarget(null)
+          setCompleteAllTargets(null)
+        }}
       />
     </section>
   )

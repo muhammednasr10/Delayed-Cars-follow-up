@@ -39,6 +39,21 @@ export function canCompleteVehicle(vehicleId: string, parts: MissingPartDetail[]
   return lines.some(p => !p.shortageResolvedAt && p.status !== 'closed' && p.status !== 'cancelled')
 }
 
+export function uniqueVehicleReps(parts: MissingPartDetail[]): MissingPartDetail[] {
+  const seen = new Set<string>()
+  const reps: MissingPartDetail[] = []
+  for (const part of parts) {
+    if (seen.has(part.vehicleId)) continue
+    seen.add(part.vehicleId)
+    reps.push(part)
+  }
+  return reps
+}
+
+export function isMissingPartRowOpen(parts: MissingPartDetail[]): boolean {
+  return parts.some(p => p.status !== 'closed' && p.status !== 'cancelled')
+}
+
 export function openVehicleShortageLines(vehicleId: string, parts: MissingPartDetail[]): MissingPartDetail[] {
   return parts.filter(
     p => p.vehicleId === vehicleId && !p.shortageResolvedAt && p.status !== 'closed' && p.status !== 'cancelled'

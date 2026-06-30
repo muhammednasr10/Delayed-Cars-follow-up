@@ -163,10 +163,11 @@ export function useProductionHubSections() {
     cards: (permsLoading || canViewModule('production'))
       ? [
           { key: 'orders', title: t('productivity.tabs.orders'), icon: ClipboardList, tone: 'text-cyan-300 bg-cyan-500/15', onClick: () => go({ productionArea: 'assembly', productionPage: 'vehicles', productivityTab: 'orders' }) },
+          { key: 'workDays', title: t('productionOrders.tabs.workDays'), icon: CalendarClock, tone: 'text-violet-300 bg-violet-500/15', onClick: () => go({ productionArea: 'assembly', productionPage: 'vehicles', productivityTab: 'workDays' }) },
           { key: 'entry', title: t('productivity.tabs.entry'), icon: LogIn, tone: 'text-cyan-300 bg-cyan-500/15', onClick: () => go({ productionArea: 'assembly', productionPage: 'vehicles', productivityTab: 'entry' }) },
           { key: 'exit', title: t('productivity.tabs.exit'), icon: LogOut, tone: 'text-cyan-300 bg-cyan-500/15', onClick: () => go({ productionArea: 'assembly', productionPage: 'vehicles', productivityTab: 'exit' }) },
           { key: 'stops', title: t('productivity.tabs.stops'), icon: AlertOctagon, tone: 'text-red-300 bg-red-500/15', onClick: () => go({ productionArea: 'assembly', productionPage: 'vehicles', productivityTab: 'stops' }) },
-          { key: 'workDays', title: t('productionOrders.tabs.workDays'), icon: CalendarClock, tone: 'text-violet-300 bg-violet-500/15', onClick: () => go({ productionArea: 'assembly', productionPage: 'vehicles', productivityTab: 'workDays' }) },
+          { key: 'summary', title: t('productivity.tabs.summary'), icon: CalendarClock, tone: 'text-violet-300 bg-violet-500/15', onClick: () => go({ productionArea: 'assembly', productionPage: 'vehicles', productivityTab: 'summary' }) },
           { key: 'planOrders', title: t('productionOrders.tabs.planOrders'), icon: LayoutGrid, tone: 'text-violet-300 bg-violet-500/15', onClick: () => go({ productionArea: 'assembly', productionPage: 'vehicles', productivityTab: 'orders', productionPlanTab: 'planOrders' }) }
         ]
       : []

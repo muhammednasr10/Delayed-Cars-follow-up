@@ -15,10 +15,11 @@ export function ProductivityPage() {
 
   const tabs: { key: ProductivityTab; label: string; icon: typeof LogIn }[] = [
     { key: 'orders', label: t('productivity.tabs.orders'), icon: ClipboardList },
+    { key: 'workDays', label: t('productionOrders.tabs.workDays'), icon: CalendarDays },
     { key: 'entry', label: t('productivity.tabs.entry'), icon: LogIn },
     { key: 'exit', label: t('productivity.tabs.exit'), icon: LogOut },
     { key: 'stops', label: t('productivity.tabs.stops'), icon: AlertOctagon },
-    { key: 'workDays', label: t('productionOrders.tabs.workDays'), icon: CalendarDays }
+    { key: 'summary', label: t('productivity.tabs.summary'), icon: CalendarDays }
   ]
 
   return (
@@ -30,10 +31,11 @@ export function ProductivityPage() {
       onTabChange={setTab}
     >
       {tab === 'orders' && <ProductionOrdersPage />}
+      {tab === 'workDays' && <ProductionPlanWorkDaysTab variant="workDays" />}
       {tab === 'entry' && <EntryProductivityPage />}
       {tab === 'exit' && <ExitProductivityPage />}
       {tab === 'stops' && <ProductionStopsTab />}
-      {tab === 'workDays' && <ProductionPlanWorkDaysTab />}
+      {tab === 'summary' && <ProductionPlanWorkDaysTab variant="summary" />}
     </PageTabShell>
   )
 }

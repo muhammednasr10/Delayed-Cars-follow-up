@@ -194,7 +194,7 @@ export async function reportMissingPart(input: ReportMissingPartInput): Promise<
 export async function reportMissingPartsBatch(
   input: ReportMissingPartsBatchInput
 ): Promise<ReportMissingPartsBatchResult> {
-  const vins = input.vins.map(v => v.trim()).filter(Boolean)
+  const vins = input.vins.map(v => v.trim()).filter(v => /^\d{4}$/.test(v))
   const parts = input.parts
     .map(p => ({
       part_description: p.partDescription.trim(),

@@ -50,9 +50,9 @@ export function DepartmentTopBar() {
   const showAssemblyPages = isProduction && nav.productionArea === 'assembly'
   const hasSectionPages =
     !isGlobalHomeActive &&
-    !isSettingsActive &&
+    !showProfile &&
     IMPLEMENTED_DEPARTMENTS.has(currentDepartment) &&
-    ((isProduction && areaTabs.length > 0) || (!isProduction && sectionPages.length > 0))
+    ((isProduction && areaTabs.length > 0) || (!isProduction && !isSettingsActive && sectionPages.length > 0))
   const settingsTabs = settingsPage.visible ? settingsPage.children ?? [] : []
 
   function openSettings() {
@@ -96,7 +96,11 @@ export function DepartmentTopBar() {
 
               {DEPARTMENTS.map(dept => {
                 const Icon = dept.icon
-                const active = !showProfile && !isGlobalHomeActive && !isSettingsActive && currentDepartment === dept.id
+                const active =
+                  !showProfile &&
+                  !isGlobalHomeActive &&
+                  currentDepartment === dept.id &&
+                  (dept.id !== 'production' || !isSettingsActive)
                 return (
                   <button
                     key={dept.id}

@@ -3,8 +3,13 @@ type TFn = (key: string) => string
 export const PERMISSION_ACTION_ORDER = [
   'view',
   'create',
+  'filter',
+  'update_status',
+  'notes',
   'update',
   'delete',
+  'complete',
+  'bulk_install',
   'approve',
   'import',
   'export',

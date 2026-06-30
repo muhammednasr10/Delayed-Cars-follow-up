@@ -5,10 +5,12 @@ import type { MpLookupOption } from '../../Types/mpLookup'
 import type { MissingPartDetail, MissingPartFilters } from '../../Types/missingPart'
 import { MissingPartSearchAutocomplete } from './MissingPartSearchAutocomplete'
 
-export type ListTab = 'active' | 'history' | 'summary'
+export type ListTab = 'active' | 'summary' | 'history' | 'historySummary'
 
 type Props = {
   listTab: ListTab
+  visibleTabs: ListTab[]
+  canUseFilters: boolean
   onListTabChange: (tab: ListTab) => void
   activeCount: number
   historyCount: number
@@ -26,6 +28,8 @@ type Props = {
 
 export function MissingPartsToolbar({
   listTab,
+  visibleTabs,
+  canUseFilters,
   onListTabChange,
   activeCount,
   historyCount,
@@ -41,6 +45,28 @@ export function MissingPartsToolbar({
   onReport
 }: Props) {
   const { t, lang } = useLang()
+
+  const tabButtons: { key: ListTab; className: (active: boolean) => string; icon?: typeof Archive }[] = [
+    {
+      key: 'active',
+      className: active => (active ? 'bg-cyan-500 text-slate-950' : 'bg-slate-800 text-slate-300 hover:bg-slate-700')
+    },
+    {
+      key: 'summary',
+      className: active => (active ? 'bg-violet-600 text-white' : 'bg-slate-800 text-slate-300 hover:bg-slate-700'),
+      icon: BarChart3
+    },
+    {
+      key: 'history',
+      className: active => (active ? 'bg-emerald-600 text-white' : 'bg-slate-800 text-slate-300 hover:bg-slate-700'),
+      icon: Archive
+    },
+    {
+      key: 'historySummary',
+      className: active => (active ? 'bg-amber-600 text-white' : 'bg-slate-800 text-slate-300 hover:bg-slate-700'),
+      icon: BarChart3
+    }
+  ]
 
   return (
     <div className="border-b border-slate-800 p-4 sm:p-5">
@@ -70,35 +96,26 @@ export function MissingPartsToolbar({
       </div>
 
       <div className="mb-4 flex flex-wrap gap-2">
-        <button
-          type="button"
-          onClick={() => onListTabChange('active')}
-          className={`rounded-xl px-4 py-2 text-sm font-black ${
-            listTab === 'active' ? 'bg-cyan-500 text-slate-950' : 'bg-slate-800 text-slate-300 hover:bg-slate-700'
-          }`}
-        >
-          {t('mp.tabs.active')} ({activeCount})
-        </button>
-        <button
-          type="button"
-          onClick={() => onListTabChange('history')}
-          className={`rounded-xl px-4 py-2 text-sm font-black ${
-            listTab === 'history' ? 'bg-emerald-600 text-white' : 'bg-slate-800 text-slate-300 hover:bg-slate-700'
-          }`}
-        >
-          <Archive className="mr-1 inline h-4 w-4" />
-          {t('mp.tabs.history')} ({historyCount})
-        </button>
-        <button
-          type="button"
-          onClick={() => onListTabChange('summary')}
-          className={`rounded-xl px-4 py-2 text-sm font-black ${
-            listTab === 'summary' ? 'bg-violet-600 text-white' : 'bg-slate-800 text-slate-300 hover:bg-slate-700'
-          }`}
-        >
-          <BarChart3 className="mr-1 inline h-4 w-4" />
-          {t('mp.tabs.summary')}
-        </button>
+        {tabButtons
+          .filter(item => visibleTabs.includes(item.key))
+          .map(item => {
+            const active = listTab === item.key
+            const Icon = item.icon
+            const count =
+              item.key === 'active' ? activeCount : item.key === 'history' ? historyCount : null
+            return (
+              <button
+                key={item.key}
+                type="button"
+                onClick={() => onListTabChange(item.key)}
+                className={`rounded-xl px-4 py-2 text-sm font-black ${item.className(active)}`}
+              >
+                {Icon && <Icon className="mr-1 inline h-4 w-4" />}
+                {t(`mp.tabs.${item.key}`)}
+                {count !== null ? ` (${count})` : ''}
+              </button>
+            )
+          })}
       </div>
 
       {listTab === 'active' && !canReport && (
@@ -107,7 +124,8 @@ export function MissingPartsToolbar({
         </div>
       )}
 
-      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
+      {canUseFilters && (
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
           <MissingPartSearchAutocomplete
             items={searchPool}
             value={filters.search}
@@ -138,6 +156,7 @@ export function MissingPartsToolbar({
             ))}
           </select>
         </div>
+      )}
     </div>
   )
 }

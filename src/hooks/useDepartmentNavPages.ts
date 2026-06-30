@@ -81,10 +81,11 @@ export function useDepartmentNavPages() {
         onNavigate: () => navTo({ department: 'production', productionArea: 'assembly', productionPage: 'vehicles', productivityTab: 'orders' }),
         children: [
           { key: 'orders', label: t('productivity.tabs.orders'), visible: tabVisible('production_productivity', 'orders'), onClick: () => navTo({ department: 'production', productionArea: 'assembly', productionPage: 'vehicles', productivityTab: 'orders' }) },
+          { key: 'workDays', label: t('productionOrders.tabs.workDays'), visible: tabVisible('production_productivity', 'workDays'), onClick: () => navTo({ department: 'production', productionArea: 'assembly', productionPage: 'vehicles', productivityTab: 'workDays' }) },
           { key: 'entry', label: t('productivity.tabs.entry'), visible: tabVisible('production_productivity', 'entry'), onClick: () => navTo({ department: 'production', productionArea: 'assembly', productionPage: 'vehicles', productivityTab: 'entry' }) },
           { key: 'exit', label: t('productivity.tabs.exit'), visible: tabVisible('production_productivity', 'exit'), onClick: () => navTo({ department: 'production', productionArea: 'assembly', productionPage: 'vehicles', productivityTab: 'exit' }) },
           { key: 'stops', label: t('productivity.tabs.stops'), visible: tabVisible('production_productivity', 'stops'), onClick: () => navTo({ department: 'production', productionArea: 'assembly', productionPage: 'vehicles', productivityTab: 'stops' }) },
-          { key: 'workDays', label: t('productionOrders.tabs.workDays'), visible: tabVisible('production_productivity', 'workDays'), onClick: () => navTo({ department: 'production', productionArea: 'assembly', productionPage: 'vehicles', productivityTab: 'workDays' }) },
+          { key: 'summary', label: t('productivity.tabs.summary'), visible: tabVisible('production_productivity', 'summary'), onClick: () => navTo({ department: 'production', productionArea: 'assembly', productionPage: 'vehicles', productivityTab: 'summary' }) },
           {
             key: 'planOrders',
             label: t('productionOrders.tabs.planOrders'),
@@ -326,6 +327,10 @@ export function useDepartmentNavPages() {
   }
 
   function selectDepartment(dept: DepartmentId) {
+    if (dept === 'production' && nav.productionPage === 'settings') {
+      nav.navigate({ department: 'production', productionArea: 'assembly', productionPage: 'home', showProfile: false })
+      return
+    }
     nav.selectDepartment(dept)
     nav.navigate({ showProfile: false })
   }
