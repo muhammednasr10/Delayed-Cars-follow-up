@@ -53,6 +53,8 @@ export type ProductivityTab = 'orders' | 'workDays' | 'entry' | 'exit' | 'stops'
 
 export type ProductivitySubTab = 'daily' | 'monthly'
 
+export type AttendanceSubTab = 'monthly' | 'today'
+
 export type ProductionPlanTab = 'planOrders'
 
 export type WarehousesTab = 'home' | 'currentStock' | 'feeding'

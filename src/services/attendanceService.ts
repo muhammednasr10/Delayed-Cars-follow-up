@@ -186,6 +186,24 @@ export function computeDailyAttendanceEfficiency(
   return result
 }
 
+/** عدد الحاضرين اليوم (حاضر + متأخر) من إجمالي العمالة النشطة. */
+export function countPresentToday(
+  employeeIds: string[],
+  dayRecords: { employeeId: string; workDate: string; status: AttendanceDayStatus }[],
+  today = localTodayIso()
+): number {
+  const byEmp = new Map<string, AttendanceDayStatus>()
+  for (const r of dayRecords) {
+    if (r.workDate === today) byEmp.set(r.employeeId, r.status)
+  }
+  let present = 0
+  for (const employeeId of employeeIds) {
+    const status = byEmp.get(employeeId)
+    if (status === 'present' || status === 'late') present++
+  }
+  return present
+}
+
 export function dayEditToInput(employeeId: string, row: AttendanceDayEdit): AttendanceDayInput {
   const hasTimes = attendanceStatusHasTimes(row.status)
   return {

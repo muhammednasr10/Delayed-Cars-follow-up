@@ -9,6 +9,7 @@ import type {
   ProductionPlanTab,
   ProductivityTab,
   ProductivitySubTab,
+  AttendanceSubTab,
   SettingsTab,
   TrainingTab,
   WarehousesTab,
@@ -33,6 +34,7 @@ type NavState = {
   productivityTab: ProductivityTab
   productivitySubTab: ProductivitySubTab
   productivityStopFormOpen: boolean
+  attendanceSubTab: AttendanceSubTab
   productionPlanTab: ProductionPlanTab
   warehousesTab: WarehousesTab
   warehousesFeedingSubTab: WarehousesFeedingSubTab
@@ -58,6 +60,7 @@ type NavigatePatch = Partial<
     | 'productivityTab'
     | 'productivitySubTab'
     | 'productivityStopFormOpen'
+    | 'attendanceSubTab'
     | 'productionPlanTab'
     | 'warehousesTab'
     | 'warehousesFeedingSubTab'
@@ -81,6 +84,7 @@ type NavigationContextValue = NavState & {
   setProductivityTab: (tab: ProductivityTab) => void
   setProductivitySubTab: (tab: ProductivitySubTab) => void
   setProductivityStopFormOpen: (open: boolean) => void
+  setAttendanceSubTab: (tab: AttendanceSubTab) => void
   setProductionPlanTab: (tab: ProductionPlanTab) => void
   setWarehousesTab: (tab: WarehousesTab) => void
   setWarehousesFeedingSubTab: (tab: WarehousesFeedingSubTab) => void
@@ -107,6 +111,7 @@ const initialState: NavState = {
   productivityTab: 'orders',
   productivitySubTab: 'daily',
   productivityStopFormOpen: false,
+  attendanceSubTab: 'today',
   productionPlanTab: 'planOrders',
   warehousesTab: 'home',
   warehousesFeedingSubTab: 'plan',
@@ -181,6 +186,7 @@ export function NavigationProvider({ children }: { children: ReactNode }) {
       setProductivityTab: productivityTab => setState(prev => ({ ...prev, productivityTab })),
       setProductivitySubTab: productivitySubTab => setState(prev => ({ ...prev, productivitySubTab })),
       setProductivityStopFormOpen: productivityStopFormOpen => setState(prev => ({ ...prev, productivityStopFormOpen })),
+      setAttendanceSubTab: attendanceSubTab => setState(prev => ({ ...prev, attendanceSubTab })),
       setProductionPlanTab: productionPlanTab => setState(prev => ({ ...prev, productionPlanTab })),
       setWarehousesTab: warehousesTab => setState(prev => ({ ...prev, warehousesTab })),
       setWarehousesFeedingSubTab: warehousesFeedingSubTab => setState(prev => ({ ...prev, warehousesFeedingSubTab })),

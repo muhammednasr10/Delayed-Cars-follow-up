@@ -2,7 +2,7 @@ import { Plus } from 'lucide-react'
 import type { HubCard } from './DepartmentHub'
 import { useLang } from '../i18n/LanguageContext'
 
-export type HubCardAccent = 'red' | 'emerald' | 'violet' | 'amber'
+export type HubCardAccent = 'red' | 'emerald' | 'violet' | 'amber' | 'cyan'
 
 const themes: Record<
   HubCardAccent,
@@ -61,6 +61,17 @@ const themes: Record<
     hint: 'text-amber-400/90 group-hover:text-amber-300',
     footerBorder: 'border-amber-500/15',
     btn: 'bg-gradient-to-r from-amber-600 to-amber-500 text-slate-950 shadow-md shadow-amber-900/40 hover:from-amber-500 hover:to-amber-400'
+  },
+  cyan: {
+    shell: 'border-cyan-500/30 bg-gradient-to-br from-cyan-950/50 via-slate-900/95 to-slate-950 shadow-lg shadow-cyan-950/40 hover:border-cyan-400/45 hover:shadow-cyan-500/15',
+    orb: 'bg-cyan-500/25',
+    icon: 'bg-cyan-500/20 text-cyan-300 ring-1 ring-cyan-400/25',
+    statBox: 'bg-cyan-500/10 border-cyan-500/20',
+    statLabel: 'text-cyan-300/75',
+    statValue: 'text-cyan-50',
+    hint: 'text-cyan-400/90 group-hover:text-cyan-300',
+    footerBorder: 'border-cyan-500/15',
+    btn: 'bg-gradient-to-r from-cyan-600 to-cyan-500 text-slate-950 shadow-md shadow-cyan-900/40 hover:from-cyan-500 hover:to-cyan-400'
   }
 }
 

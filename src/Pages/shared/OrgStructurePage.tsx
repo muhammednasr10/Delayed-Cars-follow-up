@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { LayoutList, Network, Plus, Upload, Users } from 'lucide-react'
 import { useLang } from '../../i18n/LanguageContext'
 import { useAuth } from '../../Context/AuthContext'
+import { useAssemblyWorkforceScope } from '../../hooks/useAssemblyWorkforceScope'
 import { useEmployees } from '../../hooks/useEmployees'
 import { getFactoryOrgUnits } from '../../services/factoryOrgService'
 import { createEmployee, reactivateEmployee, suspendEmployee, updateEmployee } from '../../services/employeesService'
@@ -18,7 +19,7 @@ import type { Employee, EmployeeInput } from '../../Types/employee'
 import type { FactoryOrgUnit } from '../../Types/factoryOrg'
 import type { WorkArea } from '../../Types/settings'
 import { employeeMatchesOrgFilter } from '../../Utils/employeeOrgPicker'
-import { assemblyOrgPath, filterAssemblyWorkforce, isAssemblyWorkforceEmployee } from '../../Utils/assemblyWorkforce'
+import { assemblyOrgPath, filterAssemblyWorkforce } from '../../Utils/assemblyWorkforce'
 import { getWorkAreas } from '../../services/settingsService'
 
 type View = 'table' | 'chart'
@@ -64,10 +65,16 @@ export function OrgStructurePage({
   const canCreateScoped = canCreate && !isAssemblyScope
   const canManageScoped = canManage && !isAssemblyScope
 
+  const assemblyBase = useMemo(
+    () => (isAssemblyScope ? filterAssemblyWorkforce(employees, orgUnits) : employees),
+    [employees, orgUnits, isAssemblyScope]
+  )
+  const { scopedEmployees: assemblyScoped, isScopedView } = useAssemblyWorkforceScope(assemblyBase)
+  const workforceEmployees = isAssemblyScope ? assemblyScoped : employees
+
   const filtered = useMemo(() => {
     const term = filters.search.trim().toLowerCase()
-    return employees.filter(e => {
-      if (isAssemblyScope && !isAssemblyWorkforceEmployee(e, orgUnits)) return false
+    return workforceEmployees.filter(e => {
       if (term && !e.fullName.toLowerCase().includes(term) && !e.employeeCode.toLowerCase().includes(term)) return false
       if (filters.role && e.jobRole !== filters.role) return false
       if (!employeeMatchesOrgFilter(e.factoryOrgUnitId, filters.factoryOrgUnitId, orgUnits)) return false
@@ -75,7 +82,7 @@ export function OrgStructurePage({
       if (filters.status === 'inactive' && e.isActive) return false
       return true
     })
-  }, [employees, filters, orgUnits, isAssemblyScope])
+  }, [workforceEmployees, filters])
 
   function flash(msg: string) {
     setSuccess(msg)
@@ -190,6 +197,9 @@ export function OrgStructurePage({
         {isAssemblyScope && (
           <p className={`text-xs text-cyan-200/90 ${embedded ? '' : 'mt-3'}`}>{t('org.assemblyWorkforceHint')}</p>
         )}
+        {isAssemblyScope && isScopedView && (
+          <p className={`text-xs text-cyan-200/80 ${embedded ? 'mt-2' : 'mt-2'}`}>{t('org.assemblySupervisorScopeHint')}</p>
+        )}
         <div className={embedded ? '' : 'mt-4'}>
           <EmployeeFilters value={filters} onChange={setFilters} orgUnits={orgUnits} />
         </div>
@@ -216,7 +226,7 @@ export function OrgStructurePage({
       <EmployeeForm
         open={formOpen}
         editing={editing}
-        employees={isAssemblyScope ? filterAssemblyWorkforce(employees, orgUnits) : employees}
+        employees={workforceEmployees}
         orgUnits={orgUnits}
         defaultOrgPath={isAssemblyScope ? assemblyOrgPath(orgUnits) : undefined}
         busy={saving}

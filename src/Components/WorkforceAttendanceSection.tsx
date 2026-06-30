@@ -1,11 +1,10 @@
 import { useState } from 'react'
 import { CalendarClock, ClipboardList } from 'lucide-react'
 import { useLang } from '../i18n/LanguageContext'
+import { useNavigation } from '../Context/NavigationContext'
 import { EmployeeAttendanceTab } from './EmployeeAttendanceTab'
 import { TodayAttendanceTab } from './TodayAttendanceTab'
 import type { Employee } from '../Types/employee'
-
-type AttendanceSubTab = 'monthly' | 'today'
 
 type Props = {
   employees: Employee[]
@@ -14,12 +13,12 @@ type Props = {
 
 export function WorkforceAttendanceSection({ employees, canManage }: Props) {
   const { t } = useLang()
-  const [subTab, setSubTab] = useState<AttendanceSubTab>('monthly')
+  const { attendanceSubTab, setAttendanceSubTab } = useNavigation()
   const [monthlyRefreshKey, setMonthlyRefreshKey] = useState(0)
 
-  const subTabs: { key: AttendanceSubTab; label: string; icon: typeof ClipboardList }[] = [
-    { key: 'monthly', label: t('training.attendanceTabs.monthly'), icon: ClipboardList },
-    { key: 'today', label: t('training.attendanceTabs.today'), icon: CalendarClock }
+  const subTabs = [
+    { key: 'monthly' as const, label: t('training.attendanceTabs.monthly'), icon: ClipboardList },
+    { key: 'today' as const, label: t('training.attendanceTabs.today'), icon: CalendarClock }
   ]
 
   return (
@@ -37,14 +36,14 @@ export function WorkforceAttendanceSection({ employees, canManage }: Props) {
         <nav className="flex flex-wrap gap-2">
           {subTabs.map(item => {
             const Icon = item.icon
-            const active = subTab === item.key
+            const active = attendanceSubTab === item.key
             return (
               <button
                 key={item.key}
                 type="button"
                 onClick={() => {
                   if (item.key === 'monthly') setMonthlyRefreshKey(k => k + 1)
-                  setSubTab(item.key)
+                  setAttendanceSubTab(item.key)
                 }}
                 className={`flex items-center gap-1.5 rounded-xl px-3 py-2 text-sm font-black sm:px-4 ${
                   active ? 'bg-violet-500 text-slate-950' : 'bg-slate-800 text-slate-300 hover:bg-slate-700'
@@ -59,10 +58,10 @@ export function WorkforceAttendanceSection({ employees, canManage }: Props) {
       </div>
 
       <div className="card-industrial overflow-hidden">
-        {subTab === 'monthly' && (
+        {attendanceSubTab === 'monthly' && (
           <EmployeeAttendanceTab employees={employees} canManage={canManage} refreshKey={monthlyRefreshKey} />
         )}
-        {subTab === 'today' && (
+        {attendanceSubTab === 'today' && (
           <TodayAttendanceTab
             employees={employees}
             canManage={canManage}

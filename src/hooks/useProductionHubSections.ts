@@ -25,6 +25,7 @@ import { useCanReportMissingPart } from './useCanReportMissingPart'
 import { useMissingPartsVehicleCounts } from './useMissingPartsVehicleCounts'
 import { useProductivityMonthCounts } from './useProductivityMonthCounts'
 import { formatStopHoursForCard, useProductionStopMonthCounts } from './useProductionStopMonthCounts'
+import { useTodayAttendanceEfficiency } from './useTodayAttendanceEfficiency'
 import { usePermissions } from '../Context/PermissionsContext'
 import { useNavigation } from '../Context/NavigationContext'
 import { SETTINGS_TAB_ORDER } from '../Types/navigation'
@@ -41,6 +42,7 @@ export function useProductionHubSections(refreshKey = 0) {
   const { activeVehicles, archiveVehicles, loading: countsLoading } = useMissingPartsVehicleCounts(refreshKey)
   const { entryVehicles, exitVehicles, loading: productivityLoading } = useProductivityMonthCounts(refreshKey)
   const { totalMinutes, lostVehicles: stopsLostVehicles, loading: stopsLoading } = useProductionStopMonthCounts(refreshKey)
+  const { efficiency, presentTodayCount, workforceCount, loading: attendanceLoading } = useTodayAttendanceEfficiency(refreshKey)
 
   const canManageStops = hasRole('admin', 'production')
 
@@ -127,6 +129,32 @@ export function useProductionHubSections(refreshKey = 0) {
                 })
             }
           : undefined
+      },
+      (permsLoading || canViewModule('training_matrix')) && {
+        key: 'attendanceToday',
+        title: t('home.attendanceTodayTitle'),
+        description: t('home.attendanceTodayDesc'),
+        icon: CalendarClock,
+        tone: 'text-cyan-300 bg-cyan-500/15',
+        accent: 'cyan' as const,
+        statRow: 'secondary' as const,
+        onClick: () =>
+          go({
+            productionArea: 'assembly',
+            productionPage: 'training',
+            trainingTab: 'attendance',
+            attendanceSubTab: 'today'
+          }),
+        stats: [
+          {
+            label: t('home.attendanceEfficiency'),
+            value: attendanceLoading ? '…' : efficiency == null ? '—' : `${efficiency}%`
+          },
+          {
+            label: t('home.attendanceTodayCount'),
+            value: attendanceLoading ? '…' : workforceCount > 0 ? `${presentTodayCount}/${workforceCount}` : '—'
+          }
+        ]
       }
     ].filter(Boolean) as HubSection['cards']
   }

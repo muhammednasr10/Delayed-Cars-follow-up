@@ -12,6 +12,8 @@ export type HubCard = {
   onClick: () => void
   kind?: 'page' | 'action'
   accent?: HubCardAccent
+  /** إحصائيات في الصف الأول (افتراضي) أو الثاني مع روابط التنقل */
+  statRow?: 'primary' | 'secondary'
   stats?: { label: string; value: string | number }[]
   footerAction?: { label: string; onClick: () => void }
 }
@@ -49,7 +51,10 @@ export function DepartmentHub({ title, subtitle, sections, headerAction }: Props
       {sections.map(section => {
         if (section.cards.length === 0) return null
         const statCards = section.cards.filter(isStatCard)
+        const primaryStatCards = statCards.filter(card => card.statRow !== 'secondary')
+        const secondaryStatCards = statCards.filter(card => card.statRow === 'secondary')
         const regularCards = section.cards.filter(card => !isStatCard(card))
+        const secondaryRowCount = secondaryStatCards.length + regularCards.length
 
         return (
           <div key={section.key}>
@@ -57,20 +62,32 @@ export function DepartmentHub({ title, subtitle, sections, headerAction }: Props
               <h3 className="mb-3 px-1 text-sm font-black uppercase tracking-widest text-slate-400">{section.title}</h3>
             )}
 
-            {statCards.length > 0 && (
+            {primaryStatCards.length > 0 && (
               <div
                 className={`mb-4 grid grid-cols-1 gap-4 sm:grid-cols-2 ${
-                  statCards.length >= 4 ? 'xl:grid-cols-4' : 'xl:grid-cols-3'
+                  primaryStatCards.length >= 4 ? 'xl:grid-cols-4' : 'xl:grid-cols-3'
                 }`}
               >
-                {statCards.map(card => (
+                {primaryStatCards.map(card => (
                   <HubStatCard key={card.key} card={card} />
                 ))}
               </div>
             )}
 
-            {regularCards.length > 0 && (
-              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+            {(secondaryStatCards.length > 0 || regularCards.length > 0) && (
+              <div
+                className={`grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3 ${
+                  secondaryRowCount >= 5 ? 'xl:grid-cols-5' : 'xl:grid-cols-4'
+                }`}
+              >
+                {secondaryStatCards.map(card => (
+                  <div
+                    key={card.key}
+                    className={secondaryStatCards.length === 1 ? 'sm:col-span-2' : ''}
+                  >
+                    <HubStatCard card={card} />
+                  </div>
+                ))}
                 {regularCards.map(card => {
                   const Icon = card.icon
                   const isAction = card.kind === 'action'
@@ -81,7 +98,7 @@ export function DepartmentHub({ title, subtitle, sections, headerAction }: Props
                   }`
 
                   return (
-                    <button key={card.key} type="button" onClick={card.onClick} className={shellClass}>
+                    <button key={card.key} type="button" onClick={card.onClick} className={`h-full ${shellClass}`}>
                       <div className="flex w-full items-start justify-between gap-2">
                         <div className={`rounded-xl p-2.5 ${card.tone}`}>
                           <Icon className="h-5 w-5" />
