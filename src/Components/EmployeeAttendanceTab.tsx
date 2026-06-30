@@ -19,6 +19,7 @@ import { findEmployeesByQuery } from '../Utils/employeeLookup'
 type Props = {
   employees: Employee[]
   canManage: boolean
+  refreshKey?: number
 }
 
 function currentYm(): { year: number; month: number } {
@@ -26,7 +27,7 @@ function currentYm(): { year: number; month: number } {
   return { year: d.getFullYear(), month: d.getMonth() + 1 }
 }
 
-export function EmployeeAttendanceTab({ employees, canManage }: Props) {
+export function EmployeeAttendanceTab({ employees, canManage, refreshKey = 0 }: Props) {
   const { t } = useLang()
   const init = currentYm()
   const [year, setYear] = useState(init.year)
@@ -61,7 +62,7 @@ export function EmployeeAttendanceTab({ employees, canManage }: Props) {
     } finally {
       setLoading(false)
     }
-  }, [year, month, employees, t])
+  }, [year, month, employees, t, refreshKey])
 
   useEffect(() => {
     void load()

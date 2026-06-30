@@ -8,6 +8,7 @@ import type {
   ProductionPage,
   ProductionPlanTab,
   ProductivityTab,
+  ProductivitySubTab,
   SettingsTab,
   TrainingTab,
   WarehousesTab,
@@ -30,6 +31,8 @@ type NavState = {
   trainingTab: TrainingTab
   settingsTab: SettingsTab
   productivityTab: ProductivityTab
+  productivitySubTab: ProductivitySubTab
+  productivityStopFormOpen: boolean
   productionPlanTab: ProductionPlanTab
   warehousesTab: WarehousesTab
   warehousesFeedingSubTab: WarehousesFeedingSubTab
@@ -53,6 +56,8 @@ type NavigatePatch = Partial<
     | 'trainingTab'
     | 'settingsTab'
     | 'productivityTab'
+    | 'productivitySubTab'
+    | 'productivityStopFormOpen'
     | 'productionPlanTab'
     | 'warehousesTab'
     | 'warehousesFeedingSubTab'
@@ -74,6 +79,8 @@ type NavigationContextValue = NavState & {
   setTrainingTab: (tab: TrainingTab) => void
   setSettingsTab: (tab: SettingsTab) => void
   setProductivityTab: (tab: ProductivityTab) => void
+  setProductivitySubTab: (tab: ProductivitySubTab) => void
+  setProductivityStopFormOpen: (open: boolean) => void
   setProductionPlanTab: (tab: ProductionPlanTab) => void
   setWarehousesTab: (tab: WarehousesTab) => void
   setWarehousesFeedingSubTab: (tab: WarehousesFeedingSubTab) => void
@@ -98,6 +105,8 @@ const initialState: NavState = {
   trainingTab: 'org',
   settingsTab: 'administrations',
   productivityTab: 'orders',
+  productivitySubTab: 'daily',
+  productivityStopFormOpen: false,
   productionPlanTab: 'planOrders',
   warehousesTab: 'home',
   warehousesFeedingSubTab: 'plan',
@@ -170,6 +179,8 @@ export function NavigationProvider({ children }: { children: ReactNode }) {
       setTrainingTab: trainingTab => setState(prev => ({ ...prev, trainingTab })),
       setSettingsTab: settingsTab => setState(prev => ({ ...prev, settingsTab })),
       setProductivityTab: productivityTab => setState(prev => ({ ...prev, productivityTab })),
+      setProductivitySubTab: productivitySubTab => setState(prev => ({ ...prev, productivitySubTab })),
+      setProductivityStopFormOpen: productivityStopFormOpen => setState(prev => ({ ...prev, productivityStopFormOpen })),
       setProductionPlanTab: productionPlanTab => setState(prev => ({ ...prev, productionPlanTab })),
       setWarehousesTab: warehousesTab => setState(prev => ({ ...prev, warehousesTab })),
       setWarehousesFeedingSubTab: warehousesFeedingSubTab => setState(prev => ({ ...prev, warehousesFeedingSubTab })),

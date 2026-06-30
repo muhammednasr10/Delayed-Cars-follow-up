@@ -7,8 +7,8 @@ import { useLang } from '../../i18n/LanguageContext'
 
 export function GlobalHomePage() {
   const { t } = useLang()
-  const { sections, reportOpen, setReportOpen } = useGlobalHubSections()
   const [deptRefreshKey, setDeptRefreshKey] = useState(0)
+  const { sections, reportOpen, setReportOpen } = useGlobalHubSections(deptRefreshKey)
 
   return (
     <section className="space-y-6">

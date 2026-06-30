@@ -7,8 +7,8 @@ import { useLang } from '../../i18n/LanguageContext'
 
 export function HomePage() {
   const { t } = useLang()
-  const { sections, reportOpen, setReportOpen } = useProductionHubSections()
   const [deptRefreshKey, setDeptRefreshKey] = useState(0)
+  const { sections, reportOpen, setReportOpen } = useProductionHubSections(deptRefreshKey)
 
   return (
     <section className="space-y-6">

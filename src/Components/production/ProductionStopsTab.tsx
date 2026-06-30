@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { AlertOctagon, Pencil, Plus, Trash2 } from 'lucide-react'
 import { useAuth } from '../../Context/AuthContext'
+import { useNavigation } from '../../Context/NavigationContext'
 import { useLang } from '../../i18n/LanguageContext'
 import { useMpLookups } from '../../hooks/useMpLookups'
 import { mpLookupLabel } from '../../Utils/mpLookupLabel'
@@ -61,6 +62,7 @@ function isSchemaMissing(message: string): boolean {
 export function ProductionStopsTab() {
   const { t, lang } = useLang()
   const { hasRole } = useAuth()
+  const { productivityStopFormOpen, setProductivityStopFormOpen } = useNavigation()
   const { departments, addDepartment } = useMpLookups()
   const canManage = hasRole('admin', 'production')
 
@@ -215,6 +217,13 @@ export function ProductionStopsTab() {
     setFormError('')
     setFormOpen(true)
   }
+
+  useEffect(() => {
+    if (!productivityStopFormOpen || !canManage) return
+    setProductivityStopFormOpen(false)
+    openCreate()
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- open once when hub requests the form
+  }, [productivityStopFormOpen, canManage, setProductivityStopFormOpen])
 
   function openEdit(row: ProductionLineStop) {
     setEditing(row)

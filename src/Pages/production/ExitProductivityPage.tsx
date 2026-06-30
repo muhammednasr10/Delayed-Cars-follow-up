@@ -1,18 +1,16 @@
-import { useState } from 'react'
 import { CalendarDays, CalendarRange } from 'lucide-react'
 import { useLang } from '../../i18n/LanguageContext'
+import { useNavigation } from '../../Context/NavigationContext'
 import { VehiclesPage } from './VehiclesPage'
 import { ExitProductivityMonthlyTab } from '../../Components/ExitProductivityMonthlyTab'
 
-type ExitSubTab = 'daily' | 'monthly'
-
 export function ExitProductivityPage() {
   const { t } = useLang()
-  const [subTab, setSubTab] = useState<ExitSubTab>('daily')
+  const { productivitySubTab, setProductivitySubTab } = useNavigation()
 
-  const subTabs: { key: ExitSubTab; label: string; icon: typeof CalendarRange }[] = [
-    { key: 'daily', label: t('productivity.exitSubTabs.daily'), icon: CalendarRange },
-    { key: 'monthly', label: t('productivity.exitSubTabs.monthly'), icon: CalendarDays }
+  const subTabs = [
+    { key: 'daily' as const, label: t('productivity.exitSubTabs.daily'), icon: CalendarRange },
+    { key: 'monthly' as const, label: t('productivity.exitSubTabs.monthly'), icon: CalendarDays }
   ]
 
   return (
@@ -21,12 +19,12 @@ export function ExitProductivityPage() {
         <nav className="flex flex-wrap gap-2">
           {subTabs.map(item => {
             const Icon = item.icon
-            const active = subTab === item.key
+            const active = productivitySubTab === item.key
             return (
               <button
                 key={item.key}
                 type="button"
-                onClick={() => setSubTab(item.key)}
+                onClick={() => setProductivitySubTab(item.key)}
                 className={`flex items-center gap-1.5 rounded-xl px-3 py-2 text-sm font-black sm:px-4 ${
                   active ? 'bg-emerald-500 text-slate-950' : 'bg-slate-800 text-slate-300 hover:bg-slate-700'
                 }`}
@@ -39,8 +37,8 @@ export function ExitProductivityPage() {
         </nav>
       </div>
 
-      {subTab === 'daily' && <VehiclesPage mode="exit" />}
-      {subTab === 'monthly' && <ExitProductivityMonthlyTab />}
+      {productivitySubTab === 'daily' && <VehiclesPage mode="exit" />}
+      {productivitySubTab === 'monthly' && <ExitProductivityMonthlyTab />}
     </section>
   )
 }

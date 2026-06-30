@@ -19,22 +19,117 @@ import {
 } from 'lucide-react'
 import { useState } from 'react'
 import type { HubSection } from '../Components/DepartmentHub'
+import { useAuth } from '../Context/AuthContext'
 import { useCanAccessSettings } from './useCanAccessSettings'
 import { useCanReportMissingPart } from './useCanReportMissingPart'
+import { useMissingPartsVehicleCounts } from './useMissingPartsVehicleCounts'
+import { useProductivityMonthCounts } from './useProductivityMonthCounts'
+import { formatStopHoursForCard, useProductionStopMonthCounts } from './useProductionStopMonthCounts'
 import { usePermissions } from '../Context/PermissionsContext'
 import { useNavigation } from '../Context/NavigationContext'
 import { SETTINGS_TAB_ORDER } from '../Types/navigation'
 import { useLang } from '../i18n/LanguageContext'
 
-export function useProductionHubSections() {
+export function useProductionHubSections(refreshKey = 0) {
   const { t } = useLang()
   const nav = useNavigation()
+  const { hasRole } = useAuth()
   const { canAccess: canAccessSettings } = useCanAccessSettings()
   const { canReport } = useCanReportMissingPart()
   const { canViewModule, loading: permsLoading } = usePermissions()
   const [reportOpen, setReportOpen] = useState(false)
+  const { activeVehicles, archiveVehicles, loading: countsLoading } = useMissingPartsVehicleCounts(refreshKey)
+  const { entryVehicles, exitVehicles, loading: productivityLoading } = useProductivityMonthCounts(refreshKey)
+  const { totalMinutes, lostVehicles: stopsLostVehicles, loading: stopsLoading } = useProductionStopMonthCounts(refreshKey)
+
+  const canManageStops = hasRole('admin', 'production')
 
   const go = nav.navigate
+
+  const overview: HubSection = {
+    key: 'overview',
+    title: t('hub.sections.overview'),
+    cards: [
+      (permsLoading || canViewModule('missing_parts')) && {
+        key: 'missing',
+        title: t('modules.missingParts'),
+        description: t('modules.missingPartsDesc'),
+        icon: AlertTriangle,
+        tone: 'text-red-300 bg-red-500/15',
+        accent: 'red' as const,
+        onClick: () => go({ productionArea: 'assembly', productionPage: 'missing' }),
+        stats: [
+          { label: t('home.missingActiveVehicles'), value: countsLoading ? '…' : activeVehicles },
+          { label: t('home.missingArchiveVehicles'), value: countsLoading ? '…' : archiveVehicles }
+        ],
+        footerAction: canReport
+          ? { label: t('home.reportMissing'), onClick: () => setReportOpen(true) }
+          : undefined
+      },
+      (permsLoading || canViewModule('production')) && {
+        key: 'entryProductivity',
+        title: t('productivity.entryTitle'),
+        description: t('productivity.entrySubtitle'),
+        icon: LogIn,
+        tone: 'text-emerald-300 bg-emerald-500/15',
+        accent: 'emerald' as const,
+        onClick: () =>
+          go({
+            productionArea: 'assembly',
+            productionPage: 'vehicles',
+            productivityTab: 'entry',
+            productivitySubTab: 'monthly'
+          }),
+        stats: [{ label: t('home.productivityMonthVehicles'), value: productivityLoading ? '…' : entryVehicles }]
+      },
+      (permsLoading || canViewModule('production')) && {
+        key: 'exitProductivity',
+        title: t('productivity.exitTitle'),
+        description: t('productivity.exitSubtitle'),
+        icon: LogOut,
+        tone: 'text-violet-300 bg-violet-500/15',
+        accent: 'violet' as const,
+        onClick: () =>
+          go({
+            productionArea: 'assembly',
+            productionPage: 'vehicles',
+            productivityTab: 'exit',
+            productivitySubTab: 'monthly'
+          }),
+        stats: [{ label: t('home.productivityMonthVehicles'), value: productivityLoading ? '…' : exitVehicles }]
+      },
+      (permsLoading || canViewModule('production')) && {
+        key: 'stops',
+        title: t('productivity.tabs.stops'),
+        description: t('productivity.stops.subtitle'),
+        icon: AlertOctagon,
+        tone: 'text-amber-300 bg-amber-500/15',
+        accent: 'amber' as const,
+        onClick: () =>
+          go({
+            productionArea: 'assembly',
+            productionPage: 'vehicles',
+            productivityTab: 'stops'
+          }),
+        stats: [
+          { label: t('home.stopsMonthHours'), value: stopsLoading ? '…' : formatStopHoursForCard(totalMinutes) },
+          { label: t('home.stopsMonthLost'), value: stopsLoading ? '…' : stopsLostVehicles }
+        ],
+        footerAction: canManageStops
+          ? {
+              label: t('home.registerStop'),
+              onClick: () =>
+                go({
+                  productionArea: 'assembly',
+                  productionPage: 'vehicles',
+                  productivityTab: 'stops',
+                  productivityStopFormOpen: true
+                })
+            }
+          : undefined
+      }
+    ].filter(Boolean) as HubSection['cards']
+  }
 
   const actions: HubSection = {
     key: 'actions',
@@ -48,24 +143,6 @@ export function useProductionHubSections() {
         tone: 'text-cyan-300 bg-cyan-500/15',
         kind: 'action' as const,
         onClick: () => setReportOpen(true)
-      },
-      (permsLoading || canViewModule('production')) && {
-        key: 'addEntry',
-        title: t('productivity.addVehicleCta'),
-        description: t('productivity.addVehicleCtaHint'),
-        icon: LogIn,
-        tone: 'text-emerald-300 bg-emerald-500/15',
-        kind: 'action' as const,
-        onClick: () => go({ productionArea: 'assembly', productionPage: 'vehicles', productivityTab: 'entry' })
-      },
-      (permsLoading || canViewModule('production')) && {
-        key: 'recordExit',
-        title: t('productivity.exitTitle'),
-        description: t('productivity.exitSubtitle'),
-        icon: LogOut,
-        tone: 'text-violet-300 bg-violet-500/15',
-        kind: 'action' as const,
-        onClick: () => go({ productionArea: 'assembly', productionPage: 'vehicles', productivityTab: 'exit' })
       }
     ].filter(Boolean) as HubSection['cards']
   }
@@ -74,14 +151,6 @@ export function useProductionHubSections() {
     key: 'pages',
     title: t('hub.sections.pages'),
     cards: [
-      (permsLoading || canViewModule('missing_parts')) && {
-        key: 'missing',
-        title: t('modules.missingParts'),
-        description: t('modules.missingPartsDesc'),
-        icon: AlertTriangle,
-        tone: 'text-red-300 bg-red-500/15',
-        onClick: () => go({ productionArea: 'assembly', productionPage: 'missing' })
-      },
       (permsLoading || canViewModule('production')) && {
         key: 'vehicles',
         title: t('modules.vehicles'),
@@ -202,7 +271,7 @@ export function useProductionHubSections() {
   }
 
   return {
-    sections: [actions, pages, productivityTabs, trainingTabs, settingsTabs],
+    sections: [overview, actions, pages, productivityTabs, trainingTabs, settingsTabs].filter(s => s.cards.length > 0),
     reportOpen,
     setReportOpen
   }

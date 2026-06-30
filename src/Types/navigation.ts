@@ -51,6 +51,8 @@ export type SettingsTab = (typeof SETTINGS_TAB_ORDER)[number]
 
 export type ProductivityTab = 'orders' | 'workDays' | 'entry' | 'exit' | 'stops' | 'summary'
 
+export type ProductivitySubTab = 'daily' | 'monthly'
+
 export type ProductionPlanTab = 'planOrders'
 
 export type WarehousesTab = 'home' | 'currentStock' | 'feeding'

@@ -1,18 +1,16 @@
-import { useState } from 'react'
 import { CalendarDays, CalendarRange } from 'lucide-react'
 import { useLang } from '../../i18n/LanguageContext'
+import { useNavigation } from '../../Context/NavigationContext'
 import { VehiclesPage } from './VehiclesPage'
 import { EntryProductivityMonthlyTab } from '../../Components/EntryProductivityMonthlyTab'
 
-type EntrySubTab = 'daily' | 'monthly'
-
 export function EntryProductivityPage() {
   const { t } = useLang()
-  const [subTab, setSubTab] = useState<EntrySubTab>('daily')
+  const { productivitySubTab, setProductivitySubTab } = useNavigation()
 
-  const subTabs: { key: EntrySubTab; label: string; icon: typeof CalendarRange }[] = [
-    { key: 'daily', label: t('productivity.entrySubTabs.daily'), icon: CalendarRange },
-    { key: 'monthly', label: t('productivity.entrySubTabs.monthly'), icon: CalendarDays }
+  const subTabs = [
+    { key: 'daily' as const, label: t('productivity.entrySubTabs.daily'), icon: CalendarRange },
+    { key: 'monthly' as const, label: t('productivity.entrySubTabs.monthly'), icon: CalendarDays }
   ]
 
   return (
@@ -21,12 +19,12 @@ export function EntryProductivityPage() {
         <nav className="flex flex-wrap gap-2">
           {subTabs.map(item => {
             const Icon = item.icon
-            const active = subTab === item.key
+            const active = productivitySubTab === item.key
             return (
               <button
                 key={item.key}
                 type="button"
-                onClick={() => setSubTab(item.key)}
+                onClick={() => setProductivitySubTab(item.key)}
                 className={`flex items-center gap-1.5 rounded-xl px-3 py-2 text-sm font-black sm:px-4 ${
                   active ? 'bg-violet-500 text-slate-950' : 'bg-slate-800 text-slate-300 hover:bg-slate-700'
                 }`}
@@ -39,8 +37,8 @@ export function EntryProductivityPage() {
         </nav>
       </div>
 
-      {subTab === 'daily' && <VehiclesPage mode="entry" />}
-      {subTab === 'monthly' && <EntryProductivityMonthlyTab />}
+      {productivitySubTab === 'daily' && <VehiclesPage mode="entry" />}
+      {productivitySubTab === 'monthly' && <EntryProductivityMonthlyTab />}
     </section>
   )
 }

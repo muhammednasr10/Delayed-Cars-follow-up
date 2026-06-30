@@ -15,6 +15,7 @@ type Props = {
 export function WorkforceAttendanceSection({ employees, canManage }: Props) {
   const { t } = useLang()
   const [subTab, setSubTab] = useState<AttendanceSubTab>('monthly')
+  const [monthlyRefreshKey, setMonthlyRefreshKey] = useState(0)
 
   const subTabs: { key: AttendanceSubTab; label: string; icon: typeof ClipboardList }[] = [
     { key: 'monthly', label: t('training.attendanceTabs.monthly'), icon: ClipboardList },
@@ -41,7 +42,10 @@ export function WorkforceAttendanceSection({ employees, canManage }: Props) {
               <button
                 key={item.key}
                 type="button"
-                onClick={() => setSubTab(item.key)}
+                onClick={() => {
+                  if (item.key === 'monthly') setMonthlyRefreshKey(k => k + 1)
+                  setSubTab(item.key)
+                }}
                 className={`flex items-center gap-1.5 rounded-xl px-3 py-2 text-sm font-black sm:px-4 ${
                   active ? 'bg-violet-500 text-slate-950' : 'bg-slate-800 text-slate-300 hover:bg-slate-700'
                 }`}
@@ -55,8 +59,16 @@ export function WorkforceAttendanceSection({ employees, canManage }: Props) {
       </div>
 
       <div className="card-industrial overflow-hidden">
-        {subTab === 'monthly' && <EmployeeAttendanceTab employees={employees} canManage={canManage} />}
-        {subTab === 'today' && <TodayAttendanceTab employees={employees} canManage={canManage} />}
+        {subTab === 'monthly' && (
+          <EmployeeAttendanceTab employees={employees} canManage={canManage} refreshKey={monthlyRefreshKey} />
+        )}
+        {subTab === 'today' && (
+          <TodayAttendanceTab
+            employees={employees}
+            canManage={canManage}
+            onSaved={() => setMonthlyRefreshKey(k => k + 1)}
+          />
+        )}
       </div>
     </section>
   )

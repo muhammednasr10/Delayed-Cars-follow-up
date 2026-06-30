@@ -810,6 +810,12 @@ export const translations = {
       welcomeSubtitle: 'وحدات متابعة خط الإنتاج — اختر تبويباً من شريط الإنتاج أو ابدأ بتبليغ نقص جديد.',
       reportMissing: 'تبليغ نقص جديد',
       reportMissingDesc: 'تسجيل نقص قطعة على سيارة في الخط',
+      missingActiveVehicles: 'نواقص حالية',
+      missingArchiveVehicles: 'الأرشيف',
+      productivityMonthVehicles: 'سيارات هذا الشهر',
+      stopsMonthHours: 'ساعات التوقف',
+      stopsMonthLost: 'سيارات ضائعة',
+      registerStop: 'تسجيل توقف جديد',
       modules: 'وحدات الإنتاج', soon: 'قريباً',
       total: 'إجمالي السيارات', totalSub: 'جميع السيارات المسجلة',
       withMissing: 'بها نواقص', withMissingSub: 'سيارات بنواقص مفتوحة',
@@ -825,7 +831,9 @@ export const translations = {
     },
     hub: {
       actionBadge: 'إجراء',
+      statCardOpen: 'عرض التفاصيل',
       sections: {
+        overview: 'نظرة سريعة',
         pages: 'الصفحات',
         tabs: 'تبويبات — {page}',
         actions: 'إجراءات سريعة'
@@ -2779,6 +2787,12 @@ export const translations = {
       welcomeSubtitle: 'Production line modules — pick a tab from the production bar or report a new shortage.',
       reportMissing: 'Report new shortage',
       reportMissingDesc: 'Report a missing part on a vehicle on the line',
+      missingActiveVehicles: 'Active shortages',
+      missingArchiveVehicles: 'Archive',
+      productivityMonthVehicles: 'Vehicles this month',
+      stopsMonthHours: 'Stop hours',
+      stopsMonthLost: 'Lost vehicles',
+      registerStop: 'Register new stop',
       modules: 'Production modules', soon: 'Soon',
       total: 'Total vehicles', totalSub: 'All registered vehicles',
       withMissing: 'With shortages', withMissingSub: 'Vehicles with open shortages',
@@ -2794,7 +2808,9 @@ export const translations = {
     },
     hub: {
       actionBadge: 'Action',
+      statCardOpen: 'View details',
       sections: {
+        overview: 'At a glance',
         pages: 'Pages',
         tabs: 'Tabs — {page}',
         actions: 'Quick actions'

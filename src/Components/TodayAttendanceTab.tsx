@@ -46,6 +46,7 @@ type TodayRow = {
 type Props = {
   employees: Employee[]
   canManage: boolean
+  onSaved?: () => void
 }
 
 function buildDefaultRow(employee: Employee, defaults: AttendanceBulkDefaults): TodayRow {
@@ -83,7 +84,7 @@ function formatTodayLabel(workDate: string, lang: string): string {
   })
 }
 
-export function TodayAttendanceTab({ employees, canManage }: Props) {
+export function TodayAttendanceTab({ employees, canManage, onSaved }: Props) {
   const { t, lang } = useLang()
   const workDate = localTodayIso()
   const [rows, setRows] = useState<TodayRow[]>([])
@@ -98,6 +99,7 @@ export function TodayAttendanceTab({ employees, canManage }: Props) {
   const [bulkDefaults, setBulkDefaults] = useState<AttendanceBulkDefaults>(DEFAULT_ATTENDANCE_BULK)
   const [todayPlanDayType, setTodayPlanDayType] = useState<PlanDayType | null>(null)
   const [persistedIds, setPersistedIds] = useState<Set<string>>(new Set())
+  const persistedIdsRef = useRef<Set<string>>(new Set())
   const saveTimers = useRef<Map<string, ReturnType<typeof setTimeout>>>(new Map())
   const savedTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
   const rowsRef = useRef<TodayRow[]>([])
@@ -116,6 +118,10 @@ export function TodayAttendanceTab({ employees, canManage }: Props) {
     rowsRef.current = rows
   }, [rows])
 
+  useEffect(() => {
+    persistedIdsRef.current = persistedIds
+  }, [persistedIds])
+
   const mergeRowsFromServer = useCallback(
     (existing: Awaited<ReturnType<typeof getAttendanceDaysForDate>>, planDayType: PlanDayType | null) => {
       setTodayPlanDayType(planDayType)
@@ -129,7 +135,11 @@ export function TodayAttendanceTab({ employees, canManage }: Props) {
             return prev.find(r => r.employeeId === employee.id) ?? buildDefaultRow(employee, initialDefaults)
           }
           const saved = byEmployee.get(employee.id)
-          if (!saved) return buildDefaultRow(employee, initialDefaults)
+          if (!saved) {
+            const local = prev.find(r => r.employeeId === employee.id)
+            if (local && persistedIdsRef.current.has(employee.id)) return local
+            return buildDefaultRow(employee, initialDefaults)
+          }
           const times = rowTimesFromStatus(saved.status, saved.checkIn, saved.checkOut)
           return {
             employeeId: employee.id,
@@ -201,6 +211,7 @@ export function TodayAttendanceTab({ employees, canManage }: Props) {
         )
         setPersistedIds(prev => new Set(prev).add(row.employeeId))
         flashSaved()
+        onSaved?.()
       } catch (e) {
         setSaveState('idle')
         setError(e instanceof Error ? e.message : t('common.error'))
@@ -208,7 +219,7 @@ export function TodayAttendanceTab({ employees, canManage }: Props) {
         savingIds.current.delete(row.employeeId)
       }
     },
-    [canManage, workDate, flashSaved, t]
+    [canManage, workDate, flashSaved, t, onSaved]
   )
 
   const scheduleSaveRow = useCallback(
@@ -254,12 +265,13 @@ export function TodayAttendanceTab({ employees, canManage }: Props) {
           return next
         })
         flashSaved()
+        onSaved?.()
       } catch (e) {
         setSaveState('idle')
         setError(e instanceof Error ? e.message : t('common.error'))
       }
     },
-    [canManage, workDate, flashSaved, t]
+    [canManage, workDate, flashSaved, t, onSaved]
   )
 
   useEffect(() => {
@@ -272,25 +284,62 @@ export function TodayAttendanceTab({ employees, canManage }: Props) {
   const patchRow = useCallback(
     (index: number, patch: Partial<TodayRow>, saveImmediate = false) => {
       let updated: TodayRow | null = null
-      setRows(prev =>
-        prev.map((row, i) => {
-          if (i !== index) return row
-          const next = { ...row, ...patch }
-          const status = patch.status ?? row.status
-          if (!attendanceStatusHasTimes(status)) {
-            next.checkIn = ''
-            next.checkOut = ''
-          } else if (!attendanceStatusHasTimes(row.status) || !next.checkIn) {
-            next.checkIn = patch.checkIn ?? DEFAULT_ATTENDANCE_CHECK_IN
-            next.checkOut = patch.checkOut ?? DEFAULT_ATTENDANCE_CHECK_OUT
-          }
-          updated = next
-          return next
-        })
-      )
-      if (updated) scheduleSaveRow(updated, saveImmediate)
+      const nextRows = rowsRef.current.map((row, i) => {
+        if (i !== index) return row
+        const next = { ...row, ...patch }
+        const status = patch.status ?? row.status
+        if (!attendanceStatusHasTimes(status)) {
+          next.checkIn = ''
+          next.checkOut = ''
+        } else if (!attendanceStatusHasTimes(row.status) || !next.checkIn) {
+          next.checkIn = patch.checkIn ?? DEFAULT_ATTENDANCE_CHECK_IN
+          next.checkOut = patch.checkOut ?? DEFAULT_ATTENDANCE_CHECK_OUT
+        }
+        updated = next
+        return next
+      })
+      if (updated) {
+        rowsRef.current = nextRows
+        setRows(nextRows)
+        scheduleSaveRow(updated, saveImmediate)
+      }
     },
     [scheduleSaveRow]
+  )
+
+  const flushQuickEntryFor = useCallback(
+    async (
+      empId: string,
+      quick: { status: AttendanceDayStatus; checkIn: string; checkOut: string }
+    ) => {
+      if (!canManage || !empId) return
+      const index = rowsRef.current.findIndex(r => r.employeeId === empId)
+      if (index === -1) return
+      const row = rowsRef.current[index]
+      let status = quick.status
+      let checkIn = quick.checkIn
+      let checkOut = quick.checkOut
+      if (!attendanceStatusHasTimes(status)) {
+        checkIn = ''
+        checkOut = ''
+      } else {
+        checkIn = checkIn || DEFAULT_ATTENDANCE_CHECK_IN
+        checkOut = checkOut || DEFAULT_ATTENDANCE_CHECK_OUT
+      }
+      if (
+        row.status === status &&
+        row.checkIn === checkIn &&
+        row.checkOut === checkOut &&
+        persistedIdsRef.current.has(empId)
+      ) {
+        return
+      }
+      const nextRow = { ...row, status, checkIn, checkOut }
+      rowsRef.current = rowsRef.current.map((r, i) => (i === index ? nextRow : r))
+      setRows(rowsRef.current)
+      await persistRow(nextRow)
+    },
+    [canManage, persistRow]
   )
 
   const commitQuickEntry = useCallback(
@@ -321,23 +370,33 @@ export function TodayAttendanceTab({ employees, canManage }: Props) {
     [canManage, patchRow]
   )
 
-  const onQuickEmployeeChange = useCallback((employeeId: string) => {
-    quickEmployeeIdRef.current = employeeId
-    setQuickEmployeeId(employeeId)
-    if (!employeeId) return
-    const row = rowsRef.current.find(r => r.employeeId === employeeId)
-    if (!row) return
-    const checkIn = row.checkIn || DEFAULT_ATTENDANCE_CHECK_IN
-    const checkOut = row.checkOut || DEFAULT_ATTENDANCE_CHECK_OUT
-    const hasTimes = attendanceStatusHasTimes(row.status)
-    quickStatusRef.current = row.status
-    quickCheckInRef.current = hasTimes ? checkIn : ''
-    quickCheckOutRef.current = hasTimes ? checkOut : ''
-    setQuickStatus(row.status)
-    setQuickCheckIn(quickCheckInRef.current)
-    setQuickCheckOut(quickCheckOutRef.current)
-    commitQuickEntry()
-  }, [commitQuickEntry])
+  const onQuickEmployeeChange = useCallback(
+    (employeeId: string) => {
+      const prevId = quickEmployeeIdRef.current
+      if (prevId && prevId !== employeeId) {
+        void flushQuickEntryFor(prevId, {
+          status: quickStatusRef.current,
+          checkIn: quickCheckInRef.current,
+          checkOut: quickCheckOutRef.current
+        })
+      }
+      quickEmployeeIdRef.current = employeeId
+      setQuickEmployeeId(employeeId)
+      if (!employeeId) return
+      const row = rowsRef.current.find(r => r.employeeId === employeeId)
+      if (!row) return
+      const checkIn = row.checkIn || DEFAULT_ATTENDANCE_CHECK_IN
+      const checkOut = row.checkOut || DEFAULT_ATTENDANCE_CHECK_OUT
+      const hasTimes = attendanceStatusHasTimes(row.status)
+      quickStatusRef.current = row.status
+      quickCheckInRef.current = hasTimes ? checkIn : ''
+      quickCheckOutRef.current = hasTimes ? checkOut : ''
+      setQuickStatus(row.status)
+      setQuickCheckIn(quickCheckInRef.current)
+      setQuickCheckOut(quickCheckOutRef.current)
+    },
+    [flushQuickEntryFor]
+  )
 
   const onQuickStatusChange = useCallback(
     (status: AttendanceDayStatus) => {
@@ -387,6 +446,7 @@ export function TodayAttendanceTab({ employees, canManage }: Props) {
       checkIn: defaults.checkIn,
       checkOut: defaults.checkOut
     }))
+    rowsRef.current = nextRows
     setRows(nextRows)
     void persistAllRows(nextRows)
   }
