@@ -10,4 +10,11 @@ export type ScratchRecord = {
   notes?: string
 }
 
-export type ScratchInput = Omit<ScratchRecord, 'id'>
+export type ScratchInput = {
+  vin: string
+  bodyArea: string
+  factoryOrgUnitId?: string | null
+  severity: ScratchSeverity
+  recordedAt: string
+  notes?: string
+}

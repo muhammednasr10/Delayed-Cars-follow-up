@@ -1,41 +1,36 @@
-import { AlertOctagon, CalendarDays, ClipboardList, LogIn, LogOut } from 'lucide-react'
+import { AlertOctagon, CalendarDays } from 'lucide-react'
 import { useLang } from '../../i18n/LanguageContext'
 import { useNavigation } from '../../Context/NavigationContext'
+import { useCanViewPage } from '../../hooks/useCanViewPage'
 import { PageTabShell } from '../../Components/layout/PageTabShell'
-import { ProductionPlanWorkDaysTab } from '../../Components/ProductionPlanWorkDaysTab'
+import { ProductionProductivityTab } from '../../Components/production/ProductionProductivityTab'
 import { ProductionStopsTab } from '../../Components/production/ProductionStopsTab'
-import { EntryProductivityPage } from './EntryProductivityPage'
-import { ExitProductivityPage } from './ExitProductivityPage'
-import { ProductionOrdersPage } from './ProductionOrdersPage'
 import type { ProductivityTab } from '../../Types/navigation'
 
 export function ProductivityPage() {
   const { t } = useLang()
   const { productivityTab: tab, setProductivityTab: setTab } = useNavigation()
+  const { canViewTab, loading: permsLoading } = useCanViewPage()
 
-  const tabs: { key: ProductivityTab; label: string; icon: typeof LogIn }[] = [
-    { key: 'orders', label: t('productivity.tabs.orders'), icon: ClipboardList },
-    { key: 'workDays', label: t('productionOrders.tabs.workDays'), icon: CalendarDays },
-    { key: 'entry', label: t('productivity.tabs.entry'), icon: LogIn },
-    { key: 'exit', label: t('productivity.tabs.exit'), icon: LogOut },
-    { key: 'stops', label: t('productivity.tabs.stops'), icon: AlertOctagon },
-    { key: 'summary', label: t('productivity.tabs.summary'), icon: CalendarDays }
+  const allTabs: { key: ProductivityTab; label: string; icon: typeof CalendarDays }[] = [
+    { key: 'productivity', label: t('productivity.tabs.productivity'), icon: CalendarDays },
+    { key: 'stops', label: t('productivity.tabs.stops'), icon: AlertOctagon }
   ]
+
+  const tabs = allTabs.filter(item => permsLoading || canViewTab('production_productivity', item.key))
+
+  const activeTab = tabs.some(item => item.key === tab) ? tab : (tabs[0]?.key ?? 'productivity')
 
   return (
     <PageTabShell
       title={t('productivity.title')}
       subtitle={t('productivity.subtitle')}
       tabs={tabs.map(item => ({ key: item.key, label: item.label, icon: <item.icon className="h-4 w-4" /> }))}
-      activeTab={tab}
+      activeTab={activeTab}
       onTabChange={setTab}
     >
-      {tab === 'orders' && <ProductionOrdersPage />}
-      {tab === 'workDays' && <ProductionPlanWorkDaysTab variant="workDays" />}
-      {tab === 'entry' && <EntryProductivityPage />}
-      {tab === 'exit' && <ExitProductivityPage />}
-      {tab === 'stops' && <ProductionStopsTab />}
-      {tab === 'summary' && <ProductionPlanWorkDaysTab variant="summary" />}
+      {activeTab === 'productivity' && <ProductionProductivityTab />}
+      {activeTab === 'stops' && <ProductionStopsTab />}
     </PageTabShell>
   )
 }

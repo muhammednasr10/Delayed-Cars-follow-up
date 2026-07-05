@@ -6,6 +6,7 @@ export type DamagedPartRecord = {
   partNumber: string
   partName: string | null
   quantity: number
+  unitCost: number | null
   damageReason: string
   finalDecision: string
   isRepairable: boolean
@@ -26,6 +27,7 @@ export type DamagedPartInput = {
   partNumber: string
   partName?: string | null
   quantity: number
+  unitCost?: number | null
   damageReason: string
   finalDecision: string
   isRepairable?: boolean

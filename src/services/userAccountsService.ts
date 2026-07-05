@@ -15,6 +15,7 @@ export type CreateUserAccountInput = {
 }
 
 export type UpdateUserAccountInput = {
+  email?: string
   fullName?: string
   systemRoleId?: string
   employeeId?: string | null
@@ -142,6 +143,20 @@ export async function resetUserPassword(userId: string, password: string): Promi
 }
 
 export async function updateUserAccount(userId: string, input: UpdateUserAccountInput): Promise<void> {
+  if (input.email !== undefined) {
+    const email = input.email.trim()
+    if (!email) throw new Error('EMAIL_REQUIRED')
+    const { error } = await client().rpc('admin_update_user_email', {
+      p_user_id: userId,
+      p_email: email
+    })
+    if (error) {
+      if (error.code === '23505' || error.message?.includes('already exists')) {
+        throw new Error('DUPLICATE_EMAIL')
+      }
+      throw new Error(error.message)
+    }
+  }
   if (input.fullName !== undefined || input.isActive !== undefined) {
     const { error } = await client().rpc('update_user_account', {
       p_user_id: userId,
@@ -159,6 +174,11 @@ export async function updateUserAccount(userId: string, input: UpdateUserAccount
 
 export async function deactivateUserAccount(userId: string): Promise<void> {
   const { error } = await client().rpc('deactivate_user_account', { p_user_id: userId })
+  if (error) throw new Error(error.message)
+}
+
+export async function deleteUserAccount(userId: string): Promise<void> {
+  const { error } = await client().rpc('delete_user_account', { p_user_id: userId })
   if (error) throw new Error(error.message)
 }
 

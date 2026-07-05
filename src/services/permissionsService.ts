@@ -160,3 +160,65 @@ export async function getAllSystemRoles(includeInactive = false): Promise<System
   if (error) throw new Error(error.message)
   return (data ?? []) as SystemRole[]
 }
+
+/** مسح كل استثناءات المستخدم — يعود لصلاحيات دوره فقط. */
+export async function clearUserPermissionOverrides(userId: string): Promise<number> {
+  const { getUserOverrides, removeUserPermissionOverride } = await import('./userAccountsService')
+  const existing = await getUserOverrides(userId)
+  for (const row of existing) {
+    await removeUserPermissionOverride(userId, row.permission_id as string)
+  }
+  return existing.length
+}
+
+/** نسخ مصفوفة صلاحيات دور إلى دور آخر (يستبدل إعدادات الهدف). */
+export async function copyRolePermissions(
+  sourceRoleId: string,
+  targetRoleId: string,
+  allPermissions: SystemPermission[]
+): Promise<number> {
+  if (sourceRoleId === targetRoleId) throw new Error('SAME_SOURCE')
+  const source = await getRolePermissions(sourceRoleId)
+  let n = 0
+  for (const p of allPermissions) {
+    const key = permissionKey(p.module_key, p.permission_key)
+    const allowed = source.get(key) ?? false
+    await setRolePermission(targetRoleId, p.id, allowed)
+    n++
+  }
+  return n
+}
+
+/**
+ * يجعل صلاحيات المستخدم الهدف مطابقة للفعّالة لدى المصدر
+ * عبر استثناءات نسبةً لدور الهدف (يمسح استثناءات الهدف أولاً).
+ */
+export async function copyUserPermissions(
+  sourceUserId: string,
+  targetUserId: string,
+  allPermissions: SystemPermission[],
+  sourceRoleId: string | null,
+  targetRoleId: string | null
+): Promise<number> {
+  if (sourceUserId === targetUserId) throw new Error('SAME_SOURCE')
+  const { getUserOverrides, removeUserPermissionOverride } = await import('./userAccountsService')
+  const source = await getUserEffectivePermissions(allPermissions, sourceUserId, sourceRoleId)
+  const targetRoleBase = targetRoleId ? await getRolePermissions(targetRoleId) : new Map<string, boolean>()
+
+  const existing = await getUserOverrides(targetUserId)
+  for (const row of existing) {
+    await removeUserPermissionOverride(targetUserId, row.permission_id as string)
+  }
+
+  let n = 0
+  for (const p of allPermissions) {
+    const key = permissionKey(p.module_key, p.permission_key)
+    const desired = source.effective.get(key) ?? false
+    const roleDefault = targetRoleBase.get(key) ?? false
+    if (desired !== roleDefault) {
+      await setUserPermissionOverride(targetUserId, p.id, desired, 'Copied permissions')
+      n++
+    }
+  }
+  return n
+}

@@ -9,8 +9,8 @@ export function EntryProductivityPage() {
   const { productivitySubTab, setProductivitySubTab } = useNavigation()
 
   const subTabs = [
-    { key: 'daily' as const, label: t('productivity.entrySubTabs.daily'), icon: CalendarRange },
-    { key: 'monthly' as const, label: t('productivity.entrySubTabs.monthly'), icon: CalendarDays }
+    { key: 'monthly' as const, label: t('productivity.entrySubTabs.monthly'), icon: CalendarDays },
+    { key: 'daily' as const, label: t('productivity.entrySubTabs.daily'), icon: CalendarRange }
   ]
 
   return (

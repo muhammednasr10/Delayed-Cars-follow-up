@@ -1,22 +1,19 @@
 import {
   AlertTriangle,
-  BarChart3,
-  CalendarDays,
-  Car,
   ClipboardList,
-  FileUp,
   GraduationCap,
   Layers,
+  LayoutGrid,
   ListTodo,
   LogIn,
   LogOut,
-  Package,
+  MessageSquareText,
   PackageX,
-  PlusCircle,
   Route,
+  ScanLine,
   Settings as SettingsIcon,
-  Truck,
-  Upload,
+  UserCircle,
+  Users,
   Wrench,
   AlertOctagon,
   CalendarClock
@@ -28,12 +25,21 @@ import { usePermissions } from '../Context/PermissionsContext'
 import { useNavigation } from '../Context/NavigationContext'
 import { useCanAccessSettings } from './useCanAccessSettings'
 import { useCanReportMissingPart } from './useCanReportMissingPart'
+import { useCanViewPage } from './useCanViewPage'
 import { useMissingPartsVehicleCounts } from './useMissingPartsVehicleCounts'
 import { useProductivityMonthCounts } from './useProductivityMonthCounts'
 import { formatStopHoursForCard, useProductionStopMonthCounts } from './useProductionStopMonthCounts'
 import { useTodayAttendanceEfficiency } from './useTodayAttendanceEfficiency'
+import { useHomeCardMonthStats } from './useHomeCardMonthStats'
 import { useLang } from '../i18n/LanguageContext'
+import { buildAttendanceHubStats } from '../Utils/attendanceHubStats'
 import { SETTINGS_TAB_ORDER } from '../Types/navigation'
+
+function formatCost(value: number | null, loading: boolean): string {
+  if (loading) return '…'
+  if (value == null) return '—'
+  return value.toLocaleString('en-US', { maximumFractionDigits: 0 })
+}
 
 export function useGlobalHubSections(refreshKey = 0) {
   const { t } = useLang()
@@ -41,51 +47,63 @@ export function useGlobalHubSections(refreshKey = 0) {
   const { canAccess: canAccessSettings } = useCanAccessSettings()
   const { canReport } = useCanReportMissingPart()
   const { hasRole } = useAuth()
-  const { canViewModule, hasPermission, loading: permsLoading } = usePermissions()
+  const { canViewModule, loading: permsLoading } = usePermissions()
+  const { canViewPage, loading: pagesLoading } = useCanViewPage()
+  const loading = permsLoading || pagesLoading
   const [reportOpen, setReportOpen] = useState(false)
   const { activeVehicles, archiveVehicles, loading: countsLoading } = useMissingPartsVehicleCounts(refreshKey)
   const { entryVehicles, exitVehicles, loading: productivityLoading } = useProductivityMonthCounts(refreshKey)
   const { totalMinutes, lostVehicles: stopsLostVehicles, loading: stopsLoading } = useProductionStopMonthCounts(refreshKey)
-  const { efficiency, presentTodayCount, workforceCount, loading: attendanceLoading } = useTodayAttendanceEfficiency(refreshKey)
+  const { efficiency, presentTodayCount, workforceCount, statusCounts, loading: attendanceLoading } =
+    useTodayAttendanceEfficiency(refreshKey)
+  const {
+    plannedVehicles,
+    workHours,
+    ordersWorked,
+    damagedQty,
+    damagedCost,
+    scratchesCount,
+    loading: monthStatsLoading
+  } = useHomeCardMonthStats(refreshKey)
 
   const canManageStops = hasRole('admin', 'production')
-
   const go = nav.navigate
+  const canLineBalancing = loading || canViewModule('station_operations')
+  const showHomeCard = (card: Parameters<typeof canViewPage>[0], moduleOk = true) =>
+    loading || (canViewPage(card) && moduleOk)
 
-  const canImportIpl =
-    hasRole('admin') ||
-    hasPermission('bom', 'import') ||
-    hasPermission('bom', 'create') ||
-    hasPermission('bom', 'manage')
-
-  const canIpl = canAccessSettings
-  const canStations = canAccessSettings || permsLoading || canViewModule('station_operations')
-  const canLineBalancing = permsLoading || canViewModule('station_operations')
-
-  const production: HubSection = {
-    key: 'production',
-    title: t('departments.production'),
+  /** ترتيب تدفق العمل: تخطيط → إنتاج → جودة → عمالة → هندسة → دعم */
+  const home: HubSection = {
+    key: 'home',
+    title: '',
     cards: [
-      (permsLoading || canViewModule('missing_parts')) && {
-        key: 'missing',
-        title: t('modules.missingParts'),
-        description: t('modules.missingPartsDesc'),
-        icon: AlertTriangle,
-        tone: 'text-red-300 bg-red-500/15',
-        accent: 'red' as const,
-        onClick: () => go({ department: 'production', productionArea: 'assembly', productionPage: 'missing' }),
+      showHomeCard('production_home__plan', canViewModule('production')) && {
+        key: 'planOrders',
+        title: t('productionOrders.title'),
+        description: t('productionOrders.planSummary'),
+        icon: LayoutGrid,
+        tone: 'text-violet-300 bg-violet-500/15',
+        accent: 'violet' as const,
+        onClick: () => go({ department: 'planning', planningTab: 'plan' }),
         stats: [
-          { label: t('home.missingActiveVehicles'), value: countsLoading ? '…' : activeVehicles },
-          { label: t('home.missingArchiveVehicles'), value: countsLoading ? '…' : archiveVehicles }
-        ],
-        footerAction: canReport
-          ? { label: t('home.reportMissing'), onClick: () => setReportOpen(true) }
-          : undefined
+          { label: t('home.planMonthVehicles'), value: monthStatsLoading ? '…' : String(plannedVehicles) },
+          { label: t('home.planMonthHours'), value: monthStatsLoading ? '…' : String(workHours) }
+        ]
       },
-      (permsLoading || canViewModule('production')) && {
-        key: 'entryProductivity',
-        title: t('productivity.entryTitle'),
-        description: t('productivity.entrySubtitle'),
+      showHomeCard('production_home__orders', canViewModule('production')) && {
+        key: 'productionOrders',
+        title: t('productionOrders.ordersSection'),
+        description: t('productionOrders.ordersSectionHint'),
+        icon: ClipboardList,
+        tone: 'text-cyan-300 bg-cyan-500/15',
+        accent: 'cyan' as const,
+        onClick: () => go({ department: 'planning', planningTab: 'orders' }),
+        stats: [{ label: t('home.ordersWorkedMonth'), value: monthStatsLoading ? '…' : String(ordersWorked) }]
+      },
+      showHomeCard('production_home__entry', canViewModule('production')) && {
+        key: 'productivity',
+        title: t('productivity.title'),
+        description: t('productivity.subtitle'),
         icon: LogIn,
         tone: 'text-emerald-300 bg-emerald-500/15',
         accent: 'emerald' as const,
@@ -94,29 +112,14 @@ export function useGlobalHubSections(refreshKey = 0) {
             department: 'production',
             productionArea: 'assembly',
             productionPage: 'vehicles',
-            productivityTab: 'entry',
-            productivitySubTab: 'monthly'
+            productivityTab: 'productivity'
           }),
-        stats: [{ label: t('home.productivityMonthVehicles'), value: productivityLoading ? '…' : entryVehicles }]
+        stats: [
+          { label: t('home.productivityMonthVehicles'), value: productivityLoading ? '…' : String(entryVehicles) },
+          { label: t('productivity.exitTitle'), value: productivityLoading ? '…' : String(exitVehicles) }
+        ]
       },
-      (permsLoading || canViewModule('production')) && {
-        key: 'exitProductivity',
-        title: t('productivity.exitTitle'),
-        description: t('productivity.exitSubtitle'),
-        icon: LogOut,
-        tone: 'text-violet-300 bg-violet-500/15',
-        accent: 'violet' as const,
-        onClick: () =>
-          go({
-            department: 'production',
-            productionArea: 'assembly',
-            productionPage: 'vehicles',
-            productivityTab: 'exit',
-            productivitySubTab: 'monthly'
-          }),
-        stats: [{ label: t('home.productivityMonthVehicles'), value: productivityLoading ? '…' : exitVehicles }]
-      },
-      (permsLoading || canViewModule('production')) && {
+      showHomeCard('production_home__stops', canViewModule('production')) && {
         key: 'stops',
         title: t('productivity.tabs.stops'),
         description: t('productivity.stops.subtitle'),
@@ -132,7 +135,7 @@ export function useGlobalHubSections(refreshKey = 0) {
           }),
         stats: [
           { label: t('home.stopsMonthHours'), value: stopsLoading ? '…' : formatStopHoursForCard(totalMinutes) },
-          { label: t('home.stopsMonthLost'), value: stopsLoading ? '…' : stopsLostVehicles }
+          { label: t('home.stopsMonthLost'), value: stopsLoading ? '…' : String(stopsLostVehicles) }
         ],
         footerAction: canManageStops
           ? {
@@ -148,14 +151,55 @@ export function useGlobalHubSections(refreshKey = 0) {
             }
           : undefined
       },
-      (permsLoading || canViewModule('training_matrix')) && {
+      showHomeCard('production_home__missing', canViewModule('missing_parts')) && {
+        key: 'missing',
+        title: t('modules.missingParts'),
+        description: t('modules.missingPartsDesc'),
+        icon: AlertTriangle,
+        tone: 'text-red-300 bg-red-500/15',
+        accent: 'red' as const,
+        onClick: () => go({ department: 'production', productionArea: 'assembly', productionPage: 'missing' }),
+        stats: [
+          { label: t('home.missingActiveVehicles'), value: countsLoading ? '…' : String(activeVehicles) },
+          { label: t('home.missingArchiveVehicles'), value: countsLoading ? '…' : String(archiveVehicles) }
+        ],
+        footerAction: canReport
+          ? { label: t('home.reportMissing'), onClick: () => setReportOpen(true) }
+          : undefined
+      },
+      showHomeCard('production_home__damaged') && {
+        key: 'damagedParts',
+        title: t('modules.damagedParts'),
+        description: t('modules.damagedPartsDesc'),
+        icon: PackageX,
+        tone: 'text-orange-300 bg-orange-500/15',
+        accent: 'orange' as const,
+        onClick: () =>
+          go({ department: 'production', productionArea: 'assembly', productionPage: 'damagedParts' }),
+        stats: [
+          { label: t('home.damagedQtyMonth'), value: monthStatsLoading ? '…' : String(damagedQty) },
+          { label: t('home.damagedCostMonth'), value: formatCost(damagedCost, monthStatsLoading) }
+        ]
+      },
+      showHomeCard('production_home__scratches') && {
+        key: 'scratches',
+        title: t('modules.scratches'),
+        description: t('modules.scratchesDesc'),
+        icon: ScanLine,
+        tone: 'text-rose-300 bg-rose-500/15',
+        accent: 'rose' as const,
+        onClick: () =>
+          go({ department: 'production', productionArea: 'assembly', productionPage: 'scratches' }),
+        stats: [{ label: t('home.scratchesMonth'), value: monthStatsLoading ? '…' : String(scratchesCount) }]
+      },
+      showHomeCard('production_home__attendance', canViewModule('training_matrix')) && {
         key: 'attendanceToday',
         title: t('home.attendanceTodayTitle'),
         description: t('home.attendanceTodayDesc'),
         icon: CalendarClock,
         tone: 'text-cyan-300 bg-cyan-500/15',
         accent: 'cyan' as const,
-        statRow: 'secondary' as const,
+        wide: true,
         onClick: () =>
           go({
             department: 'production',
@@ -164,173 +208,125 @@ export function useGlobalHubSections(refreshKey = 0) {
             trainingTab: 'attendance',
             attendanceSubTab: 'today'
           }),
-        stats: [
-          {
-            label: t('home.attendanceEfficiency'),
-            value: attendanceLoading ? '…' : efficiency == null ? '—' : `${efficiency}%`
-          },
-          {
-            label: t('home.attendanceTodayCount'),
-            value: attendanceLoading ? '…' : workforceCount > 0 ? `${presentTodayCount}/${workforceCount}` : '—'
-          }
-        ]
+        stats: buildAttendanceHubStats(t, {
+          loading: attendanceLoading,
+          efficiency,
+          presentTodayCount,
+          workforceCount,
+          statusCounts
+        })
       },
-      canReport && {
-        key: 'reportMissing',
-        title: t('home.reportMissing'),
-        description: t('home.reportMissingDesc'),
-        icon: PlusCircle,
-        tone: 'text-cyan-300 bg-cyan-500/15',
-        kind: 'action' as const,
-        onClick: () => setReportOpen(true)
-      },
-      (permsLoading || canViewModule('production')) && {
-        key: 'vehicles',
-        title: t('modules.vehicles'),
-        description: t('modules.vehiclesDesc'),
-        icon: Car,
-        tone: 'text-cyan-300 bg-cyan-500/15',
-        onClick: () => go({ department: 'production', productionArea: 'assembly', productionPage: 'vehicles', productivityTab: 'orders' })
-      },
-      (permsLoading || canViewModule('training_matrix')) && {
+      showHomeCard('production_home__training', canViewModule('training_matrix')) && {
         key: 'training',
         title: t('modules.training'),
         description: t('modules.trainingDesc'),
         icon: GraduationCap,
         tone: 'text-blue-300 bg-blue-500/15',
-        onClick: () => go({ department: 'production', productionArea: 'assembly', productionPage: 'training', trainingTab: 'org' })
+        accent: 'blue' as const,
+        onClick: () =>
+          go({ department: 'production', productionArea: 'assembly', productionPage: 'training', trainingTab: 'org' })
       },
-      {
-        key: 'damagedParts',
-        title: t('modules.damagedParts'),
-        description: t('modules.damagedPartsDesc'),
-        icon: PackageX,
-        tone: 'text-orange-300 bg-orange-500/15',
-        onClick: () => go({ department: 'production', productionArea: 'assembly', productionPage: 'damagedParts' })
-      },
-      {
-        key: 'missions',
-        title: t('modules.missions'),
-        description: t('modules.missionsDesc'),
-        icon: ListTodo,
-        tone: 'text-amber-300 bg-amber-500/15',
-        onClick: () => go({ department: 'production', productionArea: 'assembly', productionPage: 'missions' })
-      },
-      {
-        key: 'requests',
-        title: t('modules.requests'),
-        description: t('modules.requestsDesc'),
-        icon: ClipboardList,
+      showHomeCard('production_home__manpower', canViewModule('training_matrix')) && {
+        key: 'manpower',
+        title: t('training.tabs.manpower'),
+        description: t('manpower.sectionSubtitle'),
+        icon: Users,
         tone: 'text-violet-300 bg-violet-500/15',
-        onClick: () => go({ department: 'production', productionArea: 'assembly', productionPage: 'requests' })
+        accent: 'indigo' as const,
+        onClick: () =>
+          go({
+            department: 'production',
+            productionArea: 'assembly',
+            productionPage: 'training',
+            trainingTab: 'manpower'
+          })
       },
-      canAccessSettings && {
-        key: 'settings',
-        title: t('modules.settings'),
-        description: t('modules.settingsDesc'),
-        icon: SettingsIcon,
-        tone: 'text-emerald-300 bg-emerald-500/15',
-        onClick: () => go({ department: 'production', productionArea: 'assembly', productionPage: 'settings', settingsTab: SETTINGS_TAB_ORDER[0] })
-      }
-    ].filter(Boolean) as HubSection['cards']
-  }
-
-  const engineering: HubSection = {
-    key: 'engineering',
-    title: t('departments.engineering'),
-    cards: [
-      canIpl && {
-        key: 'importBom',
-        title: t('bom.importTitle'),
-        description: t('bom.importHint'),
-        icon: FileUp,
-        tone: 'text-cyan-300 bg-cyan-500/15',
-        kind: 'action' as const,
-        onClick: () => go({ department: 'engineering', engineeringPage: 'ipl', bomTab: 'import' })
+      showHomeCard('production_home__equipment') && {
+        key: 'equipment',
+        title: t('modules.equipment'),
+        description: t('modules.equipmentDesc'),
+        icon: Wrench,
+        tone: 'text-sky-300 bg-sky-500/15',
+        accent: 'sky' as const,
+        onClick: () =>
+          go({ department: 'production', productionArea: 'assembly', productionPage: 'equipment' })
       },
-      canLineBalancing && {
-        key: 'importTimeStudy',
-        title: t('lineBalancing.tabs.import'),
-        icon: Upload,
-        tone: 'text-violet-300 bg-violet-500/15',
-        kind: 'action' as const,
-        onClick: () => go({ department: 'engineering', engineeringPage: 'lineBalancing', lineBalancingTab: 'import' })
-      },
-      canIpl && {
+      showHomeCard('production_home__ipl', canAccessSettings || canViewModule('bom')) && {
         key: 'ipl',
         title: t('nav.ipl'),
         description: t('hub.engineering.iplDesc'),
         icon: Layers,
         tone: 'text-orange-300 bg-orange-500/15',
+        accent: 'orange' as const,
         onClick: () => go({ department: 'engineering', engineeringPage: 'ipl', bomTab: 'parts' })
       },
-      canStations && {
-        key: 'stations',
-        title: t('nav.stations'),
-        description: t('settings.tabs.stations'),
-        icon: Wrench,
-        tone: 'text-amber-300 bg-amber-500/15',
-        onClick: () => go({ department: 'production', productionArea: 'assembly', productionPage: 'settings', settingsTab: 'stations' })
-      },
-      canLineBalancing && {
+      showHomeCard('production_home__line_balancing', canLineBalancing) && {
         key: 'lineBalancing',
         title: t('nav.lineBalancing'),
         description: t('hub.engineering.lineBalancingDesc'),
         icon: Route,
         tone: 'text-violet-300 bg-violet-500/15',
-        onClick: () => go({ department: 'engineering', engineeringPage: 'lineBalancing', lineBalancingTab: 'operations' })
+        accent: 'indigo' as const,
+        onClick: () =>
+          go({ department: 'engineering', engineeringPage: 'lineBalancing', lineBalancingTab: 'operations' })
       },
-      canIpl && {
-        key: 'iplDashboard',
-        title: t('bom.tabs.dashboard'),
-        icon: BarChart3,
-        tone: 'text-blue-300 bg-blue-500/15',
-        onClick: () => go({ department: 'engineering', engineeringPage: 'ipl', bomTab: 'dashboard' })
-      }
-    ].filter(Boolean) as HubSection['cards']
-  }
-
-  const warehouses: HubSection = {
-    key: 'warehouses',
-    title: t('departments.warehouses'),
-    cards: [
-      canImportIpl && {
-        key: 'importIpl',
-        title: t('warehouses.feeding.iplImportTitle'),
-        description: t('warehouses.feeding.iplImportHint'),
-        icon: FileUp,
-        tone: 'text-cyan-300 bg-cyan-500/15',
-        kind: 'action' as const,
-        onClick: () => go({ department: 'warehouses', warehousesTab: 'feeding', warehousesFeedingSubTab: 'plan' })
-      },
-      {
-        key: 'currentStock',
-        title: t('warehouses.tabs.currentStock'),
-        description: t('hub.warehouses.stockDesc'),
-        icon: Package,
+      showHomeCard('production_home__missions') && {
+        key: 'missions',
+        title: t('modules.missions'),
+        description: t('modules.missionsDesc'),
+        icon: ListTodo,
         tone: 'text-amber-300 bg-amber-500/15',
-        onClick: () => go({ department: 'warehouses', warehousesTab: 'currentStock' })
+        accent: 'amber' as const,
+        onClick: () => go({ department: 'production', productionArea: 'assembly', productionPage: 'missions' })
       },
-      {
-        key: 'feeding',
-        title: t('warehouses.tabs.feeding'),
-        description: t('hub.warehouses.feedingDesc'),
-        icon: Truck,
+      showHomeCard('production_home__requests') && {
+        key: 'requests',
+        title: t('modules.requests'),
+        description: t('modules.requestsDesc'),
+        icon: ClipboardList,
         tone: 'text-violet-300 bg-violet-500/15',
-        onClick: () => go({ department: 'warehouses', warehousesTab: 'feeding' })
+        accent: 'violet' as const,
+        onClick: () => go({ department: 'production', productionArea: 'assembly', productionPage: 'requests' })
       },
-      {
-        key: 'feedingPlan',
-        title: t('warehouses.feeding.subTabs.plan'),
-        icon: CalendarDays,
-        tone: 'text-violet-300 bg-violet-500/15',
-        onClick: () => go({ department: 'warehouses', warehousesTab: 'feeding', warehousesFeedingSubTab: 'plan' })
+      showHomeCard('production_home__feedback') && {
+        key: 'feedback',
+        title: t('modules.feedback'),
+        description: t('modules.feedbackDesc'),
+        icon: MessageSquareText,
+        tone: 'text-indigo-300 bg-indigo-500/15',
+        accent: 'indigo' as const,
+        onClick: () =>
+          go({ department: 'production', productionArea: 'assembly', productionPage: 'feedback' })
+      },
+      showHomeCard('production_home__profile') && {
+        key: 'workerProfile',
+        title: t('myProfile.title'),
+        description: t('myProfile.subtitleFull'),
+        icon: UserCircle,
+        tone: 'text-cyan-300 bg-cyan-500/15',
+        accent: 'cyan' as const,
+        onClick: () => nav.openProfile('data')
+      },
+      showHomeCard('production_home__settings', canAccessSettings) && {
+        key: 'settings',
+        title: t('modules.settings'),
+        description: t('modules.settingsDesc'),
+        icon: SettingsIcon,
+        tone: 'text-emerald-300 bg-emerald-500/15',
+        accent: 'emerald' as const,
+        onClick: () =>
+          go({
+            department: 'production',
+            productionArea: 'assembly',
+            productionPage: 'settings',
+            settingsTab: SETTINGS_TAB_ORDER[0]
+          })
       }
     ].filter(Boolean) as HubSection['cards']
   }
 
   return {
-    sections: [production, engineering, warehouses],
+    sections: [home],
     reportOpen,
     setReportOpen
   }

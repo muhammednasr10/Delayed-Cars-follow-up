@@ -7,22 +7,24 @@ export type ModelProductivityBreakdownRow = {
   modelLabel: string
   entry: number
   exit: number
+  repair: number
 }
 
 export function buildModelProductivityBreakdown(
   entryRecords: EntryProductivityDay[],
   exitRecords: EntryProductivityDay[],
   models: VehicleModel[],
-  workDate?: string
+  workDate?: string,
+  repairRecords: EntryProductivityDay[] = []
 ): ModelProductivityBreakdownRow[] {
   const labelById = new Map(models.map(m => [m.id, modelDisplayLabel(m)]))
-  const byModel = new Map<string, { entry: number; exit: number }>()
+  const byModel = new Map<string, { entry: number; exit: number; repair: number }>()
 
-  function add(records: EntryProductivityDay[], field: 'entry' | 'exit') {
+  function add(records: EntryProductivityDay[], field: 'entry' | 'exit' | 'repair') {
     for (const record of records) {
       if (workDate && record.workDate !== workDate) continue
       if (record.quantity <= 0) continue
-      const row = byModel.get(record.modelId) ?? { entry: 0, exit: 0 }
+      const row = byModel.get(record.modelId) ?? { entry: 0, exit: 0, repair: 0 }
       row[field] += record.quantity
       byModel.set(record.modelId, row)
     }
@@ -30,14 +32,16 @@ export function buildModelProductivityBreakdown(
 
   add(entryRecords, 'entry')
   add(exitRecords, 'exit')
+  add(repairRecords, 'repair')
 
   return [...byModel.entries()]
     .map(([modelId, values]) => ({
       modelId,
       modelLabel: labelById.get(modelId) ?? modelId,
       entry: values.entry,
-      exit: values.exit
+      exit: values.exit,
+      repair: values.repair
     }))
-    .filter(row => row.entry > 0 || row.exit > 0)
+    .filter(row => row.entry > 0 || row.exit > 0 || row.repair > 0)
     .sort((a, b) => a.modelLabel.localeCompare(b.modelLabel, 'ar'))
 }

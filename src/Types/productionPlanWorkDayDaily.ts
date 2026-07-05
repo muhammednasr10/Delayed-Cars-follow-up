@@ -16,12 +16,15 @@ export type ProductionPlanWorkDayRow = {
   plannedHours: number
   actualHours: number
   totalStops: number
+  /** يوم أجازة في الخطة لكن تم العمل فعلياً */
+  workDespiteVacation: boolean
   notes?: string | null
 }
 
 export type ProductionPlanWorkDayEdit = ProductionPlanWorkDayRow & {
   entryProductivity: number
   exitProductivity: number
+  repairProductivity: number
   stopMinutes: number
   stopLostVehicles: number
   laborAttendanceEfficiency: number | null
@@ -35,6 +38,7 @@ export function defaultWorkDayRow(workDate: string): ProductionPlanWorkDayRow {
     plannedHours: DEFAULT_PLANNED_WORK_HOURS,
     actualHours: 0,
     totalStops: 0,
+    workDespiteVacation: false,
     notes: null
   }
 }

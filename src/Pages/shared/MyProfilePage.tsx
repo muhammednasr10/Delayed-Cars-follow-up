@@ -1,8 +1,9 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { Camera, KeyRound, MessageSquarePlus, User } from 'lucide-react'
 import { useAuth } from '../../Context/AuthContext'
 import { useLang } from '../../i18n/LanguageContext'
 import { useNavigation } from '../../Context/NavigationContext'
+import { useCanViewPage } from '../../hooks/useCanViewPage'
 import { formatRoleBadge } from '../../Utils/roleBadge'
 import { Field, inputCls } from '../../Components/FormField'
 import {
@@ -14,8 +15,12 @@ import {
 import { UserSupportRequestModal } from '../../Components/permissions/UserSupportRequestModal'
 import { MissionsMyTab } from '../../Components/missions/MissionsMyTab'
 import { MyProfileOrgTab } from '../../Components/profile/MyProfileOrgTab'
-import { MyProfileAttendanceTab } from '../../Components/profile/MyProfileAttendanceTab'
 import { MyProfilePermissionsTab } from '../../Components/profile/MyProfilePermissionsTab'
+import { WorkerProfileDataTab } from '../../Components/workerProfile/WorkerProfileDataTab'
+import { WorkerProfileStationTab } from '../../Components/workerProfile/WorkerProfileStationTab'
+import { WorkerProfileEquipmentTab } from '../../Components/workerProfile/WorkerProfileEquipmentTab'
+import { WorkerProfileAttendanceTab } from '../../Components/workerProfile/WorkerProfileAttendanceTab'
+import { WorkerProfileErrorsTab } from '../../Components/workerProfile/WorkerProfileErrorsTab'
 import { PROFILE_TABS, type ProfileTab } from '../../Types/profile'
 
 type Props = {
@@ -26,6 +31,7 @@ export function MyProfilePage({ onBack }: Props) {
   const { t } = useLang()
   const { profile, user, reloadProfile, displayRole } = useAuth()
   const nav = useNavigation()
+  const { canViewTab, loading: permsLoading } = useCanViewPage()
   const tab = nav.profileTab
   const fileRef = useRef<HTMLInputElement>(null)
 
@@ -42,6 +48,24 @@ export function MyProfilePage({ onBack }: Props) {
   useEffect(() => {
     setFullName(profile?.full_name ?? '')
   }, [profile?.full_name])
+
+  const visibleTabs = useMemo(
+    () =>
+      PROFILE_TABS.filter(key => {
+        if (key === 'account' || key === 'org' || key === 'missions' || key === 'permissions') return true
+        if (permsLoading) return true
+        return canViewTab('production_worker_profile', key)
+      }),
+    [canViewTab, permsLoading]
+  )
+
+  const activeTab = visibleTabs.includes(tab) ? tab : (visibleTabs[0] ?? 'account')
+
+  useEffect(() => {
+    if (!visibleTabs.includes(tab)) {
+      nav.openProfile(visibleTabs[0] ?? 'account')
+    }
+  }, [tab, visibleTabs, nav])
 
   if (!profile || !user) return null
 
@@ -140,8 +164,12 @@ export function MyProfilePage({ onBack }: Props) {
 
   const tabLabel: Record<ProfileTab, string> = {
     account: t('myProfile.tabs.account'),
+    data: t('workerProfile.tabs.data'),
     org: t('myProfile.tabs.org'),
+    station: t('workerProfile.tabs.station'),
+    equipment: t('workerProfile.tabs.equipment'),
     attendance: t('myProfile.tabs.attendance'),
+    errors: t('workerProfile.tabs.errors'),
     missions: t('myProfile.tabs.missions'),
     permissions: t('myProfile.tabs.permissions')
   }
@@ -166,13 +194,13 @@ export function MyProfilePage({ onBack }: Props) {
       </div>
 
       <div className="flex flex-wrap gap-2">
-        {PROFILE_TABS.map(key => (
+        {visibleTabs.map(key => (
           <button
             key={key}
             type="button"
             onClick={() => nav.openProfile(key)}
             className={`rounded-xl px-4 py-2 text-sm font-black ${
-              tab === key ? 'bg-violet-500 text-slate-950' : 'bg-slate-800 text-slate-300 hover:bg-slate-700'
+              activeTab === key ? 'bg-violet-500 text-slate-950' : 'bg-slate-800 text-slate-300 hover:bg-slate-700'
             }`}
           >
             {tabLabel[key]}
@@ -180,14 +208,14 @@ export function MyProfilePage({ onBack }: Props) {
         ))}
       </div>
 
-      {tab === 'account' && msg && (
+      {activeTab === 'account' && msg && (
         <p className="rounded-xl border border-emerald-500/30 bg-emerald-500/10 px-4 py-2 text-sm text-emerald-200">{msg}</p>
       )}
-      {tab === 'account' && err && (
+      {activeTab === 'account' && err && (
         <p className="rounded-xl border border-red-500/30 bg-red-500/10 px-4 py-2 text-sm text-red-200">{err}</p>
       )}
 
-      {tab === 'account' && (
+      {activeTab === 'account' && (
         <>
           <section className="card-industrial p-6">
             <h3 className="mb-4 text-sm font-black uppercase tracking-wide text-slate-400">{t('myProfile.avatarSection')}</h3>
@@ -342,10 +370,14 @@ export function MyProfilePage({ onBack }: Props) {
         </>
       )}
 
-      {tab === 'org' && <MyProfileOrgTab />}
-      {tab === 'attendance' && <MyProfileAttendanceTab />}
-      {tab === 'missions' && <MissionsMyTab />}
-      {tab === 'permissions' && <MyProfilePermissionsTab />}
+      {activeTab === 'data' && <WorkerProfileDataTab />}
+      {activeTab === 'org' && <MyProfileOrgTab />}
+      {activeTab === 'station' && <WorkerProfileStationTab />}
+      {activeTab === 'equipment' && <WorkerProfileEquipmentTab />}
+      {activeTab === 'attendance' && <WorkerProfileAttendanceTab />}
+      {activeTab === 'errors' && <WorkerProfileErrorsTab />}
+      {activeTab === 'missions' && <MissionsMyTab />}
+      {activeTab === 'permissions' && <MyProfilePermissionsTab />}
     </div>
   )
 }

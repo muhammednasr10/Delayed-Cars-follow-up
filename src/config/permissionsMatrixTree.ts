@@ -32,7 +32,32 @@ export const PERMISSIONS_MATRIX_TREE: MatrixTreeNode[] = [
         id: 'prod_home',
         labelKey: 'nav.home',
         descKey: 'permissions.matrix.pageDesc.production_home',
-        pagePerm: 'production_home'
+        pagePerm: 'production_home',
+        children: [
+          { id: 'home_plan', labelKey: 'productionOrders.title', descKey: 'permissions.matrix.pageDesc.home_card_plan', pagePerm: 'production_home__plan' },
+          { id: 'home_orders', labelKey: 'productionOrders.ordersSection', descKey: 'permissions.matrix.pageDesc.home_card_orders', pagePerm: 'production_home__orders' },
+          { id: 'home_entry', labelKey: 'productivity.entryTitle', descKey: 'permissions.matrix.pageDesc.home_card_entry', pagePerm: 'production_home__entry' },
+          { id: 'home_exit', labelKey: 'productivity.exitTitle', descKey: 'permissions.matrix.pageDesc.home_card_exit', pagePerm: 'production_home__exit' },
+          { id: 'home_stops', labelKey: 'productivity.tabs.stops', descKey: 'permissions.matrix.pageDesc.home_card_stops', pagePerm: 'production_home__stops' },
+          { id: 'home_missing', labelKey: 'modules.missingParts', descKey: 'permissions.matrix.pageDesc.home_card_missing', pagePerm: 'production_home__missing' },
+          { id: 'home_damaged', labelKey: 'modules.damagedParts', descKey: 'permissions.matrix.pageDesc.home_card_damaged', pagePerm: 'production_home__damaged' },
+          { id: 'home_scratches', labelKey: 'modules.scratches', descKey: 'permissions.matrix.pageDesc.home_card_scratches', pagePerm: 'production_home__scratches' },
+          { id: 'home_attendance', labelKey: 'home.attendanceTodayTitle', descKey: 'permissions.matrix.pageDesc.home_card_attendance', pagePerm: 'production_home__attendance' },
+          { id: 'home_training', labelKey: 'modules.training', descKey: 'permissions.matrix.pageDesc.home_card_training', pagePerm: 'production_home__training' },
+          { id: 'home_manpower', labelKey: 'training.tabs.manpower', descKey: 'permissions.matrix.pageDesc.home_card_manpower', pagePerm: 'production_home__manpower' },
+          { id: 'home_equipment', labelKey: 'modules.equipment', descKey: 'permissions.matrix.pageDesc.home_card_equipment', pagePerm: 'production_home__equipment' },
+          { id: 'home_ipl', labelKey: 'nav.ipl', descKey: 'permissions.matrix.pageDesc.home_card_ipl', pagePerm: 'production_home__ipl' },
+          { id: 'home_line_balancing', labelKey: 'nav.lineBalancing', descKey: 'permissions.matrix.pageDesc.home_card_line_balancing', pagePerm: 'production_home__line_balancing' },
+          { id: 'home_missions', labelKey: 'modules.missions', descKey: 'permissions.matrix.pageDesc.home_card_missions', pagePerm: 'production_home__missions' },
+          { id: 'home_requests', labelKey: 'modules.requests', descKey: 'permissions.matrix.pageDesc.home_card_requests', pagePerm: 'production_home__requests' },
+          { id: 'home_feedback', labelKey: 'modules.feedback', descKey: 'permissions.matrix.pageDesc.home_card_feedback', pagePerm: 'production_home__feedback' },
+          { id: 'home_profile', labelKey: 'myProfile.title', descKey: 'permissions.matrix.pageDesc.home_card_profile', pagePerm: 'production_home__profile' },
+          { id: 'home_settings', labelKey: 'modules.settings', descKey: 'permissions.matrix.pageDesc.home_card_settings', pagePerm: 'production_home__settings' },
+          { id: 'home_stations', labelKey: 'nav.stations', descKey: 'permissions.matrix.pageDesc.home_card_stations', pagePerm: 'production_home__stations' },
+          { id: 'home_stock', labelKey: 'warehouses.tabs.currentStock', descKey: 'permissions.matrix.pageDesc.home_card_stock', pagePerm: 'production_home__stock' },
+          { id: 'home_feeding', labelKey: 'warehouses.tabs.feeding', descKey: 'permissions.matrix.pageDesc.home_card_feeding', pagePerm: 'production_home__feeding' },
+          { id: 'home_feeding_plan', labelKey: 'warehouses.feeding.subTabs.plan', descKey: 'permissions.matrix.pageDesc.home_card_feeding_plan', pagePerm: 'production_home__feeding_plan' }
+        ]
       },
       {
         id: 'prod_missing',
@@ -86,18 +111,6 @@ export const PERMISSIONS_MATRIX_TREE: MatrixTreeNode[] = [
         pagePerm: 'production_productivity',
         children: [
           {
-            id: 'prod_veh_orders',
-            labelKey: 'productivity.tabs.orders',
-            pagePerm: 'production_productivity__orders',
-            actionModules: productionTabActions()
-          },
-          {
-            id: 'prod_veh_workdays',
-            labelKey: 'productionOrders.tabs.workDays',
-            pagePerm: 'production_productivity__workDays',
-            actionModules: productionTabActions()
-          },
-          {
             id: 'prod_veh_entry',
             labelKey: 'productivity.tabs.entry',
             pagePerm: 'production_productivity__entry',
@@ -117,14 +130,8 @@ export const PERMISSIONS_MATRIX_TREE: MatrixTreeNode[] = [
           },
           {
             id: 'prod_veh_summary',
-            labelKey: 'productivity.tabs.summary',
+            labelKey: 'productivity.tabs.productivity',
             pagePerm: 'production_productivity__summary',
-            actionModules: productionTabActions()
-          },
-          {
-            id: 'prod_veh_plan',
-            labelKey: 'productionOrders.tabs.planOrders',
-            pagePerm: 'production_productivity__planOrders',
             actionModules: productionTabActions()
           }
         ]
@@ -148,7 +155,7 @@ export const PERMISSIONS_MATRIX_TREE: MatrixTreeNode[] = [
       },
       {
         id: 'prod_worker_profile',
-        labelKey: 'nav.workerProfile',
+        labelKey: 'myProfile.title',
         descKey: 'permissions.matrix.pageDesc.production_worker_profile',
         pagePerm: 'production_worker_profile',
         children: [
@@ -209,6 +216,40 @@ export const PERMISSIONS_MATRIX_TREE: MatrixTreeNode[] = [
           { id: 'prod_set_colors', labelKey: 'settings.tabs.colors', pagePerm: 'production_settings__colors' },
           { id: 'prod_set_users', labelKey: 'settings.tabs.users', pagePerm: 'production_settings__users', actionModules: [{ moduleKey: 'users' }] }
         ]
+      }
+    ]
+  },
+  {
+    id: 'dept_planning',
+    labelKey: 'permissions.matrix.depts.planning',
+    children: [
+      {
+        id: 'plan_plan',
+        labelKey: 'productionOrders.title',
+        descKey: 'permissions.matrix.pageDesc.planning_plan',
+        pagePerm: 'planning_plan',
+        actionModules: productionTabActions()
+      },
+      {
+        id: 'plan_work_days',
+        labelKey: 'productionOrders.tabs.workDays',
+        descKey: 'permissions.matrix.pageDesc.planning_work_days',
+        pagePerm: 'planning_work_days',
+        actionModules: productionTabActions()
+      },
+      {
+        id: 'plan_tracking',
+        labelKey: 'planning.tracking.tab',
+        descKey: 'permissions.matrix.pageDesc.planning_tracking',
+        pagePerm: 'planning_tracking',
+        actionModules: productionTabActions()
+      },
+      {
+        id: 'plan_orders',
+        labelKey: 'productionOrders.ordersSection',
+        descKey: 'permissions.matrix.pageDesc.planning_orders',
+        pagePerm: 'planning_orders',
+        actionModules: productionTabActions()
       }
     ]
   },

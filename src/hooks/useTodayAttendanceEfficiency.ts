@@ -3,9 +3,11 @@ import { profileIsAdmin, useAuth } from '../Context/AuthContext'
 import {
   computeDailyAttendanceEfficiency,
   countPresentToday,
+  countTodayAttendanceByStatus,
   getAttendanceDaysForDate,
   localTodayIso
 } from '../services/attendanceService'
+import { EMPTY_TODAY_STATUS_COUNTS, type TodayAttendanceStatusCounts } from '../Utils/attendanceHubStats'
 import { getEmployees } from '../services/employeesService'
 import { getFactoryOrgUnits } from '../services/factoryOrgService'
 import { filterAssemblyWorkforce } from '../Utils/assemblyWorkforce'
@@ -18,6 +20,7 @@ export function useTodayAttendanceEfficiency(refreshKey = 0) {
   const [efficiency, setEfficiency] = useState<number | null>(null)
   const [presentTodayCount, setPresentTodayCount] = useState(0)
   const [workforceCount, setWorkforceCount] = useState(0)
+  const [statusCounts, setStatusCounts] = useState<TodayAttendanceStatusCounts>(EMPTY_TODAY_STATUS_COUNTS)
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
@@ -48,12 +51,14 @@ export function useTodayAttendanceEfficiency(refreshKey = 0) {
         setEfficiency(effMap.get(today) ?? null)
         setPresentTodayCount(countPresentToday(activeIds, dayRecords, today))
         setWorkforceCount(activeIds.length)
+        setStatusCounts(countTodayAttendanceByStatus(activeIds, dayRecords, today))
       })
       .catch(() => {
         if (!cancelled) {
           setEfficiency(null)
           setPresentTodayCount(0)
           setWorkforceCount(0)
+          setStatusCounts(EMPTY_TODAY_STATUS_COUNTS)
         }
       })
       .finally(() => {
@@ -65,5 +70,5 @@ export function useTodayAttendanceEfficiency(refreshKey = 0) {
     }
   }, [refreshKey, viewerEmployeeId, seesAll])
 
-  return { efficiency, presentTodayCount, workforceCount, loading }
+  return { efficiency, presentTodayCount, workforceCount, statusCounts, loading }
 }

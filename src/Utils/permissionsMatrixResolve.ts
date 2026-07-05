@@ -96,3 +96,42 @@ export function filterMatrixTree(
 export function allMatrixTreeNodes(): MatrixTreeNode[] {
   return PERMISSIONS_MATRIX_TREE
 }
+
+export function collectAllNodeIds(nodes: MatrixTreeNode[] = PERMISSIONS_MATRIX_TREE): string[] {
+  const ids: string[] = []
+  function walk(node: MatrixTreeNode) {
+    ids.push(node.id)
+    for (const child of node.children ?? []) walk(child)
+  }
+  for (const n of nodes) walk(n)
+  return ids
+}
+
+export function countUserPermissionBreakdown(
+  permissions: SystemPermission[],
+  effective: Map<string, boolean>,
+  roleBase: Map<string, boolean>,
+  overrideKeys: Set<string>
+): { enabled: number; fromRole: number; overrides: number; overrideAllow: number; overrideDeny: number; denied: number; total: number } {
+  let enabled = 0
+  let fromRole = 0
+  let overrides = 0
+  let overrideAllow = 0
+  let overrideDeny = 0
+  let denied = 0
+  for (const p of permissions) {
+    const key = permissionKey(p.module_key, p.permission_key)
+    const allowed = effective.get(key) ?? false
+    const isOverride = overrideKeys.has(key)
+    if (allowed) enabled++
+    else denied++
+    if (isOverride) {
+      overrides++
+      if (allowed) overrideAllow++
+      else overrideDeny++
+    } else if (allowed) {
+      fromRole++
+    }
+  }
+  return { enabled, fromRole, overrides, overrideAllow, overrideDeny, denied, total: permissions.length }
+}

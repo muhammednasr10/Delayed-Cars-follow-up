@@ -1,4 +1,4 @@
-export type ProductivityDelayKind = 'entry' | 'exit'
+export type ProductivityDelayKind = 'entry' | 'exit' | 'repair'
 
 export type ProductivityDelayReason = {
   id: string

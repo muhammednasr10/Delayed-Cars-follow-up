@@ -61,6 +61,7 @@ export function PermissionsProvider({ children }: { children: ReactNode }) {
   const hasPermission = useCallback(
     (module: string, action: string) => {
       if (permissions[permissionKey(module, action)]) return true
+      if (action !== 'manage' && permissions[permissionKey(module, 'manage')]) return true
       if (permissions[permissionKey('users', 'manage')]) return true
       return false
     },

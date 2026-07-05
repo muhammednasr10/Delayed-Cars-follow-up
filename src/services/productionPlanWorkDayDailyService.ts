@@ -3,6 +3,7 @@ import type { EntryProductivityDay } from '../Types/entryProductivity'
 import type { PlanDayType, ProductionPlanWorkDayRow } from '../Types/productionPlanWorkDayDaily'
 import { getEntryProductivityMonth } from './entryProductivityService'
 import { getExitProductivityMonth } from './exitProductivityService'
+import { getRepairProductivityMonth } from './repairProductivityService'
 import { getVehicleModels } from './settingsService'
 import type { VehicleModel } from '../Types/settings'
 
@@ -24,16 +25,23 @@ type Row = {
   planned_hours: number
   actual_hours: number
   total_stops: number
+  work_despite_vacation?: boolean
   notes: string | null
 }
 
 function mapRow(row: Row): ProductionPlanWorkDayRow {
+  const actualHours = Number(row.actual_hours) || 0
+  const dayType = row.day_type
+  const workDespiteVacation =
+    Boolean(row.work_despite_vacation) ||
+    ((dayType === 'vacation' || dayType === 'factory_vacation') && actualHours > 0)
   return {
     workDate: row.work_date,
-    dayType: row.day_type,
+    dayType,
     plannedHours: Number(row.planned_hours) || 0,
-    actualHours: Number(row.actual_hours) || 0,
+    actualHours,
     totalStops: Number(row.total_stops) || 0,
+    workDespiteVacation,
     notes: row.notes
   }
 }
@@ -45,6 +53,7 @@ function toPayload(row: ProductionPlanWorkDayRow): Record<string, unknown> {
     planned_hours: Math.max(0, row.plannedHours),
     actual_hours: Math.max(0, row.actualHours),
     total_stops: Math.max(0, row.totalStops),
+    work_despite_vacation: Boolean(row.workDespiteVacation),
     notes: row.notes?.trim() || null
   }
 }
@@ -71,7 +80,7 @@ export async function getProductionPlanWorkDaysMonth(year: number, month: number
   const { start, end } = monthBounds(year, month)
   const { data, error } = await requireClient()
     .from('production_plan_work_days_daily')
-    .select('work_date, day_type, planned_hours, actual_hours, total_stops, notes')
+    .select('work_date, day_type, planned_hours, actual_hours, total_stops, work_despite_vacation, notes')
     .gte('work_date', start)
     .lte('work_date', end)
     .order('work_date')
@@ -83,32 +92,38 @@ export async function getProductionPlanWorkDaysMonth(year: number, month: number
 export async function getMonthProductivityTotals(
   year: number,
   month: number
-): Promise<{ entryByDate: Map<string, number>; exitByDate: Map<string, number> }> {
+): Promise<{ entryByDate: Map<string, number>; exitByDate: Map<string, number>; repairByDate: Map<string, number> }> {
   const detail = await getMonthProductivityDetail(year, month)
   return {
     entryByDate: detail.entryByDate,
-    exitByDate: detail.exitByDate
+    exitByDate: detail.exitByDate,
+    repairByDate: detail.repairByDate
   }
 }
 
 export async function getMonthProductivityDetail(year: number, month: number): Promise<{
   entryRecords: EntryProductivityDay[]
   exitRecords: EntryProductivityDay[]
+  repairRecords: EntryProductivityDay[]
   models: VehicleModel[]
   entryByDate: Map<string, number>
   exitByDate: Map<string, number>
+  repairByDate: Map<string, number>
 }> {
-  const [entryRecords, exitRecords, models] = await Promise.all([
+  const [entryRecords, exitRecords, repairRecords, models] = await Promise.all([
     getEntryProductivityMonth(year, month),
     getExitProductivityMonth(year, month),
+    getRepairProductivityMonth(year, month),
     getVehicleModels()
   ])
   return {
     entryRecords,
     exitRecords,
+    repairRecords,
     models,
     entryByDate: sumProductivityByDate(entryRecords),
-    exitByDate: sumProductivityByDate(exitRecords)
+    exitByDate: sumProductivityByDate(exitRecords),
+    repairByDate: sumProductivityByDate(repairRecords)
   }
 }
 

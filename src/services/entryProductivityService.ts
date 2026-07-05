@@ -193,6 +193,30 @@ export function tallyVehiclesByFamilyDay(
   return grid
 }
 
+export function dayInputsFromQuantities(
+  models: VehicleModel[],
+  workDate: string,
+  quantities: Map<string, number>
+): EntryProductivityDayInput[] {
+  return productivityModelRows(models).map(model => ({
+    modelId: model.id,
+    workDate,
+    quantity: Math.max(0, quantities.get(model.id) ?? 0)
+  }))
+}
+
+export function readDayQuantities(
+  grid: Map<string, number>,
+  models: VehicleModel[],
+  workDate: string
+): Map<string, number> {
+  const map = new Map<string, number>()
+  for (const model of productivityModelRows(models)) {
+    map.set(model.id, grid.get(`${model.id}|${workDate}`) ?? 0)
+  }
+  return map
+}
+
 export function gridToInputs(
   models: VehicleModel[],
   year: number,

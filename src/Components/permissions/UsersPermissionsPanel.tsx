@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { KeyRound, Pencil, Plus, Shield, Trash2, Users } from 'lucide-react'
 import { useLang } from '../../i18n/LanguageContext'
+import { useAuth } from '../../Context/AuthContext'
 import { usePermissions } from '../../Context/PermissionsContext'
 import {
   deleteSystemRole,
@@ -14,7 +15,7 @@ import {
 } from '../../services/permissionsService'
 import {
   blockUser,
-  deactivateUserAccount,
+  deleteUserAccount,
   getUserAccounts,
   removeUserPermissionOverride,
   unblockUser
@@ -33,12 +34,14 @@ import { UserRequestsTab } from './UserRequestsTab'
 import { UserPasswordModal } from './UserPasswordModal'
 import { SystemRoleFormModal } from './SystemRoleFormModal'
 import { PermissionsMatrixTab } from './PermissionsMatrixTab'
+import { PermissionsAuditTab } from './PermissionsAuditTab'
 import { ActiveUsersTab } from './ActiveUsersTab'
 
-type SubTab = 'users' | 'roles' | 'matrix' | 'activeUsers' | 'blocked' | 'requests'
+type SubTab = 'users' | 'roles' | 'matrix' | 'audit' | 'activeUsers' | 'blocked' | 'requests'
 
 export function UsersPermissionsPanel({ notify }: { notify: (m: string, err?: boolean) => void }) {
   const { t, lang } = useLang()
+  const { profile } = useAuth()
   const { hasPermission, reload: reloadPerms } = usePermissions()
   const canManage = hasPermission('users', 'manage')
 
@@ -49,7 +52,7 @@ export function UsersPermissionsPanel({ notify }: { notify: (m: string, err?: bo
   const [employees, setEmployees] = useState<Employee[]>([])
   const [loading, setLoading] = useState(true)
   const [selectedRoleId, setSelectedRoleId] = useState('')
-  const [matrixMode, setMatrixMode] = useState<'role' | 'user'>('role')
+  const [matrixMode, setMatrixMode] = useState<'role' | 'user' | 'control'>('role')
   const [selectedMatrixUserId, setSelectedMatrixUserId] = useState('')
   const [rolePerms, setRolePerms] = useState<Map<string, boolean>>(new Map())
   const [userMatrixPerms, setUserMatrixPerms] = useState<Map<string, boolean>>(new Map())
@@ -86,7 +89,7 @@ export function UsersPermissionsPanel({ notify }: { notify: (m: string, err?: bo
   }
 
   async function handleSetPermission(permissionId: string, allowed: boolean) {
-    if (matrixMode === 'user') {
+    if (matrixMode === 'user' || matrixMode === 'control') {
       await handleSetUserMatrixPermission(permissionId, allowed)
       return
     }
@@ -137,7 +140,7 @@ export function UsersPermissionsPanel({ notify }: { notify: (m: string, err?: bo
 
   async function handleSetPermissions(permissionIds: string[], allowed: boolean) {
     if (!permissionIds.length) return
-    if (matrixMode === 'user') {
+    if (matrixMode === 'user' || matrixMode === 'control') {
       if (!selectedMatrixUserId) return
       setUserMatrixPerms(prev => {
         const next = new Map(prev)
@@ -186,7 +189,7 @@ export function UsersPermissionsPanel({ notify }: { notify: (m: string, err?: bo
   }
 
   async function handleSetModulePermissions(moduleKey: string, allowed: boolean) {
-    if (matrixMode === 'user') {
+    if (matrixMode === 'user' || matrixMode === 'control') {
       if (!selectedMatrixUserId) return
       const modPerms = permissions.filter(p => p.module_key === moduleKey)
       setUserMatrixPerms(prev => {
@@ -274,7 +277,7 @@ export function UsersPermissionsPanel({ notify }: { notify: (m: string, err?: bo
   }, [selectedRoleId])
 
   useEffect(() => {
-    if (matrixMode !== 'user' || !selectedMatrixUserId || permissions.length === 0) return
+    if ((matrixMode !== 'user' && matrixMode !== 'control') || !selectedMatrixUserId || permissions.length === 0) return
     void refreshUserMatrixPerms().catch(() => {
       setUserMatrixPerms(new Map())
       setUserRoleBasePerms(new Map())
@@ -307,14 +310,14 @@ export function UsersPermissionsPanel({ notify }: { notify: (m: string, err?: bo
     }
   }
 
-  async function confirmDeactivateUser() {
+  async function confirmDeleteUser() {
     if (!deleteUser) return
     setBusy(true)
     try {
-      await deactivateUserAccount(deleteUser.id)
+      await deleteUserAccount(deleteUser.id)
       await reload()
       setDeleteUser(null)
-      notify(t('permissions.userDeactivated'))
+      notify(t('permissions.userDeleted'))
     } catch (e) {
       notify(e instanceof Error ? e.message : t('common.error'), true)
     } finally {
@@ -342,6 +345,7 @@ export function UsersPermissionsPanel({ notify }: { notify: (m: string, err?: bo
     { key: 'requests', label: t('permissions.tabs.requests'), badge: openRequestCount },
     { key: 'roles', label: t('permissions.tabs.roles') },
     { key: 'matrix', label: t('permissions.tabs.matrix') },
+    { key: 'audit', label: t('permissions.tabs.audit') },
     { key: 'activeUsers', label: t('permissions.tabs.activeUsers') },
     { key: 'blocked', label: t('permissions.tabs.blocked') }
   ]
@@ -426,10 +430,10 @@ export function UsersPermissionsPanel({ notify }: { notify: (m: string, err?: bo
                           >
                             <KeyRound className="h-4 w-4" />
                           </button>
-                          {u.is_active && (
+                          {u.id !== profile?.id && (
                             <button
                               type="button"
-                              title={t('common.delete')}
+                              title={t('permissions.deleteUserPermanently')}
                               className="rounded-lg p-1.5 text-red-400 hover:bg-slate-800"
                               onClick={() => setDeleteUser(u)}
                             >
@@ -525,13 +529,21 @@ export function UsersPermissionsPanel({ notify }: { notify: (m: string, err?: bo
           selectedUserId={selectedMatrixUserId}
           onSelectRole={setSelectedRoleId}
           onSelectUser={setSelectedMatrixUserId}
-          rolePerms={matrixMode === 'user' ? userMatrixPerms : rolePerms}
-          overrideKeys={matrixMode === 'user' ? userOverrideKeys : undefined}
-          roleBasePerms={matrixMode === 'user' ? userRoleBasePerms : undefined}
+          rolePerms={matrixMode === 'user' || matrixMode === 'control' ? userMatrixPerms : rolePerms}
+          overrideKeys={matrixMode === 'user' || matrixMode === 'control' ? userOverrideKeys : undefined}
+          roleBasePerms={matrixMode === 'user' || matrixMode === 'control' ? userRoleBasePerms : undefined}
           onSetPermission={handleSetPermission}
           onSetPermissions={handleSetPermissions}
+          onPermissionsChanged={async () => {
+            if (matrixMode === 'user' || matrixMode === 'control') await refreshUserMatrixPerms()
+            else await refreshRolePerms()
+            await reloadPerms()
+          }}
+          onNotify={notify}
           onError={msg => notify(msg, true)}
         />
+      ) : subTab === 'audit' ? (
+        <PermissionsAuditTab users={users} roles={roles} notify={notify} />
       ) : subTab === 'activeUsers' ? (
         <ActiveUsersTab notify={notify} />
       ) : (
@@ -586,12 +598,12 @@ export function UsersPermissionsPanel({ notify }: { notify: (m: string, err?: bo
 
       <ConfirmDialog
         open={Boolean(deleteUser)}
-        title={t('permissions.deactivateUserTitle')}
-        message={t('permissions.deactivateUserMsg', { email: deleteUser?.email ?? '' })}
-        confirmLabel={t('common.confirm')}
+        title={t('permissions.deleteUserTitle')}
+        message={t('permissions.deleteUserMsg', { email: deleteUser?.email ?? '' })}
+        confirmLabel={t('common.delete')}
         busy={busy}
         onCancel={() => setDeleteUser(null)}
-        onConfirm={() => void confirmDeactivateUser()}
+        onConfirm={() => void confirmDeleteUser()}
       />
 
       <ConfirmDialog

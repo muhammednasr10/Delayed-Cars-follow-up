@@ -26,8 +26,14 @@ export function useCanViewPage() {
       const def = pageDefByPermKey(permKey)
       const key = permissionKey('pages', permKey)
 
-      if (permKey === 'production_settings' || options?.settingsFallback) {
-        if (canAccessSettings) return true
+      // الإعدادات وكروت الرئيسية الخاصة بها: أدمن فقط
+      const isSettingsPerm =
+        permKey === 'production_settings' ||
+        permKey === 'production_home__settings' ||
+        permKey.startsWith('production_settings__') ||
+        options?.settingsFallback
+      if (isSettingsPerm) {
+        return canAccessSettings
       }
 
       if (pagesConfigured) {

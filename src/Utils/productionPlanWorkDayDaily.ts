@@ -39,7 +39,8 @@ export function buildMonthWorkDayRows(
   return listDatesInMonth(year, month).map(workDate => {
     const row = byDate.get(workDate) ?? defaultWorkDayRow(workDate)
     if (row.dayType === 'vacation' || row.dayType === 'factory_vacation') {
-      return { ...row, plannedHours: 0 }
+      const workDespiteVacation = row.workDespiteVacation || row.actualHours > 0
+      return { ...row, plannedHours: 0, workDespiteVacation }
     }
     if ((row.dayType === 'work' || row.dayType === 'overtime') && row.plannedHours === 0) {
       return { ...row, plannedHours: defaultPlannedHoursForDayType(row.dayType) }
@@ -66,12 +67,14 @@ export function dayTypeBadgeClass(dayType: PlanDayType): string {
 export function mergeProductivityIntoRows(
   rows: ProductionPlanWorkDayRow[],
   entryByDate: Map<string, number>,
-  exitByDate: Map<string, number>
+  exitByDate: Map<string, number>,
+  repairByDate: Map<string, number> = new Map()
 ): ProductionPlanWorkDayEdit[] {
   return rows.map(row => ({
     ...row,
     entryProductivity: entryByDate.get(row.workDate) ?? 0,
     exitProductivity: exitByDate.get(row.workDate) ?? 0,
+    repairProductivity: repairByDate.get(row.workDate) ?? 0,
     stopMinutes: 0,
     stopLostVehicles: 0,
     laborAttendanceEfficiency: null,
@@ -123,4 +126,24 @@ export function defaultPlannedHoursForDayType(dayType: PlanDayType): number {
 
 export function isVacationOrFactoryHoliday(dayType: PlanDayType): boolean {
   return dayType === 'vacation' || dayType === 'factory_vacation'
+}
+
+export function resolveWorkDespiteVacation(
+  row: Pick<ProductionPlanWorkDayRow, 'dayType' | 'actualHours' | 'workDespiteVacation'>
+): boolean {
+  if (!isVacationOrFactoryHoliday(row.dayType)) return false
+  return row.workDespiteVacation || row.actualHours > 0
+}
+
+export function isActualHoursLocked(
+  row: Pick<ProductionPlanWorkDayRow, 'dayType' | 'actualHours' | 'workDespiteVacation'>
+): boolean {
+  return isVacationOrFactoryHoliday(row.dayType) && !resolveWorkDespiteVacation(row)
+}
+
+export function resolveLaborAttendanceEfficiency(
+  row: Pick<ProductionPlanWorkDayEdit, 'dayType' | 'actualHours' | 'laborAttendanceEfficiency'>
+): number | null {
+  if (isVacationOrFactoryHoliday(row.dayType) && row.actualHours <= 0) return null
+  return row.laborAttendanceEfficiency
 }

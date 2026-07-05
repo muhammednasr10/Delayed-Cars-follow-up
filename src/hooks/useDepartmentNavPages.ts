@@ -3,9 +3,15 @@ import { useLang } from '../i18n/LanguageContext'
 import { usePermissions } from '../Context/PermissionsContext'
 import { useCanAccessSettings } from './useCanAccessSettings'
 import { useCanViewPage } from './useCanViewPage'
-import { pagePermForEngineering, pagePermForProduction, pagePermForWarehouses, type AppPagePermissionKey } from '../config/pageAccess'
+import {
+  pagePermForEngineering,
+  pagePermForPlanning,
+  pagePermForProduction,
+  pagePermForWarehouses,
+  type AppPagePermissionKey
+} from '../config/pageAccess'
 import { useNavigation } from '../Context/NavigationContext'
-import { SETTINGS_TAB_ORDER, PRODUCTION_AREA_ORDER, WORKER_PROFILE_TAB_ORDER, type DepartmentId } from '../Types/navigation'
+import { SETTINGS_TAB_ORDER, PRODUCTION_AREA_ORDER, type DepartmentId } from '../Types/navigation'
 
 export type NavPageChild = { key: string; label: string; onClick: () => void; visible?: boolean }
 
@@ -78,26 +84,22 @@ export function useDepartmentNavPages() {
         key: 'vehicles',
         label: t('nav.productivity'),
         visible: navLoading || canViewPage(pagePermForProduction('vehicles')),
-        onNavigate: () => navTo({ department: 'production', productionArea: 'assembly', productionPage: 'vehicles', productivityTab: 'orders' }),
+        onNavigate: () =>
+          navTo({ department: 'production', productionArea: 'assembly', productionPage: 'vehicles', productivityTab: 'productivity' }),
         children: [
-          { key: 'orders', label: t('productivity.tabs.orders'), visible: tabVisible('production_productivity', 'orders'), onClick: () => navTo({ department: 'production', productionArea: 'assembly', productionPage: 'vehicles', productivityTab: 'orders' }) },
-          { key: 'workDays', label: t('productionOrders.tabs.workDays'), visible: tabVisible('production_productivity', 'workDays'), onClick: () => navTo({ department: 'production', productionArea: 'assembly', productionPage: 'vehicles', productivityTab: 'workDays' }) },
-          { key: 'entry', label: t('productivity.tabs.entry'), visible: tabVisible('production_productivity', 'entry'), onClick: () => navTo({ department: 'production', productionArea: 'assembly', productionPage: 'vehicles', productivityTab: 'entry' }) },
-          { key: 'exit', label: t('productivity.tabs.exit'), visible: tabVisible('production_productivity', 'exit'), onClick: () => navTo({ department: 'production', productionArea: 'assembly', productionPage: 'vehicles', productivityTab: 'exit' }) },
-          { key: 'stops', label: t('productivity.tabs.stops'), visible: tabVisible('production_productivity', 'stops'), onClick: () => navTo({ department: 'production', productionArea: 'assembly', productionPage: 'vehicles', productivityTab: 'stops' }) },
-          { key: 'summary', label: t('productivity.tabs.summary'), visible: tabVisible('production_productivity', 'summary'), onClick: () => navTo({ department: 'production', productionArea: 'assembly', productionPage: 'vehicles', productivityTab: 'summary' }) },
           {
-            key: 'planOrders',
-            label: t('productionOrders.tabs.planOrders'),
-            visible: tabVisible('production_productivity', 'planOrders'),
+            key: 'productivity',
+            label: t('productivity.tabs.productivity'),
+            visible: tabVisible('production_productivity', 'productivity'),
             onClick: () =>
-              navTo({
-                department: 'production',
-                productionArea: 'assembly',
-                productionPage: 'vehicles',
-                productivityTab: 'orders',
-                productionPlanTab: 'planOrders'
-              })
+              navTo({ department: 'production', productionArea: 'assembly', productionPage: 'vehicles', productivityTab: 'productivity' })
+          },
+          {
+            key: 'stops',
+            label: t('productivity.tabs.stops'),
+            visible: tabVisible('production_productivity', 'stops'),
+            onClick: () =>
+              navTo({ department: 'production', productionArea: 'assembly', productionPage: 'vehicles', productivityTab: 'stops' })
           }
         ].filter(c => c.visible !== false)
       },
@@ -114,18 +116,6 @@ export function useDepartmentNavPages() {
             onClick: () => navTo({ department: 'production', productionArea: 'assembly', productionPage: 'training', trainingTab: key })
           }))
           .filter(c => c.visible !== false)
-      },
-      {
-        key: 'workerProfile',
-        label: t('nav.workerProfile'),
-        visible: navLoading || canViewPage(pagePermForProduction('workerProfile')),
-        onNavigate: () => navTo({ department: 'production', productionArea: 'assembly', productionPage: 'workerProfile', workerProfileTab: 'data' }),
-        children: WORKER_PROFILE_TAB_ORDER.map(key => ({
-          key,
-          label: t(`workerProfile.tabs.${key}`),
-          visible: tabVisible('production_worker_profile', key),
-          onClick: () => navTo({ department: 'production', productionArea: 'assembly', productionPage: 'workerProfile', workerProfileTab: key })
-        })).filter(c => c.visible !== false)
       },
       {
         key: 'damagedParts',
@@ -173,16 +163,16 @@ export function useDepartmentNavPages() {
     () => ({
       key: 'settings',
       label: t('nav.settings'),
-      visible: canViewPage(pagePermForProduction('settings')),
+      visible: canAccessSettings,
       onNavigate: () => navTo({ department: 'production', productionArea: 'assembly', productionPage: 'settings', settingsTab: 'administrations' }),
       children: SETTINGS_TAB_ORDER.map(key => ({
         key,
         label: t(`settings.tabs.${key}`),
-        visible: tabVisible('production_settings', key),
+        visible: canAccessSettings,
         onClick: () => navTo({ department: 'production', productionArea: 'assembly', productionPage: 'settings', settingsTab: key })
       })).filter(c => c.visible !== false)
     }),
-    [canViewPage, navTo, t]
+    [canAccessSettings, navTo, t]
   )
 
   const engineeringPages = useMemo<NavPageItem[]>(
@@ -269,6 +259,36 @@ export function useDepartmentNavPages() {
     [canViewPage, navLoading, navTo, t, tabVisible]
   )
 
+  const planningPages = useMemo<NavPageItem[]>(
+    () => [
+      {
+        key: 'plan',
+        label: t('productionOrders.title'),
+        visible: navLoading || canViewPage(pagePermForPlanning('plan')),
+        onNavigate: () => navTo({ department: 'planning', planningTab: 'plan' })
+      },
+      {
+        key: 'workDays',
+        label: t('productionOrders.tabs.workDays'),
+        visible: navLoading || canViewPage(pagePermForPlanning('workDays')),
+        onNavigate: () => navTo({ department: 'planning', planningTab: 'workDays' })
+      },
+      {
+        key: 'tracking',
+        label: t('planning.tracking.tab'),
+        visible: navLoading || canViewPage(pagePermForPlanning('tracking')),
+        onNavigate: () => navTo({ department: 'planning', planningTab: 'tracking' })
+      },
+      {
+        key: 'orders',
+        label: t('productionOrders.ordersSection'),
+        visible: navLoading || canViewPage(pagePermForPlanning('orders')),
+        onNavigate: () => navTo({ department: 'planning', planningTab: 'orders' })
+      }
+    ],
+    [canViewPage, navLoading, navTo, t]
+  )
+
   const qualityPages = useMemo<NavPageItem[]>(
     () => [
       {
@@ -303,6 +323,7 @@ export function useDepartmentNavPages() {
 
   function pagesForDepartment(dept: DepartmentId): NavPageItem[] {
     if (dept === 'production') return assemblyPages
+    if (dept === 'planning') return planningPages
     if (dept === 'engineering') return engineeringPages
     if (dept === 'warehouses') return warehousesPages
     if (dept === 'quality') return qualityPages
@@ -319,6 +340,7 @@ export function useDepartmentNavPages() {
     if (nav.showProfile) return false
     if (nav.department !== dept) return false
     if (dept === 'production') return nav.productionArea === 'assembly' && nav.productionPage === pageKey
+    if (dept === 'planning') return nav.planningTab === pageKey
     if (dept === 'engineering') return nav.engineeringPage === pageKey
     if (dept === 'warehouses') return nav.warehousesTab === pageKey
     if (dept === 'quality') return pageKey === 'notes'
@@ -340,6 +362,7 @@ export function useDepartmentNavPages() {
     productionPages,
     assemblyPages,
     engineeringPages,
+    planningPages,
     warehousesPages,
     qualityPages,
     hrPages,

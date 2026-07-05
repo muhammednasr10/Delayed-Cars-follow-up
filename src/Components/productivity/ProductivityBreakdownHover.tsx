@@ -1,11 +1,12 @@
 import { useRef, useState, type ReactNode } from 'react'
 import { createPortal } from 'react-dom'
 import { useLang } from '../../i18n/LanguageContext'
+import type { ProductivityDelayKind } from '../../Types/productivityDelayReason'
 import type { ModelProductivityBreakdownRow } from '../../Utils/productivityBreakdown'
 
 type Props = {
   breakdown: ModelProductivityBreakdownRow[]
-  kind: 'entry' | 'exit'
+  kind: ProductivityDelayKind
   children: ReactNode
   className?: string
 }
@@ -20,7 +21,7 @@ export function ProductivityBreakdownHover({ breakdown, kind, children, classNam
     .map(row => ({
       modelId: row.modelId,
       modelLabel: row.modelLabel,
-      qty: kind === 'entry' ? row.entry : row.exit
+      qty: kind === 'entry' ? row.entry : kind === 'exit' ? row.exit : row.repair
     }))
     .filter(row => row.qty > 0)
 
@@ -42,12 +43,17 @@ export function ProductivityBreakdownHover({ breakdown, kind, children, classNam
   const title =
     kind === 'entry'
       ? t('productionOrders.workDaysTab.breakdown.entryTitle')
-      : t('productionOrders.workDaysTab.breakdown.exitTitle')
+      : kind === 'exit'
+        ? t('productionOrders.workDaysTab.breakdown.exitTitle')
+        : t('productionOrders.workDaysTab.breakdown.repairTitle')
   const qtyLabel =
     kind === 'entry'
       ? t('productionOrders.workDaysTab.breakdown.entry')
-      : t('productionOrders.workDaysTab.breakdown.exit')
-  const qtyTone = kind === 'entry' ? 'text-cyan-200' : 'text-emerald-200'
+      : kind === 'exit'
+        ? t('productionOrders.workDaysTab.breakdown.exit')
+        : t('productionOrders.workDaysTab.breakdown.repair')
+  const qtyTone =
+    kind === 'entry' ? 'text-cyan-200' : kind === 'exit' ? 'text-emerald-200' : 'text-orange-200'
 
   return (
     <>

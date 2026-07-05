@@ -44,6 +44,11 @@ export function isJwtExpiredMessage(message: string): boolean {
   return /jwt expired|invalid jwt|token.*expired|expired jwt/i.test(message)
 }
 
+export function formatAuthApiError(message: string): string {
+  if (isJwtExpiredMessage(message)) return 'انتهت الجلسة. سجّل الدخول مرة أخرى.'
+  return message
+}
+
 export function readRawSession(): AppAuthSession | null {
   try {
     const raw = localStorage.getItem(SESSION_KEY)

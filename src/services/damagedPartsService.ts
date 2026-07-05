@@ -17,6 +17,7 @@ type Row = {
   part_number: string
   part_name: string | null
   quantity: number | string
+  unit_cost?: number | string | null
   damage_reason: string
   final_decision: string
   is_repairable: boolean
@@ -53,6 +54,7 @@ function mapRow(row: Row): DamagedPartRecord {
     partNumber: row.part_number,
     partName: row.part_name,
     quantity: Number(row.quantity),
+    unitCost: row.unit_cost == null || row.unit_cost === '' ? null : Number(row.unit_cost),
     damageReason: row.damage_reason,
     finalDecision: row.final_decision,
     isRepairable: row.is_repairable,
@@ -77,6 +79,7 @@ function toPayload(input: DamagedPartInput) {
     part_number: input.partNumber.trim(),
     part_name: input.partName?.trim() || null,
     quantity: input.quantity,
+    unit_cost: input.unitCost ?? null,
     damage_reason: input.damageReason,
     final_decision: input.finalDecision,
     is_repairable: input.isRepairable ?? false,

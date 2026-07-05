@@ -9,10 +9,12 @@ const cell = 'table-cell text-center align-middle whitespace-nowrap px-3 py-2.5'
 
 type Props = {
   items: ScratchRecord[]
-  onAdd: (input: ScratchInput) => void
+  loading?: boolean
+  saving?: boolean
+  onAdd: (input: ScratchInput) => Promise<void>
 }
 
-export function ScratchesRecordTab({ items, onAdd }: Props) {
+export function ScratchesRecordTab({ items, loading, saving, onAdd }: Props) {
   const { t, lang } = useLang()
   const [formOpen, setFormOpen] = useState(false)
   const [success, setSuccess] = useState('')
@@ -36,11 +38,15 @@ export function ScratchesRecordTab({ items, onAdd }: Props) {
     )
   }
 
-  function handleSave(input: ScratchInput) {
-    onAdd(input)
-    setFormOpen(false)
-    setSuccess(t('settings.added'))
-    window.setTimeout(() => setSuccess(''), 2500)
+  async function handleSave(input: ScratchInput) {
+    try {
+      await onAdd(input)
+      setFormOpen(false)
+      setSuccess(t('settings.added'))
+      window.setTimeout(() => setSuccess(''), 2500)
+    } catch {
+      /* error shown by parent */
+    }
   }
 
   return (
@@ -75,7 +81,13 @@ export function ScratchesRecordTab({ items, onAdd }: Props) {
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-800">
-            {items.length === 0 ? (
+            {loading ? (
+              <tr>
+                <td colSpan={5} className="px-4 py-12 text-slate-500">
+                  {t('common.loading')}
+                </td>
+              </tr>
+            ) : items.length === 0 ? (
               <tr>
                 <td colSpan={5} className="px-4 py-12 text-slate-500">
                   {t('scratches.empty')}
@@ -98,7 +110,12 @@ export function ScratchesRecordTab({ items, onAdd }: Props) {
         </ExportableTable>
       </div>
 
-      <ScratchFormModal open={formOpen} onClose={() => setFormOpen(false)} onSave={handleSave} />
+      <ScratchFormModal
+        open={formOpen}
+        onClose={() => setFormOpen(false)}
+        onSave={input => void handleSave(input)}
+        saving={saving}
+      />
     </div>
   )
 }

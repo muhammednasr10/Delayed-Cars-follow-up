@@ -3,10 +3,10 @@ import {
   Database,
   Languages,
   LogOut,
-  MonitorCog,
   PanelRightOpen,
   UserCircle
 } from 'lucide-react'
+import { AppLogo } from './Components/AppLogo'
 import { AuthProvider, profileIsAdmin, useAuth } from './Context/AuthContext'
 import { PermissionsProvider, usePermissions } from './Context/PermissionsContext'
 import { NavigationProvider, useNavigation } from './Context/NavigationContext'
@@ -29,9 +29,9 @@ import { RequestsPage } from './Pages/production/RequestsPage'
 import { ScratchesPage } from './Pages/production/ScratchesPage'
 import { EquipmentPage } from './Pages/production/EquipmentPage'
 import { FeedbackPage } from './Pages/production/FeedbackPage'
-import { WorkerProfilePage } from './Pages/production/WorkerProfilePage'
 import { ProductionAreaPlaceholderPage } from './Pages/production/ProductionAreaPlaceholderPage'
 import { GlobalHomePage } from './Pages/shared/GlobalHomePage'
+import { PlanningPage } from './Pages/planning/PlanningPage'
 import { LoginPage } from './Pages/shared/LoginPage'
 import { MyProfilePage } from './Pages/shared/MyProfilePage'
 import { DepartmentPlaceholderPage } from './Pages/shared/DepartmentPlaceholderPage'
@@ -41,7 +41,7 @@ import { EngineeringHomePage } from './Pages/engineering/EngineeringHomePage'
 import { WarehousesPage } from './Pages/warehouses/WarehousesPage'
 import { useCanAccessSettings } from './hooks/useCanAccessSettings'
 import { useCanViewPage } from './hooks/useCanViewPage'
-import { pagePermForEngineering, pagePermForProduction } from './config/pageAccess'
+import { pagePermForEngineering, pagePermForPlanning, pagePermForProduction } from './config/pageAccess'
 import { formatRoleBadge } from './Utils/roleBadge'
 import { PwaInstallPrompt } from './Components/PwaInstallPrompt'
 import { usePresenceHeartbeat } from './hooks/usePresenceHeartbeat'
@@ -114,13 +114,18 @@ function Shell() {
               >
                 <PanelRightOpen className="h-5 w-5" />
               </button>
-              <div className="rounded-2xl bg-cyan-500 p-2.5 text-slate-950 shadow-lg shadow-cyan-500/20 sm:p-3">
-                <MonitorCog className="h-6 w-6 sm:h-8 sm:w-8" />
-              </div>
-              <div className="min-w-0">
-                <p className="text-[10px] font-black uppercase tracking-[0.3em] text-cyan-300 sm:text-xs">{t('brand')}</p>
-                <h1 className="truncate text-lg font-black text-white sm:text-2xl md:text-3xl">{t('app.title')}</h1>
-              </div>
+              <button
+                type="button"
+                onClick={() => nav.openGlobalHome()}
+                className="flex min-w-0 items-center gap-2 rounded-xl text-start transition hover:opacity-90 sm:gap-3"
+                title={t('nav.globalHome')}
+              >
+                <AppLogo className="p-1.5 sm:p-2" imgClassName="h-8 w-8 sm:h-10 sm:w-10" />
+                <div className="min-w-0">
+                  <p className="text-[10px] font-black uppercase tracking-[0.3em] text-cyan-300 sm:text-xs">{t('brand')}</p>
+                  <h1 className="truncate text-lg font-black text-white sm:text-2xl md:text-3xl">{t('app.title')}</h1>
+                </div>
+              </button>
             </div>
 
             <div className="flex w-full flex-wrap items-center justify-end gap-2 sm:w-auto">
@@ -161,11 +166,19 @@ function Shell() {
 
           {!nav.showProfile && nav.showGlobalHome && <GlobalHomePage />}
 
-          {!nav.showProfile && !nav.showGlobalHome && nav.department !== 'production' && nav.department !== 'engineering' && nav.department !== 'warehouses' && nav.department !== 'quality' && nav.department !== 'hr' && (
+          {!nav.showProfile && !nav.showGlobalHome && nav.department !== 'production' && nav.department !== 'engineering' && nav.department !== 'planning' && nav.department !== 'warehouses' && nav.department !== 'quality' && nav.department !== 'hr' && (
             <DepartmentPlaceholderPage
               department={nav.department}
               onOpenProduction={() => nav.selectDepartment('production')}
             />
+          )}
+
+          {!nav.showProfile && !nav.showGlobalHome && nav.department === 'planning' && (
+            (navLoading ||
+              canViewPage(pagePermForPlanning('plan')) ||
+              canViewPage(pagePermForPlanning('workDays')) ||
+              canViewPage(pagePermForPlanning('tracking')) ||
+              canViewPage(pagePermForPlanning('orders'))) && <PlanningPage />
           )}
 
           {!nav.showProfile && !nav.showGlobalHome && nav.department === 'warehouses' && <WarehousesPage />}
@@ -192,7 +205,6 @@ function Shell() {
                   {nav.productionPage === 'scratches' && (navLoading || canViewPage(pagePermForProduction('scratches'))) && <ScratchesPage />}
                   {nav.productionPage === 'equipment' && (navLoading || canViewPage(pagePermForProduction('equipment'))) && <EquipmentPage />}
                   {nav.productionPage === 'feedback' && (navLoading || canViewPage(pagePermForProduction('feedback'))) && <FeedbackPage />}
-                  {nav.productionPage === 'workerProfile' && (navLoading || canViewPage(pagePermForProduction('workerProfile'))) && <WorkerProfilePage />}
                 </>
               )}
             </>

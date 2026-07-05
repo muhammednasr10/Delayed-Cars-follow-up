@@ -204,6 +204,28 @@ export function countPresentToday(
   return present
 }
 
+const TODAY_STATUS_KEYS = ['vacation', 'sick', 'absent', 'permission', 'late'] as const
+
+/** عدد كل حالة مسجّلة اليوم ضمن العمالة النشطة. */
+export function countTodayAttendanceByStatus(
+  employeeIds: string[],
+  dayRecords: { employeeId: string; workDate: string; status: AttendanceDayStatus }[],
+  today = localTodayIso()
+): Record<(typeof TODAY_STATUS_KEYS)[number], number> {
+  const byEmp = new Map<string, AttendanceDayStatus>()
+  for (const r of dayRecords) {
+    if (r.workDate === today) byEmp.set(r.employeeId, r.status)
+  }
+  const counts = { vacation: 0, sick: 0, absent: 0, permission: 0, late: 0 }
+  for (const employeeId of employeeIds) {
+    const status = byEmp.get(employeeId)
+    if (status && (TODAY_STATUS_KEYS as readonly string[]).includes(status)) {
+      counts[status as (typeof TODAY_STATUS_KEYS)[number]]++
+    }
+  }
+  return counts
+}
+
 export function dayEditToInput(employeeId: string, row: AttendanceDayEdit): AttendanceDayInput {
   const hasTimes = attendanceStatusHasTimes(row.status)
   return {

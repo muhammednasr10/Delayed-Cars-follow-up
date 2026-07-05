@@ -1,7 +1,8 @@
 import { useState } from 'react'
-import { LogIn, MonitorCog } from 'lucide-react'
+import { LogIn } from 'lucide-react'
 import { useAuth } from '../../Context/AuthContext'
 import { useLang } from '../../i18n/LanguageContext'
+import { AppLogo } from '../../Components/AppLogo'
 import { UserSupportRequestModal } from '../../Components/permissions/UserSupportRequestModal'
 
 export function LoginPage() {
@@ -31,9 +32,7 @@ export function LoginPage() {
       <div className="w-full max-w-md card-industrial p-5 sm:p-8">
         <div className="mb-6 flex items-center justify-between gap-3">
           <div className="flex items-center gap-3">
-            <div className="rounded-2xl bg-cyan-500 p-3 text-slate-950">
-              <MonitorCog className="h-7 w-7" />
-            </div>
+            <AppLogo className="p-2" imgClassName="h-10 w-10" />
             <div>
               <h1 className="text-xl font-black text-white">{t('login.title')}</h1>
               <p className="text-sm text-slate-400">{t('login.subtitle')}</p>

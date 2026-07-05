@@ -1,5 +1,5 @@
-import { Fragment, useEffect, useMemo, useRef, useState } from 'react'
-import { ChevronDown, ClipboardList, Pencil, PlusCircle, Target, Trash2 } from 'lucide-react'
+import { Fragment, useEffect, useMemo, useState } from 'react'
+import { CalendarRange, ChevronDown, ClipboardList, Pencil, PlusCircle, Target, Trash2 } from 'lucide-react'
 import { useAuth } from '../../Context/AuthContext'
 import { useVehicles } from '../../Context/VehiclesContext'
 import { useLang } from '../../i18n/LanguageContext'
@@ -8,32 +8,39 @@ import { ConfirmDialog } from '../ConfirmDialog'
 import { CompletionBar } from '../VehicleBadges'
 import { VehicleModelFamilyPicker, resolveFamilyIdForVariant } from '../VehicleModelFamilyPicker'
 import {
+  getAnnualPlanTargets,
   getModelPlanTargets,
-  mergePlanTargets,
-  saveModelPlanTargets
+  planTargetsMap,
+  wipCarryoverMap
 } from '../../services/modelProductionPlanService'
 import { createProductionOrder, deleteProductionOrder, getProductionOrders, updateProductionOrder } from '../../services/productionOrdersService'
+import { getMonthProductivityDetail } from '../../services/productionPlanWorkDayDailyService'
 import { getVehicleModels } from '../../services/settingsService'
 import { chassisRangeCount, vinInChassisRange } from '../../Utils/chassisRange'
-import { getProductionPlanWorkDays, saveProductionPlanWorkDays } from '../../services/productionPlanWorkDaysService'
+import { getProductionPlanWorkDays } from '../../services/productionPlanWorkDaysService'
 import {
   computeTaktMinutes,
   formatTaktMinutes
 } from '../../Utils/productionLineRate'
 import {
-  getProductionPlanGroupTargets,
-  mergePlanGroupTargets,
-  saveProductionPlanGroupTarget
-} from '../../services/productionPlanGroupService'
-import type { ProductionPlanGroupCode } from '../../Types/productionPlanGroup'
-import {
   buildPlanSections,
   planProgressPercent,
   sumPlanSectionsAchieved,
   sumPlanSectionsPlanned,
-  tallyAchievedByModel,
+  sumPlanSectionsWip,
   type PlanFamilyGroup
 } from '../../Utils/productionPlanSummary'
+import type { PlanEntryMode } from './ProductionPlanEntryModal'
+import {
+  buildPlanOrdersCoverage,
+  coverageByKey,
+  summarizePlanOrdersCoverage,
+  type PlanOrdersCoverageRow
+} from '../../Utils/planOrdersCoverage'
+import { TableExportButtons } from '../TableExportButtons'
+import { ProductionPlanEntryModal } from './ProductionPlanEntryModal'
+import { buildOrdersExportRows, buildPlanSummaryExportRows } from '../../Utils/planningExport'
+import type { TableExportColumn } from '../../Utils/tableExport'
 import type { ProductionOrder } from '../../Types/production'
 import type { VehicleModel } from '../../Types/settings'
 
@@ -45,29 +52,36 @@ function currentYm(): { year: number; month: number } {
   return { year: d.getFullYear(), month: d.getMonth() + 1 }
 }
 
-export function ProductionPlanOrdersTab() {
+type Props = {
+  /** plan = ملخص الخطة فقط، orders = أوامر الإنتاج فقط */
+  view: 'plan' | 'orders'
+}
+
+export function ProductionPlanOrdersTab({ view }: Props) {
   const { t } = useLang()
   const { hasRole } = useAuth()
   const { vehicles, refresh: refreshVehicles } = useVehicles()
   const canManage = hasRole('admin', 'production')
 
+  const initYm = currentYm()
+  const [planYear, setPlanYear] = useState(initYm.year)
+  const [planMonth, setPlanMonth] = useState(initYm.month)
   const [orders, setOrders] = useState<ProductionOrder[]>([])
   const [models, setModels] = useState<VehicleModel[]>([])
   const [planTargets, setPlanTargets] = useState<Map<string, number>>(new Map())
-  const [planGroupTargets, setPlanGroupTargets] = useState<Map<ProductionPlanGroupCode, number>>(new Map())
+  const [annualPlanTargets, setAnnualPlanTargets] = useState<Map<string, number>>(new Map())
+  const [wipCarryover, setWipCarryover] = useState<Map<string, number>>(new Map())
+  const [achievedByModelId, setAchievedByModelId] = useState<Map<string, number>>(new Map())
   const [loading, setLoading] = useState(true)
   const [listsLoading, setListsLoading] = useState(false)
   const [formOpen, setFormOpen] = useState(false)
   const [editingOrder, setEditingOrder] = useState<ProductionOrder | null>(null)
   const [deleteTarget, setDeleteTarget] = useState<ProductionOrder | null>(null)
   const [submitting, setSubmitting] = useState(false)
-  const [savingPlan, setSavingPlan] = useState(false)
-  const [savingWorkMetrics, setSavingWorkMetrics] = useState(false)
   const [error, setError] = useState('')
   const [planSuccess, setPlanSuccess] = useState('')
-  const planSaveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
-  const planGroupSaveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
-  const workMetricsSaveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const [planModalOpen, setPlanModalOpen] = useState(false)
+  const [planEntryMode, setPlanEntryMode] = useState<PlanEntryMode>('monthly')
 
   const [orderNumber, setOrderNumber] = useState('')
   const [familyId, setFamilyId] = useState('')
@@ -97,73 +111,45 @@ export function ProductionPlanOrdersTab() {
     return counts
   }, [orders, vehicles])
 
-  const achievedByModelId = useMemo(() => tallyAchievedByModel(vehicles), [vehicles])
-
   const planSections = useMemo(
-    () => buildPlanSections(models, planTargets, planGroupTargets, achievedByModelId),
-    [models, planTargets, planGroupTargets, achievedByModelId]
+    () => buildPlanSections(models, planTargets, achievedByModelId, wipCarryover),
+    [models, planTargets, achievedByModelId, wipCarryover]
   )
+
+  const annualSections = useMemo(
+    () => buildPlanSections(models, annualPlanTargets, new Map()),
+    [models, annualPlanTargets]
+  )
+
+  const annualByKey = useMemo(() => new Map(annualSections.map(s => [s.group.key, s.group])), [annualSections])
+
+  const planMonthValue = `${planYear}-${String(planMonth).padStart(2, '0')}`
 
   const planTotals = useMemo(() => {
     return {
       planned: sumPlanSectionsPlanned(planSections),
-      achieved: sumPlanSectionsAchieved(planSections)
+      achieved: sumPlanSectionsAchieved(planSections),
+      wip: sumPlanSectionsWip(planSections),
+      annual: sumPlanSectionsPlanned(annualSections)
     }
-  }, [planSections])
+  }, [planSections, annualSections])
+
+  const ordersCoverage = useMemo(
+    () => buildPlanOrdersCoverage(planSections, orders, models, planYear, planMonth),
+    [planSections, orders, models, planYear, planMonth]
+  )
+
+  const ordersCoverageMap = useMemo(() => coverageByKey(ordersCoverage), [ordersCoverage])
+
+  const ordersCoverageSummary = useMemo(
+    () => summarizePlanOrdersCoverage(ordersCoverage),
+    [ordersCoverage]
+  )
 
   const lineTaktMinutes = useMemo(
     () => computeTaktMinutes(lineJph > 0 ? lineJph : null),
     [lineJph]
   )
-
-  function scheduleSaveWorkMetrics(days: number, hours: number, jph: number) {
-    if (!canManage) return
-    if (workMetricsSaveTimerRef.current) clearTimeout(workMetricsSaveTimerRef.current)
-    workMetricsSaveTimerRef.current = setTimeout(() => {
-      void persistWorkMetrics(days, hours, jph)
-    }, 600)
-  }
-
-  async function persistWorkMetrics(days: number, hours: number, jph: number) {
-    const { year, month } = currentYm()
-    setSavingWorkMetrics(true)
-    setError('')
-    try {
-      const existing = await getProductionPlanWorkDays(year, month)
-      await saveProductionPlanWorkDays({
-        year,
-        month,
-        workingDays: existing?.workingDays ?? 0,
-        vacationDays: existing?.vacationDays ?? 0,
-        overtimeDays: existing?.overtimeDays ?? 0,
-        availableDays: Math.max(0, Math.round(days)),
-        availableHours: Math.max(0, hours),
-        lineJph: Math.max(0, jph)
-      })
-    } catch (e) {
-      setError(e instanceof Error ? e.message : t('common.error'))
-    } finally {
-      setSavingWorkMetrics(false)
-    }
-  }
-
-  function handleAvailableDaysChange(raw: string) {
-    const next = Math.max(0, Math.round(Number(raw) || 0))
-    setAvailableDays(next)
-    scheduleSaveWorkMetrics(next, availableHours, lineJph)
-  }
-
-  function handleAvailableHoursChange(raw: string) {
-    const next = Math.max(0, Number(raw) || 0)
-    setAvailableHours(next)
-    scheduleSaveWorkMetrics(availableDays, next, lineJph)
-  }
-
-  function handleLineJphChange(raw: string) {
-    const next = Math.max(0, Number(raw) || 0)
-    setLineJph(next)
-    scheduleSaveWorkMetrics(availableDays, availableHours, next)
-  }
 
   function toggleFamily(key: string) {
     setExpandedFamilies(prev => {
@@ -181,23 +167,35 @@ export function ProductionPlanOrdersTab() {
   async function reload() {
     setLoading(true)
     setPlanSuccess('')
-    const { year, month } = currentYm()
     try {
-      await refreshVehicles()
-      const [orderRows, modelRows, dbTargets, dbGroupTargets, workConfig] = await Promise.all([
+      if (view === 'orders') await refreshVehicles()
+      const [orderRows, modelRows, dbTargets, annualTargets, workConfig, productivity] = await Promise.all([
         getProductionOrders(),
         getVehicleModels(),
-        getModelPlanTargets().catch(() => []),
-        getProductionPlanGroupTargets().catch(() => []),
-        getProductionPlanWorkDays(year, month).catch(() => null)
+        getModelPlanTargets(planYear, planMonth).catch(() => []),
+        view === 'plan' ? getAnnualPlanTargets(planYear).catch(() => []) : Promise.resolve([]),
+        getProductionPlanWorkDays(planYear, planMonth).catch(() => null),
+        view === 'plan'
+          ? getMonthProductivityDetail(planYear, planMonth).catch(() => null)
+          : Promise.resolve(null)
       ])
       setOrders(orderRows)
       setModels(modelRows)
-      setPlanTargets(mergePlanTargets(dbTargets, orderRows))
-      setPlanGroupTargets(mergePlanGroupTargets(dbGroupTargets))
+      setPlanTargets(planTargetsMap(dbTargets))
+      setWipCarryover(wipCarryoverMap(dbTargets))
+      setAnnualPlanTargets(planTargetsMap(annualTargets))
       setAvailableDays(workConfig?.availableDays ?? 0)
       setAvailableHours(workConfig?.availableHours ?? 0)
       setLineJph(workConfig?.lineJph ?? 0)
+      if (productivity) {
+        const achieved = new Map<string, number>()
+        for (const row of productivity.exitRecords) {
+          achieved.set(row.modelId, (achieved.get(row.modelId) ?? 0) + row.quantity)
+        }
+        setAchievedByModelId(achieved)
+      } else {
+        setAchievedByModelId(new Map())
+      }
       setError('')
     } catch (e) {
       setError(e instanceof Error ? e.message : t('common.error'))
@@ -208,7 +206,7 @@ export function ProductionPlanOrdersTab() {
 
   useEffect(() => {
     void reload()
-  }, [])
+  }, [planYear, planMonth, view])
 
   useEffect(() => {
     if (!formOpen) return
@@ -219,86 +217,15 @@ export function ProductionPlanOrdersTab() {
       .finally(() => setListsLoading(false))
   }, [formOpen, t])
 
-  useEffect(() => {
-    return () => {
-      if (planSaveTimerRef.current) clearTimeout(planSaveTimerRef.current)
-      if (planGroupSaveTimerRef.current) clearTimeout(planGroupSaveTimerRef.current)
-      if (workMetricsSaveTimerRef.current) clearTimeout(workMetricsSaveTimerRef.current)
-    }
-  }, [])
-
-  async function persistPlanTarget(modelId: string, targetQty: number) {
-    setSavingPlan(true)
-    setError('')
-    try {
-      await saveModelPlanTargets([{ modelId, targetQty: Math.max(0, targetQty) }])
-      setPlanSuccess(t('productionOrders.planSaved'))
-      window.setTimeout(() => setPlanSuccess(''), 2000)
-    } catch (e) {
-      setError(e instanceof Error ? e.message : t('common.error'))
-    } finally {
-      setSavingPlan(false)
-    }
+  function openPlanModal(mode: PlanEntryMode) {
+    setPlanEntryMode(mode)
+    setPlanModalOpen(true)
   }
 
-  function setPlanTarget(modelId: string, quantity: number) {
-    const qty = Math.max(0, quantity)
-    setPlanTargets(prev => {
-      const next = new Map(prev)
-      next.set(modelId, qty)
-      return next
-    })
-    if (!canManage) return
-    if (planSaveTimerRef.current) clearTimeout(planSaveTimerRef.current)
-    planSaveTimerRef.current = setTimeout(() => {
-      void persistPlanTarget(modelId, qty)
-    }, 600)
-  }
-
-  function flushPlanTarget(modelId: string, quantity: number) {
-    if (!canManage) return
-    if (planSaveTimerRef.current) {
-      clearTimeout(planSaveTimerRef.current)
-      planSaveTimerRef.current = null
-    }
-    void persistPlanTarget(modelId, quantity)
-  }
-
-  async function persistPlanGroupTarget(groupCode: ProductionPlanGroupCode, targetQty: number) {
-    setSavingPlan(true)
-    setError('')
-    try {
-      await saveProductionPlanGroupTarget(groupCode, Math.max(0, targetQty))
-      setPlanSuccess(t('productionOrders.planSaved'))
-      window.setTimeout(() => setPlanSuccess(''), 2000)
-    } catch (e) {
-      setError(e instanceof Error ? e.message : t('common.error'))
-    } finally {
-      setSavingPlan(false)
-    }
-  }
-
-  function setPlanGroupTarget(groupCode: ProductionPlanGroupCode, quantity: number) {
-    const qty = Math.max(0, quantity)
-    setPlanGroupTargets(prev => {
-      const next = new Map(prev)
-      next.set(groupCode, qty)
-      return next
-    })
-    if (!canManage) return
-    if (planGroupSaveTimerRef.current) clearTimeout(planGroupSaveTimerRef.current)
-    planGroupSaveTimerRef.current = setTimeout(() => {
-      void persistPlanGroupTarget(groupCode, qty)
-    }, 600)
-  }
-
-  function flushPlanGroupTarget(groupCode: ProductionPlanGroupCode, quantity: number) {
-    if (!canManage) return
-    if (planGroupSaveTimerRef.current) {
-      clearTimeout(planGroupSaveTimerRef.current)
-      planGroupSaveTimerRef.current = null
-    }
-    void persistPlanGroupTarget(groupCode, quantity)
+  async function handlePlanSaved() {
+    setPlanSuccess(t('productionOrders.planSaved'))
+    window.setTimeout(() => setPlanSuccess(''), 2500)
+    await reload()
   }
 
   function openCreateOrder() {
@@ -391,60 +318,131 @@ export function ProductionPlanOrdersTab() {
     return row.modelName || '—'
   }
 
+  const planExportColumns = useMemo<TableExportColumn<ReturnType<typeof buildPlanSummaryExportRows>[number]>[]>(
+    () => [
+      { label: t('productionOrders.cols.model'), value: r => r.model },
+      { label: t('productionOrders.plannedQty'), value: r => r.planned },
+      { label: t('productionOrders.ordersQty'), value: r => r.ordersQty },
+      { label: t('productionOrders.ordersGap'), value: r => r.gap },
+      { label: t('productionOrders.achievedQty'), value: r => r.achieved },
+      { label: t('productionOrders.progress'), value: r => r.progress }
+    ],
+    [t]
+  )
+
+  const planExportRows = useMemo(
+    () => buildPlanSummaryExportRows(planSections, ordersCoverageMap),
+    [planSections, ordersCoverageMap]
+  )
+
+  const ordersExportColumns = useMemo<TableExportColumn<ReturnType<typeof buildOrdersExportRows>[number]>[]>(
+    () => [
+      { label: t('productionOrders.cols.orderNumber'), value: r => r.orderNumber },
+      { label: t('productionOrders.cols.model'), value: r => r.model },
+      { label: t('productionOrders.cols.chassisStart'), value: r => r.chassisStart },
+      { label: t('productionOrders.cols.chassisEnd'), value: r => r.chassisEnd },
+      { label: t('productionOrders.cols.carCount'), value: r => r.carCount },
+      { label: t('productionOrders.cols.assemblyEntry'), value: r => r.assemblyEntry }
+    ],
+    [t]
+  )
+
+  const ordersExportRows = useMemo(
+    () => buildOrdersExportRows(orders, assemblyEntryByOrderId, modelLabel),
+    [orders, assemblyEntryByOrderId]
+  )
+
   return (
     <section className="space-y-6">
+      {view === 'plan' && (
       <div className="card-industrial p-5 sm:p-6">
-        <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+        <div className="mb-5 flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
           <div className="flex items-start gap-3">
             <div className="rounded-xl bg-violet-500/15 p-3 text-violet-300">
               <Target className="h-6 w-6" />
             </div>
             <div>
-              <h2 className="text-xl font-black text-white">{t('productionOrders.title')}</h2>
-              <p className="text-sm text-slate-400">{t('productionOrders.subtitle')}</p>
+              <h3 className="text-lg font-black text-white">{t('productionOrders.planSummary')}</h3>
+              <p className="mt-1 text-sm text-slate-400">{t('productionOrders.planEntry.viewHint')}</p>
+              <p className="mt-1 text-xs font-bold text-violet-300/80">{t('productionOrders.planMonthHint')}</p>
             </div>
+          </div>
+          <div className="flex flex-wrap items-center gap-2">
+            <input
+              type="month"
+              className={`${inputCls()} w-full py-2 text-sm sm:w-auto`}
+              value={planMonthValue}
+              onChange={e => {
+                const [y, m] = e.target.value.split('-').map(Number)
+                if (y && m) {
+                  setPlanYear(y)
+                  setPlanMonth(m)
+                }
+              }}
+              title={t('productionOrders.planMonth')}
+            />
+            {canManage && (
+              <>
+                <button
+                  type="button"
+                  onClick={() => openPlanModal('annual')}
+                  className="inline-flex items-center gap-2 rounded-xl border border-cyan-500/40 bg-cyan-500/15 px-4 py-2.5 text-sm font-black text-cyan-200 hover:bg-cyan-500/25"
+                >
+                  <CalendarRange className="h-4 w-4" />
+                  {t('productionOrders.planEntry.annualButton')}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => openPlanModal('monthly')}
+                  className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-br from-violet-500 to-violet-600 px-4 py-2.5 text-sm font-black text-slate-950 shadow-lg shadow-violet-500/20 hover:from-violet-400 hover:to-violet-500"
+                >
+                  <ClipboardList className="h-4 w-4" />
+                  {t('productionOrders.planEntry.openButton')}
+                </button>
+              </>
+            )}
+            {!loading && planExportRows.length > 0 && (
+              <TableExportButtons
+                filename={`plan-summary-${planMonthValue}`}
+                title={t('planning.export.planTitle', { month: planMonthValue })}
+                columns={planExportColumns}
+                rows={planExportRows}
+              />
+            )}
           </div>
         </div>
 
-        <div className="mb-3 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-          <div>
-            <h3 className="text-sm font-black text-violet-200">{t('productionOrders.planSummary')}</h3>
-            <p className="mt-1 text-xs text-slate-500">{t('productionOrders.planEntryModesHint')}</p>
-          </div>
-          <div className="flex flex-wrap items-center gap-2">
-            <EditableMetricPill
-              label={t('productionOrders.workDays.available')}
-              value={availableDays}
-              onChange={handleAvailableDaysChange}
-              disabled={!canManage}
-              step={1}
-              tone="violet"
-            />
-            <EditableMetricPill
-              label={t('productionOrders.workDays.availableHours')}
-              value={availableHours}
-              onChange={handleAvailableHoursChange}
-              disabled={!canManage}
-              step={0.5}
-              tone="emerald"
-            />
-            <EditableMetricPill
-              label={t('productionOrders.jph')}
-              value={lineJph}
-              onChange={handleLineJphChange}
-              disabled={!canManage}
-              step={0.01}
-              tone="cyan"
-            />
-            <MetricPill
-              label={t('productionOrders.taktTime')}
-              value={lineTaktMinutes != null ? formatTaktMinutes(lineTaktMinutes) : '—'}
-              tone="amber"
-            />
-            {(savingPlan || savingWorkMetrics) && (
-              <span className="text-xs font-bold text-cyan-300">{t('common.saving')}</span>
-            )}
-          </div>
+        <div className="mb-5 grid grid-cols-2 gap-2 sm:grid-cols-4 xl:grid-cols-8">
+          <PlanStatCard label={t('productionOrders.annualPlan')} value={String(planTotals.annual || '—')} tone="cyan" />
+          <PlanStatCard label={t('productionOrders.plannedQty')} value={String(planTotals.planned || '—')} tone="cyan" />
+          <PlanStatCard label={t('productionOrders.wipCarryover')} value={String(planTotals.wip || '—')} tone="rose" />
+          <PlanStatCard label={t('productionOrders.achievedQty')} value={String(planTotals.achieved || '—')} tone="emerald" />
+          <PlanStatCard label={t('productionOrders.ordersQty')} value={String(ordersCoverageSummary.ordersTotal || '—')} tone="violet" />
+          <PlanStatCard
+            label={t('productionOrders.ordersGap')}
+            value={formatGap(ordersCoverageSummary.gap)}
+            tone={ordersCoverageSummary.gap > 0 ? 'amber' : ordersCoverageSummary.gap < 0 ? 'red' : 'slate'}
+          />
+          <PlanStatCard
+            label={t('productionOrders.coverageStatus')}
+            value={
+              ordersCoverageSummary.alerts.length > 0
+                ? t('productionOrders.coverageAlerts', { n: ordersCoverageSummary.alerts.length })
+                : t('productionOrders.coverageOk')
+            }
+            tone={ordersCoverageSummary.alerts.length > 0 ? 'amber' : 'emerald'}
+          />
+          <PlanStatCard label={t('productionOrders.workDays.available')} value={String(availableDays || '—')} tone="violet" />
+        </div>
+
+        <div className="mb-5 flex flex-wrap gap-2">
+          <MetricPill label={t('productionOrders.workDays.availableHours')} value={availableHours > 0 ? String(availableHours) : '—'} tone="cyan" />
+          <MetricPill label={t('productionOrders.jph')} value={lineJph > 0 ? String(lineJph) : '—'} tone="cyan" />
+          <MetricPill
+            label={t('productionOrders.taktTime')}
+            value={lineTaktMinutes != null ? formatTaktMinutes(lineTaktMinutes) : '—'}
+            tone="amber"
+          />
         </div>
 
         {planSuccess && (
@@ -456,95 +454,44 @@ export function ProductionPlanOrdersTab() {
           <div className="mb-3 rounded-xl border border-red-500/30 bg-red-500/10 p-3 text-sm text-red-200">{error}</div>
         )}
 
-        <div className="overflow-x-auto rounded-2xl border border-slate-800">
-          <table className="w-full min-w-[640px] text-sm">
+        <PlanOrdersCoverageBanner rows={ordersCoverage} t={t} />
+
+        <div className="overflow-x-auto rounded-2xl border border-slate-800 bg-slate-950/30">
+          <table className="w-full min-w-[900px] text-sm">
             <thead className="bg-slate-950/90">
               <tr>
                 <th className={`${cell} text-xs font-black uppercase text-slate-400`}>{t('productionOrders.cols.model')}</th>
+                <th className={`${cell} text-xs font-black uppercase text-cyan-200`}>{t('productionOrders.annualPlan')}</th>
                 <th className={`${cell} text-xs font-black uppercase text-cyan-300`}>{t('productionOrders.plannedQty')}</th>
+                <th className={`${cell} text-xs font-black uppercase text-rose-300`}>{t('productionOrders.wipCarryoverShort')}</th>
+                <th className={`${cell} text-xs font-black uppercase text-violet-300`}>{t('productionOrders.ordersQty')}</th>
+                <th className={`${cell} text-xs font-black uppercase text-amber-300`}>{t('productionOrders.ordersGap')}</th>
                 <th className={`${cell} text-xs font-black uppercase text-emerald-300`}>{t('productionOrders.achievedQty')}</th>
-                <th className={`${cell} min-w-[140px] text-xs font-black uppercase text-slate-400`}>{t('productionOrders.progress')}</th>
+                <th className={`${cell} min-w-[120px] text-xs font-black uppercase text-slate-400`}>{t('productionOrders.progress')}</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-800">
-              {planSections.map(section => {
-                if (section.kind === 'combined_lines') {
-                  const combinedKey = `combined:${section.key}`
-                  const combinedOpen = isFamilyExpanded(combinedKey)
-                  return (
-                    <Fragment key={section.key}>
-                      <tr className="bg-cyan-500/10">
-                        <td className={`${cell} text-start font-bold text-cyan-200`}>
-                          <button
-                            type="button"
-                            onClick={() => toggleFamily(combinedKey)}
-                            className="inline-flex w-full items-center gap-2 rounded-lg px-1 py-0.5 text-start hover:bg-cyan-500/15"
-                            aria-expanded={combinedOpen}
-                          >
-                            <ChevronDown
-                              className={`h-4 w-4 shrink-0 text-cyan-300 transition-transform ${combinedOpen ? '' : '-rotate-90'}`}
-                            />
-                            {section.label}
-                            <span className="text-xs font-semibold text-cyan-300/70">
-                              ({section.families.length})
-                            </span>
-                          </button>
-                        </td>
-                        <td className={`${cell} font-black text-cyan-300`}>
-                          {canManage ? (
-                            <input
-                              type="number"
-                              min={0}
-                              className="w-24 rounded-lg border border-cyan-600/50 bg-slate-950 px-2 py-1 text-center text-sm font-black text-cyan-300"
-                              value={section.planned || ''}
-                              onChange={e => setPlanGroupTarget(section.key, Number(e.target.value) || 0)}
-                              onBlur={e => flushPlanGroupTarget(section.key, Number(e.target.value) || 0)}
-                              title={t('productionOrders.planCombinedLinesHint')}
-                            />
-                          ) : (
-                            section.planned || '—'
-                          )}
-                        </td>
-                        <td className={`${cell} font-black text-emerald-300`}>{section.achieved || '—'}</td>
-                        <td className={cell}>
-                          <CompletionBar percent={planProgressPercent(section.planned, section.achieved)} />
-                        </td>
-                      </tr>
-                      {combinedOpen &&
-                        section.families.map(family => (
-                          <PlanFamilyRows
-                            key={family.key}
-                            group={family}
-                            nested
-                            canManage={canManage}
-                            isExpanded={isFamilyExpanded(family.key)}
-                            onToggle={() => toggleFamily(family.key)}
-                            onSetPlanTarget={setPlanTarget}
-                            onFlushPlanTarget={flushPlanTarget}
-                            t={t}
-                          />
-                        ))}
-                    </Fragment>
-                  )
-                }
-
-                return (
-                  <PlanFamilyRows
-                    key={section.group.key}
-                    group={section.group}
-                    canManage={canManage}
-                    isExpanded={isFamilyExpanded(section.group.key)}
-                    onToggle={() => toggleFamily(section.group.key)}
-                    onSetPlanTarget={setPlanTarget}
-                    onFlushPlanTarget={flushPlanTarget}
-                    t={t}
-                  />
-                )
-              })}
+              {planSections.map(section => (
+                <PlanFamilyRows
+                  key={section.group.key}
+                  group={section.group}
+                  annualGroup={annualByKey.get(section.group.key)}
+                  coverage={ordersCoverageMap.get(section.group.key)}
+                  isExpanded={isFamilyExpanded(section.group.key)}
+                  onToggle={() => toggleFamily(section.group.key)}
+                  t={t}
+                />
+              ))}
               {planSections.length > 0 && (
                 <tr className={totalRow}>
                   <td className={`${cell} text-lg text-white`}>{t('productionOrders.grandTotal')}</td>
+                  <td className={`${cell} text-lg text-cyan-200`}>{planTotals.annual || '—'}</td>
                   <td className={`${cell} text-lg text-cyan-300`}>{planTotals.planned || '—'}</td>
+                  <td className={`${cell} text-lg text-rose-300`}>{planTotals.wip || '—'}</td>
+                  <td className={`${cell} text-lg text-violet-300`}>{ordersCoverageSummary.ordersTotal || '—'}</td>
+                  <td className={`${cell} text-lg ${gapToneClass(ordersCoverageSummary.gap)}`}>
+                    {formatGap(ordersCoverageSummary.gap)}
+                  </td>
                   <td className={`${cell} text-lg text-emerald-300`}>{planTotals.achieved || '—'}</td>
                   <td className={cell}>
                     <CompletionBar percent={planProgressPercent(planTotals.planned, planTotals.achieved)} />
@@ -553,22 +500,66 @@ export function ProductionPlanOrdersTab() {
               )}
             </tbody>
           </table>
+          {loading && <p className="p-8 text-center text-slate-400">{t('common.loading')}</p>}
           {!loading && planSections.length === 0 && (
             <p className="p-6 text-center text-sm text-slate-500">{t('productivity.monthly.noModels')}</p>
           )}
         </div>
-      </div>
 
+        <ProductionPlanEntryModal
+          open={planModalOpen}
+          onClose={() => setPlanModalOpen(false)}
+          entryMode={planEntryMode}
+          monthLabel={planMonthValue}
+          planYear={planYear}
+          planMonth={planMonth}
+          models={models}
+          planTargets={planEntryMode === 'annual' ? annualPlanTargets : planTargets}
+          wipCarryover={wipCarryover}
+          achievedByModelId={achievedByModelId}
+          availableDays={availableDays}
+          availableHours={availableHours}
+          lineJph={lineJph}
+          canManage={canManage}
+          onSaved={() => void handlePlanSaved()}
+        />
+      </div>
+      )}
+
+      {view === 'orders' && (
       <div className="card-industrial p-5 sm:p-6">
-        <div className="mb-4 flex items-center gap-3">
-          <div className="rounded-xl bg-violet-500/15 p-2.5 text-violet-300">
-            <ClipboardList className="h-5 w-5" />
-          </div>
-          <div>
-            <h3 className="text-lg font-black text-white">{t('productionOrders.ordersSection')}</h3>
-            <p className="text-sm text-slate-400">{t('productionOrders.ordersSectionHint')}</p>
+        <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <p className="text-sm text-slate-400">{t('productionOrders.ordersSectionHint')}</p>
+          <div className="flex flex-wrap items-center gap-2">
+            <input
+              type="month"
+              className={`${inputCls()} w-full py-2 text-sm sm:w-auto`}
+              value={planMonthValue}
+              onChange={e => {
+                const [y, m] = e.target.value.split('-').map(Number)
+                if (y && m) {
+                  setPlanYear(y)
+                  setPlanMonth(m)
+                }
+              }}
+              title={t('productionOrders.planMonth')}
+            />
+            {!loading && ordersExportRows.length > 0 && (
+              <TableExportButtons
+                filename={`production-orders-${planMonthValue}`}
+                title={t('planning.export.ordersTitle', { month: planMonthValue })}
+                columns={ordersExportColumns}
+                rows={ordersExportRows}
+              />
+            )}
           </div>
         </div>
+
+        <PlanOrdersCoverageBanner rows={ordersCoverage} t={t} />
+
+        {error && !formOpen && (
+          <div className="mb-3 rounded-xl border border-red-500/30 bg-red-500/10 p-3 text-sm text-red-200">{error}</div>
+        )}
 
         {canManage && !formOpen && (
           <button
@@ -746,167 +737,227 @@ export function ProductionPlanOrdersTab() {
           onConfirm={() => void confirmDeleteOrder()}
         />
       </div>
+      )}
     </section>
+  )
+}
+
+function formatGap(gap: number): string {
+  if (gap === 0) return '0'
+  return gap > 0 ? `+${gap}` : String(gap)
+}
+
+function gapToneClass(gap: number): string {
+  if (gap > 0) return 'text-amber-300'
+  if (gap < 0) return 'text-red-300'
+  return 'text-slate-300'
+}
+
+function PlanOrdersCoverageBanner({
+  rows,
+  t
+}: {
+  rows: PlanOrdersCoverageRow[]
+  t: (key: string, vars?: Record<string, string | number>) => string
+}) {
+  if (rows.length === 0) return null
+
+  const alerts = rows.filter(r => r.status !== 'ok')
+  if (alerts.length === 0) return null
+
+  return (
+    <div className="mb-4 rounded-xl border border-amber-500/30 bg-amber-500/10 p-3 text-sm text-amber-100">
+      <p className="mb-2 font-black text-amber-200">{t('productionOrders.coverageTitle')}</p>
+      <ul className="space-y-1.5">
+        {alerts.map(row => (
+          <li key={row.key} className="flex flex-wrap items-center gap-2 text-xs sm:text-sm">
+            <span className="font-bold text-white">{row.label}</span>
+            <span className="text-slate-400">
+              {t('productionOrders.coverageLine', {
+                plan: row.planQty,
+                orders: row.ordersQty,
+                gap: formatGap(row.gap)
+              })}
+            </span>
+            <span
+              className={`rounded-md px-1.5 py-0.5 text-[10px] font-black ${
+                row.status === 'over' || row.status === 'no_plan'
+                  ? 'bg-red-500/20 text-red-200'
+                  : 'bg-amber-500/20 text-amber-100'
+              }`}
+            >
+              {t(`productionOrders.coverageStatuses.${row.status}`)}
+            </span>
+          </li>
+        ))}
+      </ul>
+      <p className="mt-2 text-[11px] text-amber-200/70">{t('productionOrders.coverageHint')}</p>
+    </div>
   )
 }
 
 function PlanFamilyRows({
   group,
-  nested = false,
-  canManage,
+  annualGroup,
+  coverage,
   isExpanded,
   onToggle,
-  onSetPlanTarget,
-  onFlushPlanTarget,
   t
 }: {
   group: PlanFamilyGroup
-  nested?: boolean
-  canManage: boolean
+  annualGroup?: PlanFamilyGroup
+  coverage?: PlanOrdersCoverageRow
   isExpanded: boolean
   onToggle: () => void
-  onSetPlanTarget: (modelId: string, quantity: number) => void
-  onFlushPlanTarget: (modelId: string, quantity: number) => void
   t: (key: string, vars?: Record<string, string | number>) => string
 }) {
-  const rowTone = nested ? 'bg-violet-500/5' : 'bg-violet-500/10'
-  const labelPad = nested ? 'ps-8' : ''
+  const variantIds = group.variants.map(v => v.modelId)
+  const familyIsLeaf = variantIds.length === 1 && variantIds[0] === group.familyId
+  const modeLabel =
+    group.entryMode === 'family_aggregate'
+      ? t('productionOrders.planModeFamily')
+      : group.entryMode === 'per_variant'
+        ? t('productionOrders.planModeVariants')
+        : t('productionOrders.planModeFlexible')
+
+  const ordersQty = coverage?.ordersQty ?? 0
+  const gap = coverage?.gap ?? group.planned
+  const rowAlert =
+    coverage && coverage.status !== 'ok'
+      ? coverage.status === 'over' || coverage.status === 'no_plan'
+        ? 'bg-red-500/10'
+        : 'bg-amber-500/10'
+      : ''
+
+  const familyPlannedDisplay =
+    !familyIsLeaf && group.entryMode === 'per_variant' ? '—' : group.planned || '—'
+  const annualDisplay =
+    !annualGroup
+      ? '—'
+      : !familyIsLeaf && annualGroup.entryMode === 'per_variant'
+        ? '—'
+        : annualGroup.planned || '—'
 
   return (
     <Fragment>
-      <tr className={rowTone}>
-        <td className={`${cell} text-start font-bold text-violet-200 ${labelPad}`}>
+      <tr className={rowAlert || 'hover:bg-slate-800/20'}>
+        <td className={`${cell} text-start font-bold text-violet-200`}>
           <button
             type="button"
             onClick={onToggle}
-            className="inline-flex w-full items-center gap-2 rounded-lg px-1 py-0.5 text-start hover:bg-violet-500/15"
+            disabled={familyIsLeaf}
+            className="inline-flex w-full items-center gap-2 rounded-lg px-1 py-0.5 text-start hover:bg-violet-500/10 disabled:cursor-default"
             aria-expanded={isExpanded}
           >
-            <ChevronDown
-              className={`h-4 w-4 shrink-0 text-violet-300 transition-transform ${isExpanded ? '' : '-rotate-90'}`}
-            />
+            {!familyIsLeaf && (
+              <ChevronDown
+                className={`h-4 w-4 shrink-0 text-violet-300 transition-transform ${isExpanded ? '' : '-rotate-90'}`}
+              />
+            )}
             {group.label}
             <span className="text-xs font-semibold text-violet-300/70">({group.variants.length})</span>
+            <span className="rounded-md bg-slate-950/50 px-1.5 py-0.5 text-[10px] font-bold text-slate-400">
+              {modeLabel}
+            </span>
           </button>
         </td>
-        <td className={`${cell} font-black text-cyan-300`}>
-          {group.entryMode === 'family_aggregate' && canManage ? (
-            <input
-              type="number"
-              min={0}
-              className="w-24 rounded-lg border border-violet-600/50 bg-slate-950 px-2 py-1 text-center text-sm font-black text-cyan-300"
-              value={group.planned || ''}
-              onChange={e => onSetPlanTarget(group.familyId, Number(e.target.value) || 0)}
-              onBlur={e => onFlushPlanTarget(group.familyId, Number(e.target.value) || 0)}
-              title={t('productionOrders.planFamilyAggregateHint', { line: group.label })}
-            />
-          ) : group.entryMode === 'family_aggregate' ? (
-            group.planned || '—'
-          ) : (
-            <span className="text-slate-500">—</span>
-          )}
-        </td>
+        <td className={`${cell} font-black text-cyan-200`}>{annualDisplay}</td>
+        <td className={`${cell} text-lg font-black text-cyan-300`}>{familyPlannedDisplay}</td>
+        <td className={`${cell} font-black text-rose-300`}>{group.wipCarryover || '—'}</td>
+        <td className={`${cell} font-black text-violet-300`}>{ordersQty || '—'}</td>
+        <td className={`${cell} font-black ${gapToneClass(gap)}`}>{formatGap(gap)}</td>
         <td className={`${cell} font-black text-emerald-300`}>{group.achieved || '—'}</td>
         <td className={cell}>
-          {group.entryMode === 'family_aggregate' ? (
-            <CompletionBar percent={planProgressPercent(group.planned, group.achieved)} />
-          ) : (
-            <span className="text-slate-600">—</span>
-          )}
+          <CompletionBar percent={planProgressPercent(group.planned, group.achieved)} />
         </td>
       </tr>
       {isExpanded &&
-        group.variants.map(variant => (
-          <tr key={variant.modelId} className="bg-slate-900/30 hover:bg-slate-800/40">
-            <td className={`${cell} ${nested ? 'ps-14' : 'ps-10'} text-start font-bold text-slate-200`}>
-              <span className="text-slate-500">— </span>
-              {variant.label}
-            </td>
-            <td className={cell}>
-              {group.entryMode === 'per_variant' && canManage ? (
-                <input
-                  type="number"
-                  min={0}
-                  className="w-20 rounded-lg border border-slate-700 bg-slate-950 px-2 py-1 text-center text-sm font-black text-cyan-300"
-                  value={variant.planned || ''}
-                  onChange={e => onSetPlanTarget(variant.modelId, Number(e.target.value) || 0)}
-                  onBlur={e => onFlushPlanTarget(variant.modelId, Number(e.target.value) || 0)}
-                />
-              ) : group.entryMode === 'per_variant' ? (
-                <span className="font-black text-cyan-300">{variant.planned || '—'}</span>
-              ) : (
-                <span className="text-slate-500">—</span>
-              )}
-            </td>
-            <td className={`${cell} font-black text-emerald-300`}>{variant.achieved || '—'}</td>
-            <td className={cell}>
-              {group.entryMode === 'per_variant' ? (
-                <CompletionBar percent={planProgressPercent(variant.planned, variant.achieved)} />
-              ) : (
-                <span className="text-slate-600">—</span>
-              )}
-            </td>
-          </tr>
-        ))}
+        !familyIsLeaf &&
+        group.variants.map(variant => {
+          const showVariantQty = group.entryMode !== 'family_aggregate'
+          const annualVariant = annualGroup?.variants.find(v => v.modelId === variant.modelId)
+          return (
+            <tr key={variant.modelId} className="bg-slate-900/30">
+              <td className={`${cell} ps-10 text-start font-bold text-slate-200`}>
+                <span className="text-slate-500">— </span>
+                {variant.label}
+              </td>
+              <td className={cell}>
+                {showVariantQty ? (
+                  <span className="font-black text-cyan-200">{annualVariant?.planned || '—'}</span>
+                ) : (
+                  <span className="text-slate-600">—</span>
+                )}
+              </td>
+              <td className={cell}>
+                {showVariantQty ? (
+                  <span className="font-black text-cyan-300">{variant.planned || '—'}</span>
+                ) : (
+                  <span className="text-slate-600">—</span>
+                )}
+              </td>
+              <td className={`${cell} font-black text-rose-300`}>
+                {showVariantQty ? variant.wipCarryover || '—' : '—'}
+              </td>
+              <td className={`${cell} text-slate-600`}>—</td>
+              <td className={`${cell} text-slate-600`}>—</td>
+              <td className={`${cell} font-black text-emerald-300`}>{variant.achieved || '—'}</td>
+              <td className={cell}>
+                {showVariantQty ? (
+                  <CompletionBar percent={planProgressPercent(variant.planned, variant.achieved)} />
+                ) : (
+                  <span className="text-slate-600">—</span>
+                )}
+              </td>
+            </tr>
+          )
+        })}
     </Fragment>
   )
 }
 
-function EditableMetricPill({
+function PlanStatCard({
   label,
   value,
-  onChange,
-  disabled,
-  step = 1,
-  tone = 'violet'
+  tone
 }: {
   label: string
-  value: number
-  onChange: (raw: string) => void
-  disabled?: boolean
-  step?: number
-  tone?: 'violet' | 'emerald' | 'cyan' | 'amber'
+  value: string
+  tone: 'cyan' | 'violet' | 'amber' | 'red' | 'slate' | 'emerald' | 'rose'
 }) {
-  const borderCls =
-    tone === 'emerald'
-      ? 'border-emerald-500/30 bg-emerald-500/10'
-      : tone === 'cyan'
-        ? 'border-cyan-500/30 bg-cyan-500/10'
+  const border =
+    tone === 'cyan'
+      ? 'border-cyan-500/30 bg-cyan-500/10'
+      : tone === 'violet'
+        ? 'border-violet-500/30 bg-violet-500/10'
         : tone === 'amber'
           ? 'border-amber-500/30 bg-amber-500/10'
-          : 'border-violet-500/30 bg-violet-500/10'
-  const labelCls =
-    tone === 'emerald'
-      ? 'text-emerald-200'
-      : tone === 'cyan'
-        ? 'text-cyan-200'
-        : tone === 'amber'
-          ? 'text-amber-200'
-          : 'text-violet-200'
+          : tone === 'red'
+            ? 'border-red-500/30 bg-red-500/10'
+            : tone === 'emerald'
+              ? 'border-emerald-500/30 bg-emerald-500/10'
+              : tone === 'rose'
+                ? 'border-rose-500/30 bg-rose-500/10'
+                : 'border-slate-600/40 bg-slate-800/40'
   const valueCls =
-    tone === 'emerald'
-      ? 'text-emerald-300'
-      : tone === 'cyan'
-        ? 'text-cyan-300'
+    tone === 'cyan'
+      ? 'text-cyan-300'
+      : tone === 'violet'
+        ? 'text-violet-300'
         : tone === 'amber'
           ? 'text-amber-300'
-          : 'text-white'
+          : tone === 'red'
+            ? 'text-red-300'
+            : tone === 'emerald'
+              ? 'text-emerald-300'
+              : tone === 'rose'
+                ? 'text-rose-300'
+                : 'text-slate-200'
 
   return (
-    <div className={`rounded-xl border px-3 py-2 ${borderCls}`}>
-      <p className={`text-xs font-bold ${labelCls}`}>{label}</p>
-      {disabled ? (
-        <p className={`text-lg font-black ${valueCls}`}>{value}</p>
-      ) : (
-        <input
-          type="number"
-          min={0}
-          step={step}
-          value={value || ''}
-          onChange={e => onChange(e.target.value)}
-          className={`mt-0.5 w-24 bg-transparent text-lg font-black outline-none ${valueCls}`}
-        />
-      )}
+    <div className={`rounded-xl border px-3 py-3 ${border}`}>
+      <p className="text-[10px] font-bold text-slate-400">{label}</p>
+      <p className={`mt-1 text-xl font-black tabular-nums ${valueCls}`}>{value}</p>
     </div>
   )
 }

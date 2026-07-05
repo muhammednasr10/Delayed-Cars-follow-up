@@ -49,13 +49,16 @@ export const SETTINGS_TAB_ORDER = ['administrations', 'models', 'stations', 'col
 
 export type SettingsTab = (typeof SETTINGS_TAB_ORDER)[number]
 
-export type ProductivityTab = 'orders' | 'workDays' | 'entry' | 'exit' | 'stops' | 'summary'
+export type ProductivityTab = 'productivity' | 'stops'
 
 export type ProductivitySubTab = 'daily' | 'monthly'
 
 export type AttendanceSubTab = 'monthly' | 'today'
 
-export type ProductionPlanTab = 'planOrders'
+/** تبويبات قسم التخطيط */
+export const PLANNING_TAB_ORDER = ['plan', 'workDays', 'tracking', 'orders'] as const
+
+export type PlanningTab = (typeof PLANNING_TAB_ORDER)[number]
 
 export type WarehousesTab = 'home' | 'currentStock' | 'feeding'
 

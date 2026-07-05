@@ -1,10 +1,8 @@
-import type { ProductionPlanGroupCode } from '../Types/productionPlanGroup'
 import type { VehicleModel } from '../Types/settings'
 import {
   buildModelFamilyGroups,
   inferParentNameFromVariant,
-  isTLineFamily,
-  planEntryModeForFamily,
+  resolvePlanEntryMode,
   type PlanEntryMode
 } from './vehicleModelHierarchy'
 
@@ -13,6 +11,7 @@ export type PlanVariantRow = {
   label: string
   planned: number
   achieved: number
+  wipCarryover: number
 }
 
 export type PlanFamilyGroup = {
@@ -22,16 +21,8 @@ export type PlanFamilyGroup = {
   entryMode: PlanEntryMode
   planned: number
   achieved: number
+  wipCarryover: number
   variants: PlanVariantRow[]
-}
-
-export type PlanCombinedLinesSection = {
-  kind: 'combined_lines'
-  key: ProductionPlanGroupCode
-  label: string
-  planned: number
-  achieved: number
-  families: PlanFamilyGroup[]
 }
 
 export type PlanFamilySection = {
@@ -39,7 +30,7 @@ export type PlanFamilySection = {
   group: PlanFamilyGroup
 }
 
-export type PlanSection = PlanFamilySection | PlanCombinedLinesSection
+export type PlanSection = PlanFamilySection
 
 /** @deprecated Use buildPlanFamilyGroups — kept for flat exports if needed */
 export type PlanSummaryRow = {
@@ -54,14 +45,27 @@ export type PlanSummaryRow = {
 function variantRow(
   model: VehicleModel,
   planTargets: Map<string, number>,
-  achievedByModelId: Map<string, number>
+  achievedByModelId: Map<string, number>,
+  wipCarryover: Map<string, number>
 ): PlanVariantRow {
   return {
     modelId: model.id,
     label: model.name,
     planned: planTargets.get(model.id) ?? 0,
-    achieved: achievedByModelId.get(model.id) ?? 0
+    achieved: achievedByModelId.get(model.id) ?? 0,
+    wipCarryover: wipCarryover.get(model.id) ?? 0
   }
+}
+
+function groupWipCarryover(
+  familyId: string,
+  entryMode: PlanEntryMode,
+  variantRows: PlanVariantRow[]
+): number {
+  if (entryMode === 'family_aggregate') {
+    return variantRows.find(v => v.modelId === familyId)?.wipCarryover ?? 0
+  }
+  return variantRows.reduce((s, v) => s + v.wipCarryover, 0)
 }
 
 function buildFamilyGroup(
@@ -70,25 +74,39 @@ function buildFamilyGroup(
   label: string,
   variants: VehicleModel[],
   planTargets: Map<string, number>,
-  achievedByModelId: Map<string, number>
+  achievedByModelId: Map<string, number>,
+  wipCarryover: Map<string, number>
 ): PlanFamilyGroup {
-  const entryMode = planEntryModeForFamily(label)
-  const variantRows = variants.map(v => variantRow(v, planTargets, achievedByModelId))
+  const variantIds = variants.map(v => v.id)
+  const entryMode = resolvePlanEntryMode(familyId, variantIds, planTargets)
+  const variantRows = variants.map(v => variantRow(v, planTargets, achievedByModelId, wipCarryover))
   const achieved = variantRows.reduce((s, v) => s + v.achieved, 0)
-  let planned = 0
-  if (entryMode === 'family_aggregate') {
-    const familyTarget = planTargets.get(familyId)
-    planned = familyTarget != null && familyTarget > 0 ? familyTarget : 0
-  } else if (entryMode === 'per_variant') {
-    planned = variantRows.reduce((s, v) => s + v.planned, 0)
+  const familyTarget = planTargets.get(familyId) ?? 0
+  const variantSum = variantRows.reduce((s, v) => s + (v.modelId === familyId ? 0 : v.planned), 0)
+  const planned =
+    entryMode === 'family_aggregate'
+      ? familyTarget
+      : entryMode === 'per_variant'
+        ? variantSum + (variantRows.find(v => v.modelId === familyId)?.planned ?? 0)
+        : familyTarget || variantSum
+
+  return {
+    key,
+    familyId,
+    label,
+    entryMode,
+    planned,
+    achieved,
+    wipCarryover: groupWipCarryover(familyId, entryMode, variantRows),
+    variants: variantRows
   }
-  return { key, familyId, label, entryMode, planned, achieved, variants: variantRows }
 }
 
 function buildRawFamilyGroups(
   allModels: VehicleModel[],
   planTargets: Map<string, number>,
-  achievedByModelId: Map<string, number>
+  achievedByModelId: Map<string, number>,
+  wipCarryover: Map<string, number>
 ): PlanFamilyGroup[] {
   const active = allModels.filter(m => m.is_active)
   const { groups, orphanVariants } = buildModelFamilyGroups(active)
@@ -96,7 +114,7 @@ function buildRawFamilyGroups(
 
   for (const { family, variants } of groups) {
     if (variants.length === 0) continue
-    result.push(buildFamilyGroup(family.id, family.id, family.name, variants, planTargets, achievedByModelId))
+    result.push(buildFamilyGroup(family.id, family.id, family.name, variants, planTargets, achievedByModelId, wipCarryover))
   }
 
   const orphanBuckets = new Map<string, VehicleModel[]>()
@@ -113,72 +131,44 @@ function buildRawFamilyGroups(
   for (const [label, variants] of [...orphanBuckets.entries()].sort((a, b) => a[0].localeCompare(b[0], 'ar'))) {
     const sorted = [...variants].sort((a, b) => a.name.localeCompare(b.name, 'ar'))
     const familyId = sorted.find(v => v.parent_model_id)?.parent_model_id ?? sorted[0].id
-    result.push(buildFamilyGroup(`orphan:${label}`, familyId, label, sorted, planTargets, achievedByModelId))
+    result.push(buildFamilyGroup(`orphan:${label}`, familyId, label, sorted, planTargets, achievedByModelId, wipCarryover))
   }
 
   return result
 }
 
-/** GD as one family row; T4+T7+T8 under one combined section; others per variant. */
+/** GD / T4 / T7 / T8: one target per family; other lines per variant. */
 export function buildPlanSections(
   allModels: VehicleModel[],
   planTargets: Map<string, number>,
-  groupTargets: Map<ProductionPlanGroupCode, number>,
-  achievedByModelId: Map<string, number>
+  achievedByModelId: Map<string, number>,
+  wipCarryover: Map<string, number> = new Map()
 ): PlanSection[] {
-  const raw = buildRawFamilyGroups(allModels, planTargets, achievedByModelId)
-  const tLineFamilies = raw.filter(g => isTLineFamily(g.label)).sort((a, b) => a.label.localeCompare(b.label, 'ar'))
-  const otherFamilies = raw.filter(g => !isTLineFamily(g.label)).sort((a, b) => a.label.localeCompare(b.label, 'ar'))
-
-  const sections: PlanSection[] = []
-
-  if (tLineFamilies.length > 0) {
-    const achieved = tLineFamilies.reduce((s, f) => s + f.achieved, 0)
-    sections.push({
-      kind: 'combined_lines',
-      key: 't_lines',
-      label: 'T4 + T7 + T8',
-      planned: groupTargets.get('t_lines') ?? 0,
-      achieved,
-      families: tLineFamilies
-    })
-  }
-
-  for (const group of otherFamilies) {
-    sections.push({ kind: 'family', group })
-  }
-
-  return sections.sort((a, b) => {
-    const labelA = a.kind === 'combined_lines' ? a.label : a.group.label
-    const labelB = b.kind === 'combined_lines' ? b.label : b.group.label
-    return labelA.localeCompare(labelB, 'ar')
-  })
+  return buildRawFamilyGroups(allModels, planTargets, achievedByModelId, wipCarryover)
+    .sort((a, b) => a.label.localeCompare(b.label, 'ar'))
+    .map(group => ({ kind: 'family' as const, group }))
 }
 
 /** @deprecated Use buildPlanSections */
 export function buildPlanFamilyGroups(
   allModels: VehicleModel[],
   planTargets: Map<string, number>,
-  achievedByModelId: Map<string, number>
+  achievedByModelId: Map<string, number>,
+  wipCarryover: Map<string, number> = new Map()
 ): PlanFamilyGroup[] {
-  return buildRawFamilyGroups(allModels, planTargets, achievedByModelId)
+  return buildRawFamilyGroups(allModels, planTargets, achievedByModelId, wipCarryover)
+}
+
+export function sumPlanSectionsWip(sections: PlanSection[]): number {
+  return sections.reduce((sum, section) => sum + section.group.wipCarryover, 0)
 }
 
 export function sumPlanSectionsPlanned(sections: PlanSection[]): number {
-  let total = 0
-  for (const section of sections) {
-    if (section.kind === 'combined_lines') total += section.planned
-    else if (section.group.entryMode === 'family_aggregate') total += section.group.planned
-    else total += section.group.planned
-  }
-  return total
+  return sections.reduce((sum, section) => sum + section.group.planned, 0)
 }
 
 export function sumPlanSectionsAchieved(sections: PlanSection[]): number {
-  return sections.reduce((sum, section) => {
-    if (section.kind === 'combined_lines') return sum + section.achieved
-    return sum + section.group.achieved
-  }, 0)
+  return sections.reduce((sum, section) => sum + section.group.achieved, 0)
 }
 
 export function flattenPlanFamilyGroups(groups: PlanFamilyGroup[]): PlanSummaryRow[] {

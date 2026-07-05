@@ -6,8 +6,6 @@ import {
   loginWithEmailPassword,
   registerAuthFailureHandler,
   restoreSessionFromStorage,
-  ensureFreshSession,
-  isAccessTokenExpired,
   type AppAuthSession
 } from '../services/authService'
 
@@ -238,20 +236,22 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [])
 
   useEffect(() => {
-    if (!session) return
+    if (!session?.user?.id) return
 
     const tick = () => {
-      if (isAccessTokenExpired(session)) {
+      void import('../services/authService').then(({ readRawSession, isAccessTokenExpired, ensureFreshSession }) => {
+        const current = readRawSession()
+        if (!current || !isAccessTokenExpired(current)) return
         void ensureFreshSession().then(next => {
           if (next) setSession(next)
         })
-      }
+      })
     }
 
     tick()
-    const id = window.setInterval(tick, 5 * 60_000)
+    const id = window.setInterval(tick, 60_000)
     return () => window.clearInterval(id)
-  }, [session])
+  }, [session?.user?.id])
 
   useEffect(() => {
     const uid = session?.user?.id

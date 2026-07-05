@@ -74,7 +74,12 @@ export function UserAccountFormModal({ open, mode, user, roles, employees, onClo
         }
         await createUserAccount(input)
       } else if (user) {
+        if (!email.trim()) {
+          setErr(t('permissions.emailRequired'))
+          return
+        }
         const patch: UpdateUserAccountInput = {
+          email: email.trim(),
           fullName: fullName.trim() || undefined,
           systemRoleId: systemRoleId || undefined,
           employeeId: employeeId || null,
@@ -88,7 +93,10 @@ export function UserAccountFormModal({ open, mode, user, roles, employees, onClo
       onSaved()
       onClose()
     } catch (e) {
-      setErr(e instanceof Error ? e.message : t('common.error'))
+      const msg = e instanceof Error ? e.message : t('common.error')
+      if (msg === 'DUPLICATE_EMAIL') setErr(t('permissions.duplicateEmail'))
+      else if (msg === 'EMAIL_REQUIRED') setErr(t('permissions.emailRequired'))
+      else setErr(msg)
     } finally {
       setBusy(false)
     }
@@ -119,12 +127,12 @@ export function UserAccountFormModal({ open, mode, user, roles, employees, onClo
     >
       {err && <p className="mb-3 text-sm text-red-300">{err}</p>}
       <div className="space-y-3">
-        <Field label={t('permissions.userEmail')} required={mode === 'create'}>
+        <Field label={t('permissions.userEmail')} required>
           <input
             className={inputCls()}
-            type="email"
+            type="text"
             dir="ltr"
-            disabled={mode === 'edit'}
+            autoComplete="off"
             value={email}
             onChange={e => setEmail(e.target.value)}
           />

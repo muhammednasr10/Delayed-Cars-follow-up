@@ -10,6 +10,47 @@ if (!supabaseUrl || !supabaseAnonKey) {
 let accessToken: string | null = null
 let client: SupabaseClient | null = null
 
+async function authAwareFetch(input: RequestInfo | URL, init: RequestInit = {}): Promise<Response> {
+  const run = async (): Promise<Response> => {
+    const headers = new Headers(init.headers)
+    if (accessToken) headers.set('Authorization', `Bearer ${accessToken}`)
+    return fetch(input, { ...init, headers })
+  }
+
+  try {
+    const { readRawSession, isAccessTokenExpired, ensureFreshSession } = await import('../services/authService')
+    const stored = readRawSession()
+    if (stored && isAccessTokenExpired(stored)) {
+      await ensureFreshSession()
+    }
+  } catch {
+    // auth helpers unavailable during early boot
+  }
+
+  let response = await run()
+  if (response.status !== 401 && response.status !== 403) return response
+
+  try {
+    const clone = response.clone()
+    const body = (await clone.json().catch(() => null)) as {
+      message?: string
+      error?: string
+      msg?: string
+    } | null
+    const message = `${body?.message ?? ''} ${body?.error ?? ''} ${body?.msg ?? ''}`
+    const { isJwtExpiredMessage, ensureFreshSession } = await import('../services/authService')
+    if (!isJwtExpiredMessage(message)) return response
+
+    const refreshed = await ensureFreshSession()
+    if (!refreshed) return response
+    response = await run()
+  } catch {
+    // keep original failed response
+  }
+
+  return response
+}
+
 function buildClient(): SupabaseClient | null {
   if (!supabaseUrl || !supabaseAnonKey) return null
   return createClient(supabaseUrl, supabaseAnonKey, {
@@ -19,11 +60,7 @@ function buildClient(): SupabaseClient | null {
       detectSessionInUrl: false
     },
     global: {
-      fetch: (input, init = {}) => {
-        const headers = new Headers(init.headers)
-        if (accessToken) headers.set('Authorization', `Bearer ${accessToken}`)
-        return fetch(input, { ...init, headers })
-      }
+      fetch: authAwareFetch
     }
   })
 }

@@ -11,7 +11,9 @@ export function resolveTabPagePerm(
   pagesConfigured: boolean,
   parentVisible: boolean
 ): boolean {
-  const fullKey = `pages.${tabPagePermKey(parentPerm, tabKey)}`
+  const normalizedTab =
+    tabKey === 'productivity' ? 'summary' : tabKey === 'repair' ? 'exit' : tabKey
+  const fullKey = `pages.${tabPagePermKey(parentPerm, normalizedTab)}`
   if (permissions[fullKey] === true) return true
   if (permissions[fullKey] === false) return false
   if (!pagesConfigured) return parentVisible

@@ -1,12 +1,12 @@
-import { createContext, useCallback, useContext, useMemo, useState, type ReactNode } from 'react'
+import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from 'react'
 import type {
   BomTab,
   DepartmentId,
   EngineeringPage,
   LineBalancingTab,
+  PlanningTab,
   ProductionArea,
   ProductionPage,
-  ProductionPlanTab,
   ProductivityTab,
   ProductivitySubTab,
   AttendanceSubTab,
@@ -17,7 +17,7 @@ import type {
   QualityTab,
   WorkerProfileTab
 } from '../Types/navigation'
-import type { ProfileTab } from '../Types/profile'
+import { PROFILE_TABS, profileTabFromWorkerTab, type ProfileTab } from '../Types/profile'
 
 type NavState = {
   department: DepartmentId
@@ -35,7 +35,7 @@ type NavState = {
   productivitySubTab: ProductivitySubTab
   productivityStopFormOpen: boolean
   attendanceSubTab: AttendanceSubTab
-  productionPlanTab: ProductionPlanTab
+  planningTab: PlanningTab
   warehousesTab: WarehousesTab
   warehousesFeedingSubTab: WarehousesFeedingSubTab
   qualityTab: QualityTab
@@ -61,7 +61,7 @@ type NavigatePatch = Partial<
     | 'productivitySubTab'
     | 'productivityStopFormOpen'
     | 'attendanceSubTab'
-    | 'productionPlanTab'
+    | 'planningTab'
     | 'warehousesTab'
     | 'warehousesFeedingSubTab'
     | 'qualityTab'
@@ -85,7 +85,7 @@ type NavigationContextValue = NavState & {
   setProductivitySubTab: (tab: ProductivitySubTab) => void
   setProductivityStopFormOpen: (open: boolean) => void
   setAttendanceSubTab: (tab: AttendanceSubTab) => void
-  setProductionPlanTab: (tab: ProductionPlanTab) => void
+  setPlanningTab: (tab: PlanningTab) => void
   setWarehousesTab: (tab: WarehousesTab) => void
   setWarehousesFeedingSubTab: (tab: WarehousesFeedingSubTab) => void
   setQualityTab: (tab: QualityTab) => void
@@ -95,6 +95,17 @@ type NavigationContextValue = NavState & {
 }
 
 const NavigationContext = createContext<NavigationContextValue | undefined>(undefined)
+
+const NAV_STORAGE_KEY = 'app.nav.state.v1'
+
+const PRODUCTIVITY_TABS: ProductivityTab[] = ['productivity', 'stops']
+
+function normalizeProductivityTab(tab: string | undefined): ProductivityTab {
+  if (tab === 'productivity' || tab === 'stops') return tab
+  if (tab === 'entry' || tab === 'exit' || tab === 'summary') return 'productivity'
+  return initialState.productivityTab
+}
+const PLANNING_TABS: PlanningTab[] = ['plan', 'workDays', 'tracking', 'orders']
 
 const initialState: NavState = {
   department: 'production',
@@ -108,11 +119,11 @@ const initialState: NavState = {
   lineBalancingTab: 'operations',
   trainingTab: 'org',
   settingsTab: 'administrations',
-  productivityTab: 'orders',
-  productivitySubTab: 'daily',
+  productivityTab: 'productivity',
+  productivitySubTab: 'monthly',
   productivityStopFormOpen: false,
   attendanceSubTab: 'today',
-  productionPlanTab: 'planOrders',
+  planningTab: 'plan',
   warehousesTab: 'home',
   warehousesFeedingSubTab: 'plan',
   qualityTab: 'record',
@@ -120,16 +131,92 @@ const initialState: NavState = {
   sidebarOpen: false
 }
 
+function loadNavState(): NavState {
+  try {
+    const raw = sessionStorage.getItem(NAV_STORAGE_KEY)
+    if (!raw) return initialState
+    const parsed = JSON.parse(raw) as Partial<NavState> & {
+      productivityTab?: string
+      productionPlanTab?: string
+    }
+
+    // ترحيل: الخطة / الأوامر / أيام العمل كانت تحت الإنتاجية
+    const legacyProductivityTab = parsed.productivityTab as string | undefined
+    const legacyToPlanning: PlanningTab | null =
+      legacyProductivityTab === 'orders'
+        ? 'orders'
+        : legacyProductivityTab === 'workDays'
+          ? 'workDays'
+          : null
+    const productivityTab = PRODUCTIVITY_TABS.includes(parsed.productivityTab as ProductivityTab)
+      ? (parsed.productivityTab as ProductivityTab)
+      : normalizeProductivityTab(parsed.productivityTab)
+    const planningTab = PLANNING_TABS.includes(parsed.planningTab as PlanningTab)
+      ? (parsed.planningTab as PlanningTab)
+      : legacyToPlanning ?? initialState.planningTab
+
+    const legacyWorkerPage = parsed.productionPage === 'workerProfile'
+    const profileTab: ProfileTab = legacyWorkerPage
+      ? profileTabFromWorkerTab((parsed.workerProfileTab as WorkerProfileTab) ?? 'data')
+      : PROFILE_TABS.includes(parsed.profileTab as ProfileTab)
+        ? (parsed.profileTab as ProfileTab)
+        : initialState.profileTab
+
+    return {
+      ...initialState,
+      ...parsed,
+      productivityTab,
+      planningTab,
+      profileTab,
+      ...(legacyToPlanning
+        ? { department: 'planning' as const, planningTab: legacyToPlanning, showGlobalHome: false }
+        : {}),
+      ...(legacyWorkerPage
+        ? { showProfile: true, productionPage: 'home' as const, showGlobalHome: false }
+        : {}),
+      sidebarOpen: false,
+      productivityStopFormOpen: false
+    }
+  } catch {
+    return initialState
+  }
+}
+
+function persistNavState(state: NavState) {
+  try {
+    const { sidebarOpen: _s, productivityStopFormOpen: _p, ...rest } = state
+    sessionStorage.setItem(NAV_STORAGE_KEY, JSON.stringify(rest))
+  } catch {
+    /* ignore quota / private mode */
+  }
+}
+
 export function NavigationProvider({ children }: { children: ReactNode }) {
-  const [state, setState] = useState<NavState>(initialState)
+  const [state, setState] = useState<NavState>(loadNavState)
+
+  useEffect(() => {
+    persistNavState(state)
+  }, [state])
 
   const navigate = useCallback((patch: NavigatePatch) => {
     setState(prev => {
+      if (patch.productionPage === 'workerProfile') {
+        const profileTab = profileTabFromWorkerTab((patch.workerProfileTab ?? prev.workerProfileTab) as WorkerProfileTab)
+        return {
+          ...prev,
+          showProfile: true,
+          profileTab,
+          showGlobalHome: false,
+          sidebarOpen: patch.closeSidebar === true ? false : prev.sidebarOpen
+        }
+      }
+
       const leavesGlobalHome =
         patch.department != null ||
         patch.productionArea != null ||
         patch.productionPage != null ||
         patch.engineeringPage != null ||
+        patch.planningTab != null ||
         patch.warehousesTab != null ||
         patch.qualityTab != null
       return {
@@ -137,7 +224,11 @@ export function NavigationProvider({ children }: { children: ReactNode }) {
         ...patch,
         showProfile:
           patch.showProfile ??
-          (patch.productionArea != null || patch.productionPage != null || patch.engineeringPage != null || patch.department != null
+          (patch.productionArea != null ||
+          patch.productionPage != null ||
+          patch.engineeringPage != null ||
+          patch.planningTab != null ||
+          patch.department != null
             ? false
             : prev.showProfile),
         showGlobalHome:
@@ -161,6 +252,7 @@ export function NavigationProvider({ children }: { children: ReactNode }) {
           ? { productionArea: 'assembly' as const, productionPage: 'home' as const }
           : {}),
         ...(changed && department === 'engineering' ? { engineeringPage: 'home' as const } : {}),
+        ...(changed && department === 'planning' ? { planningTab: 'plan' as const } : {}),
         ...(changed && department === 'warehouses' ? { warehousesTab: 'home' as const } : {}),
         ...(changed && department === 'quality' ? { qualityTab: 'record' as const } : {}),
         sidebarOpen: keepSidebarOpen ? prev.sidebarOpen : false
@@ -187,7 +279,7 @@ export function NavigationProvider({ children }: { children: ReactNode }) {
       setProductivitySubTab: productivitySubTab => setState(prev => ({ ...prev, productivitySubTab })),
       setProductivityStopFormOpen: productivityStopFormOpen => setState(prev => ({ ...prev, productivityStopFormOpen })),
       setAttendanceSubTab: attendanceSubTab => setState(prev => ({ ...prev, attendanceSubTab })),
-      setProductionPlanTab: productionPlanTab => setState(prev => ({ ...prev, productionPlanTab })),
+      setPlanningTab: planningTab => setState(prev => ({ ...prev, planningTab })),
       setWarehousesTab: warehousesTab => setState(prev => ({ ...prev, warehousesTab })),
       setWarehousesFeedingSubTab: warehousesFeedingSubTab => setState(prev => ({ ...prev, warehousesFeedingSubTab })),
       setQualityTab: qualityTab => setState(prev => ({ ...prev, qualityTab })),

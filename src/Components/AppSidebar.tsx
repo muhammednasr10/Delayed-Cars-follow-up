@@ -5,11 +5,15 @@ import { useAuth, profileIsAdmin } from '../Context/AuthContext'
 import { usePermissions } from '../Context/PermissionsContext'
 import { useCanAccessSettings } from '../hooks/useCanAccessSettings'
 import { useCanViewPage } from '../hooks/useCanViewPage'
-import { pagePermForEngineering, pagePermForProduction, pagePermForWarehouses } from '../config/pageAccess'
+import {
+  pagePermForEngineering,
+  pagePermForPlanning,
+  pagePermForProduction,
+  pagePermForWarehouses
+} from '../config/pageAccess'
 import { useNavigation } from '../Context/NavigationContext'
 import { DEPARTMENTS, departmentAccentClass } from '../config/departments'
 import type { DepartmentId, EngineeringPage, ProductionPage } from '../Types/navigation'
-import { WORKER_PROFILE_TAB_ORDER } from '../Types/navigation'
 import { SETTINGS_TAB_ORDER, PRODUCTION_AREA_ORDER } from '../Types/navigation'
 
 type PageChild = { key: string; label: string; onClick: () => void; visible?: boolean }
@@ -30,7 +34,8 @@ export function AppSidebar() {
   const { profile } = useAuth()
   const nav = useNavigation()
 
-  const [expandedDepts, setExpandedDepts] = useState<Set<DepartmentId>>(() => new Set([nav.department]))
+  /** البنود مقفولة افتراضياً — المستخدم يفتح ما يحتاجه */
+  const [expandedDepts, setExpandedDepts] = useState<Set<DepartmentId>>(() => new Set())
   const [expandedPages, setExpandedPages] = useState<Set<string>>(() => new Set())
 
   useEffect(() => {
@@ -46,12 +51,6 @@ export function AppSidebar() {
       window.removeEventListener('keydown', onKey)
     }
   }, [nav.sidebarOpen, nav.setSidebarOpen])
-
-  useEffect(() => {
-    if (nav.sidebarOpen) {
-      setExpandedDepts(prev => new Set(prev).add(nav.department))
-    }
-  }, [nav.sidebarOpen, nav.department])
 
   const navLoading = permsLoading || pagesLoading
 
@@ -98,44 +97,25 @@ export function AppSidebar() {
       onNavigate: () => sidebarNav({ department: 'production', productionArea: 'assembly', productionPage: 'vehicles' }, true),
       children: [
         {
-          key: 'orders',
-          label: t('productivity.tabs.orders'),
-          onClick: () => sidebarNav({ department: 'production', productionArea: 'assembly', productionPage: 'vehicles', productivityTab: 'orders' })
-        },
-        {
-          key: 'workDays',
-          label: t('productionOrders.tabs.workDays'),
-          onClick: () => sidebarNav({ department: 'production', productionArea: 'assembly', productionPage: 'vehicles', productivityTab: 'workDays' })
-        },
-        {
-          key: 'entry',
-          label: t('productivity.tabs.entry'),
-          onClick: () => sidebarNav({ department: 'production', productionArea: 'assembly', productionPage: 'vehicles', productivityTab: 'entry' })
-        },
-        {
-          key: 'exit',
-          label: t('productivity.tabs.exit'),
-          onClick: () => sidebarNav({ department: 'production', productionArea: 'assembly', productionPage: 'vehicles', productivityTab: 'exit' })
+          key: 'productivity',
+          label: t('productivity.tabs.productivity'),
+          onClick: () =>
+            sidebarNav({
+              department: 'production',
+              productionArea: 'assembly',
+              productionPage: 'vehicles',
+              productivityTab: 'productivity'
+            })
         },
         {
           key: 'stops',
           label: t('productivity.tabs.stops'),
-          onClick: () => sidebarNav({ department: 'production', productionArea: 'assembly', productionPage: 'vehicles', productivityTab: 'stops' })
-        },
-        {
-          key: 'summary',
-          label: t('productivity.tabs.summary'),
-          onClick: () => sidebarNav({ department: 'production', productionArea: 'assembly', productionPage: 'vehicles', productivityTab: 'summary' })
-        },
-        {
-          key: 'planOrders',
-          label: t('productionOrders.tabs.planOrders'),
           onClick: () =>
             sidebarNav({
               department: 'production',
-              productionArea: 'assembly', productionPage: 'vehicles',
-              productivityTab: 'orders',
-              productionPlanTab: 'planOrders'
+              productionArea: 'assembly',
+              productionPage: 'vehicles',
+              productivityTab: 'stops'
             })
         }
       ]
@@ -151,23 +131,6 @@ export function AppSidebar() {
           key,
           label: t(`training.tabs.${key}`),
           onClick: () => sidebarNav({ department: 'production', productionArea: 'assembly', productionPage: 'training', trainingTab: key })
-        }))
-      },
-      {
-        key: 'workerProfile',
-        label: t('nav.workerProfile'),
-        visible: navLoading || canViewPage(pagePermForProduction('workerProfile')),
-        onNavigate: () => sidebarNav({ department: 'production', productionArea: 'assembly', productionPage: 'workerProfile' }, true),
-        children: WORKER_PROFILE_TAB_ORDER.map(key => ({
-          key,
-          label: t(`workerProfile.tabs.${key}`),
-          onClick: () =>
-            sidebarNav({
-              department: 'production',
-              productionArea: 'assembly',
-              productionPage: 'workerProfile',
-              workerProfileTab: key
-            })
         }))
       },
       {
@@ -205,14 +168,43 @@ export function AppSidebar() {
   const settingsSidebarPage: SidebarPage = {
     key: 'settings',
     label: t('nav.settings'),
-    visible: canViewPage(pagePermForProduction('settings')),
-    onNavigate: () => sidebarNav({ department: 'production', productionArea: 'assembly', productionPage: 'settings' }, true),
-    children: SETTINGS_TAB_ORDER.map(key => ({
-      key,
-      label: t(`settings.tabs.${key}`),
-      onClick: () => sidebarNav({ department: 'production', productionArea: 'assembly', productionPage: 'settings', settingsTab: key })
-    }))
+    visible: canAccessSettings,
+    onNavigate: () =>
+      sidebarNav({
+        department: 'production',
+        productionArea: 'assembly',
+        productionPage: 'settings',
+        settingsTab: SETTINGS_TAB_ORDER[0],
+        showGlobalHome: false
+      })
   }
+
+  const planningPages: SidebarPage[] = [
+    {
+      key: 'plan',
+      label: t('productionOrders.title'),
+      visible: navLoading || canViewPage(pagePermForPlanning('plan')),
+      onNavigate: () => sidebarNav({ department: 'planning', planningTab: 'plan' })
+    },
+    {
+      key: 'workDays',
+      label: t('productionOrders.tabs.workDays'),
+      visible: navLoading || canViewPage(pagePermForPlanning('workDays')),
+      onNavigate: () => sidebarNav({ department: 'planning', planningTab: 'workDays' })
+    },
+    {
+      key: 'tracking',
+      label: t('planning.tracking.tab'),
+      visible: navLoading || canViewPage(pagePermForPlanning('tracking')),
+      onNavigate: () => sidebarNav({ department: 'planning', planningTab: 'tracking' })
+    },
+    {
+      key: 'orders',
+      label: t('productionOrders.ordersSection'),
+      visible: navLoading || canViewPage(pagePermForPlanning('orders')),
+      onNavigate: () => sidebarNav({ department: 'planning', planningTab: 'orders' })
+    }
+  ]
 
   const engineeringPages: SidebarPage[] = [
     {
@@ -288,6 +280,10 @@ export function AppSidebar() {
     return !nav.showProfile && nav.department === 'warehouses' && nav.warehousesTab === key
   }
 
+  function isPlanningActive(key: string) {
+    return !nav.showProfile && nav.department === 'planning' && nav.planningTab === key
+  }
+
   function isQualityActive(_key: string) {
     return !nav.showProfile && nav.department === 'quality'
   }
@@ -352,7 +348,11 @@ export function AppSidebar() {
     return !nav.showProfile && nav.department === 'engineering' && nav.engineeringPage === key
   }
 
-  function renderPages(scope: 'production' | 'engineering' | 'warehouses' | 'quality' | 'hr', pages: SidebarPage[], isActive: (key: string) => boolean) {
+  function renderPages(
+    scope: 'production' | 'planning' | 'engineering' | 'warehouses' | 'quality' | 'hr',
+    pages: SidebarPage[],
+    isActive: (key: string) => boolean
+  ) {
     return (
       <ul className="mt-1 space-y-0.5 border-s border-slate-700/60 ps-2">
         {pages
@@ -451,6 +451,7 @@ export function AppSidebar() {
               !(dept.id === 'production' && nav.productionPage === 'settings')
             const deptOpen = expandedDepts.has(dept.id)
             const isProduction = dept.id === 'production'
+            const isPlanning = dept.id === 'planning'
             const isEngineering = dept.id === 'engineering'
             const isWarehouses = dept.id === 'warehouses'
             const isQuality = dept.id === 'quality'
@@ -474,11 +475,12 @@ export function AppSidebar() {
 
                 {deptOpen && isProduction && renderPages('production', productionAreaPages, isProductionAreaActive)}
                 {deptOpen && isProduction && nav.productionArea === 'assembly' && renderPages('production', productionPages, isProductionActive)}
+                {deptOpen && isPlanning && renderPages('planning', planningPages, isPlanningActive)}
                 {deptOpen && isEngineering && renderPages('engineering', engineeringPages, isEngineeringActive)}
                 {deptOpen && isWarehouses && renderPages('warehouses', warehousesPages, isWarehousesActive)}
                 {deptOpen && isQuality && renderPages('quality', qualityPages, isQualityActive)}
                 {deptOpen && isHr && renderPages('hr', hrPages, isHrActive)}
-                {deptOpen && !isProduction && !isEngineering && !isWarehouses && !isQuality && !isHr && (
+                {deptOpen && !isProduction && !isPlanning && !isEngineering && !isWarehouses && !isQuality && !isHr && (
                   <p className="mt-2 px-3 text-xs leading-relaxed text-slate-500">{t('departments.placeholderDesc')}</p>
                 )}
               </div>
