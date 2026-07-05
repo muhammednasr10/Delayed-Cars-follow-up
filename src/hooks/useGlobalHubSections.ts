@@ -12,7 +12,6 @@ import {
   Route,
   ScanLine,
   Settings as SettingsIcon,
-  UserCircle,
   Users,
   Wrench,
   AlertOctagon,
@@ -297,15 +296,6 @@ export function useGlobalHubSections(refreshKey = 0) {
         accent: 'indigo' as const,
         onClick: () =>
           go({ department: 'production', productionArea: 'assembly', productionPage: 'feedback' })
-      },
-      showHomeCard('production_home__profile') && {
-        key: 'workerProfile',
-        title: t('myProfile.title'),
-        description: t('myProfile.subtitleFull'),
-        icon: UserCircle,
-        tone: 'text-cyan-300 bg-cyan-500/15',
-        accent: 'cyan' as const,
-        onClick: () => nav.openProfile('data')
       },
       showHomeCard('production_home__settings', canAccessSettings) && {
         key: 'settings',

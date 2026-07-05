@@ -6,6 +6,7 @@ import {
   loginWithEmailPassword,
   registerAuthFailureHandler,
   restoreSessionFromStorage,
+  withTimeout,
   type AppAuthSession
 } from '../services/authService'
 
@@ -115,6 +116,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [accessDeniedMessage, setAccessDeniedMessage] = useState<string | null>(null)
   const profileInflightRef = useRef<Promise<LoadProfileResult> | null>(null)
   const profileLoadedUidRef = useRef<string | null>(null)
+  const bootGenRef = useRef(0)
 
   const kickSession = useCallback((message: string, result: Exclude<LoadProfileResult, 'ok' | 'missing' | 'error'>): LoadProfileResult => {
     profileLoadedUidRef.current = null
@@ -209,20 +211,28 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       return
     }
 
-    let cancelled = false
-    void (async () => {
-      const stored = await restoreSessionFromStorage()
-      if (cancelled) return
-      setSession(stored)
-      if (stored?.user?.id) {
-        await loadProfile(stored.user.id)
-      }
-      if (!cancelled) setLoading(false)
-    })()
+    const gen = ++bootGenRef.current
+    setLoading(true)
+    const BOOT_TIMEOUT_MS = 6_000
 
-    return () => {
-      cancelled = true
-    }
+    void (async () => {
+      try {
+        const stored = await withTimeout(restoreSessionFromStorage(), BOOT_TIMEOUT_MS, null)
+        if (bootGenRef.current !== gen) return
+        setSession(stored)
+        if (stored?.user?.id) {
+          void loadProfile(stored.user.id)
+        }
+      } catch (err) {
+        console.error('Auth boot failed:', err)
+        if (bootGenRef.current === gen) {
+          setSession(null)
+          setProfile(null)
+        }
+      } finally {
+        if (bootGenRef.current === gen) setLoading(false)
+      }
+    })()
   }, [loadProfile])
 
   useEffect(() => {

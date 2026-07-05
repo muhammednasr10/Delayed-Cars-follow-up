@@ -10,25 +10,43 @@ if (!supabaseUrl || !supabaseAnonKey) {
 let accessToken: string | null = null
 let client: SupabaseClient | null = null
 
+function requestUrl(input: RequestInfo | URL): string {
+  if (typeof input === 'string') return input
+  if (input instanceof URL) return input.href
+  return input.url
+}
+
+/** Auth token endpoints must use plain fetch — otherwise refresh deadlocks on itself. */
+function isAuthApiRequest(url: string): boolean {
+  return /\/auth\/v1\//i.test(url)
+}
+
 async function authAwareFetch(input: RequestInfo | URL, init: RequestInit = {}): Promise<Response> {
+  const url = requestUrl(input)
+  const skipRefresh = isAuthApiRequest(url)
+
   const run = async (): Promise<Response> => {
     const headers = new Headers(init.headers)
     if (accessToken) headers.set('Authorization', `Bearer ${accessToken}`)
     return fetch(input, { ...init, headers })
   }
 
-  try {
-    const { readRawSession, isAccessTokenExpired, ensureFreshSession } = await import('../services/authService')
-    const stored = readRawSession()
-    if (stored && isAccessTokenExpired(stored)) {
-      await ensureFreshSession()
+  if (!skipRefresh) {
+    try {
+      const { readRawSession, isAccessTokenExpired, ensureFreshSession, withTimeout } = await import(
+        '../services/authService'
+      )
+      const stored = readRawSession()
+      if (stored && isAccessTokenExpired(stored)) {
+        await withTimeout(ensureFreshSession(), 8_000, null)
+      }
+    } catch {
+      // auth helpers unavailable during early boot
     }
-  } catch {
-    // auth helpers unavailable during early boot
   }
 
   let response = await run()
-  if (response.status !== 401 && response.status !== 403) return response
+  if (skipRefresh || (response.status !== 401 && response.status !== 403)) return response
 
   try {
     const clone = response.clone()
@@ -38,10 +56,10 @@ async function authAwareFetch(input: RequestInfo | URL, init: RequestInit = {}):
       msg?: string
     } | null
     const message = `${body?.message ?? ''} ${body?.error ?? ''} ${body?.msg ?? ''}`
-    const { isJwtExpiredMessage, ensureFreshSession } = await import('../services/authService')
+    const { isJwtExpiredMessage, ensureFreshSession, withTimeout } = await import('../services/authService')
     if (!isJwtExpiredMessage(message)) return response
 
-    const refreshed = await ensureFreshSession()
+    const refreshed = await withTimeout(ensureFreshSession(), 8_000, null)
     if (!refreshed) return response
     response = await run()
   } catch {

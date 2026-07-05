@@ -13,9 +13,19 @@ export type AppAuthSession = {
 
 const EXPIRY_BUFFER_MS = 60_000
 const APP_AUTH_TIMEOUT_MS = 8_000
+const GOTRUE_REFRESH_TIMEOUT_MS = 8_000
 
 let authFailureHandler: (() => void) | null = null
 let refreshInFlight: Promise<AppAuthSession | null> | null = null
+
+export function withTimeout<T>(promise: Promise<T>, ms: number, fallback: T): Promise<T> {
+  return Promise.race([
+    promise,
+    new Promise<T>(resolve => {
+      window.setTimeout(() => resolve(fallback), ms)
+    })
+  ])
+}
 
 export function registerAuthFailureHandler(handler: (() => void) | null): void {
   authFailureHandler = handler
@@ -68,7 +78,8 @@ export function saveSession(session: AppAuthSession): void {
 export function clearSession(): void {
   localStorage.removeItem(SESSION_KEY)
   setSupabaseAccessToken(null)
-  void getSupabase()?.auth.signOut()
+  const signOut = getSupabase()?.auth.signOut()
+  if (signOut) void withTimeout(signOut, 2_000, undefined)
 }
 
 export function applySession(session: AppAuthSession): void {
@@ -127,17 +138,24 @@ async function callAppAuth(body: Record<string, unknown>): Promise<LoginPayload 
 async function tryGoTrueRefresh(session: AppAuthSession): Promise<AppAuthSession | null> {
   const sb = getSupabase()
   if (!sb) return null
-  const { data, error } = await sb.auth.refreshSession({ refresh_token: session.refresh_token })
-  if (error || !data.session?.access_token) return null
-  const s = data.session
-  const next: AppAuthSession = {
-    access_token: s.access_token,
-    refresh_token: s.refresh_token,
-    expires_at: s.expires_at ?? Math.floor(Date.now() / 1000) + 3600,
-    user: { id: s.user.id, email: s.user.email ?? null }
-  }
-  applySession(next)
-  return next
+
+  return withTimeout(
+    (async () => {
+      const { data, error } = await sb.auth.refreshSession({ refresh_token: session.refresh_token })
+      if (error || !data.session?.access_token) return null
+      const s = data.session
+      const next: AppAuthSession = {
+        access_token: s.access_token,
+        refresh_token: s.refresh_token,
+        expires_at: s.expires_at ?? Math.floor(Date.now() / 1000) + 3600,
+        user: { id: s.user.id, email: s.user.email ?? null }
+      }
+      applySession(next)
+      return next
+    })(),
+    GOTRUE_REFRESH_TIMEOUT_MS,
+    null
+  )
 }
 
 function isAppRefreshToken(token: string): boolean {
@@ -145,16 +163,20 @@ function isAppRefreshToken(token: string): boolean {
 }
 
 export async function refreshAppSession(session: AppAuthSession): Promise<AppAuthSession | null> {
-  if (isAppRefreshToken(session.refresh_token)) {
-    const edgePayload = await callAppAuth({ action: 'refresh', refresh_token: session.refresh_token })
-    if (edgePayload?.error) return null
-    const edgeSession = edgePayload ? sessionFromPayload(edgePayload) : null
-    if (edgeSession) {
-      applySession(edgeSession)
-      return edgeSession
+  const refresh = async (): Promise<AppAuthSession | null> => {
+    if (isAppRefreshToken(session.refresh_token)) {
+      const edgePayload = await callAppAuth({ action: 'refresh', refresh_token: session.refresh_token })
+      if (edgePayload?.error) return null
+      const edgeSession = edgePayload ? sessionFromPayload(edgePayload) : null
+      if (edgeSession) {
+        applySession(edgeSession)
+        return edgeSession
+      }
     }
+    return tryGoTrueRefresh(session)
   }
-  return tryGoTrueRefresh(session)
+
+  return withTimeout(refresh(), APP_AUTH_TIMEOUT_MS, null)
 }
 
 export async function ensureFreshSession(): Promise<AppAuthSession | null> {
@@ -165,7 +187,7 @@ export async function ensureFreshSession(): Promise<AppAuthSession | null> {
     return current
   }
   if (!refreshInFlight) {
-    refreshInFlight = refreshAppSession(current).finally(() => {
+    refreshInFlight = withTimeout(refreshAppSession(current), APP_AUTH_TIMEOUT_MS, null).finally(() => {
       refreshInFlight = null
     })
   }
@@ -262,12 +284,12 @@ function payloadErrorAr(error: string): string {
 export async function restoreSessionFromStorage(): Promise<AppAuthSession | null> {
   const raw = readRawSession()
   if (!raw) return null
-  if (!isAccessTokenExpired(raw)) {
-    applySession(raw)
-    return raw
+  try {
+    const next = await withTimeout(ensureFreshSession(), APP_AUTH_TIMEOUT_MS, null)
+    if (!next && readRawSession()) clearSession()
+    return next
+  } catch {
+    clearSession()
+    return null
   }
-  const refreshed = await refreshAppSession(raw)
-  if (refreshed) return refreshed
-  clearSession()
-  return null
 }
