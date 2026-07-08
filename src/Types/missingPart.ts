@@ -40,6 +40,7 @@ export type MissingPartDetail = {
   shortageResolvedAt: string | null
   reportGroupId: string | null
   stationId: string | null
+  factoryOrgUnitId: string | null
 }
 
 export type UpdateMissingPartInput = {
@@ -107,6 +108,7 @@ export type ReportMissingPartsBatchInput = {
   parts: MissingPartBatchLineInput[]
   colorId?: string | null
   stationId?: string | null
+  factoryOrgUnitId?: string | null
   reason: MissingPartReason
   department: ResponsibleDepartment
   priority: PriorityLevel
@@ -122,9 +124,9 @@ export type ReportMissingPartsBatchResult = {
 
 export type MissingPartFilters = {
   search: string
-  stationNumber: string
-  modelName: string
-  department: string
+  stationNumbers: string[]
+  modelNames: string[]
+  departments: string[]
 }
 
 export type DepartmentVehicleCount = {

@@ -1,13 +1,16 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import { Plus, RefreshCcw, Search, X } from 'lucide-react'
+import { Plus, RefreshCcw, Search, X, Layers, Car } from 'lucide-react'
 import { useLang } from '../../i18n/LanguageContext'
 import { usePermissions } from '../../Context/PermissionsContext'
 import { useAuth } from '../../Context/AuthContext'
 import { getVehicleModels, getStations } from '../../services/settingsService'
-import { deleteBomItem, getBomItemById, getBomItemsAll, saveBomFromModelCards, type BomExcelColumnFilters, type BomListFilters } from '../../services/bomService'
-import { BOM_MAIN_ROW_COLUMNS, BOM_TABLE_COL_WIDTH } from '../../Utils/bomPartsColumns'
+import { deleteBomItem, deactivateBomItemsForPartModel, ensureBomLineForPart, getBomItemById, getBomItemsAll, getBomItemsForPartIds, saveBomFromModelCards, updateBomIplFeedingCard, updateBomItemStationForPart, updateIplModelLine, type BomExcelColumnFilters, type BomListFilters } from '../../services/bomService'
+import { getPartById, getT4cIplStationOptions, listPartsForIplModel, updatePartMaster, type PartListStationOption } from '../../services/partsService'
+import { parseApplicableModelNames } from '../../Utils/bomQtyByModel'
+import { mergePartToBomItem } from '../../Utils/iplModelParts'
+import { BOM_IPL_MODEL_ROW_COLUMNS, BOM_IPL_TABLE_COL_WIDTH, BOM_MAIN_ROW_COLUMNS, BOM_TABLE_COL_WIDTH } from '../../Utils/bomPartsColumns'
 import { bomColumnLabelKey, BOM_COMPACT_HEADER_COLS } from '../../Utils/bomColumnHeader'
-import { groupBomItemsForDisplay, type BomDisplayGroup } from '../../Utils/bomRowGroups'
+import { groupBomItemsForDisplay, bomItemsAsFlatGroups, type BomDisplayGroup } from '../../Utils/bomRowGroups'
 import {
   bomRowsByModelName,
   buildBreakdownSaveCards,
@@ -24,20 +27,34 @@ import { BomGroupedTableRow } from './BomGroupedTableRow'
 import { ExportableTable } from '../ExportableTable'
 import type { BomFilterColumn } from '../../Utils/bomFilterFields'
 import { BomFormModal } from './BomFormModal'
+import { BomPartListFormModal, type PartListFormState } from './BomPartListFormModal'
+import { BomIplLogisticsModal } from './BomIplLogisticsModal'
 import { ExcelColumnFilter } from './ExcelColumnFilter'
 import { ConfirmDialog } from '../ConfirmDialog'
 import { inputCls } from '../FormField'
-import type { BomItemDetail } from '../../Types/bom'
+import type { BomItemDetail, Part } from '../../Types/bom'
+import type { BomIplFeedingCard } from '../../Utils/iplBomLogistics'
 import type { VehicleModel, Station } from '../../Types/settings'
 
 const PAGE_SIZE = 100
 
+const emptyPartForm = (): PartListFormState => ({
+  common_station: '',
+  part_name_ar: '',
+  part_name_en: '',
+  common_name: '',
+  model_names: []
+})
+
 export function BomByModelTab({
   notify,
-  lineScope = 'main'
+  lineScope = 'main',
+  viewMode = 'consolidated'
 }: {
   notify: (m: string, err?: boolean) => void
   lineScope?: BomLineScope
+  /** consolidated = مجمع عبر الموديلات · perModel = IPL موديل واحد */
+  viewMode?: 'consolidated' | 'perModel'
 }) {
   const { t } = useLang()
   const { hasRole } = useAuth()
@@ -67,14 +84,28 @@ export function BomByModelTab({
   >(null)
   const [deleting, setDeleting] = useState(false)
   const [breakdownSaving, setBreakdownSaving] = useState(false)
+  const [iplSaving, setIplSaving] = useState(false)
   const [expandedKeys, setExpandedKeys] = useState<Set<string>>(new Set())
+  const [stationOptions, setStationOptions] = useState<PartListStationOption[]>([])
+  const [partFormOpen, setPartFormOpen] = useState(false)
+  const [partEditId, setPartEditId] = useState<string | null>(null)
+  const [partForm, setPartForm] = useState<PartListFormState>(emptyPartForm)
+  const [partFormBusy, setPartFormBusy] = useState(false)
+  const [iplLogisticsGroup, setIplLogisticsGroup] = useState<BomDisplayGroup | null>(null)
+  const [iplDeleteTarget, setIplDeleteTarget] = useState<BomDisplayGroup | null>(null)
+  const [partsCache, setPartsCache] = useState<Map<string, Part>>(new Map())
 
+  const perModel = viewMode === 'perModel'
   const modelPicker = useMemo(() => filterModelFamilyPicker(buildModelFamilyGroups(models), lineScope), [models, lineScope])
   const masterStations = useMemo(() => masterStationsForBom(stations), [stations])
   const scopedItems = useMemo(() => filterBomItemsByLineScope(items, lineScope), [items, lineScope])
   const displayGroups = useMemo(
-    () => sortBomDisplayGroups(groupBomItemsForDisplay(scopedItems), stations),
-    [scopedItems, stations]
+    () =>
+      sortBomDisplayGroups(
+        perModel ? bomItemsAsFlatGroups(scopedItems) : groupBomItemsForDisplay(scopedItems),
+        stations
+      ),
+    [scopedItems, stations, perModel]
   )
   const pagedGroups = useMemo(() => {
     const start = (page - 1) * PAGE_SIZE
@@ -82,7 +113,9 @@ export function BomByModelTab({
   }, [displayGroups, page])
   const groupTotal = displayGroups.length
 
-  const colCount = BOM_MAIN_ROW_COLUMNS.length
+  const rowColumns = perModel ? BOM_IPL_MODEL_ROW_COLUMNS : BOM_MAIN_ROW_COLUMNS
+  const colWidths = perModel ? BOM_IPL_TABLE_COL_WIDTH : BOM_TABLE_COL_WIDTH
+  const colCount = rowColumns.length
 
   const baseFilters = useMemo((): Omit<BomListFilters, 'page' | 'pageSize'> => {
     const f: Omit<BomListFilters, 'page' | 'pageSize'> = { search, excel: excelFilters }
@@ -100,19 +133,47 @@ export function BomByModelTab({
   const activeExcelFilterCount = Object.values(excelFilters).filter(v => v && v.length > 0).length
 
   const load = useCallback(async () => {
+    if (perModel && !modelName) {
+      setItems([])
+      setTotal(0)
+      setFilteredCount(0)
+      setLoading(false)
+      return
+    }
     setLoading(true)
     try {
-      const list = await getBomItemsAll(baseFilters)
-      setItems(list.items)
-      setTotal(list.total)
-      setFilteredCount(list.total)
-      if (list.truncated) notify(t('bom.mergeTruncated'), true)
+      if (perModel) {
+        const st = stationId ? masterStations.find(s => s.id === stationId) : undefined
+        const stationCode = st ? normalizeBomStationCodeText(st.station_number) : undefined
+        const partsRes = await listPartsForIplModel({
+          modelName,
+          search,
+          stationCode,
+          page,
+          pageSize: PAGE_SIZE
+        })
+        const bomMap = await getBomItemsForPartIds(
+          partsRes.items.map(p => p.id),
+          modelName
+        )
+        const merged = partsRes.items.map(p => mergePartToBomItem(p, bomMap.get(p.id), modelName))
+        setPartsCache(new Map(partsRes.items.map(p => [p.id, p])))
+        setItems(merged)
+        setTotal(partsRes.total)
+        setFilteredCount(partsRes.total)
+      } else {
+        const list = await getBomItemsAll(baseFilters)
+        setItems(list.items)
+        setTotal(list.total)
+        setFilteredCount(list.total)
+        if (list.truncated) notify(t('bom.mergeTruncated'), true)
+      }
     } catch (e) {
       notify(e instanceof Error ? e.message : t('common.error'), true)
     } finally {
       setLoading(false)
     }
-  }, [baseFilters, notify, t])
+  }, [baseFilters, notify, t, perModel, modelName, search, stationId, masterStations, page])
 
   useEffect(() => {
     Promise.all([getVehicleModels(), getStations()])
@@ -124,8 +185,17 @@ export function BomByModelTab({
   }, [notify, t])
 
   useEffect(() => {
-    void load()
-  }, [load])
+    if (!perModel || modelName) return
+    const first = modelPicker.groups.flatMap(g => g.variants)[0]
+    if (first) setModelName(first.name)
+  }, [perModel, modelName, modelPicker])
+
+  useEffect(() => {
+    if (!perModel) return
+    void getT4cIplStationOptions()
+      .then(setStationOptions)
+      .catch(() => setStationOptions([]))
+  }, [perModel])
 
   function reload(msg?: string) {
     void load().then(() => {
@@ -175,6 +245,132 @@ export function BomByModelTab({
       else next.add(key)
       return next
     })
+  }
+
+  useEffect(() => {
+    void load()
+  }, [load])
+
+  async function saveIplLogistics(itemIds: string[], card: BomIplFeedingCard) {
+    setIplSaving(true)
+    try {
+      if (perModel && iplLogisticsGroup) {
+        const part = partsCache.get(iplLogisticsGroup.primary.part_id) ?? (await getPartById(iplLogisticsGroup.primary.part_id))
+        const vehicleModel = models.find(m => m.name === modelName)
+        if (!part || !vehicleModel) throw new Error(t('common.error'))
+        const bomId = await ensureBomLineForPart(
+          part,
+          modelName,
+          vehicleModel.id,
+          iplLogisticsGroup.primary.station_code_text ?? part.common_station
+        )
+        await updateBomIplFeedingCard([bomId], card)
+      } else {
+        await updateBomIplFeedingCard(itemIds, card)
+      }
+      reload(t('settings.updated'))
+    } catch (e) {
+      notify(e instanceof Error ? e.message : t('common.error'), true)
+      throw e
+    } finally {
+      setIplSaving(false)
+    }
+  }
+
+  async function onIplFieldSave(group: BomDisplayGroup, field: 'part_number' | 'qty', value: string) {
+    if (!canUpdate || !modelName) return
+    const part = partsCache.get(group.primary.part_id) ?? (await getPartById(group.primary.part_id))
+    const vehicleModel = models.find(m => m.name === modelName)
+    if (!part || !vehicleModel) return
+    try {
+      if (field === 'part_number') {
+        await updateIplModelLine(part, modelName, vehicleModel.id, { part_number: value })
+      } else {
+        const quantity = Number(value)
+        if (!Number.isFinite(quantity) || quantity <= 0) return
+        await updateIplModelLine(part, modelName, vehicleModel.id, { quantity })
+      }
+      reload(t('settings.updated'))
+    } catch (e) {
+      notify(e instanceof Error ? e.message : t('common.error'), true)
+    }
+  }
+
+  async function onIplStationChange(group: BomDisplayGroup, stationCode: string) {
+    if (!canUpdate || !modelName) return
+    const part = partsCache.get(group.primary.part_id) ?? (await getPartById(group.primary.part_id))
+    const vehicleModel = models.find(m => m.name === modelName)
+    if (!part || !vehicleModel) return
+    const station = masterStations.find(s => normalizeBomStationCodeText(s.station_number) === stationCode)
+    try {
+      await updateBomItemStationForPart(part, modelName, vehicleModel.id, stationCode, station?.id ?? null)
+      reload(t('settings.updated'))
+    } catch (e) {
+      notify(e instanceof Error ? e.message : t('common.error'), true)
+    }
+  }
+
+  async function openPartEdit(group: BomDisplayGroup) {
+    const part = partsCache.get(group.primary.part_id) ?? (await getPartById(group.primary.part_id))
+    if (!part) return
+    const stored = parseApplicableModelNames(part.applicable_models_text)
+    setPartEditId(part.id)
+    setPartForm({
+      common_station: part.common_station ?? '',
+      part_name_ar: part.part_name_ar ?? '',
+      part_name_en: part.part_name_en ?? '',
+      common_name: part.common_name ?? part.part_name_ar ?? part.part_name_en ?? '',
+      model_names: stored
+    })
+    setPartFormOpen(true)
+  }
+
+  async function submitPartForm() {
+    if (!partEditId) return
+    setPartFormBusy(true)
+    try {
+      await updatePartMaster(partEditId, {
+        common_station: partForm.common_station,
+        part_name_ar: partForm.part_name_ar,
+        part_name_en: partForm.part_name_en,
+        common_name: partForm.common_name,
+        model_names: partForm.model_names
+      })
+      setPartFormOpen(false)
+      reload(t('settings.updated'))
+    } catch (e) {
+      notify(e instanceof Error ? e.message : t('common.error'), true)
+    } finally {
+      setPartFormBusy(false)
+    }
+  }
+
+  async function confirmIplDelete() {
+    if (!iplDeleteTarget || !modelName) return
+    setDeleting(true)
+    try {
+      const partId = iplDeleteTarget.primary.part_id
+      const part = partsCache.get(partId) ?? (await getPartById(partId))
+      if (part) {
+        const next = parseApplicableModelNames(part.applicable_models_text).filter(
+          n => n.trim().toUpperCase() !== modelName.trim().toUpperCase()
+        )
+        await updatePartMaster(partId, {
+          common_station: part.common_station,
+          part_name_ar: part.part_name_ar,
+          part_name_en: part.part_name_en,
+          common_name: part.common_name,
+          model_names: next
+        })
+      }
+      await deactivateBomItemsForPartModel(partId, modelName)
+      setIplDeleteTarget(null)
+      reload(t('settings.deleted'))
+    } catch (e) {
+      notify(e instanceof Error ? e.message : t('common.error'), true)
+    } finally {
+      setDeleting(false)
+    }
   }
 
   async function saveBreakdown(group: BomDisplayGroup, draftByModel: Record<string, BomModelLineDraft>) {
@@ -240,6 +436,32 @@ export function BomByModelTab({
 
   return (
     <div className="space-y-4">
+      {perModel && (
+        <div className="card-industrial p-4 sm:p-5">
+          <div className="flex items-start gap-3">
+            <div className="rounded-xl bg-orange-500/15 p-3 text-orange-300">
+              <Car className="h-6 w-6" />
+            </div>
+            <div>
+              <h3 className="text-lg font-black text-white">{t('bom.tabs.iplModels')}</h3>
+              <p className="text-sm text-slate-400">{t('bom.iplModelsHint')}</p>
+            </div>
+          </div>
+        </div>
+      )}
+      {viewMode === 'consolidated' && lineScope === 'main' && (
+        <div className="card-industrial p-4 sm:p-5">
+          <div className="flex items-start gap-3">
+            <div className="rounded-xl bg-violet-500/15 p-3 text-violet-300">
+              <Layers className="h-6 w-6" />
+            </div>
+            <div>
+              <h3 className="text-lg font-black text-white">{t('bom.tabs.consolidated')}</h3>
+              <p className="text-sm text-slate-400">{t('bom.consolidatedHint')}</p>
+            </div>
+          </div>
+        </div>
+      )}
       <div className="card-industrial p-4">
         <div className="flex flex-col gap-3 lg:flex-row lg:items-center">
           <label className="relative min-w-0 flex-1">
@@ -299,7 +521,10 @@ export function BomByModelTab({
                 setPage(1)
               }}
             >
-              <option value="">{t('bom.allModels')}</option>
+              {!perModel && <option value="">{t('bom.allModels')}</option>}
+              {perModel && !modelName && (
+                <option value="">{t('bom.selectModel')}</option>
+              )}
               {modelPicker.groups.map(g => (
                 <optgroup key={g.family.id} label={g.family.name}>
                   {g.variants.filter(isAssignableModel).map(m => (
@@ -334,6 +559,8 @@ export function BomByModelTab({
               ))}
             </select>
           </label>
+          {!perModel && (
+          <>
           <label className="block">
             <span className="mb-1 block text-[10px] font-bold uppercase text-slate-500">{t('bom.stopperType')}</span>
             <select
@@ -364,6 +591,8 @@ export function BomByModelTab({
               {t('bom.noOperationOnly')}
             </label>
           </div>
+          </>
+          )}
         </div>
 
         <p className="mt-3 border-t border-slate-800/80 pt-3 text-xs text-slate-500">
@@ -382,13 +611,20 @@ export function BomByModelTab({
         <ExportableTable filename="bom-parts" title={t('bom.title')} rowCount={pagedGroups.length}>
         <table className="bom-parts-table">
           <colgroup>
-            {BOM_MAIN_ROW_COLUMNS.map(c => (
-              <col key={c} style={{ width: BOM_TABLE_COL_WIDTH[c] }} />
+            {rowColumns.map(c => (
+              <col key={c} style={{ width: colWidths[c as keyof typeof colWidths] }} />
             ))}
           </colgroup>
           <thead>
             <tr className="border-b border-slate-800">
-              {BOM_MAIN_ROW_COLUMNS.map(c => {
+              {rowColumns.map(c => {
+                if (c === 'actions') {
+                  return (
+                    <th key={c}>
+                      <span className="bom-th-label">{t('common.actions')}</span>
+                    </th>
+                  )
+                }
                 const compact = BOM_COMPACT_HEADER_COLS.has(c)
                 const fullLabel = t(bomColumnLabelKey(c, false))
                 const headerLabel = compact ? t(bomColumnLabelKey(c, true)) : fullLabel
@@ -403,6 +639,7 @@ export function BomByModelTab({
                     >
                       {headerLabel}
                     </span>
+                    {!perModel && (
                     <ExcelColumnFilter
                       column={c}
                       label={fullLabel}
@@ -410,6 +647,7 @@ export function BomByModelTab({
                       selected={excelFilters[c]}
                       onApply={v => setColumnFilter(c, v)}
                     />
+                    )}
                   </div>
                 </th>
               )})}
@@ -439,7 +677,17 @@ export function BomByModelTab({
                   onToggle={() => toggleExpanded(group.key)}
                   canUpdate={canUpdate}
                   canDelete={canDelete}
+                  iplModelMode={perModel}
+                  stationOptions={perModel ? stationOptions : undefined}
+                  onStationChange={perModel && canUpdate ? onIplStationChange : undefined}
+                  onIplFieldSave={perModel && canUpdate ? onIplFieldSave : undefined}
+                  onOpenFeeding={perModel ? g => setIplLogisticsGroup(g) : undefined}
+                  onDeleteRow={perModel && canDelete ? g => setIplDeleteTarget(g) : undefined}
                   onEdit={() => {
+                    if (perModel) {
+                      void openPartEdit(group)
+                      return
+                    }
                     setFormMode('edit')
                     setEditId(group.primary.id)
                     setEditIds(group.allIds)
@@ -451,7 +699,9 @@ export function BomByModelTab({
                   }}
                   onDeleteVariant={v => setDeleteTarget({ group, variant: { id: v.id, modelName: v.modelName } })}
                   onSaveBreakdown={canUpdate ? saveBreakdown : undefined}
+                  onSaveIplLogistics={canUpdate ? saveIplLogistics : undefined}
                   breakdownSaving={breakdownSaving}
+                  iplSaving={iplSaving}
                 />
               ))
             )}
@@ -475,6 +725,25 @@ export function BomByModelTab({
         </div>
       </div>
 
+      <BomIplLogisticsModal
+        open={Boolean(iplLogisticsGroup)}
+        group={iplLogisticsGroup}
+        canUpdate={canUpdate}
+        saving={iplSaving}
+        onClose={() => setIplLogisticsGroup(null)}
+        onSave={saveIplLogistics}
+      />
+
+      <BomPartListFormModal
+        open={partFormOpen}
+        editId={partEditId}
+        form={partForm}
+        busy={partFormBusy}
+        onClose={() => setPartFormOpen(false)}
+        onSave={() => void submitPartForm()}
+        onChange={setPartForm}
+      />
+
       <BomFormModal
         mode={formMode === 'create' ? 'create' : 'edit'}
         itemId={editId}
@@ -487,6 +756,20 @@ export function BomByModelTab({
           setEditIds([])
         }}
         onSaved={() => reload(t('settings.updated'))}
+      />
+
+      <ConfirmDialog
+        open={Boolean(iplDeleteTarget)}
+        title={t('bom.iplRemoveFromModelTitle')}
+        message={t('bom.iplRemoveFromModelConfirm', {
+          name: iplDeleteTarget?.summary.part_name_ar || iplDeleteTarget?.summary.part_name_en || '',
+          model: modelName
+        })}
+        confirmLabel={t('common.delete')}
+        cancelLabel={t('common.cancel')}
+        busy={deleting}
+        onConfirm={() => void confirmIplDelete()}
+        onCancel={() => setIplDeleteTarget(null)}
       />
 
       <ConfirmDialog

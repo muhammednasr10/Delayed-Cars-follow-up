@@ -4,9 +4,11 @@ import {
   Languages,
   LogOut,
   PanelRightOpen,
+  Settings,
   UserCircle
 } from 'lucide-react'
 import { AppLogo } from './Components/AppLogo'
+import { DeveloperCredit } from './Components/DeveloperCredit'
 import { AuthProvider, profileIsAdmin, useAuth } from './Context/AuthContext'
 import { PermissionsProvider, usePermissions } from './Context/PermissionsContext'
 import { NavigationProvider, useNavigation } from './Context/NavigationContext'
@@ -42,6 +44,7 @@ import { WarehousesPage } from './Pages/warehouses/WarehousesPage'
 import { useCanAccessSettings } from './hooks/useCanAccessSettings'
 import { useCanViewPage } from './hooks/useCanViewPage'
 import { pagePermForEngineering, pagePermForPlanning, pagePermForProduction } from './config/pageAccess'
+import { SETTINGS_TAB_ORDER } from './Types/navigation'
 import { formatRoleBadge } from './Utils/roleBadge'
 import { PwaInstallPrompt } from './Components/PwaInstallPrompt'
 import { usePresenceHeartbeat } from './hooks/usePresenceHeartbeat'
@@ -91,7 +94,13 @@ function Shell() {
   }
 
   if (loading) {
-    return <main className="grid min-h-screen place-items-center bg-slate-950 text-slate-300">{t('common.loading')}</main>
+    return (
+      <main className="grid min-h-screen place-items-center bg-slate-950 px-4 text-center">
+        <p className="max-w-md text-lg font-black leading-relaxed text-cyan-200 sm:text-xl">
+          {t('developer.bootLoading')}
+        </p>
+      </main>
+    )
   }
 
   if (!session) return <LoginPage />
@@ -129,6 +138,30 @@ function Shell() {
             </div>
 
             <div className="flex w-full flex-wrap items-center justify-end gap-2 sm:w-auto">
+              {canAccessSettings && (
+                <button
+                  type="button"
+                  onClick={() =>
+                    nav.navigate({
+                      department: 'production',
+                      productionArea: 'assembly',
+                      productionPage: 'settings',
+                      settingsTab: SETTINGS_TAB_ORDER[0],
+                      showGlobalHome: false,
+                      showProfile: false
+                    })
+                  }
+                  className={`touch-target rounded-xl p-2.5 transition ${
+                    !nav.showProfile && nav.productionPage === 'settings'
+                      ? 'bg-emerald-500/20 text-emerald-200 ring-1 ring-emerald-500/40'
+                      : 'bg-slate-800 text-slate-200 hover:bg-slate-700'
+                  }`}
+                  title={t('nav.settings')}
+                  aria-label={t('nav.settings')}
+                >
+                  <Settings className="h-5 w-5" />
+                </button>
+              )}
               <HeaderNotificationsBell />
               <button onClick={toggle} className="touch-target rounded-xl bg-slate-800 px-3 py-2 text-sm font-bold text-slate-200 hover:bg-slate-700">
                 <Languages className="inline h-4 w-4 sm:me-1" /> <span>{lang === 'ar' ? 'EN' : 'عربي'}</span>
@@ -158,6 +191,12 @@ function Shell() {
                 <span className="hidden sm:inline">{t('common.logout')}</span>
               </button>
             </div>
+
+            {!nav.showProfile && (
+              <div className="w-full border-t border-slate-800/80 pt-3">
+                <DeveloperCredit variant="inline" />
+              </div>
+            )}
           </header>
 
           <DepartmentTopBar />

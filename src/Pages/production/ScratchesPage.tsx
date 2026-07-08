@@ -1,6 +1,8 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { ClipboardList, PieChart, ScanLine } from 'lucide-react'
 import { useLang } from '../../i18n/LanguageContext'
+import { useEmployees } from '../../hooks/useEmployees'
+import { useFactoryOrgScope } from '../../hooks/useFactoryOrgScope'
 import { PageTabShell } from '../../Components/layout/PageTabShell'
 import { ScratchesRecordTab } from '../../Components/scratches/ScratchesRecordTab'
 import { ScratchesSummaryTab } from '../../Components/scratches/ScratchesSummaryTab'
@@ -11,11 +13,15 @@ type ScratchTab = 'record' | 'summary'
 
 export function ScratchesPage() {
   const { t } = useLang()
+  const { employees } = useEmployees()
+  const { filterRecords, isScopedView, scopeLabel } = useFactoryOrgScope(employees)
   const [tab, setTab] = useState<ScratchTab>('record')
   const [items, setItems] = useState<ScratchRecord[]>([])
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
+
+  const visibleItems = useMemo(() => filterRecords(items), [items, filterRecords])
 
   const load = useCallback(async () => {
     setLoading(true)
@@ -65,13 +71,17 @@ export function ScratchesPage() {
       message={
         error ? (
           <div className="rounded-xl border border-red-500/30 bg-red-500/10 p-3 text-sm text-red-200">{error}</div>
+        ) : isScopedView && scopeLabel ? (
+          <div className="rounded-xl border border-cyan-500/25 bg-cyan-500/10 p-3 text-sm text-cyan-100">
+            {t('org.scopeBanner', { scope: scopeLabel })}
+          </div>
         ) : undefined
       }
     >
       {tab === 'record' && (
-        <ScratchesRecordTab items={items} loading={loading} saving={saving} onAdd={addScratch} />
+        <ScratchesRecordTab items={visibleItems} loading={loading} saving={saving} onAdd={addScratch} />
       )}
-      {tab === 'summary' && <ScratchesSummaryTab items={items} />}
+      {tab === 'summary' && <ScratchesSummaryTab items={visibleItems} />}
     </PageTabShell>
   )
 }

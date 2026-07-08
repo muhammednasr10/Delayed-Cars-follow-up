@@ -91,6 +91,24 @@ export function computeProductivityDeficit(
   return Math.round(actualHours * lineJph - productivity)
 }
 
+/** كفاءة الإنتاجية الشهرية = الفعلي ÷ (ساعات العمل × JPH) */
+export function computeMonthProductivityEfficiency(
+  rows: Pick<ProductionPlanWorkDayRow, 'workDate' | 'actualHours'>[],
+  lineJph: number,
+  productivityByDate: Map<string, number>
+): number | null {
+  if (lineJph <= 0) return null
+  let expected = 0
+  let actual = 0
+  for (const row of rows) {
+    if (row.actualHours <= 0) continue
+    expected += row.actualHours * lineJph
+    actual += productivityByDate.get(row.workDate) ?? 0
+  }
+  if (expected <= 0) return null
+  return Math.round((actual / expected) * 100)
+}
+
 /** @deprecated use computeProductivityDeficit */
 export function computeTotalLostVehicles(
   actualHours: number,

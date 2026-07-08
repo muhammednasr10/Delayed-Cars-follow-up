@@ -69,7 +69,7 @@ export function OrgStructurePage({
     () => (isAssemblyScope ? filterAssemblyWorkforce(employees, orgUnits) : employees),
     [employees, orgUnits, isAssemblyScope]
   )
-  const { scopedEmployees: assemblyScoped, isScopedView } = useAssemblyWorkforceScope(assemblyBase)
+  const { scopedEmployees: assemblyScoped, isScopedView, scopeLabel } = useAssemblyWorkforceScope(assemblyBase)
   const workforceEmployees = isAssemblyScope ? assemblyScoped : employees
 
   const filtered = useMemo(() => {
@@ -198,7 +198,9 @@ export function OrgStructurePage({
           <p className={`text-xs text-cyan-200/90 ${embedded ? '' : 'mt-3'}`}>{t('org.assemblyWorkforceHint')}</p>
         )}
         {isAssemblyScope && isScopedView && (
-          <p className={`text-xs text-cyan-200/80 ${embedded ? 'mt-2' : 'mt-2'}`}>{t('org.assemblySupervisorScopeHint')}</p>
+          <p className={`text-xs text-cyan-200/80 ${embedded ? 'mt-2' : 'mt-2'}`}>
+            {scopeLabel ? t('org.scopeBanner', { scope: scopeLabel }) : t('org.assemblySupervisorScopeHint')}
+          </p>
         )}
         <div className={embedded ? '' : 'mt-4'}>
           <EmployeeFilters value={filters} onChange={setFilters} orgUnits={orgUnits} />

@@ -1,4 +1,4 @@
-import type { IplFeedingRow, ModelPartInventory } from '../../Types/warehouse'
+import type { FeedingWarehouseType, IplFeedingRow, ModelPartInventory } from '../../Types/warehouse'
 
 export type FeedingDraftLine = {
   partId: string
@@ -34,6 +34,8 @@ export type IplPlanDraftRow = {
   partNumber: string
   partName: string
   stationCode: string | null
+  warehouseType: FeedingWarehouseType
+  warehouseTypeLabel: string
   qtyPerVehicle: number
   partDirectionLabel: string
   partKindLabel: string
@@ -44,9 +46,25 @@ export type IplPlanDraftRow = {
   supplierLabel: string
   cartonQty: string
   feedingMethod: string
+  replenishmentFreq: string
+  reorderPoint: string
   quantity: string
   available: number
   included: boolean
+}
+
+const PLAN_LINE_META_PREFIX = 'ipl:'
+
+function encodePlanLineNotes(row: IplPlanDraftRow): string | null {
+  const meta = {
+    warehouseType: row.warehouseType,
+    replenishmentFreq: row.replenishmentFreq.trim() || null,
+    reorderPoint: row.reorderPoint.trim() || null,
+    stationCode: row.stationCode,
+    feedingMethod: row.feedingMethod || null
+  }
+  if (!meta.replenishmentFreq && !meta.reorderPoint) return null
+  return `${PLAN_LINE_META_PREFIX}${JSON.stringify(meta)}`
 }
 
 export function iplPlanRowFromIpl(row: IplFeedingRow): IplPlanDraftRow {
@@ -56,6 +74,8 @@ export function iplPlanRowFromIpl(row: IplFeedingRow): IplPlanDraftRow {
     partNumber: row.partNumber,
     partName: row.partName,
     stationCode: row.stationCode,
+    warehouseType: row.warehouseType,
+    warehouseTypeLabel: row.warehouseTypeLabel,
     qtyPerVehicle: row.qtyPerVehicle,
     partDirectionLabel: row.partDirectionLabel,
     partKindLabel: row.partKindLabel,
@@ -66,20 +86,43 @@ export function iplPlanRowFromIpl(row: IplFeedingRow): IplPlanDraftRow {
     supplierLabel: row.supplierLabel,
     cartonQty: row.cartonQty,
     feedingMethod: row.feedingMethod,
+    replenishmentFreq: '',
+    reorderPoint: '',
     quantity: String(row.qtyPerVehicle || 1),
     available: row.qtyAvailable,
     included: true
   }
 }
 
-export function parseIplPlanLines(rows: IplPlanDraftRow[]): { partId: string; quantity: number }[] | null {
-  const byPart = new Map<string, number>()
+export function iplRowsForCarCount(rows: IplFeedingRow[], carCount: number): IplPlanDraftRow[] {
+  const qty = Math.max(1, carCount)
+  return rows.map(r => ({
+    ...iplPlanRowFromIpl(r),
+    quantity: String((r.qtyPerVehicle || 1) * qty),
+    included: true
+  }))
+}
+
+export function parseIplPlanLines(
+  rows: IplPlanDraftRow[]
+): { partId: string; quantity: number; notes?: string | null }[] | null {
+  const byPart = new Map<string, { quantity: number; notes: string | null }>()
   for (const r of rows) {
     if (!r.included) continue
     const q = Number(r.quantity)
     if (!Number.isFinite(q) || q <= 0) return null
-    byPart.set(r.partId, (byPart.get(r.partId) ?? 0) + q)
+    const notes = encodePlanLineNotes(r)
+    const prev = byPart.get(r.partId)
+    if (prev) {
+      byPart.set(r.partId, { quantity: prev.quantity + q, notes: prev.notes || notes })
+    } else {
+      byPart.set(r.partId, { quantity: q, notes })
+    }
   }
   if (byPart.size === 0) return null
-  return [...byPart.entries()].map(([partId, quantity]) => ({ partId, quantity }))
+  return [...byPart.entries()].map(([partId, { quantity, notes }]) => ({
+    partId,
+    quantity,
+    notes
+  }))
 }

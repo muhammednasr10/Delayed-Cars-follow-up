@@ -2,9 +2,15 @@ import { useEffect, useState } from 'react'
 import { Car, ChevronUp, PlusCircle } from 'lucide-react'
 import { useVehicles } from '../Context/VehiclesContext'
 import { useLang } from '../i18n/LanguageContext'
+import { useEmployees } from '../hooks/useEmployees'
+import { useFactoryOrgScope } from '../hooks/useFactoryOrgScope'
 import { Field, inputCls } from './FormField'
+import { FactoryOrgUnitPicker } from './FactoryOrgUnitPicker'
 import { VehicleModelFamilyPicker, resolveFamilyIdForVariant } from './VehicleModelFamilyPicker'
+import { getFactoryOrgUnits } from '../services/factoryOrgService'
 import { getVehicleColors, getVehicleModels } from '../services/settingsService'
+import { orgPathLeaf } from '../Utils/employeeOrgPicker'
+import type { FactoryOrgUnit } from '../Types/factoryOrg'
 import type { VehicleColor, VehicleModel } from '../Types/settings'
 
 type Props = {
@@ -14,13 +20,17 @@ type Props = {
 export function NewVehicleEntryForm({ onSaved }: Props) {
   const { addVehicle } = useVehicles()
   const { t } = useLang()
+  const { employees } = useEmployees()
+  const { defaultOrgPath } = useFactoryOrgScope(employees)
   const [open, setOpen] = useState(false)
   const [models, setModels] = useState<VehicleModel[]>([])
   const [colors, setColors] = useState<VehicleColor[]>([])
+  const [orgUnits, setOrgUnits] = useState<FactoryOrgUnit[]>([])
   const [listsLoading, setListsLoading] = useState(false)
   const [familyId, setFamilyId] = useState('')
   const [modelId, setModelId] = useState('')
   const [colorId, setColorId] = useState('')
+  const [orgPath, setOrgPath] = useState<string[]>([])
   const [vin, setVin] = useState('')
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState('')
@@ -28,20 +38,23 @@ export function NewVehicleEntryForm({ onSaved }: Props) {
   useEffect(() => {
     if (!open) return
     setListsLoading(true)
-    Promise.all([getVehicleModels(), getVehicleColors()])
-      .then(([m, c]) => {
+    Promise.all([getVehicleModels(), getVehicleColors(), getFactoryOrgUnits({ includeInactive: true })])
+      .then(([m, c, units]) => {
         setModels(m)
         setColors(c)
+        setOrgUnits(units)
+        setOrgPath(prev => (prev.length ? prev : [...defaultOrgPath]))
       })
       .catch(err => setError(err instanceof Error ? err.message : t('common.error')))
       .finally(() => setListsLoading(false))
-  }, [open, t])
+  }, [open, t, defaultOrgPath])
 
   function resetForm() {
     setVin('')
     setFamilyId('')
     setModelId('')
     setColorId('')
+    setOrgPath([...defaultOrgPath])
     setError('')
   }
 
@@ -60,13 +73,18 @@ export function NewVehicleEntryForm({ onSaved }: Props) {
       setError(t('mp.f.model'))
       return
     }
+    if (!orgPathLeaf(orgPath)) {
+      setError(t('org.f.orgUnit'))
+      return
+    }
 
     setSubmitting(true)
     const result = await addVehicle({
       vin: vin.trim(),
       modelId,
       productionOrderId: null,
-      vehicleColorId: colorId || null
+      vehicleColorId: colorId || null,
+      factoryOrgUnitId: orgPathLeaf(orgPath)
     })
     setSubmitting(false)
 
@@ -159,6 +177,10 @@ export function NewVehicleEntryForm({ onSaved }: Props) {
               ))}
             </select>
           )}
+        </Field>
+
+        <Field label={t('org.f.orgUnit')} required>
+          <FactoryOrgUnitPicker units={orgUnits} path={orgPath} onChange={setOrgPath} />
         </Field>
 
         {error && (

@@ -153,6 +153,44 @@ export function translateArabicPartName(arabic: string): string {
   return ordered.map((w, i) => (i === 0 ? capitalize(w) : w)).join(' ')
 }
 
+const EN_AR_SORTED: [string, string][] = [...AR_EN_RULES]
+  .map(([ar, en]) => [en.toLowerCase(), ar] as [string, string])
+  .sort((a, b) => b[0].length - a[0].length)
+
+/** Suggest Arabic part description from English (rule-based; user can edit). */
+export function translateEnglishPartName(english: string): string {
+  let rest = String(english ?? '')
+    .trim()
+    .toLowerCase()
+  if (!rest || isMostlyArabic(rest)) return rest
+
+  const tokens: string[] = []
+  let guard = 0
+  while (rest.length > 0 && guard++ < 200) {
+    let matched = false
+    for (const [en, ar] of EN_AR_SORTED) {
+      if (rest.startsWith(en)) {
+        tokens.push(ar)
+        rest = rest.slice(en.length).trim()
+        matched = true
+        break
+      }
+    }
+    if (!matched) {
+      const word = rest.match(/^[\w/*.+()-]+/)?.[0]
+      if (word) {
+        tokens.push(word)
+        rest = rest.slice(word.length).trim()
+      } else {
+        rest = rest.slice(1).trim()
+      }
+    }
+  }
+
+  if (tokens.length === 0) return ''
+  return tokens.join(' ')
+}
+
 export function resolvePartNameEn(row: {
   part_name_ar?: string | null
   part_name_en?: string | null

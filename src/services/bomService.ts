@@ -1,5 +1,7 @@
 import { supabase } from '../lib/supabase'
-import type { BomDashboardStats, BomItemCreateInput, BomItemDetail, BomItemUpdateInput } from '../Types/bom'
+import type { BomDashboardStats, BomItemCreateInput, BomItemDetail, BomItemUpdateInput, Part } from '../Types/bom'
+import type { BomIplLogisticsInput, BomIplFeedingCard } from '../Utils/iplBomLogistics'
+import { extractIplLogisticsFromRaw } from '../Utils/iplBomLogistics'
 import type { VehicleModel } from '../Types/settings'
 import { cardsCanConsolidate, consolidatedPayload, type ModelCardDraft } from '../Utils/bomModelCards'
 import { effectivePartKind, effectiveSupplySource } from '../Utils/bomDefaults'
@@ -7,10 +9,40 @@ import { bomImportLineKey, classificationToCategoryCode, normalizePartNumber } f
 import { BOM_FILTER_DB_FIELD, type BomFilterColumn } from '../Utils/bomFilterFields'
 import { bomStationCodeRawVariants, displayBomStationCode, normalizeBomStationCodeText } from '../Utils/bomStationCode'
 import { upsertPart } from './partsService'
+import { parseApplicableModelNames } from '../Utils/bomQtyByModel'
+import { isPendingBomItemId } from '../Utils/iplModelParts'
 
 function client() {
   if (!supabase) throw new Error('Supabase is not configured')
   return supabase
+}
+
+function logisticsPayload(input: BomIplLogisticsInput): Record<string, string | null> {
+  const out: Record<string, string | null> = {}
+  const fields = [
+    'part_length',
+    'part_width',
+    'part_height',
+    'part_volume',
+    'feeding_method',
+    'packing',
+    'part_direction',
+    'carton_qty',
+    'part_weight',
+    'carton_weight',
+    'rack_code',
+    'rack_size',
+    'rack_length',
+    'rack_width',
+    'rack_height'
+  ] as const
+  for (const f of fields) {
+    if (input[f] !== undefined) out[f] = input[f]?.trim() || null
+  }
+  if (input.part_direction !== undefined) {
+    out.side = input.part_direction?.trim() || null
+  }
+  return out
 }
 
 /** Excel-style multi-select per column (empty / undefined = no filter on column). */
@@ -309,7 +341,8 @@ export async function updateBomItem(id: string, input: BomItemUpdateInput): Prom
     ...(input.notes !== undefined ? { notes: input.notes } : {}),
     ...(input.needs_review !== undefined ? { needs_review: input.needs_review } : {}),
     ...(input.is_active !== undefined ? { is_active: input.is_active } : {}),
-    ...(input.stopper_type !== undefined ? { stopper_type: input.stopper_type } : {})
+    ...(input.stopper_type !== undefined ? { stopper_type: input.stopper_type } : {}),
+    ...logisticsPayload(input)
   }
 
   if (input.bom_classification != null) {
@@ -404,7 +437,8 @@ export async function createBomItem(input: BomItemCreateInput): Promise<string> 
     notes: input.notes?.trim() || null,
     source_sheet: 'manual',
     is_active: true,
-    stopper_type: input.stopper_type ?? 'non_stopper'
+    stopper_type: input.stopper_type ?? 'non_stopper',
+    ...logisticsPayload(input)
   }
 
   const { data: existing } = await client()
@@ -498,6 +532,173 @@ export async function saveBomFromModelCards(
 export async function deleteBomItem(id: string): Promise<void> {
   const { error } = await client().from('bom_items').update({ is_active: false }).eq('id', id)
   if (error) throw new Error(error.message)
+}
+
+export async function updateBomGroupIplLogistics(itemIds: string[], logistics: BomIplLogisticsInput): Promise<void> {
+  const realIds = itemIds.filter(id => id && !isPendingBomItemId(id))
+  if (realIds.length === 0) return
+  const payload = logisticsPayload(logistics)
+  if (Object.keys(payload).length === 0) return
+  const { error } = await client().from('bom_items').update(payload).in('id', realIds)
+  if (error) throw new Error(error.message)
+}
+
+export async function updateBomIplFeedingCard(itemIds: string[], card: BomIplFeedingCard): Promise<void> {
+  const realIds = itemIds.filter(id => id && !isPendingBomItemId(id))
+  if (realIds.length === 0) return
+  const payload = {
+    ...logisticsPayload(card),
+    stopper_type: card.stopper_type
+  }
+  const { error } = await client().from('bom_items').update(payload).in('id', realIds)
+  if (error) throw new Error(error.message)
+}
+
+export async function updateIplModelLine(
+  part: Pick<Part, 'id' | 'part_number' | 'normalized_part_number' | 'part_name_ar' | 'part_name_en' | 'common_station'>,
+  modelName: string,
+  vehicleModelId: string,
+  updates: { part_number?: string; quantity?: number; stationCode?: string; stationId?: string | null }
+): Promise<string> {
+  const bomId = await ensureBomLineForPart(
+    part,
+    modelName,
+    vehicleModelId,
+    updates.stationCode ?? part.common_station
+  )
+
+  const bomUpdate: BomItemUpdateInput = {}
+  if (updates.stationCode !== undefined) {
+    bomUpdate.station_code_text = normalizeBomStationCodeText(updates.stationCode) || null
+    bomUpdate.station_id = updates.stationId ?? null
+    bomUpdate.needs_review = false
+  }
+  if (updates.quantity != null && Number.isFinite(updates.quantity) && updates.quantity > 0) {
+    bomUpdate.quantity = updates.quantity
+    bomUpdate.qty_by_model_raw = `${modelName}=${updates.quantity}`
+  }
+  if (updates.part_number != null && updates.part_number.trim()) {
+    bomUpdate.part_number = updates.part_number.trim()
+  }
+
+  if (Object.keys(bomUpdate).length > 0) {
+    await updateBomItem(bomId, bomUpdate)
+  }
+
+  if (updates.part_number?.trim()) {
+    const pn = updates.part_number.trim()
+    const { error } = await client()
+      .from('parts')
+      .update({
+        part_number: pn,
+        normalized_part_number: normalizePartNumber(pn)
+      })
+      .eq('id', part.id)
+    if (error) throw new Error(error.message)
+  }
+
+  return bomId
+}
+
+function bomRowMatchesModel(row: Pick<BomItemDetail, 'vehicle_model_name' | 'applicable_models_text'>, modelName: string): boolean {
+  const target = modelName.trim().toUpperCase()
+  if (!target) return false
+  if (row.vehicle_model_name?.trim().toUpperCase() === target) return true
+  return parseApplicableModelNames(row.applicable_models_text).some(n => n.trim().toUpperCase() === target)
+}
+
+export async function getBomItemsForPartIds(partIds: string[], modelName: string): Promise<Map<string, BomItemDetail>> {
+  const result = new Map<string, BomItemDetail>()
+  if (partIds.length === 0 || !modelName.trim()) return result
+
+  const CHUNK = 80
+  for (let i = 0; i < partIds.length; i += CHUNK) {
+    const chunk = partIds.slice(i, i + CHUNK)
+    const { data, error } = await client()
+      .from('v_bom_items_detail')
+      .select('*')
+      .eq('is_active', true)
+      .in('part_id', chunk)
+
+    if (error) throw new Error(error.message)
+
+    for (const row of (data ?? []) as BomItemDetail[]) {
+      if (!bomRowMatchesModel(row, modelName)) continue
+      if (!result.has(row.part_id)) result.set(row.part_id, row)
+    }
+  }
+
+  return result
+}
+
+export async function ensureBomLineForPart(
+  part: Pick<Part, 'id' | 'part_number' | 'normalized_part_number' | 'part_name_ar' | 'part_name_en' | 'common_station'>,
+  modelName: string,
+  vehicleModelId: string,
+  stationCode?: string | null
+): Promise<string> {
+  const existing = await getBomItemsForPartIds([part.id], modelName)
+  const row = existing.get(part.id)
+  if (row?.id && !isPendingBomItemId(row.id)) return row.id
+
+  const station = normalizeBomStationCodeText(stationCode ?? part.common_station ?? '')
+  const norm = part.normalized_part_number || normalizePartNumber(part.part_number)
+  const lineKey = bomImportLineKey({
+    normalizedPart: norm,
+    stationCode: station || '_',
+    modelName
+  })
+
+  const payload = {
+    part_id: part.id,
+    part_number: part.part_number,
+    part_name: part.part_name_ar?.trim() || part.part_name_en?.trim() || null,
+    quantity: 1,
+    vehicle_model_id: vehicleModelId,
+    station_code_text: station || null,
+    applicable_models_text: modelName,
+    qty_by_model_raw: `${modelName}=1`,
+    import_line_key: lineKey,
+    needs_review: !station,
+    source_sheet: 'ipl_model',
+    is_active: true,
+    stopper_type: 'non_stopper' as const
+  }
+
+  const { data: dup } = await client().from('bom_items').select('id').eq('import_line_key', lineKey).maybeSingle()
+  if (dup?.id) {
+    const { error } = await client().from('bom_items').update({ ...payload, is_active: true }).eq('id', dup.id)
+    if (error) throw new Error(error.message)
+    return dup.id as string
+  }
+
+  const { data, error } = await client().from('bom_items').insert(payload).select('id').single()
+  if (error) throw new Error(error.message)
+  return data.id as string
+}
+
+export async function updateBomItemStationForPart(
+  part: Pick<Part, 'id' | 'part_number' | 'normalized_part_number' | 'part_name_ar' | 'part_name_en' | 'common_station'>,
+  modelName: string,
+  vehicleModelId: string,
+  stationCode: string,
+  stationId?: string | null
+): Promise<string> {
+  const bomId = await ensureBomLineForPart(part, modelName, vehicleModelId, stationCode)
+  await updateBomItem(bomId, {
+    station_code_text: normalizeBomStationCodeText(stationCode) || null,
+    station_id: stationId ?? null,
+    needs_review: false
+  })
+  return bomId
+}
+
+export async function deactivateBomItemsForPartModel(partId: string, modelName: string): Promise<void> {
+  const map = await getBomItemsForPartIds([partId], modelName)
+  const row = map.get(partId)
+  if (row?.id && !isPendingBomItemId(row.id)) {
+    await deleteBomItem(row.id)
+  }
 }
 
 export async function getBomFilterOptions(): Promise<{

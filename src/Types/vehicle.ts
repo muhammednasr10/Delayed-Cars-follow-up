@@ -23,6 +23,7 @@ export type VehicleOverview = {
   colorHex?: string | null
   productionOrderId?: string | null
   productionOrderNumber: string
+  factoryOrgUnitId?: string | null
   createdAt: string
   updatedAt: string
 }
@@ -33,6 +34,7 @@ export type VehicleInput = {
   modelId: string
   vehicleColorId?: string | null
   currentStationId?: string | null
+  factoryOrgUnitId?: string | null
   notes?: string
 }
 

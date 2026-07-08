@@ -23,6 +23,7 @@ type VehicleOverviewRow = {
   color_name?: string | null
   color_hex?: string | null
   production_order_number: string | null
+  factory_org_unit_id?: string | null
   created_at: string
   updated_at: string
 }
@@ -45,6 +46,7 @@ function mapOverview(row: VehicleOverviewRow): VehicleOverview {
     colorHex: row.color_hex ?? null,
     productionOrderId: row.production_order_id ?? null,
     productionOrderNumber: row.production_order_number ?? '',
+    factoryOrgUnitId: row.factory_org_unit_id ?? null,
     createdAt: row.created_at,
     updatedAt: row.updated_at
   }
@@ -69,6 +71,7 @@ export async function createVehicle(input: VehicleInput): Promise<string> {
       model_id: input.modelId,
       vehicle_color_id: input.vehicleColorId || null,
       current_station_id: input.currentStationId || null,
+      factory_org_unit_id: input.factoryOrgUnitId || null,
       notes: input.notes?.trim() || null
     })
     .select('id')

@@ -74,7 +74,7 @@ export function ScratchesRecordTab({ items, loading, saving, onAdd }: Props) {
           <thead className="bg-slate-950/90">
             <tr>
               <th className={`${cell} font-black text-slate-400`}>{t('scratches.cols.vin')}</th>
-              <th className={`${cell} font-black text-slate-400`}>{t('scratches.cols.area')}</th>
+              <th className={`${cell} font-black text-slate-400`}>{t('scratches.cols.orgUnit')}</th>
               <th className={`${cell} font-black text-slate-400`}>{t('scratches.cols.severity')}</th>
               <th className={`${cell} font-black text-slate-400`}>{t('scratches.cols.date')}</th>
               <th className={`${cell} font-black text-slate-400`}>{t('common.notes')}</th>
@@ -97,7 +97,7 @@ export function ScratchesRecordTab({ items, loading, saving, onAdd }: Props) {
               items.map(row => (
                 <tr key={row.id} className="bg-slate-900/30 hover:bg-slate-800/40">
                   <td className={`${cell} font-mono font-bold text-white`}>{row.vin}</td>
-                  <td className={`${cell} text-slate-200`}>{row.bodyArea}</td>
+                  <td className={`${cell} text-slate-200`}>{row.bodyArea || '—'}</td>
                   <td className={cell}>{severityBadge(row.severity)}</td>
                   <td className={`${cell} text-slate-300`}>{formatDate(row.recordedAt)}</td>
                   <td className={`${cell} max-w-[14rem] truncate text-slate-400`}>{row.notes || '—'}</td>

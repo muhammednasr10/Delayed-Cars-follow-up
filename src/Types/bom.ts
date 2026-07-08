@@ -15,11 +15,19 @@ export type Part = {
   normalized_part_number: string
   part_name_ar: string | null
   part_name_en: string | null
+  common_station: string | null
+  common_name: string | null
+  applicable_models_text: string | null
   category_id: string | null
   part_type: string | null
   unit: string | null
   notes: string | null
   is_active: boolean
+}
+
+/** Part master row with models derived from active BOM lines */
+export type PartListRow = Part & {
+  model_names: string[]
 }
 
 export type BomItemDetail = {
@@ -55,6 +63,21 @@ export type BomItemDetail = {
   station_sort_order?: number | null
   notes: string | null
   raw_data: Record<string, string> | null
+  part_length: string | null
+  part_width: string | null
+  part_height: string | null
+  part_volume: string | null
+  feeding_method: string | null
+  packing: string | null
+  part_direction: string | null
+  rack_code: string | null
+  rack_size: string | null
+  rack_length: string | null
+  rack_width: string | null
+  rack_height: string | null
+  carton_qty: string | null
+  part_weight: string | null
+  carton_weight: string | null
   is_active: boolean
   normalized_part_number: string
   part_name_ar: string | null
@@ -89,6 +112,21 @@ export type BomItemCreateInput = {
   qty_by_model_raw?: string
   notes?: string
   stopper_type?: 'line_stopper' | 'car_stopper' | 'non_stopper'
+  part_length?: string | null
+  part_width?: string | null
+  part_height?: string | null
+  part_volume?: string | null
+  feeding_method?: string | null
+  packing?: string | null
+  part_direction?: string | null
+  rack_code?: string | null
+  rack_size?: string | null
+  rack_length?: string | null
+  rack_width?: string | null
+  rack_height?: string | null
+  carton_qty?: string | null
+  part_weight?: string | null
+  carton_weight?: string | null
 }
 
 export type BomItemUpdateInput = {
@@ -112,6 +150,21 @@ export type BomItemUpdateInput = {
   needs_review?: boolean
   is_active?: boolean
   stopper_type?: 'line_stopper' | 'car_stopper' | 'non_stopper' | null
+  part_length?: string | null
+  part_width?: string | null
+  part_height?: string | null
+  part_volume?: string | null
+  feeding_method?: string | null
+  packing?: string | null
+  part_direction?: string | null
+  rack_code?: string | null
+  rack_size?: string | null
+  rack_length?: string | null
+  rack_width?: string | null
+  rack_height?: string | null
+  carton_qty?: string | null
+  part_weight?: string | null
+  carton_weight?: string | null
 }
 
 export type PartNumberComparison = {

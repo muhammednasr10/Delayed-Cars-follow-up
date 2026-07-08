@@ -182,3 +182,8 @@ export function groupBomItemsForDisplay(items: BomItemDetail[]): BomDisplayGroup
 
   return order.map(key => buildGroup(key, buckets.get(key)!))
 }
+
+/** صف واحد لكل سطر BOM — لعرض IPL حسب موديل واحد */
+export function bomItemsAsFlatGroups(items: BomItemDetail[]): BomDisplayGroup[] {
+  return items.map(row => buildGroup(row.id, [row]))
+}

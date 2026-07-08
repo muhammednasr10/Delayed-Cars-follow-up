@@ -6,6 +6,8 @@ export type Warehouse = {
   isActive: boolean
 }
 
+export type FeedingWarehouseType = 'CKD' | 'Local' | 'Plastics' | 'Hardware'
+
 export type IplFeedingRow = {
   bomItemId: string
   partId: string
@@ -14,6 +16,8 @@ export type IplFeedingRow = {
   qtyPerVehicle: number
   stationCode: string | null
   stationSortOrder: number | null
+  warehouseType: FeedingWarehouseType
+  warehouseTypeLabel: string
   qtyAvailable: number
   partDirection: 'right' | 'left' | 'either' | 'other'
   partDirectionLabel: string
@@ -69,6 +73,7 @@ export type WarehouseFeeding = {
   stationName: string | null
   feedingDate: string
   reference: string | null
+  productionOrderId: string | null
   notes: string | null
   createdAt: string
   lines: WarehouseFeedingLine[]
@@ -107,4 +112,76 @@ export type WarehouseFeedingPlan = {
   executedFeedingId: string | null
   createdAt: string
   lines: WarehouseFeedingPlanLine[]
+}
+
+export type WarehouseEquipmentStatus = 'active' | 'maintenance' | 'retired'
+
+export type WarehouseRack = {
+  id: string
+  warehouseId: string | null
+  warehouseCode: string | null
+  warehouseName: string | null
+  stationId: string | null
+  stationNumber: string | null
+  stationName: string | null
+  code: string
+  name: string | null
+  capacity: string | null
+  lengthMm: number | null
+  widthMm: number | null
+  heightMm: number | null
+  direction: string | null
+  status: WarehouseEquipmentStatus
+  notes: string | null
+  isActive: boolean
+  createdAt: string
+}
+
+export type WarehouseCart = {
+  id: string
+  warehouseId: string | null
+  warehouseCode: string | null
+  warehouseName: string | null
+  code: string
+  name: string | null
+  cartType: string | null
+  capacity: string | null
+  maxLoadKg: number | null
+  dollCount: number | null
+  dollLengthCm: number | null
+  dollWidthCm: number | null
+  dollHeightCm: number | null
+  status: WarehouseEquipmentStatus
+  notes: string | null
+  isActive: boolean
+  createdAt: string
+}
+
+export type WarehouseRackInput = {
+  warehouseId?: string | null
+  stationId?: string | null
+  code: string
+  name?: string | null
+  capacity?: string | null
+  lengthMm?: number | null
+  widthMm?: number | null
+  heightMm?: number | null
+  direction?: string | null
+  status?: WarehouseEquipmentStatus
+  notes?: string | null
+}
+
+export type WarehouseCartInput = {
+  warehouseId?: string | null
+  code: string
+  name?: string | null
+  cartType?: string | null
+  capacity?: string | null
+  maxLoadKg?: number | null
+  dollCount?: number | null
+  dollLengthCm?: number | null
+  dollWidthCm?: number | null
+  dollHeightCm?: number | null
+  status?: WarehouseEquipmentStatus
+  notes?: string | null
 }

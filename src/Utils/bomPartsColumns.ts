@@ -7,6 +7,18 @@ export const BOM_MAIN_ROW_COLUMNS = [
   'operation'
 ] as const
 
+/** IPL per-model view: names, part #, station, Q/V, actions (stopper in feeding card). */
+export const BOM_IPL_MODEL_ROW_COLUMNS = [
+  'part_name_ar',
+  'part_name_en',
+  'part_number',
+  'station_code',
+  'qty_by_model',
+  'actions'
+] as const
+
+export type BomIplModelColumn = (typeof BOM_IPL_MODEL_ROW_COLUMNS)[number]
+
 export type BomMainRowColumn = (typeof BOM_MAIN_ROW_COLUMNS)[number]
 
 /** Expanded model-detail sub-table columns. */
@@ -59,13 +71,24 @@ export const BOM_PARTS_DISPLAY_COLUMNS = [
 
 export type BomPartsDisplayColumn = (typeof BOM_PARTS_DISPLAY_COLUMNS)[number]
 
+/** Fixed column widths for IPL per-model table. */
+export const BOM_IPL_TABLE_COL_WIDTH: Record<BomIplModelColumn, string> = {
+  part_name_ar: '20%',
+  part_name_en: '20%',
+  part_number: '14%',
+  station_code: '10%',
+  qty_by_model: '7%',
+  actions: '9%'
+}
+
 /** Fixed column widths so the main parts table fits one screen without horizontal scroll. */
-export const BOM_TABLE_COL_WIDTH: Record<BomMainRowColumn, string> = {
+export const BOM_TABLE_COL_WIDTH: Record<BomMainRowColumn | 'actions', string> = {
   station_code: '8%',
-  part_name_ar: '22%',
-  part_name_en: '22%',
-  vehicle_model: '14%',
-  operation: '10%'
+  part_name_ar: '20%',
+  part_name_en: '20%',
+  vehicle_model: '12%',
+  operation: '8%',
+  actions: '10%'
 }
 
 export const T4_VARIANT_MODELS = ['T4', 'T4T', 'T4L', 'T4C'] as const

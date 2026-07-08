@@ -1,4 +1,5 @@
 import type { BomItemDetail } from '../Types/bom'
+import { formatPartDimensionsFromFields, iplLogisticsFromBomItem } from './iplBomLogistics'
 import { effectivePartKind } from './bomDefaults'
 import { partKindLabel, resolveSupplySource, supplySourceLabel } from './bomDisplayFormat'
 
@@ -148,18 +149,23 @@ export function iplFieldsFromBomItem(
   feedingMethod: string
   stationCode: string
 } {
-  const dir = resolvePartDirection(item.side, item.position, item.raw_data)
+  const logistics = iplLogisticsFromBomItem(item)
+  const dir = resolvePartDirection(
+    logistics.part_direction || item.side,
+    item.position,
+    item.raw_data
+  )
   let partDirectionLabel = ''
   if (dir.kind === 'right') partDirectionLabel = t('warehouses.feeding.direction.right')
   else if (dir.kind === 'left') partDirectionLabel = t('warehouses.feeding.direction.left')
   else if (dir.kind === 'either') partDirectionLabel = t('warehouses.feeding.direction.either')
   else partDirectionLabel = dir.raw || '—'
 
-  const dimensions = formatPartDimensions(item.raw_data)
-  const weight = formatPartWeight(item.raw_data)
-  const rackCapacity = formatRackCapacity(item.raw_data)
-  const cartonQty = formatCartonQty(item.raw_data)
-  const feedingMethod = formatFeedingMethod(item.raw_data)
+  const dimensions = formatPartDimensionsFromFields(logistics) || formatPartDimensions(item.raw_data)
+  const weight = item.part_weight?.trim() || formatPartWeight(item.raw_data)
+  const rackCapacity = logistics.rack_size || formatRackCapacity(item.raw_data)
+  const cartonQty = item.carton_qty?.trim() || formatCartonQty(item.raw_data)
+  const feedingMethod = logistics.feeding_method || formatFeedingMethod(item.raw_data)
   const supplier = resolveSupplySource(item)
   const supplierLabel = supplier ? supplySourceLabel(supplier, t) : ''
 

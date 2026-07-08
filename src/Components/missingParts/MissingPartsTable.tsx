@@ -33,6 +33,7 @@ type Props = {
   loading: boolean
   reasons: MpLookupOption[]
   departments: MpLookupOption[]
+  orgUnitLabelFor?: (id: string | null | undefined) => string
   canBulkInstall: boolean
   canExport: boolean
   canEdit: boolean
@@ -64,6 +65,7 @@ export function MissingPartsTable({
   loading,
   reasons,
   departments,
+  orgUnitLabelFor = () => '—',
   canBulkInstall,
   canExport,
   canEdit,
@@ -176,6 +178,7 @@ export function MissingPartsTable({
                   filtered={filtered}
                   reasons={reasons}
                   departments={departments}
+                  orgUnitLabelFor={orgUnitLabelFor}
                   canBulkInstall={canBulkInstall}
                   canEdit={canEdit}
                   canDelete={canDelete}
@@ -214,6 +217,7 @@ export function MissingPartsTable({
                   filtered={filtered}
                   reasons={reasons}
                   departments={departments}
+                  orgUnitLabelFor={orgUnitLabelFor}
                   canBulkInstall={canBulkInstall}
                   canEdit={canEdit}
                   canDelete={canDelete}
@@ -246,6 +250,7 @@ export function MissingPartsTable({
                 filtered={filtered}
                 reasons={reasons}
                 departments={departments}
+                orgUnitLabelFor={orgUnitLabelFor}
                 canBulkInstall={canBulkInstall}
                 canEdit={canEdit}
                 canDelete={canDelete}
@@ -284,6 +289,7 @@ type RowProps = {
   filtered: MissingPartDetail[]
   reasons: MpLookupOption[]
   departments: MpLookupOption[]
+  orgUnitLabelFor: (id: string | null | undefined) => string
   canBulkInstall: boolean
   canEdit: boolean
   canDelete: boolean
@@ -345,6 +351,7 @@ function ReportGroupRow({
         }
         qty={qty}
         stationLabel={i.stationNumber ? (i.stationName ? `${i.stationNumber} · ${i.stationName}` : i.stationNumber) : '-'}
+        orgUnitLabel={props.orgUnitLabelFor(i.factoryOrgUnitId)}
         deleteTargets={displayRow.items}
         reasons={props.reasons}
         departments={props.departments}
@@ -460,6 +467,7 @@ function VehicleRows({
         }
         qty={qty}
         stationLabel="—"
+        orgUnitLabel={props.orgUnitLabelFor(primary.factoryOrgUnitId)}
         reasonSummary={t('mp.multiReasonsSummary', { n: parts.length })}
         reasonClassSummary="—"
         deleteTargets={parts}
@@ -479,6 +487,7 @@ function VehicleRows({
             <td className={cell} title={part.stationNumber ? `${part.stationNumber} · ${part.stationName ?? ''}` : ''}>
               {part.stationNumber ? `${part.stationNumber}${part.stationName ? ` · ${part.stationName}` : ''}` : '—'}
             </td>
+            <td className={cell}>{props.orgUnitLabelFor(part.factoryOrgUnitId)}</td>
             <td className={cell}>
               <span className="font-mono tabular-nums">
                 <span className="text-cyan-200">{part.installedQty}</span>
@@ -539,6 +548,7 @@ function VehicleRows({
 function SinglePartRow({ item, ...props }: RowProps & { item: MissingPartDetail }) {
   const { lang } = useLang()
   const stationLabel = item.stationNumber ? (item.stationName ? `${item.stationNumber} · ${item.stationName}` : item.stationNumber) : '-'
+  const orgUnitLabel = props.orgUnitLabelFor(item.factoryOrgUnitId)
 
   return (
     <PartDataRow
@@ -549,6 +559,7 @@ function SinglePartRow({ item, ...props }: RowProps & { item: MissingPartDetail 
       vinCell={<span dir="ltr">{item.vin}</span>}
       qty={{ installed: item.installedQty, required: item.requiredQty }}
       stationLabel={stationLabel}
+      orgUnitLabel={orgUnitLabel}
       deleteTargets={[item]}
       reasons={props.reasons}
       departments={props.departments}
@@ -567,6 +578,7 @@ function PartDataRow({
   vinCell,
   qty,
   stationLabel,
+  orgUnitLabel,
   reasonSummary,
   reasonClassSummary,
   reasons,
@@ -602,6 +614,7 @@ function PartDataRow({
   vinCell: ReactNode
   qty: { installed: number; required: number }
   stationLabel: string
+  orgUnitLabel: string
   reasonSummary?: string
   reasonClassSummary?: string
   lang: string
@@ -644,6 +657,9 @@ function PartDataRow({
       </td>
       <td className={cell} title={stationLabel}>
         {stationLabel}
+      </td>
+      <td className={cell} title={orgUnitLabel}>
+        <span className="mx-auto block max-w-[10rem] truncate text-slate-300">{orgUnitLabel}</span>
       </td>
       <td className={cell}>
         <span className="font-mono tabular-nums">

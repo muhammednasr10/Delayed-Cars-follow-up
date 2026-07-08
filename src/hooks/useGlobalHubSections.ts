@@ -11,7 +11,6 @@ import {
   PackageX,
   Route,
   ScanLine,
-  Settings as SettingsIcon,
   Users,
   Wrench,
   AlertOctagon,
@@ -32,12 +31,17 @@ import { useTodayAttendanceEfficiency } from './useTodayAttendanceEfficiency'
 import { useHomeCardMonthStats } from './useHomeCardMonthStats'
 import { useLang } from '../i18n/LanguageContext'
 import { buildAttendanceHubStats } from '../Utils/attendanceHubStats'
-import { SETTINGS_TAB_ORDER } from '../Types/navigation'
 
 function formatCost(value: number | null, loading: boolean): string {
   if (loading) return '…'
   if (value == null) return '—'
   return value.toLocaleString('en-US', { maximumFractionDigits: 0 })
+}
+
+function formatEfficiencyPct(value: number | null, loading: boolean): string {
+  if (loading) return '…'
+  if (value == null) return '—'
+  return `${value}%`
 }
 
 export function useGlobalHubSections(refreshKey = 0) {
@@ -51,14 +55,14 @@ export function useGlobalHubSections(refreshKey = 0) {
   const loading = permsLoading || pagesLoading
   const [reportOpen, setReportOpen] = useState(false)
   const { activeVehicles, archiveVehicles, loading: countsLoading } = useMissingPartsVehicleCounts(refreshKey)
-  const { entryVehicles, exitVehicles, loading: productivityLoading } = useProductivityMonthCounts(refreshKey)
+  const { entryEfficiency, exitEfficiency, loading: productivityLoading } = useProductivityMonthCounts(refreshKey)
   const { totalMinutes, lostVehicles: stopsLostVehicles, loading: stopsLoading } = useProductionStopMonthCounts(refreshKey)
   const { efficiency, presentTodayCount, workforceCount, statusCounts, loading: attendanceLoading } =
     useTodayAttendanceEfficiency(refreshKey)
   const {
     plannedVehicles,
     workHours,
-    ordersWorked,
+    ordersCount,
     damagedQty,
     damagedCost,
     scratchesCount,
@@ -97,12 +101,12 @@ export function useGlobalHubSections(refreshKey = 0) {
         tone: 'text-cyan-300 bg-cyan-500/15',
         accent: 'cyan' as const,
         onClick: () => go({ department: 'planning', planningTab: 'orders' }),
-        stats: [{ label: t('home.ordersWorkedMonth'), value: monthStatsLoading ? '…' : String(ordersWorked) }]
+        stats: [{ label: t('home.ordersCountMonth'), value: monthStatsLoading ? '…' : String(ordersCount) }]
       },
       showHomeCard('production_home__entry', canViewModule('production')) && {
         key: 'productivity',
-        title: t('productivity.title'),
-        description: t('productivity.subtitle'),
+        title: t('productivity.entryTitle'),
+        description: t('productivity.entrySubtitle'),
         icon: LogIn,
         tone: 'text-emerald-300 bg-emerald-500/15',
         accent: 'emerald' as const,
@@ -114,8 +118,8 @@ export function useGlobalHubSections(refreshKey = 0) {
             productivityTab: 'productivity'
           }),
         stats: [
-          { label: t('home.productivityMonthVehicles'), value: productivityLoading ? '…' : String(entryVehicles) },
-          { label: t('productivity.exitTitle'), value: productivityLoading ? '…' : String(exitVehicles) }
+          { label: t('home.entryProductivityEfficiency'), value: formatEfficiencyPct(entryEfficiency, productivityLoading) },
+          { label: t('home.exitProductivityEfficiency'), value: formatEfficiencyPct(exitEfficiency, productivityLoading) }
         ]
       },
       showHomeCard('production_home__stops', canViewModule('production')) && {
@@ -257,7 +261,7 @@ export function useGlobalHubSections(refreshKey = 0) {
         icon: Layers,
         tone: 'text-orange-300 bg-orange-500/15',
         accent: 'orange' as const,
-        onClick: () => go({ department: 'engineering', engineeringPage: 'ipl', bomTab: 'parts' })
+        onClick: () => go({ department: 'engineering', engineeringPage: 'ipl', bomTab: 'consolidated' })
       },
       showHomeCard('production_home__line_balancing', canLineBalancing) && {
         key: 'lineBalancing',
@@ -296,21 +300,6 @@ export function useGlobalHubSections(refreshKey = 0) {
         accent: 'indigo' as const,
         onClick: () =>
           go({ department: 'production', productionArea: 'assembly', productionPage: 'feedback' })
-      },
-      showHomeCard('production_home__settings', canAccessSettings) && {
-        key: 'settings',
-        title: t('modules.settings'),
-        description: t('modules.settingsDesc'),
-        icon: SettingsIcon,
-        tone: 'text-emerald-300 bg-emerald-500/15',
-        accent: 'emerald' as const,
-        onClick: () =>
-          go({
-            department: 'production',
-            productionArea: 'assembly',
-            productionPage: 'settings',
-            settingsTab: SETTINGS_TAB_ORDER[0]
-          })
       }
     ].filter(Boolean) as HubSection['cards']
   }

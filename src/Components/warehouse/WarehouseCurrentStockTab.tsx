@@ -78,6 +78,18 @@ export function WarehouseCurrentStockTab({ warehouses, models }: Props) {
 
   return (
     <div className="space-y-4">
+      <div className="card-industrial p-4 sm:p-5">
+        <div className="flex items-start gap-3">
+          <div className="rounded-xl bg-cyan-500/15 p-3 text-cyan-300">
+            <Package className="h-6 w-6" />
+          </div>
+          <div>
+            <h3 className="text-lg font-black text-white">{t('warehouses.tabs.currentStock')}</h3>
+            <p className="text-sm text-slate-400">{t('warehouses.subtitle')}</p>
+          </div>
+        </div>
+      </div>
+
       <div className="card-industrial p-4">
         <div className="grid grid-cols-1 gap-3 md:grid-cols-4">
           <div>

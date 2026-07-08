@@ -13,6 +13,7 @@ import {
 } from '../Utils/partNumberNormalize'
 import type { PartUpsertInput } from './partsService'
 import { refreshPartNumberComparisons } from './partComparisonService'
+import { extractIplLogisticsFromRaw } from '../Utils/iplBomLogistics'
 
 const CHUNK = 250
 
@@ -215,6 +216,7 @@ export async function runBomImport(
         modelName: consolidated ? '_' : modelName || '_'
       })
 
+      const logistics = extractIplLogisticsFromRaw(row.raw)
       lineKeys.push(lineKey)
       prepared.push({
         row,
@@ -239,7 +241,9 @@ export async function runBomImport(
           import_line_key: lineKey,
           needs_review: needsReview,
           raw_data: row.raw,
-          is_active: true
+          is_active: true,
+          ...logistics,
+          ...(logistics.part_direction ? { side: logistics.part_direction } : {})
         }
       })
     } catch (e) {

@@ -3,6 +3,8 @@ import { AlertTriangle, CheckCircle2, Car, Pencil, RefreshCcw, ShieldAlert, Tras
 import { useVehicles } from '../../Context/VehiclesContext'
 import { useAuth } from '../../Context/AuthContext'
 import { useLang } from '../../i18n/LanguageContext'
+import { useEmployees } from '../../hooks/useEmployees'
+import { useFactoryOrgScope } from '../../hooks/useFactoryOrgScope'
 import { StatCard } from '../../Components/StatCard'
 import { NewVehicleEntryForm } from '../../Components/NewVehicleEntryForm'
 import { EditVehicleEntryModal } from '../../Components/EditVehicleEntryModal'
@@ -13,6 +15,7 @@ import {
 } from '../../Components/VehicleBadges'
 import { getProductionOrders } from '../../services/productionOrdersService'
 import { vinInChassisRange } from '../../Utils/chassisRange'
+import { orgPathFromLeaf, orgPathLabel } from '../../Utils/employeeOrgPicker'
 import type { ProductionOrder } from '../../Types/production'
 import type { VehicleFilters, VehicleOverview } from '../../Types/vehicle'
 
@@ -38,6 +41,8 @@ export function VehiclesPage({ mode = 'exit' }: Props) {
   const { vehicles, loading, error, setupRequired, refresh, release, deliver, removeVehicle } = useVehicles()
   const { hasRole } = useAuth()
   const { t } = useLang()
+  const { employees } = useEmployees()
+  const { filterRecords, isScopedView, scopeLabel, orgUnits } = useFactoryOrgScope(employees)
   const [filters, setFilters] = useState<VehicleFilters>(emptyFilters)
   const [actionError, setActionError] = useState('')
   const [busyId, setBusyId] = useState<string | null>(null)
@@ -46,6 +51,14 @@ export function VehiclesPage({ mode = 'exit' }: Props) {
 
   const canManage = hasRole('admin', 'production')
   const canRelease = hasRole('admin', 'production')
+  const canAddEntry = canManage || isScopedView
+
+  const scopedVehicles = useMemo(() => filterRecords(vehicles), [vehicles, filterRecords])
+
+  function orgUnitLabel(id: string | null | undefined): string {
+    if (!id) return '—'
+    return orgPathLabel(orgPathFromLeaf(id, orgUnits), orgUnits) || '—'
+  }
 
   useEffect(() => {
     getProductionOrders()
@@ -54,15 +67,15 @@ export function VehiclesPage({ mode = 'exit' }: Props) {
   }, [])
 
   const counts = useMemo(() => {
-    const total = vehicles.length
-    const withMissing = vehicles.filter(v => v.openMissingCount > 0).length
-    const blocked = vehicles.filter(v => v.deliveryBlocked).length
-    const qcFailed = vehicles.filter(v => v.qcStatus === 'failed').length
+    const total = scopedVehicles.length
+    const withMissing = scopedVehicles.filter(v => v.openMissingCount > 0).length
+    const blocked = scopedVehicles.filter(v => v.deliveryBlocked).length
+    const qcFailed = scopedVehicles.filter(v => v.qcStatus === 'failed').length
     return { total, withMissing, blocked, qcFailed }
-  }, [vehicles])
+  }, [scopedVehicles])
 
   const filtered = useMemo(() => {
-    return vehicles
+    return scopedVehicles
       .filter(v => v.deliveryStatus !== 'delivered')
       .filter(v => !filters.deliveryStatus || v.deliveryStatus === filters.deliveryStatus)
       .filter(v => !filters.qcStatus || v.qcStatus === filters.qcStatus)
@@ -77,7 +90,7 @@ export function VehiclesPage({ mode = 'exit' }: Props) {
           .toLowerCase()
           .includes(q)
       })
-  }, [vehicles, filters, mode, productionOrders])
+  }, [scopedVehicles, filters, mode, productionOrders])
 
   const pageTitle = mode === 'entry' ? t('productivity.entryTitle') : t('productivity.exitTitle')
   const pageSubtitle = mode === 'entry' ? t('productivity.entrySubtitle') : t('productivity.exitSubtitle')
@@ -119,7 +132,13 @@ export function VehiclesPage({ mode = 'exit' }: Props) {
         <StatCard title={t('vehicles.qcFailed')} value={counts.qcFailed} subtitle="QC" tone="red" icon={<ShieldAlert className="h-6 w-6" />} />
       </div>
 
-      {mode === 'entry' && canManage && <NewVehicleEntryForm onSaved={() => void refresh()} />}
+      {mode === 'entry' && canAddEntry && <NewVehicleEntryForm onSaved={() => void refresh()} />}
+
+      {isScopedView && scopeLabel && (
+        <div className="rounded-xl border border-cyan-500/25 bg-cyan-500/10 p-3 text-sm text-cyan-100">
+          {t('org.scopeBanner', { scope: scopeLabel })}
+        </div>
+      )}
 
       <div className="card-industrial overflow-hidden">
         <div className="border-b border-slate-800 p-4 sm:p-5">
@@ -161,6 +180,7 @@ export function VehiclesPage({ mode = 'exit' }: Props) {
                   <th className={`${entryCell} text-xs font-black uppercase text-slate-400`}>{t('vehicles.cols.model')}</th>
                   <th className={`${entryCell} text-xs font-black uppercase text-slate-400`}>{t('vehicles.cols.color')}</th>
                   <th className={`${entryCell} text-xs font-black uppercase text-slate-400`}>{t('vehicles.cols.vin')}</th>
+                  <th className={`${entryCell} text-xs font-black uppercase text-slate-400`}>{t('vehicles.cols.orgUnit')}</th>
                   <th className={`${entryCell} text-xs font-black uppercase text-slate-400`}>{t('vehicles.cols.po')}</th>
                   {canManage && (
                     <th data-export-skip className={`${entryCell} text-xs font-black uppercase text-slate-400`}>{t('common.actions')}</th>
@@ -187,6 +207,7 @@ export function VehiclesPage({ mode = 'exit' }: Props) {
                     <td className={`${entryCell} font-mono font-black text-white`} dir="ltr">
                       {v.vin}
                     </td>
+                    <td className={entryCell}>{orgUnitLabel(v.factoryOrgUnitId)}</td>
                     <td className={`${entryCell} font-mono`} dir="ltr">
                       {resolveProductionOrderLabel(v, productionOrders)}
                     </td>

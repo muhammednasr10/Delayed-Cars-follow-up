@@ -1,7 +1,7 @@
 import type { MissingPartDetail, MissingPartFilters } from '../Types/missingPart'
 
-export const ACTIVE_COLS = ['select', 'vin', 'model', 'color', 'station', 'qty', 'reason', 'reasonClass', 'department', 'dateTime', 'actions'] as const
-export const HISTORY_COLS = ['vin', 'model', 'color', 'station', 'qty', 'reason', 'reasonClass', 'department', 'dateTime', 'resolvedAt', 'actions'] as const
+export const ACTIVE_COLS = ['select', 'vin', 'model', 'color', 'station', 'orgUnit', 'qty', 'reason', 'reasonClass', 'department', 'dateTime', 'actions'] as const
+export const HISTORY_COLS = ['vin', 'model', 'color', 'station', 'orgUnit', 'qty', 'reason', 'reasonClass', 'department', 'dateTime', 'resolvedAt', 'actions'] as const
 
 export const cell = 'table-cell-compact whitespace-nowrap text-center align-middle'
 export const actionsCell = `${cell} sticky z-10 bg-slate-900/95 shadow-[inset_8px_0_12px_rgba(0,0,0,0.3)]`
@@ -13,10 +13,13 @@ export function isSchemaMissing(message: string): boolean {
 }
 
 export function applyFilters(items: MissingPartDetail[], filters: MissingPartFilters) {
+  const stations = new Set(filters.stationNumbers)
+  const models = new Set(filters.modelNames)
+  const departments = new Set(filters.departments)
   const base = items
-    .filter(i => !filters.stationNumber || i.stationNumber === filters.stationNumber)
-    .filter(i => !filters.modelName || i.modelName === filters.modelName)
-    .filter(i => !filters.department || i.department === filters.department)
+    .filter(i => stations.size === 0 || (i.stationNumber != null && stations.has(i.stationNumber)))
+    .filter(i => models.size === 0 || models.has(i.modelName))
+    .filter(i => departments.size === 0 || (i.department != null && departments.has(i.department)))
 
   const q = filters.search.trim().toLowerCase()
   if (!q) return base

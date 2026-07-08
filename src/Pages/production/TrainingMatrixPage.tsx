@@ -43,7 +43,7 @@ export function TrainingMatrixPage() {
   const { employees: allEmployees } = useEmployees()
   const [orgUnits, setOrgUnits] = useState<FactoryOrgUnit[]>([])
   const assemblyEmployees = useMemo(() => filterAssemblyWorkforce(allEmployees, orgUnits), [allEmployees, orgUnits])
-  const { scopedEmployees: employees, isScopedView } = useAssemblyWorkforceScope(assemblyEmployees)
+  const { scopedEmployees: employees, isScopedView, scopeLabel } = useAssemblyWorkforceScope(assemblyEmployees)
   const assemblyFilterMissing = useMemo(() => isAssemblyWorkforceFilterMissing(orgUnits), [orgUnits])
   const assemblyWorkforceEmpty = orgUnits.length > 0 && employees.length === 0 && allEmployees.some(e => e.isActive)
   const { skills } = useTrainingSkills()
@@ -98,7 +98,7 @@ export function TrainingMatrixPage() {
       {tab === 'org' && <OrgStructurePage embedded workforceScope="assembly" />}
       {isScopedView && tab !== 'org' && (
         <div className="mb-4 rounded-xl border border-cyan-500/25 bg-cyan-500/10 p-3 text-sm text-cyan-100">
-          {t('org.assemblySupervisorScopeHint')}
+          {scopeLabel ? t('org.scopeBanner', { scope: scopeLabel }) : t('org.assemblySupervisorScopeHint')}
         </div>
       )}
       {tab === 'attendance' && (

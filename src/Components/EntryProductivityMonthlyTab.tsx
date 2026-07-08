@@ -3,6 +3,8 @@ import { CalendarDays } from 'lucide-react'
 import { useAuth } from '../Context/AuthContext'
 import { useVehicles } from '../Context/VehiclesContext'
 import { useLang } from '../i18n/LanguageContext'
+import { useEmployees } from '../hooks/useEmployees'
+import { useFactoryOrgScope } from '../hooks/useFactoryOrgScope'
 import { inputCls } from '../Components/FormField'
 import {
   buildModelColumns,
@@ -37,7 +39,10 @@ export function EntryProductivityMonthlyTab() {
   const { t } = useLang()
   const { hasRole } = useAuth()
   const { vehicles } = useVehicles()
+  const { employees } = useEmployees()
+  const { filterRecords, isScopedView, scopeLabel } = useFactoryOrgScope(employees)
   const canManage = hasRole('admin', 'production')
+  const scopedVehicles = useMemo(() => filterRecords(vehicles), [vehicles, filterRecords])
 
   const init = currentYm()
   const [year, setYear] = useState(init.year)
@@ -117,7 +122,7 @@ export function EntryProductivityMonthlyTab() {
   }
 
   function syncFromDaily() {
-    const tallies = tallyVehiclesByFamilyDay(vehicles, models, year, month)
+    const tallies = tallyVehiclesByFamilyDay(scopedVehicles, models, year, month)
     setGrid(prev => {
       const next = new Map(prev)
       for (const model of modelRows) {
@@ -163,6 +168,11 @@ export function EntryProductivityMonthlyTab() {
 
   return (
     <section className="space-y-4">
+      {isScopedView && scopeLabel && (
+        <div className="rounded-xl border border-cyan-500/25 bg-cyan-500/10 p-3 text-sm text-cyan-100">
+          {t('org.scopeBanner', { scope: scopeLabel })}
+        </div>
+      )}
       <div className="card-industrial p-4 sm:p-5">
         <div className="mb-4 flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
           <div className="flex items-start gap-3">

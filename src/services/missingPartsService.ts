@@ -45,6 +45,7 @@ type DetailRow = {
   shortage_resolved_at: string | null
   report_group_id: string | null
   station_id: string | null
+  factory_org_unit_id: string | null
 }
 
 function mapDetail(row: DetailRow): MissingPartDetail {
@@ -80,7 +81,8 @@ function mapDetail(row: DetailRow): MissingPartDetail {
     updatedAt: row.updated_at,
     shortageResolvedAt: row.shortage_resolved_at,
     reportGroupId: row.report_group_id,
-    stationId: row.station_id
+    stationId: row.station_id,
+    factoryOrgUnitId: row.factory_org_unit_id
   }
 }
 
@@ -215,7 +217,8 @@ export async function reportMissingPartsBatch(
     p_department: input.department,
     p_priority: input.priority,
     p_stopper_type: input.stopperType,
-    p_notes: input.notes || null
+    p_notes: input.notes || null,
+    p_factory_org_unit_id: input.factoryOrgUnitId || null
   })
 
   if (error) throw new Error(error.message)

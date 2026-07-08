@@ -1,19 +1,13 @@
 import { useState } from 'react'
-import { Layers } from 'lucide-react'
-import { useLang } from '../../i18n/LanguageContext'
 import { useNavigation } from '../../Context/NavigationContext'
-import { PageTabShell } from '../../Components/layout/PageTabShell'
 import { BomByModelTab } from '../../Components/bom/BomByModelTab'
-import { PartComparisonTab } from '../../Components/bom/PartComparisonTab'
+import { BomPartListTab } from '../../Components/bom/BomPartListTab'
 import { PartCategoriesTab } from '../../Components/bom/PartCategoriesTab'
 import { BomImportTab } from '../../Components/bom/BomImportTab'
 import { BomDashboardTab } from '../../Components/bom/BomDashboardTab'
 
-type Tab = 'parts' | 'partsGd' | 'compare' | 'categories' | 'import' | 'dashboard'
-
 export function BomPage({ embedded = false }: { embedded?: boolean }) {
-  const { t } = useLang()
-  const { bomTab: tab, setBomTab: setTab } = useNavigation()
+  const { bomTab: tab } = useNavigation()
   const [msg, setMsg] = useState('')
   const [msgErr, setMsgErr] = useState(false)
 
@@ -22,15 +16,6 @@ export function BomPage({ embedded = false }: { embedded?: boolean }) {
     setMsgErr(Boolean(isError))
     setTimeout(() => setMsg(''), 4000)
   }
-
-  const tabs: { key: Tab; label: string }[] = [
-    { key: 'parts', label: t('bom.tabs.parts') },
-    { key: 'partsGd', label: t('bom.tabs.partsGd') },
-    { key: 'compare', label: t('bom.tabs.compare') },
-    { key: 'categories', label: t('bom.tabs.categories') },
-    { key: 'import', label: t('bom.tabs.import') },
-    { key: 'dashboard', label: t('bom.tabs.dashboard') }
-  ]
 
   const message = msg ? (
     <div
@@ -42,48 +27,21 @@ export function BomPage({ embedded = false }: { embedded?: boolean }) {
 
   const content = (
     <>
-      {tab === 'parts' && <BomByModelTab notify={notify} lineScope="main" />}
-      {tab === 'partsGd' && <BomByModelTab notify={notify} lineScope="gd" />}
-      {tab === 'compare' && <PartComparisonTab />}
+      {tab === 'consolidated' && <BomByModelTab notify={notify} lineScope="main" viewMode="consolidated" />}
+      {tab === 'iplModels' && <BomByModelTab notify={notify} lineScope="main" viewMode="perModel" />}
+      {tab === 'partList' && <BomPartListTab notify={notify} />}
       {tab === 'categories' && <PartCategoriesTab notify={notify} />}
       {tab === 'import' && <BomImportTab notify={notify} />}
       {tab === 'dashboard' && <BomDashboardTab />}
     </>
   )
 
-  if (embedded) {
-    return (
-      <div className="space-y-4">
-        {message}
-        <div className="flex flex-wrap gap-2">
-          {tabs.map(item => (
-            <button
-              key={item.key}
-              type="button"
-              onClick={() => setTab(item.key)}
-              className={`rounded-xl px-4 py-2 text-sm font-black ${tab === item.key ? 'bg-violet-500 text-slate-950' : 'bg-slate-800 text-slate-300 hover:bg-slate-700'}`}
-            >
-              {item.label}
-            </button>
-          ))}
-        </div>
-        {content}
-      </div>
-    )
-  }
+  if (embedded) return <div className="space-y-4">{message}{content}</div>
 
   return (
-    <PageTabShell
-      title={t('bom.title')}
-      subtitle={t('bom.subtitle')}
-      icon={<Layers className="h-7 w-7" />}
-      tabs={tabs}
-      activeTab={tab}
-      onTabChange={setTab}
-      activeClassName="bg-violet-500 text-slate-950"
-      message={message}
-    >
+    <section className="space-y-4">
+      {message}
       {content}
-    </PageTabShell>
+    </section>
   )
 }

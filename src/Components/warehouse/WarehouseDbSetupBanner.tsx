@@ -7,7 +7,7 @@ export function isWarehouseSchemaMissing(message: string): boolean {
     m.includes('schema cache') ||
     m.includes('could not find the table') ||
     m.includes('does not exist')
-  ) && (m.includes('warehouse_feeding') || m.includes('v_model_part_inventory'))
+  ) && (m.includes('warehouse_feeding') || m.includes('v_model_part_inventory') || m.includes('warehouse_racks') || m.includes('warehouse_carts'))
 }
 
 export function WarehouseDbSetupBanner({ detail }: { detail?: string }) {
@@ -42,7 +42,7 @@ export function WarehouseDbSetupBanner({ detail }: { detail?: string }) {
         <p className="mt-2 text-xs text-slate-500">{t('warehouses.setup.orFiles')}</p>
         <ul className="mt-1 space-y-1 font-mono text-xs text-slate-400" dir="ltr">
           <li>0073_warehouse_inventory_feeding.sql</li>
-          <li>0074_warehouse_feeding_plans.sql</li>
+          <li>0132_warehouse_equipment.sql</li>
         </ul>
       </div>
 

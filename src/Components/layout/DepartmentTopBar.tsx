@@ -1,9 +1,9 @@
-import { ChevronDown } from 'lucide-react'
-import { useEffect, useState } from 'react'
+import { useMemo } from 'react'
 import { useLang } from '../../i18n/LanguageContext'
 import { useNavigation } from '../../Context/NavigationContext'
-import { useDepartmentNavPages } from '../../hooks/useDepartmentNavPages'
+import { useDepartmentNavPages, type NavPageItem } from '../../hooks/useDepartmentNavPages'
 import type { DepartmentId } from '../../Types/navigation'
+import { NavTabButton } from './NavTabButton'
 
 /** أقسام تظهر صفحاتها في الشريط العلوي — التخطيط له تبويبات داخل الصفحة فلا يُكرَّر هنا */
 const IMPLEMENTED_DEPARTMENTS = new Set<DepartmentId>([
@@ -17,18 +17,16 @@ const IMPLEMENTED_DEPARTMENTS = new Set<DepartmentId>([
 export function DepartmentTopBar() {
   const { t } = useLang()
   const nav = useNavigation()
-  const { pagesForDepartment, isPageActive, isProductionAreaActive, productionAreaTabs, settingsPage, currentDepartment, showProfile } =
-    useDepartmentNavPages()
-  const [expandedPage, setExpandedPage] = useState<string | null>(null)
-
-  useEffect(() => {
-    if (!expandedPage) return
-    function onDocClick() {
-      setExpandedPage(null)
-    }
-    document.addEventListener('click', onDocClick)
-    return () => document.removeEventListener('click', onDocClick)
-  }, [expandedPage])
+  const {
+    pagesForDepartment,
+    isPageActive,
+    isNavChildActive,
+    isProductionAreaActive,
+    productionAreaTabs,
+    settingsPage,
+    currentDepartment,
+    showProfile
+  } = useDepartmentNavPages()
 
   const isGlobalHomeActive = !showProfile && nav.showGlobalHome
   const isSettingsActive = !showProfile && !nav.showGlobalHome && nav.department === 'production' && nav.productionPage === 'settings'
@@ -44,8 +42,36 @@ export function DepartmentTopBar() {
     ((isProduction && areaTabs.length > 0) || (!isProduction && sectionPages.length > 0))
   const settingsTabs = settingsPage.visible ? settingsPage.children ?? [] : []
 
+  const activePageWithChildren = useMemo(() => {
+    if (!hasSectionPages || isProduction && !showAssemblyPages) return null
+    return sectionPages.find(p => p.children?.length && isPageActive(currentDepartment, p.key)) ?? null
+  }, [hasSectionPages, isProduction, showAssemblyPages, sectionPages, currentDepartment, isPageActive])
+
   if (showProfile || isGlobalHomeActive) return null
   if (!isSettingsActive && !hasSectionPages) return null
+
+  function renderChildRow(page: NavPageItem) {
+    if (!page.children?.length) return null
+    return (
+      <div className="border-t border-slate-800/80 pt-2">
+        <p className="mb-1.5 px-1 text-[10px] font-black uppercase tracking-widest text-cyan-400/70">
+          {page.label}
+        </p>
+        <div className="flex gap-1.5 overflow-x-auto pb-0.5 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+          {page.children.map(child => (
+            <NavTabButton
+              key={child.key}
+              label={child.label}
+              icon={child.icon}
+              compact
+              active={isNavChildActive(currentDepartment, page.key, child.key)}
+              onClick={child.onClick}
+            />
+          ))}
+        </div>
+      </div>
+    )
+  }
 
   return (
     <div className="sticky top-0 z-30 -mx-1 rounded-2xl border border-slate-700/70 bg-slate-950/95 p-2 shadow-lg shadow-black/25 backdrop-blur-md sm:-mx-0 sm:p-3">
@@ -54,21 +80,15 @@ export function DepartmentTopBar() {
           <div>
             <p className="mb-1.5 px-1 text-[10px] font-black uppercase tracking-widest text-slate-500">{t('nav.settings')}</p>
             <div className="flex gap-1.5 overflow-x-auto pb-0.5 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-              {settingsTabs.map(tab => {
-                const active = nav.settingsTab === tab.key
-                return (
-                  <button
-                    key={tab.key}
-                    type="button"
-                    onClick={tab.onClick}
-                    className={`shrink-0 rounded-xl px-3 py-2 text-xs font-black transition sm:text-sm ${
-                      active ? 'bg-emerald-500 text-slate-950' : 'bg-slate-800 text-slate-300 hover:bg-slate-700 hover:text-white'
-                    }`}
-                  >
-                    {tab.label}
-                  </button>
-                )
-              })}
+              {settingsTabs.map(tab => (
+                <NavTabButton
+                  key={tab.key}
+                  label={tab.label}
+                  icon={tab.icon}
+                  active={nav.settingsTab === tab.key}
+                  onClick={tab.onClick}
+                />
+              ))}
             </div>
           </div>
         )}
@@ -81,24 +101,15 @@ export function DepartmentTopBar() {
                   {t('departments.productionAreas')}
                 </p>
                 <div className="flex gap-1.5 overflow-x-auto pb-0.5 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-                  {areaTabs.map(page => {
-                    const active = isProductionAreaActive(page.key)
-                    return (
-                      <button
-                        key={page.key}
-                        type="button"
-                        onClick={() => {
-                          setExpandedPage(null)
-                          page.onNavigate()
-                        }}
-                        className={`shrink-0 rounded-xl px-3 py-2 text-xs font-black transition sm:text-sm ${
-                          active ? 'bg-slate-100 text-slate-950' : 'bg-slate-800 text-slate-300 hover:bg-slate-700 hover:text-white'
-                        }`}
-                      >
-                        {page.label}
-                      </button>
-                    )
-                  })}
+                  {areaTabs.map(page => (
+                    <NavTabButton
+                      key={page.key}
+                      label={page.label}
+                      icon={page.icon}
+                      active={isProductionAreaActive(page.key)}
+                      onClick={() => page.onNavigate()}
+                    />
+                  ))}
                 </div>
               </div>
             )}
@@ -108,64 +119,28 @@ export function DepartmentTopBar() {
                 <p className="mb-1.5 px-1 text-[10px] font-black uppercase tracking-widest text-slate-500">
                   {isProduction
                     ? t('departments.assemblyTabs')
-                    : currentDepartment === 'engineering'
-                      ? t('departments.engineeringTabs')
-                      : currentDepartment === 'quality'
-                        ? t('departments.qualityTabs')
-                        : currentDepartment === 'hr'
-                          ? t('departments.hrTabs')
-                          : t(`departments.${currentDepartment}`)}
+                    : currentDepartment === 'warehouses'
+                      ? t('departments.warehousesTabs')
+                      : currentDepartment === 'engineering'
+                        ? t('departments.engineeringTabs')
+                        : currentDepartment === 'quality'
+                          ? t('departments.qualityTabs')
+                          : currentDepartment === 'hr'
+                            ? t('departments.hrTabs')
+                            : t(`departments.${currentDepartment}`)}
                 </p>
                 <div className="flex gap-1.5 overflow-x-auto pb-0.5 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-                  {sectionPages.map(page => {
-                    const active = isPageActive(currentDepartment, page.key)
-                    const hasChildren = Boolean(page.children?.length)
-                    const open = expandedPage === page.key
-
-                    return (
-                      <div key={page.key} className="relative shrink-0">
-                        <button
-                          type="button"
-                          onClick={e => {
-                            e.stopPropagation()
-                            if (hasChildren) {
-                              setExpandedPage(open ? null : page.key)
-                              page.onNavigate()
-                            } else {
-                              setExpandedPage(null)
-                              page.onNavigate()
-                            }
-                          }}
-                          className={`flex items-center gap-1 rounded-xl px-3 py-2 text-xs font-black transition sm:text-sm ${
-                            active ? 'bg-slate-100 text-slate-950' : 'bg-slate-800 text-slate-300 hover:bg-slate-700 hover:text-white'
-                          }`}
-                        >
-                          {page.label}
-                          {hasChildren && <ChevronDown className={`h-3.5 w-3.5 transition-transform ${open ? 'rotate-180' : ''}`} />}
-                        </button>
-
-                        {hasChildren && open && (
-                          <div className="absolute start-0 top-full z-40 mt-1 min-w-[12rem] rounded-xl border border-slate-700 bg-slate-900 py-1 shadow-xl">
-                            {page.children!.map(child => (
-                              <button
-                                key={child.key}
-                                type="button"
-                                onClick={e => {
-                                  e.stopPropagation()
-                                  child.onClick()
-                                  setExpandedPage(null)
-                                }}
-                                className="block w-full px-3 py-2 text-start text-xs font-bold text-slate-300 hover:bg-slate-800 hover:text-white"
-                              >
-                                {child.label}
-                              </button>
-                            ))}
-                          </div>
-                        )}
-                      </div>
-                    )
-                  })}
+                  {sectionPages.map(page => (
+                    <NavTabButton
+                      key={page.key}
+                      label={page.label}
+                      icon={page.icon}
+                      active={isPageActive(currentDepartment, page.key)}
+                      onClick={() => page.onNavigate()}
+                    />
+                  ))}
                 </div>
+                {activePageWithChildren && renderChildRow(activePageWithChildren)}
               </div>
             )}
           </>

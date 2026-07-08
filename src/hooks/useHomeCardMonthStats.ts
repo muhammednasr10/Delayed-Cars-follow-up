@@ -4,6 +4,7 @@ import { getModelPlanTargets } from '../services/modelProductionPlanService'
 import { getProductionOrders } from '../services/productionOrdersService'
 import { getProductionPlanWorkDays } from '../services/productionPlanWorkDaysService'
 import { getScratches } from '../services/scratchesService'
+import { orderBelongsToPlanMonth } from '../Utils/planOrdersCoverage'
 
 function currentYm(): { year: number; month: number; start: string; end: string; prefix: string } {
   const d = new Date()
@@ -29,6 +30,7 @@ export function useHomeCardMonthStats(refreshKey = 0) {
   const [plannedVehicles, setPlannedVehicles] = useState(0)
   const [workHours, setWorkHours] = useState(0)
   const [ordersWorked, setOrdersWorked] = useState(0)
+  const [ordersCount, setOrdersCount] = useState(0)
   const [damagedQty, setDamagedQty] = useState(0)
   const [damagedCost, setDamagedCost] = useState<number | null>(null)
   const [scratchesCount, setScratchesCount] = useState(0)
@@ -66,6 +68,7 @@ export function useHomeCardMonthStats(refreshKey = 0) {
           return false
         }).length
         setOrdersWorked(worked)
+        setOrdersCount(orders.filter(order => orderBelongsToPlanMonth(order, year, month)).length)
 
         let qty = 0
         let cost = 0
@@ -88,6 +91,7 @@ export function useHomeCardMonthStats(refreshKey = 0) {
         setPlannedVehicles(0)
         setWorkHours(0)
         setOrdersWorked(0)
+        setOrdersCount(0)
         setDamagedQty(0)
         setDamagedCost(null)
         setScratchesCount(0)
@@ -105,6 +109,7 @@ export function useHomeCardMonthStats(refreshKey = 0) {
     plannedVehicles,
     workHours,
     ordersWorked,
+    ordersCount,
     damagedQty,
     damagedCost,
     scratchesCount,

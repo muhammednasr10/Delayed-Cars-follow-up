@@ -3,6 +3,7 @@ import { LogIn } from 'lucide-react'
 import { useAuth } from '../../Context/AuthContext'
 import { useLang } from '../../i18n/LanguageContext'
 import { AppLogo } from '../../Components/AppLogo'
+import { DeveloperCredit } from '../../Components/DeveloperCredit'
 import { UserSupportRequestModal } from '../../Components/permissions/UserSupportRequestModal'
 
 export function LoginPage() {
@@ -101,6 +102,10 @@ export function LoginPage() {
           defaultEmail={email}
           defaultType="password_reset"
         />
+
+        <div className="mt-6 border-t border-slate-800 pt-4">
+          <DeveloperCredit variant="card" />
+        </div>
       </div>
     </main>
   )

@@ -1,8 +1,10 @@
+import { useMemo } from 'react'
 import { AlertTriangle, Archive, BarChart3, PlusCircle } from 'lucide-react'
 import { useLang } from '../../i18n/LanguageContext'
 import { mpLookupLabel } from '../../Utils/mpLookupLabel'
 import type { MpLookupOption } from '../../Types/mpLookup'
 import type { MissingPartDetail, MissingPartFilters } from '../../Types/missingPart'
+import { FilterMultiSelect } from '../FilterMultiSelect'
 import { MissingPartSearchAutocomplete } from './MissingPartSearchAutocomplete'
 
 export type ListTab = 'active' | 'summary' | 'history' | 'historySummary'
@@ -45,6 +47,19 @@ export function MissingPartsToolbar({
   onReport
 }: Props) {
   const { t, lang } = useLang()
+
+  const stationSelectOptions = useMemo(
+    () => stationOptions.map(s => ({ value: s, label: s })),
+    [stationOptions]
+  )
+  const modelSelectOptions = useMemo(
+    () => modelOptions.map(m => ({ value: m, label: m })),
+    [modelOptions]
+  )
+  const departmentSelectOptions = useMemo(
+    () => departmentFilterCodes.map(code => ({ value: code, label: mpLookupLabel(departments, code, lang) })),
+    [departmentFilterCodes, departments, lang]
+  )
 
   const tabButtons: { key: ListTab; className: (active: boolean) => string; icon?: typeof Archive }[] = [
     {
@@ -131,30 +146,30 @@ export function MissingPartsToolbar({
             value={filters.search}
             onChange={search => onFiltersChange({ search })}
           />
-          <select className="input-dark" value={filters.stationNumber} onChange={e => onFiltersChange({ stationNumber: e.target.value })}>
-            <option value="">{t('mp.filterStation')}</option>
-            {stationOptions.map(s => (
-              <option key={s} value={s}>
-                {s}
-              </option>
-            ))}
-          </select>
-          <select className="input-dark" value={filters.modelName} onChange={e => onFiltersChange({ modelName: e.target.value })}>
-            <option value="">{t('mp.filterModel')}</option>
-            {modelOptions.map(m => (
-              <option key={m} value={m}>
-                {m}
-              </option>
-            ))}
-          </select>
-          <select className="input-dark" value={filters.department} onChange={e => onFiltersChange({ department: e.target.value })}>
-            <option value="">{t('mp.filterDepartment')}</option>
-            {departmentFilterCodes.map(code => (
-              <option key={code} value={code}>
-                {mpLookupLabel(departments, code, lang)}
-              </option>
-            ))}
-          </select>
+          <FilterMultiSelect
+            options={stationSelectOptions}
+            value={filters.stationNumbers}
+            onChange={stationNumbers => onFiltersChange({ stationNumbers })}
+            allLabel={t('mp.filterStation')}
+            selectedCountLabel={n => t('mp.filterSelectedCount', { n })}
+            clearLabel={t('mp.filterClear')}
+          />
+          <FilterMultiSelect
+            options={modelSelectOptions}
+            value={filters.modelNames}
+            onChange={modelNames => onFiltersChange({ modelNames })}
+            allLabel={t('mp.filterModel')}
+            selectedCountLabel={n => t('mp.filterSelectedCount', { n })}
+            clearLabel={t('mp.filterClear')}
+          />
+          <FilterMultiSelect
+            options={departmentSelectOptions}
+            value={filters.departments}
+            onChange={departments => onFiltersChange({ departments })}
+            allLabel={t('mp.filterDepartment')}
+            selectedCountLabel={n => t('mp.filterSelectedCount', { n })}
+            clearLabel={t('mp.filterClear')}
+          />
         </div>
       )}
     </div>

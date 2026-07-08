@@ -1,6 +1,8 @@
 import type { Employee } from '../Types/employee'
+import type { FactoryOrgUnit } from '../Types/factoryOrg'
 import type { JobRole } from '../Types/enums'
 import { collectSubordinateIds, getMyManagers } from './employeeHierarchy'
+import { filterWorkforceByOrgScope } from './factoryOrgScope'
 
 /** إنتاجية الدخول (تريم أ/ب) مقابل الخروج (شاسيه/فاينال) */
 export type AssemblyLineScope = 'entry' | 'exit'
@@ -67,8 +69,15 @@ function collectScopeKinds(employees: Employee[], viewerId: string): Set<Assembl
 export function filterAssemblyWorkforceForViewer(
   employees: Employee[],
   viewerEmployeeId: string | null,
-  seesAll: boolean
+  seesAll: boolean,
+  orgUnits: FactoryOrgUnit[] = []
 ): Employee[] {
+  if (orgUnits.length > 0) {
+    const orgScoped = filterWorkforceByOrgScope(employees, viewerEmployeeId, seesAll, orgUnits)
+    const viewer = viewerEmployeeId ? employees.find(e => e.id === viewerEmployeeId) : null
+    if (viewer?.factoryOrgUnitId) return orgScoped
+  }
+
   if (seesAll || !viewerEmployeeId) return employees
 
   const viewer = employees.find(e => e.id === viewerEmployeeId)

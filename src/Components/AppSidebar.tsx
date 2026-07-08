@@ -1,5 +1,18 @@
 import { useEffect, useState } from 'react'
-import { ChevronDown, Settings, X } from 'lucide-react'
+import {
+  CalendarDays,
+  ChevronDown,
+  ClipboardList,
+  Home,
+  LayoutGrid,
+  Package,
+  Settings,
+  ShoppingCart,
+  Truck,
+  Boxes,
+  X
+} from 'lucide-react'
+import type { LucideIcon } from 'lucide-react'
 import { useLang } from '../i18n/LanguageContext'
 import { useAuth, profileIsAdmin } from '../Context/AuthContext'
 import { usePermissions } from '../Context/PermissionsContext'
@@ -13,8 +26,9 @@ import {
 } from '../config/pageAccess'
 import { useNavigation } from '../Context/NavigationContext'
 import { DEPARTMENTS, departmentAccentClass } from '../config/departments'
+import { DeveloperCredit } from './DeveloperCredit'
 import type { DepartmentId, EngineeringPage, ProductionPage } from '../Types/navigation'
-import { SETTINGS_TAB_ORDER, PRODUCTION_AREA_ORDER } from '../Types/navigation'
+import { SETTINGS_TAB_ORDER, PRODUCTION_AREA_ORDER, BOM_TAB_ORDER, bomTabPermissionKey } from '../Types/navigation'
 
 type PageChild = { key: string; label: string; onClick: () => void; visible?: boolean }
 
@@ -22,6 +36,7 @@ type SidebarPage = {
   key: string
   label: string
   visible: boolean
+  icon?: LucideIcon
   children?: PageChild[]
   onNavigate: () => void
 }
@@ -217,8 +232,8 @@ export function AppSidebar() {
       key: 'ipl',
       label: t('nav.ipl'),
       visible: canShowEngineeringIpl,
-      onNavigate: () => sidebarNav({ department: 'engineering', engineeringPage: 'ipl' }, true),
-      children: (['parts', 'partsGd', 'compare', 'categories', 'import', 'dashboard'] as const).map(key => ({
+      onNavigate: () => sidebarNav({ department: 'engineering', engineeringPage: 'ipl', bomTab: 'consolidated' }, true),
+      children: BOM_TAB_ORDER.map(key => ({
         key,
         label: t(`bom.tabs.${key}`),
         onClick: () => sidebarNav({ department: 'engineering', engineeringPage: 'ipl', bomTab: key })
@@ -277,7 +292,11 @@ export function AppSidebar() {
   }
 
   function isWarehousesActive(key: string) {
-    return !nav.showProfile && nav.department === 'warehouses' && nav.warehousesTab === key
+    if (nav.showProfile || nav.department !== 'warehouses') return false
+    if (key === 'feedingPlan') return nav.warehousesTab === 'feeding' && nav.warehousesFeedingSubTab === 'plan'
+    if (key === 'feedingActual') return nav.warehousesTab === 'feeding' && nav.warehousesFeedingSubTab === 'actual'
+    if (key === 'equipment') return nav.warehousesTab === 'equipment'
+    return nav.warehousesTab === key
   }
 
   function isPlanningActive(key: string) {
@@ -319,20 +338,43 @@ export function AppSidebar() {
     {
       key: 'home',
       label: t('nav.home'),
+      icon: Home,
       visible: navLoading || canViewPage(pagePermForWarehouses('home')),
       onNavigate: () => sidebarNav({ department: 'warehouses', warehousesTab: 'home' })
     },
     {
       key: 'currentStock',
       label: t('warehouses.tabs.currentStock'),
+      icon: Package,
       visible: navLoading || canViewPage(pagePermForWarehouses('currentStock')),
       onNavigate: () => sidebarNav({ department: 'warehouses', warehousesTab: 'currentStock' })
     },
     {
-      key: 'feeding',
-      label: t('warehouses.tabs.feeding'),
+      key: 'feedingPlan',
+      label: t('warehouses.feeding.subTabs.plan'),
+      icon: CalendarDays,
       visible: navLoading || canViewPage(pagePermForWarehouses('feeding')),
-      onNavigate: () => sidebarNav({ department: 'warehouses', warehousesTab: 'feeding' })
+      onNavigate: () => sidebarNav({ department: 'warehouses', warehousesTab: 'feeding', warehousesFeedingSubTab: 'plan' })
+    },
+    {
+      key: 'feedingActual',
+      label: t('warehouses.feeding.subTabs.actual'),
+      icon: Truck,
+      visible: navLoading || canViewPage(pagePermForWarehouses('feeding')),
+      onNavigate: () => sidebarNav({ department: 'warehouses', warehousesTab: 'feeding', warehousesFeedingSubTab: 'actual' })
+    },
+    {
+      key: 'equipment',
+      label: t('warehouses.tabs.equipment'),
+      icon: Boxes,
+      visible: navLoading || canViewPage(pagePermForWarehouses('equipment')),
+      onNavigate: () => sidebarNav({ department: 'warehouses', warehousesTab: 'equipment', warehousesEquipmentSubTab: 'racks' }, true),
+      children: (['racks', 'carts'] as const).map(key => ({
+        key,
+        label: t(`warehouses.equipment.subTabs.${key}`),
+        onClick: () =>
+          sidebarNav({ department: 'warehouses', warehousesTab: 'equipment', warehousesEquipmentSubTab: key })
+      }))
     }
   ]
 
@@ -372,7 +414,14 @@ export function AppSidebar() {
                     active ? 'bg-slate-800 text-slate-100' : 'text-slate-400 hover:bg-slate-800/70 hover:text-slate-200'
                   }`}
                 >
-                  <span>{page.label}</span>
+                  <span className="flex min-w-0 items-center gap-2">
+                    {page.icon && (
+                      <span className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-lg ${active ? 'bg-cyan-500/15 text-cyan-300' : 'bg-slate-900 text-slate-500'}`}>
+                        <page.icon className="h-4 w-4" />
+                      </span>
+                    )}
+                    <span className="truncate">{page.label}</span>
+                  </span>
                   {hasChildren && (
                     <ChevronDown
                       className={`h-4 w-4 shrink-0 text-slate-500 transition-transform ${pageOpen ? 'rotate-180' : ''}`}
@@ -495,11 +544,15 @@ export function AppSidebar() {
         </div>
 
         {profile && (
-          <div className="border-t border-slate-800 px-4 py-3 text-xs text-slate-500">
+          <div className="border-t border-slate-800 px-4 py-2 text-xs text-slate-500">
             {profile.full_name || profile.email}
             {profileIsAdmin(profile) ? ` · ${t('permissions.roleCodes.admin')}` : ''}
           </div>
         )}
+
+        <div className="border-t border-slate-800 px-4 py-3">
+          <DeveloperCredit variant="footer" />
+        </div>
       </aside>
     </>
   )

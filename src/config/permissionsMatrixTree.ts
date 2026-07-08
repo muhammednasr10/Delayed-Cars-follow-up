@@ -270,9 +270,9 @@ export const PERMISSIONS_MATRIX_TREE: MatrixTreeNode[] = [
         pagePerm: 'engineering_ipl',
         actionModules: [{ moduleKey: 'bom' }],
         children: [
-          { id: 'eng_bom_parts', labelKey: 'bom.tabs.parts', pagePerm: 'engineering_ipl__parts' },
-          { id: 'eng_bom_gd', labelKey: 'bom.tabs.partsGd', pagePerm: 'engineering_ipl__partsGd' },
-          { id: 'eng_bom_cmp', labelKey: 'bom.tabs.compare', pagePerm: 'engineering_ipl__compare' },
+          { id: 'eng_bom_consolidated', labelKey: 'bom.tabs.consolidated', pagePerm: 'engineering_ipl__parts' },
+          { id: 'eng_bom_part_list', labelKey: 'bom.tabs.partList', pagePerm: 'engineering_ipl__partList' },
+          { id: 'eng_bom_models', labelKey: 'bom.tabs.iplModels', pagePerm: 'engineering_ipl__iplModels' },
           { id: 'eng_bom_cat', labelKey: 'bom.tabs.categories', pagePerm: 'engineering_ipl__categories' },
           { id: 'eng_bom_imp', labelKey: 'bom.tabs.import', pagePerm: 'engineering_ipl__import' },
           { id: 'eng_bom_dash', labelKey: 'bom.tabs.dashboard', pagePerm: 'engineering_ipl__dashboard' }
@@ -333,6 +333,17 @@ export const PERMISSIONS_MATRIX_TREE: MatrixTreeNode[] = [
         children: [
           { id: 'wh_feed_plan', labelKey: 'warehouses.feeding.subTabs.plan', pagePerm: 'warehouses_feeding__plan' },
           { id: 'wh_feed_actual', labelKey: 'warehouses.feeding.subTabs.actual', pagePerm: 'warehouses_feeding__actual' }
+        ]
+      },
+      {
+        id: 'wh_equipment',
+        labelKey: 'warehouses.tabs.equipment',
+        descKey: 'permissions.matrix.pageDesc.warehouses_equipment',
+        pagePerm: 'warehouses_equipment',
+        actionModules: [{ moduleKey: 'inventory' }],
+        children: [
+          { id: 'wh_eq_racks', labelKey: 'warehouses.equipment.subTabs.racks', pagePerm: 'warehouses_equipment__racks' },
+          { id: 'wh_eq_carts', labelKey: 'warehouses.equipment.subTabs.carts', pagePerm: 'warehouses_equipment__carts' }
         ]
       }
     ]

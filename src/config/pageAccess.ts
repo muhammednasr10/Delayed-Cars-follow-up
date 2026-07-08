@@ -44,6 +44,7 @@ export type AppPagePermissionKey =
   | 'warehouses_home'
   | 'warehouses_stock'
   | 'warehouses_feeding'
+  | 'warehouses_equipment'
   | 'quality_notes'
   | 'planning_plan'
   | 'planning_work_days'
@@ -135,6 +136,7 @@ export const APP_PAGE_DEFINITIONS: AppPageDef[] = [
   { permKey: 'warehouses_home', labelKey: 'nav.home', descKey: 'permissions.matrix.pageDesc.warehouses_home', fallbackModule: 'inventory', defaultVisible: true },
   { permKey: 'warehouses_stock', labelKey: 'warehouses.tabs.currentStock', descKey: 'permissions.matrix.pageDesc.warehouses_stock', fallbackModule: 'inventory' },
   { permKey: 'warehouses_feeding', labelKey: 'warehouses.tabs.feeding', descKey: 'permissions.matrix.pageDesc.warehouses_feeding', fallbackModule: 'inventory' },
+  { permKey: 'warehouses_equipment', labelKey: 'warehouses.tabs.equipment', descKey: 'permissions.matrix.pageDesc.warehouses_equipment', fallbackModule: 'inventory' },
   { permKey: 'quality_notes', labelKey: 'qualityNotes.title', descKey: 'permissions.matrix.pageDesc.quality_notes', fallbackModule: 'qc', defaultVisible: true }
 ]
 
@@ -164,7 +166,8 @@ const PAGE_BY_ENGINEERING: Record<string, AppPagePermissionKey> = {
 const PAGE_BY_WAREHOUSES: Record<string, AppPagePermissionKey> = {
   home: 'warehouses_home',
   currentStock: 'warehouses_stock',
-  feeding: 'warehouses_feeding'
+  feeding: 'warehouses_feeding',
+  equipment: 'warehouses_equipment'
 }
 
 const PAGE_BY_PLANNING: Record<string, AppPagePermissionKey> = {

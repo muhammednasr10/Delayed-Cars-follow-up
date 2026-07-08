@@ -14,9 +14,11 @@ import type {
   TrainingTab,
   WarehousesTab,
   WarehousesFeedingSubTab,
+  WarehousesEquipmentSubTab,
   QualityTab,
   WorkerProfileTab
 } from '../Types/navigation'
+import { normalizeBomTab } from '../Types/navigation'
 import { PROFILE_TABS, profileTabFromWorkerTab, type ProfileTab } from '../Types/profile'
 
 type NavState = {
@@ -38,6 +40,7 @@ type NavState = {
   planningTab: PlanningTab
   warehousesTab: WarehousesTab
   warehousesFeedingSubTab: WarehousesFeedingSubTab
+  warehousesEquipmentSubTab: WarehousesEquipmentSubTab
   qualityTab: QualityTab
   workerProfileTab: WorkerProfileTab
   sidebarOpen: boolean
@@ -64,6 +67,7 @@ type NavigatePatch = Partial<
     | 'planningTab'
     | 'warehousesTab'
     | 'warehousesFeedingSubTab'
+    | 'warehousesEquipmentSubTab'
     | 'qualityTab'
     | 'workerProfileTab'
   >
@@ -88,6 +92,7 @@ type NavigationContextValue = NavState & {
   setPlanningTab: (tab: PlanningTab) => void
   setWarehousesTab: (tab: WarehousesTab) => void
   setWarehousesFeedingSubTab: (tab: WarehousesFeedingSubTab) => void
+  setWarehousesEquipmentSubTab: (tab: WarehousesEquipmentSubTab) => void
   setQualityTab: (tab: QualityTab) => void
   setWorkerProfileTab: (tab: WorkerProfileTab) => void
   setSidebarOpen: (open: boolean) => void
@@ -115,7 +120,7 @@ const initialState: NavState = {
   showProfile: false,
   profileTab: 'account',
   showGlobalHome: true,
-  bomTab: 'parts',
+  bomTab: 'consolidated',
   lineBalancingTab: 'operations',
   trainingTab: 'org',
   settingsTab: 'administrations',
@@ -126,6 +131,7 @@ const initialState: NavState = {
   planningTab: 'plan',
   warehousesTab: 'home',
   warehousesFeedingSubTab: 'plan',
+  warehousesEquipmentSubTab: 'racks',
   qualityTab: 'record',
   workerProfileTab: 'data',
   sidebarOpen: false
@@ -165,6 +171,7 @@ function loadNavState(): NavState {
     return {
       ...initialState,
       ...parsed,
+      bomTab: normalizeBomTab(parsed.bomTab as string | undefined),
       productivityTab,
       planningTab,
       profileTab,
@@ -219,7 +226,7 @@ export function NavigationProvider({ children }: { children: ReactNode }) {
         patch.planningTab != null ||
         patch.warehousesTab != null ||
         patch.qualityTab != null
-      return {
+      const next = {
         ...prev,
         ...patch,
         showProfile:
@@ -236,6 +243,8 @@ export function NavigationProvider({ children }: { children: ReactNode }) {
           (patch.showProfile === true || leavesGlobalHome ? false : prev.showGlobalHome),
         sidebarOpen: patch.closeSidebar === false ? prev.sidebarOpen : patch.closeSidebar === true ? false : prev.sidebarOpen
       }
+      if (patch.bomTab != null) next.bomTab = normalizeBomTab(patch.bomTab as string)
+      return next
     })
   }, [])
 
@@ -271,7 +280,7 @@ export function NavigationProvider({ children }: { children: ReactNode }) {
         setState(prev => ({ ...prev, showProfile: true, profileTab: tab, showGlobalHome: false, sidebarOpen: false })),
       closeProfile: () => setState(prev => ({ ...prev, showProfile: false, profileTab: 'account' })),
       openGlobalHome: () => setState(prev => ({ ...prev, showGlobalHome: true, showProfile: false, sidebarOpen: false })),
-      setBomTab: bomTab => setState(prev => ({ ...prev, bomTab })),
+      setBomTab: bomTab => setState(prev => ({ ...prev, bomTab: normalizeBomTab(bomTab) })),
       setLineBalancingTab: lineBalancingTab => setState(prev => ({ ...prev, lineBalancingTab })),
       setTrainingTab: trainingTab => setState(prev => ({ ...prev, trainingTab })),
       setSettingsTab: settingsTab => setState(prev => ({ ...prev, settingsTab })),
@@ -282,6 +291,7 @@ export function NavigationProvider({ children }: { children: ReactNode }) {
       setPlanningTab: planningTab => setState(prev => ({ ...prev, planningTab })),
       setWarehousesTab: warehousesTab => setState(prev => ({ ...prev, warehousesTab })),
       setWarehousesFeedingSubTab: warehousesFeedingSubTab => setState(prev => ({ ...prev, warehousesFeedingSubTab })),
+      setWarehousesEquipmentSubTab: warehousesEquipmentSubTab => setState(prev => ({ ...prev, warehousesEquipmentSubTab })),
       setQualityTab: qualityTab => setState(prev => ({ ...prev, qualityTab })),
       setWorkerProfileTab: workerProfileTab => setState(prev => ({ ...prev, workerProfileTab })),
       setSidebarOpen: sidebarOpen => setState(prev => ({ ...prev, sidebarOpen })),

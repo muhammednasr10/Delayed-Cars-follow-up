@@ -1,6 +1,8 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useState, useCallback } from 'react'
 import { PackageCheck } from 'lucide-react'
 import { useLang } from '../../i18n/LanguageContext'
+import { useEmployees } from '../../hooks/useEmployees'
+import { useFactoryOrgScope } from '../../hooks/useFactoryOrgScope'
 import { useMpLookups } from '../../hooks/useMpLookups'
 import { useMissingPartsUiPermissions } from '../../hooks/useMissingPartsUiPermissions'
 import { useFormatError } from '../../hooks/useFormatError'
@@ -34,6 +36,7 @@ import { MissingPartsToolbar, type ListTab } from '../../Components/missingParts
 import { MissingPartsTable } from '../../Components/missingParts/MissingPartsTable'
 import { MissingPartsSummaryTab } from '../../Components/missingParts/MissingPartsSummaryTab'
 import { applyFilters, isSchemaMissing, openVehicleShortageLines, remainingInstallLineCount, uniqueVehicleReps } from '../../Utils/missingPartPageUtils'
+import { scratchAreaLabel } from '../../Utils/scratchAreaOptions'
 import { ConfirmDialog } from '../../Components/ConfirmDialog'
 
 export function MissingPartsPage() {
@@ -53,13 +56,24 @@ export function MissingPartsPage() {
     canBulkInstallAndUpdate
   } = useMissingPartsUiPermissions()
   const formatError = useFormatError()
+  const { employees } = useEmployees()
+  const { filterRecords, isScopedView, scopeLabel, orgUnits } = useFactoryOrgScope(employees)
+  const orgUnitLabelFor = useCallback(
+    (id: string | null | undefined) => (id ? scratchAreaLabel(id, orgUnits) : '—'),
+    [orgUnits]
+  )
   const canBulkInstall = canBulkInstallAndUpdate
   const [items, setItems] = useState<MissingPartDetail[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [setupRequired, setSetupRequired] = useState(false)
   const [listTab, setListTab] = useState<ListTab>('active')
-  const [filters, setFilters] = useState<MissingPartFilters>({ search: '', stationNumber: '', modelName: '', department: '' })
+  const [filters, setFilters] = useState<MissingPartFilters>({
+    search: '',
+    stationNumbers: [],
+    modelNames: [],
+    departments: []
+  })
   const [showReport, setShowReport] = useState(false)
   const [updateVehicle, setUpdateVehicle] = useState<UpdateVehicleContext | null>(null)
   const [editVehicle, setEditVehicle] = useState<VehicleIssuesContext | null>(null)
@@ -168,8 +182,9 @@ export function MissingPartsPage() {
     return Array.from(codes).sort()
   }, [departments, items])
 
-  const activeItems = useMemo(() => items.filter(i => !i.shortageResolvedAt), [items])
-  const historyItems = useMemo(() => items.filter(i => !!i.shortageResolvedAt), [items])
+  const scopedItems = useMemo(() => filterRecords(items), [items, filterRecords])
+  const activeItems = useMemo(() => scopedItems.filter(i => !i.shortageResolvedAt), [scopedItems])
+  const historyItems = useMemo(() => scopedItems.filter(i => !!i.shortageResolvedAt), [scopedItems])
   const activeVehicleCount = useMemo(() => new Set(activeItems.map(i => i.vehicleId)).size, [activeItems])
   const historyVehicleCount = useMemo(() => new Set(historyItems.map(i => i.vehicleId)).size, [historyItems])
   const tabSource = useMemo(() => {
@@ -180,7 +195,12 @@ export function MissingPartsPage() {
   const tableRows = useMemo(() => buildMissingPartTableRows(filtered), [filtered])
   const tabVehicleCount = useMemo(() => new Set(tabSource.map(i => i.vehicleId)).size, [tabSource])
   const filteredVehicleCount = useMemo(() => new Set(filtered.map(i => i.vehicleId)).size, [filtered])
-  const hasActiveFilter = Boolean(filters.search.trim() || filters.stationNumber || filters.modelName || filters.department)
+  const hasActiveFilter = Boolean(
+    filters.search.trim() ||
+      filters.stationNumbers.length > 0 ||
+      filters.modelNames.length > 0 ||
+      filters.departments.length > 0
+  )
 
   const selectableVehicleIds = useMemo(() => {
     if (!canBulkInstall) return new Set<string>()
@@ -343,6 +363,11 @@ export function MissingPartsPage() {
 
         {success && <div className="m-4 rounded-xl border border-emerald-500/30 bg-emerald-500/10 p-3 text-sm text-emerald-200">{success}</div>}
         {error && !setupRequired && <div className="m-4 rounded-xl border border-red-500/30 bg-red-500/10 p-3 text-sm text-red-200">{error}</div>}
+        {isScopedView && scopeLabel && (
+          <div className="mx-4 mb-4 rounded-xl border border-cyan-500/25 bg-cyan-500/10 p-3 text-sm text-cyan-100">
+            {t('org.scopeBanner', { scope: scopeLabel })}
+          </div>
+        )}
 
         {listTab === 'active' && canBulkInstall && selectedVehicleIds.size > 0 && (
           <div className="flex flex-wrap items-center gap-3 border-b border-slate-800 px-4 py-3 sm:px-5">
@@ -384,6 +409,7 @@ export function MissingPartsPage() {
             loading={loading}
             reasons={reasons}
             departments={departments}
+            orgUnitLabelFor={orgUnitLabelFor}
             canBulkInstall={canBulkInstall}
             canExport={canExport}
             canEdit={canEdit}

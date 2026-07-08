@@ -1,14 +1,20 @@
 import { useEffect, useState, type ReactNode } from 'react'
 import { AlertTriangle, Plus, Trash2 } from 'lucide-react'
 import { useLang } from '../i18n/LanguageContext'
+import { useEmployees } from '../hooks/useEmployees'
+import { useFactoryOrgScope } from '../hooks/useFactoryOrgScope'
 import { Modal } from './Modal'
 import { StationSelect } from './StationSelect'
+import { FactoryOrgUnitPicker } from './FactoryOrgUnitPicker'
 import { VehicleModelFamilyPicker, resolveFamilyIdForVariant } from './VehicleModelFamilyPicker'
 import { reportMissingPartsBatch } from '../services/missingPartsService'
+import { getFactoryOrgUnits } from '../services/factoryOrgService'
 import { getStations, getVehicleColors, getVehicleModels } from '../services/settingsService'
 import type { MissingPartLineInput } from '../Types/missingPart'
 import type { PriorityLevel, StopperType } from '../Types/enums'
 import type { Station, VehicleColor, VehicleModel } from '../Types/settings'
+import type { FactoryOrgUnit } from '../Types/factoryOrg'
+import { orgPathLeaf } from '../Utils/employeeOrgPicker'
 import { useFormatError } from '../hooks/useFormatError'
 import { useMpLookups } from '../hooks/useMpLookups'
 import { MpLookupCreatableSelect } from './MpLookupCreatableSelect'
@@ -46,6 +52,7 @@ type VehicleForm = {
   familyId: string
   modelId: string
   colorId: string | null
+  orgPath: string[]
   priority: PriorityLevel
   stopperType: StopperType
   notes: string
@@ -57,6 +64,7 @@ const emptyVehicle: VehicleForm = {
   familyId: '',
   modelId: '',
   colorId: null,
+  orgPath: [],
   priority: 'normal',
   stopperType: 'car_stopper',
   notes: '',
@@ -73,10 +81,13 @@ type Props = {
 export function ReportMissingPartModal({ open, onClose, onReported }: Props) {
   const { t } = useLang()
   const formatError = useFormatError()
+  const { employees } = useEmployees()
+  const { defaultOrgPath } = useFactoryOrgScope(employees)
   const { reasons, departments, addReason, addDepartment } = useMpLookups()
   const [models, setModels] = useState<VehicleModel[]>([])
   const [colors, setColors] = useState<VehicleColor[]>([])
   const [stations, setStations] = useState<Station[]>([])
+  const [orgUnits, setOrgUnits] = useState<FactoryOrgUnit[]>([])
   const [listsLoading, setListsLoading] = useState(false)
   const [issues, setIssues] = useState(() => [newIssueLine()])
   const [vehicle, setVehicle] = useState<VehicleForm>(emptyVehicle)
@@ -103,18 +114,19 @@ export function ReportMissingPartModal({ open, onClose, onReported }: Props) {
         department: defaultDepartmentCode(departments)
       }
     ])
-    setVehicle(emptyVehicle)
+    setVehicle({ ...emptyVehicle, orgPath: [...defaultOrgPath] })
     setFormError('')
     setListsLoading(true)
-    Promise.all([getVehicleModels(), getVehicleColors(), getStations()])
-      .then(([m, c, st]) => {
+    Promise.all([getVehicleModels(), getVehicleColors(), getStations(), getFactoryOrgUnits()])
+      .then(([m, c, st, org]) => {
         setModels(m)
         setColors(c)
         setStations(st)
+        setOrgUnits(org)
       })
       .catch(err => setFormError(formatError(err)))
       .finally(() => setListsLoading(false))
-  }, [open, t])
+  }, [open, t, defaultOrgPath])
 
   function patchIssue(key: string, patch: Partial<IssueLineDraft>) {
     setIssues(prev => prev.map(l => (l.key === key ? { ...l, ...patch } : l)))
@@ -152,6 +164,7 @@ export function ReportMissingPartModal({ open, onClose, onReported }: Props) {
     const missing: string[] = []
 
     if (!vehicle.modelId) missing.push(t('mp.f.model'))
+    if (!orgPathLeaf(vehicle.orgPath)) missing.push(t('scratches.errArea'))
 
     const validIssues = issues.filter(l => l.partDescription.trim())
     if (validIssues.length === 0) missing.push(t('mp.errOneIssue'))
@@ -194,7 +207,8 @@ export function ReportMissingPartModal({ open, onClose, onReported }: Props) {
         department: validIssues[0]?.department,
         priority: vehicle.priority,
         stopperType: vehicle.stopperType,
-        notes: vehicle.notes || undefined
+        notes: vehicle.notes || undefined,
+        factoryOrgUnitId: orgPathLeaf(vehicle.orgPath)
       })
       onReported?.(t('mp.batchSuccess', { cars: result.vehicle_count, parts: result.missing_part_count }))
       onClose()
@@ -277,6 +291,15 @@ export function ReportMissingPartModal({ open, onClose, onReported }: Props) {
                 </select>
               )}
             </Field>
+            <div className="sm:col-span-2 space-y-2">
+              <p className="text-sm font-bold text-slate-300">{t('mp.cols.orgUnit')} *</p>
+              <p className="text-xs text-slate-500">{t('org.f.orgUnitsHint')}</p>
+              <FactoryOrgUnitPicker
+                units={orgUnits}
+                path={vehicle.orgPath}
+                onChange={orgPath => setVehicle(p => ({ ...p, orgPath }))}
+              />
+            </div>
             <Field label={t('mp.f.vehicleCount')} required>
               <input
                 type="number"

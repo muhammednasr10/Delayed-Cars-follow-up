@@ -30,6 +30,12 @@ import { buildAttendanceHubStats } from '../Utils/attendanceHubStats'
 import { SETTINGS_TAB_ORDER } from '../Types/navigation'
 import { useLang } from '../i18n/LanguageContext'
 
+function formatEfficiencyPct(value: number | null, loading: boolean): string {
+  if (loading) return '…'
+  if (value == null) return '—'
+  return `${value}%`
+}
+
 export function useProductionHubSections(refreshKey = 0) {
   const { t } = useLang()
   const nav = useNavigation()
@@ -43,7 +49,7 @@ export function useProductionHubSections(refreshKey = 0) {
     loading || (canViewPage(card) && moduleOk)
   const [reportOpen, setReportOpen] = useState(false)
   const { activeVehicles, archiveVehicles, loading: countsLoading } = useMissingPartsVehicleCounts(refreshKey)
-  const { entryVehicles, exitVehicles, loading: productivityLoading } = useProductivityMonthCounts(refreshKey)
+  const { entryEfficiency, exitEfficiency, loading: productivityLoading } = useProductivityMonthCounts(refreshKey)
   const { totalMinutes, lostVehicles: stopsLostVehicles, loading: stopsLoading } = useProductionStopMonthCounts(refreshKey)
   const { efficiency, presentTodayCount, workforceCount, statusCounts, loading: attendanceLoading } =
     useTodayAttendanceEfficiency(refreshKey)
@@ -74,8 +80,8 @@ export function useProductionHubSections(refreshKey = 0) {
       },
       showHomeCard('production_home__entry', canViewModule('production')) && {
         key: 'productivity',
-        title: t('productivity.title'),
-        description: t('productivity.subtitle'),
+        title: t('productivity.entryTitle'),
+        description: t('productivity.entrySubtitle'),
         icon: LogIn,
         tone: 'text-emerald-300 bg-emerald-500/15',
         accent: 'emerald' as const,
@@ -86,8 +92,8 @@ export function useProductionHubSections(refreshKey = 0) {
             productivityTab: 'productivity'
           }),
         stats: [
-          { label: t('home.productivityMonthVehicles'), value: productivityLoading ? '…' : entryVehicles },
-          { label: t('productivity.exitTitle'), value: productivityLoading ? '…' : exitVehicles }
+          { label: t('home.entryProductivityEfficiency'), value: formatEfficiencyPct(entryEfficiency, productivityLoading) },
+          { label: t('home.exitProductivityEfficiency'), value: formatEfficiencyPct(exitEfficiency, productivityLoading) }
         ]
       },
       showHomeCard('production_home__stops', canViewModule('production')) && {
@@ -212,15 +218,6 @@ export function useProductionHubSections(refreshKey = 0) {
         tone: 'text-indigo-300 bg-indigo-500/15',
         accent: 'indigo' as const,
         onClick: () => go({ productionArea: 'assembly', productionPage: 'feedback' })
-      },
-      showHomeCard('production_home__settings', canAccessSettings) && {
-        key: 'settings',
-        title: t('modules.settings'),
-        description: t('modules.settingsDesc'),
-        icon: SettingsIcon,
-        tone: 'text-emerald-300 bg-emerald-500/15',
-        accent: 'emerald' as const,
-        onClick: () => go({ productionArea: 'assembly', productionPage: 'settings', settingsTab: 'administrations' })
       }
     ].filter(Boolean) as HubSection['cards']
   }

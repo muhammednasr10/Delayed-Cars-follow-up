@@ -1,6 +1,14 @@
 import { supabase } from '../lib/supabase'
+import { getBomItemsForPartIds } from './bomService'
+import { listPartsForIplModel } from './partsService'
 import type { BomItemDetail } from '../Types/bom'
 import { iplFieldsFromBomItem } from '../Utils/iplFeedingFields'
+import { mergePartToBomItem } from '../Utils/iplModelParts'
+import {
+  feedingWarehouseTypeFromBomItem,
+  feedingWarehouseTypeLabel,
+  type FeedingWarehouseType
+} from '../Utils/feedingWarehouseType'
 import type {
   FeedingLineInput,
   FeedingPlanStatus,
@@ -121,57 +129,64 @@ export async function getModelPartInventory(filters: {
   return rows
 }
 
-async function fetchAllBomForModel(vehicleModelId: string): Promise<BomItemDetail[]> {
-  const pageSize = 200
-  const items: BomItemDetail[] = []
-  let page = 1
-
-  while (true) {
-    const from = (page - 1) * pageSize
-    const to = from + pageSize - 1
-    const { data, error, count } = await client()
-      .from('v_bom_items_detail')
-      .select('*', { count: 'exact' })
-      .eq('vehicle_model_id', vehicleModelId)
-      .eq('is_active', true)
-      .order('station_sort_order', { ascending: true, nullsFirst: false })
-      .order('station_code_text')
-      .order('part_number')
-      .range(from, to)
-
-    if (error) throw new Error(error.message)
-    items.push(...((data ?? []) as BomItemDetail[]))
-    const total = count ?? items.length
-    if (items.length >= total) break
-    page += 1
-  }
-
-  return items
+export type IplFeedingPartsOptions = {
+  warehouseId?: string
+  warehouseType?: FeedingWarehouseType | ''
+  stationCode?: string
 }
 
 export async function getIplFeedingParts(
   vehicleModelId: string,
-  warehouseId?: string,
+  warehouseIdOrOptions?: string | IplFeedingPartsOptions,
   t?: (k: string) => string
 ): Promise<IplFeedingRow[]> {
-  const [bomItems, inventory] = await Promise.all([
-    fetchAllBomForModel(vehicleModelId),
-    getModelPartInventory({ vehicleModelId, warehouseId })
-  ])
+  const options: IplFeedingPartsOptions =
+    typeof warehouseIdOrOptions === 'string'
+      ? { warehouseId: warehouseIdOrOptions }
+      : (warehouseIdOrOptions ?? {})
 
-  const invByPart = new Map(inventory.map(i => [i.partId, i.qtyAvailable]))
+  const { data: vm, error: vmErr } = await client()
+    .from('vehicle_models')
+    .select('name')
+    .eq('id', vehicleModelId)
+    .maybeSingle()
+  if (vmErr) throw new Error(vmErr.message)
+  if (!vm?.name) return []
+
+  const modelName = vm.name
   const tr = t ?? ((k: string) => k)
 
-  return bomItems.map(item => {
+  const [partsRes, inventory] = await Promise.all([
+    listPartsForIplModel({
+      modelName,
+      stationCode: options.stationCode,
+      pageSize: 5000
+    }),
+    getModelPartInventory({ vehicleModelId, warehouseId: options.warehouseId })
+  ])
+
+  const partIds = partsRes.items.map(p => p.id)
+  const bomMap = partIds.length > 0 ? await getBomItemsForPartIds(partIds, modelName) : new Map<string, BomItemDetail>()
+  const invByPart = new Map(inventory.map(i => [i.partId, i.qtyAvailable]))
+
+  const rows: IplFeedingRow[] = []
+  for (const part of partsRes.items) {
+    const bom = bomMap.get(part.id)
+    const item = mergePartToBomItem(part, bom, modelName)
+    const warehouseType = feedingWarehouseTypeFromBomItem(item)
+    if (options.warehouseType && warehouseType !== options.warehouseType) continue
+
     const fields = iplFieldsFromBomItem(item, tr)
-    return {
+    rows.push({
       bomItemId: item.id,
       partId: item.part_id,
       partNumber: item.part_number,
       partName: item.part_name || item.part_name_ar || item.part_name_en || item.part_number,
       qtyPerVehicle: Number(item.quantity),
-      stationCode: item.station_code_text || item.station_number,
+      stationCode: fields.stationCode || item.station_code_text || item.station_number,
       stationSortOrder: item.station_sort_order ?? null,
+      warehouseType,
+      warehouseTypeLabel: feedingWarehouseTypeLabel(warehouseType, tr),
       qtyAvailable: invByPart.get(item.part_id) ?? 0,
       partDirection: fields.partDirection,
       partDirectionLabel: fields.partDirectionLabel,
@@ -183,8 +198,14 @@ export async function getIplFeedingParts(
       supplierLabel: fields.supplierLabel,
       cartonQty: fields.cartonQty,
       feedingMethod: fields.feedingMethod
-    }
-  })
+    })
+  }
+
+  return rows.sort(
+    (a, b) =>
+      (a.stationCode ?? '').localeCompare(b.stationCode ?? '') ||
+      a.partNumber.localeCompare(b.partNumber)
+  )
 }
 
 export async function getWarehouseFeedings(limit = 50): Promise<WarehouseFeeding[]> {
@@ -192,7 +213,7 @@ export async function getWarehouseFeedings(limit = 50): Promise<WarehouseFeeding
     .from('warehouse_feeding')
     .select(
       `
-      id, vehicle_model_id, warehouse_id, station_id, feeding_date, reference, notes, created_at,
+      id, vehicle_model_id, warehouse_id, station_id, feeding_date, reference, production_order_id, notes, created_at,
       vehicle_models ( name ),
       warehouses ( code, name ),
       stations ( station_number, station_name ),
@@ -215,6 +236,7 @@ export async function getWarehouseFeedings(limit = 50): Promise<WarehouseFeeding
     station_id: string | null
     feeding_date: string
     reference: string | null
+    production_order_id: string | null
     notes: string | null
     created_at: string
     vehicle_models: { name: string } | null
@@ -242,6 +264,7 @@ export async function getWarehouseFeedings(limit = 50): Promise<WarehouseFeeding
     stationName: f.stations?.station_name ?? null,
     feedingDate: f.feeding_date,
     reference: f.reference,
+    productionOrderId: f.production_order_id,
     notes: f.notes,
     createdAt: f.created_at,
     lines: (f.warehouse_feeding_lines ?? []).map(l => ({
@@ -261,6 +284,8 @@ export async function recordWarehouseFeeding(input: {
   warehouseId: string
   stationId?: string | null
   notes?: string | null
+  reference?: string | null
+  productionOrderId?: string | null
   lines: FeedingLineInput[]
 }): Promise<string> {
   const { data, error } = await client().rpc('record_warehouse_feeding', {
@@ -272,7 +297,9 @@ export async function recordWarehouseFeeding(input: {
       part_id: l.partId,
       quantity: l.quantity,
       notes: l.notes?.trim() || null
-    }))
+    })),
+    p_reference: input.reference?.trim() || null,
+    p_production_order_id: input.productionOrderId || null
   })
   if (error) throw new Error(error.message)
   return data as string

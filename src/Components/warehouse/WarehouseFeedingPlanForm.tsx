@@ -2,7 +2,15 @@ import { useEffect, useMemo, useState } from 'react'
 import { RefreshCcw } from 'lucide-react'
 import { useLang } from '../../i18n/LanguageContext'
 import { getIplFeedingParts } from '../../services/warehouseService'
-import { buildModelFamilyGroups, isAssignableModel } from '../../Utils/vehicleModelHierarchy'
+import { buildFeedingModelOptionGroups, firstAssignableModelId } from '../../Utils/iplBomLogistics'
+import { normalizeBomStationCodeText } from '../../Utils/bomStationCode'
+import {
+  defaultFeedingWarehouseType,
+  FEEDING_WAREHOUSE_TYPES,
+  feedingWarehouseTypeLabel,
+  resolveWarehouseIdForType,
+  type FeedingWarehouseType
+} from '../../Utils/feedingWarehouseType'
 import type { Warehouse } from '../../Types/warehouse'
 import type { Station, VehicleModel } from '../../Types/settings'
 import { iplPlanRowFromIpl, type IplPlanDraftRow } from './feedingShared'
@@ -12,14 +20,15 @@ type Props = {
   models: VehicleModel[]
   stations: Station[]
   warehouseId: string
+  warehouseType: FeedingWarehouseType
   variantId: string
   stationId: string
   plannedDate: string
   notes: string
   iplRows: IplPlanDraftRow[]
   iplLoading: boolean
-  iplRefreshKey?: number
   onWarehouseId: (v: string) => void
+  onWarehouseType: (v: FeedingWarehouseType) => void
   onVariantId: (v: string) => void
   onStationId: (v: string) => void
   onPlannedDate: (v: string) => void
@@ -28,25 +37,20 @@ type Props = {
   onIplLoading: (v: boolean) => void
 }
 
-function modelBtnCls(active: boolean) {
-  return active
-    ? 'border-violet-400 bg-violet-500/25 text-violet-100 shadow-sm shadow-violet-500/20'
-    : 'border-slate-700 bg-slate-800/80 text-slate-300 hover:border-violet-500/40 hover:bg-violet-500/10 hover:text-violet-200'
-}
-
 export function WarehouseFeedingPlanForm({
   warehouses,
   models,
   stations,
   warehouseId,
+  warehouseType,
   variantId,
   stationId,
   plannedDate,
   notes,
   iplRows,
   iplLoading,
-  iplRefreshKey = 0,
   onWarehouseId,
+  onWarehouseType,
   onVariantId,
   onStationId,
   onPlannedDate,
@@ -57,17 +61,14 @@ export function WarehouseFeedingPlanForm({
   const { t } = useLang()
   const [search, setSearch] = useState('')
 
-  const modelPicker = useMemo(() => buildModelFamilyGroups(models.filter(m => m.is_active)), [models])
-
-  const flatVariants = useMemo(() => {
-    if (modelPicker.groups.length > 0) return []
-    return [
-      ...modelPicker.orphanVariants.filter(isAssignableModel),
-      ...models.filter(m => m.model_kind !== 'family' && m.is_active && !m.parent_model_id)
-    ]
-      .filter((m, i, arr) => arr.findIndex(x => x.id === m.id) === i)
-      .sort((a, b) => a.name.localeCompare(b.name))
-  }, [modelPicker, models])
+  const modelOptionGroups = useMemo(
+    () =>
+      buildFeedingModelOptionGroups(models, {
+        other: t('warehouses.feeding.iplOtherModels'),
+        flat: t('warehouses.feeding.pickModel')
+      }),
+    [models, t]
+  )
 
   const masterStations = useMemo(
     () =>
@@ -82,21 +83,36 @@ export function WarehouseFeedingPlanForm({
     [models, variantId]
   )
 
+  const stationCode = useMemo(() => {
+    if (!stationId) return undefined
+    const st = masterStations.find(s => s.id === stationId)
+    return st ? normalizeBomStationCodeText(st.station_number) : undefined
+  }, [stationId, masterStations])
+
   const filteredRows = useMemo(() => {
     const term = search.trim().toLowerCase()
-    const base = [...iplRows].sort((a, b) => (a.stationCode ?? '').localeCompare(b.stationCode ?? ''))
+    const base = [...iplRows].sort(
+      (a, b) =>
+        (a.stationCode ?? '').localeCompare(b.stationCode ?? '') || a.partNumber.localeCompare(b.partNumber)
+    )
     if (!term) return base
     return base.filter(
       r =>
         r.partNumber.toLowerCase().includes(term) ||
         r.partName.toLowerCase().includes(term) ||
         (r.stationCode?.toLowerCase().includes(term) ?? false) ||
+        r.warehouseTypeLabel.toLowerCase().includes(term) ||
         r.partDirectionLabel.toLowerCase().includes(term) ||
         r.classification.toLowerCase().includes(term)
     )
   }, [iplRows, search])
 
   const includedCount = useMemo(() => iplRows.filter(r => r.included).length, [iplRows])
+
+  useEffect(() => {
+    const resolved = resolveWarehouseIdForType(warehouses, warehouseType)
+    if (resolved && resolved !== warehouseId) onWarehouseId(resolved)
+  }, [warehouses, warehouseType, warehouseId, onWarehouseId])
 
   useEffect(() => {
     if (!variantId) {
@@ -106,7 +122,15 @@ export function WarehouseFeedingPlanForm({
 
     let cancelled = false
     onIplLoading(true)
-    getIplFeedingParts(variantId, warehouseId || undefined, t)
+    getIplFeedingParts(
+      variantId,
+      {
+        warehouseId: warehouseId || undefined,
+        warehouseType,
+        stationCode
+      },
+      t
+    )
       .then(rows => {
         if (!cancelled) onIplRows(rows.map(iplPlanRowFromIpl))
       })
@@ -120,7 +144,7 @@ export function WarehouseFeedingPlanForm({
     return () => {
       cancelled = true
     }
-  }, [variantId, warehouseId, iplRefreshKey, t, onIplRows, onIplLoading])
+  }, [variantId, warehouseId, warehouseType, stationCode, t, onIplRows, onIplLoading])
 
   function setAllIncluded(included: boolean) {
     onIplRows(prev => prev.map(r => ({ ...r, included })))
@@ -133,7 +157,15 @@ export function WarehouseFeedingPlanForm({
   function reloadIpl() {
     if (!variantId) return
     onIplLoading(true)
-    getIplFeedingParts(variantId, warehouseId || undefined, t)
+    getIplFeedingParts(
+      variantId,
+      {
+        warehouseId: warehouseId || undefined,
+        warehouseType,
+        stationCode
+      },
+      t
+    )
       .then(rows => onIplRows(rows.map(iplPlanRowFromIpl)))
       .catch(() => onIplRows([]))
       .finally(() => onIplLoading(false))
@@ -146,11 +178,15 @@ export function WarehouseFeedingPlanForm({
     <>
       <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
         <div>
-          <label className="mb-1 block text-xs text-slate-500">{t('warehouses.stock.warehouse')}</label>
-          <select className="input-dark" value={warehouseId} onChange={e => onWarehouseId(e.target.value)}>
-            {warehouses.map(w => (
-              <option key={w.id} value={w.id}>
-                {w.code} — {w.name}
+          <label className="mb-1 block text-xs text-slate-500">{t('warehouses.feeding.warehouseTypeLabel')}</label>
+          <select
+            className="input-dark"
+            value={warehouseType}
+            onChange={e => onWarehouseType(e.target.value as FeedingWarehouseType)}
+          >
+            {FEEDING_WAREHOUSE_TYPES.map(type => (
+              <option key={type} value={type}>
+                {feedingWarehouseTypeLabel(type, t)}
               </option>
             ))}
           </select>
@@ -161,67 +197,21 @@ export function WarehouseFeedingPlanForm({
         </div>
       </div>
 
-      <div className="mt-3 rounded-xl border border-slate-800 bg-slate-900/40 p-3">
-        <p className="mb-3 text-xs font-bold text-slate-400">{t('warehouses.feeding.iplPickModel')}</p>
-        {modelPicker.groups.length > 0 ? (
-          <div className="space-y-3">
-            {modelPicker.groups.map(g => {
-              const variants = g.variants.filter(isAssignableModel)
-              if (variants.length === 0) return null
-              return (
-                <div key={g.family.id}>
-                  <p className="mb-2 text-[10px] font-black uppercase tracking-wide text-violet-300">{g.family.name}</p>
-                  <div className="flex flex-wrap gap-2">
-                    {variants.map(m => (
-                      <button
-                        key={m.id}
-                        type="button"
-                        onClick={() => onVariantId(m.id)}
-                        className={`rounded-xl border px-3 py-2 text-sm font-black transition ${modelBtnCls(variantId === m.id)}`}
-                        dir="ltr"
-                      >
-                        {m.name}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              )
-            })}
-            {modelPicker.orphanVariants.filter(isAssignableModel).length > 0 && (
-              <div>
-                <p className="mb-2 text-[10px] font-black uppercase tracking-wide text-slate-500">
-                  {t('warehouses.feeding.iplOtherModels')}
-                </p>
-                <div className="flex flex-wrap gap-2">
-                  {modelPicker.orphanVariants.filter(isAssignableModel).map(m => (
-                    <button
-                      key={m.id}
-                      type="button"
-                      onClick={() => onVariantId(m.id)}
-                      className={`rounded-xl border px-3 py-2 text-sm font-black transition ${modelBtnCls(variantId === m.id)}`}
-                      dir="ltr"
-                    >
-                      {m.name}
-                    </button>
-                  ))}
-                </div>
-              </div>
-            )}
-          </div>
-        ) : flatVariants.length > 0 ? (
-          <div className="flex flex-wrap gap-2">
-            {flatVariants.map(m => (
-              <button
-                key={m.id}
-                type="button"
-                onClick={() => onVariantId(m.id)}
-                className={`rounded-xl border px-3 py-2 text-sm font-black transition ${modelBtnCls(variantId === m.id)}`}
-                dir="ltr"
-              >
-                {m.name}
-              </button>
+      <div className="mt-3">
+        <label className="mb-1 block text-xs text-slate-500">{t('warehouses.feeding.iplPickModel')}</label>
+        {modelOptionGroups.length > 0 ? (
+          <select className="input-dark" value={variantId} onChange={e => onVariantId(e.target.value)} dir="ltr">
+            <option value="">{t('warehouses.feeding.pickModel')}</option>
+            {modelOptionGroups.map(g => (
+              <optgroup key={g.label} label={g.label}>
+                {g.models.map(m => (
+                  <option key={m.id} value={m.id}>
+                    {m.name}
+                  </option>
+                ))}
+              </optgroup>
             ))}
-          </div>
+          </select>
         ) : (
           <p className="text-sm text-amber-200">{t('mp.noModelsInSettings')}</p>
         )}
@@ -245,6 +235,9 @@ export function WarehouseFeedingPlanForm({
             <h4 className="text-sm font-black text-white">
               {t('warehouses.feeding.iplTitle', { model: selectedModelName })}
             </h4>
+            <span className="rounded-full bg-violet-500/15 px-2 py-0.5 text-[10px] font-bold text-violet-200">
+              {feedingWarehouseTypeLabel(warehouseType, t)}
+            </span>
             <span className="rounded-full bg-violet-500/15 px-2 py-0.5 text-[10px] font-bold text-violet-200">
               {t('warehouses.feeding.iplRowCount', { n: iplRows.length })}
             </span>
@@ -289,27 +282,27 @@ export function WarehouseFeedingPlanForm({
             <p className="py-6 text-center text-sm text-slate-400">{t('common.loading')}</p>
           ) : iplRows.length === 0 ? (
             <p className="rounded-xl border border-amber-500/30 bg-amber-500/10 p-4 text-sm text-amber-200">
-              {t('warehouses.feeding.iplEmpty')}
+              {t('warehouses.feeding.iplEmptyForFilter')}
             </p>
           ) : (
             <div className="max-h-[32rem] overflow-auto rounded-xl border border-slate-800">
-              <table className="w-full min-w-[88rem] text-sm">
+              <table className="w-full min-w-[96rem] text-sm">
                 <thead className="sticky top-0 z-10 bg-slate-950/95">
                   <tr className="border-b border-slate-800">
                     <th className={`${th} w-10`} />
                     <th className={th}>{t('warehouses.feeding.cols.partNo')}</th>
                     <th className={th}>{t('warehouses.feeding.cols.partName')}</th>
                     <th className={th}>{t('warehouses.feeding.cols.qv')}</th>
-                    <th className={th}>{t('warehouses.feeding.cols.direction')}</th>
                     <th className={th}>{t('warehouses.feeding.cols.station')}</th>
+                    <th className={th}>{t('warehouses.feeding.cols.warehouseType')}</th>
+                    <th className={th}>{t('warehouses.feeding.cols.direction')}</th>
                     <th className={th}>{t('warehouses.feeding.cols.partKind')}</th>
                     <th className={th}>{t('warehouses.feeding.cols.dimensions')}</th>
-                    <th className={th}>{t('warehouses.feeding.cols.weight')}</th>
-                    <th className={th}>{t('warehouses.feeding.cols.classification')}</th>
                     <th className={th}>{t('warehouses.feeding.cols.rackCapacity')}</th>
-                    <th className={th}>{t('warehouses.feeding.cols.supplier')}</th>
                     <th className={th}>{t('warehouses.feeding.cols.cartonQty')}</th>
                     <th className={th}>{t('warehouses.feeding.cols.feedingMethod')}</th>
+                    <th className={th}>{t('warehouses.feeding.cols.replenFreq')}</th>
+                    <th className={th}>{t('warehouses.feeding.cols.reorderPoint')}</th>
                     <th className={th}>{t('warehouses.feeding.qty')}</th>
                   </tr>
                 </thead>
@@ -333,26 +326,42 @@ export function WarehouseFeedingPlanForm({
                       <td className={`${td} text-slate-400`} dir="ltr">
                         {r.qtyPerVehicle}
                       </td>
-                      <td className={td}>{r.partDirectionLabel}</td>
                       <td className={`${td} font-mono text-cyan-200/70`} dir="ltr">
                         {r.stationCode || '—'}
                       </td>
+                      <td className={td}>{r.warehouseTypeLabel}</td>
+                      <td className={td}>{r.partDirectionLabel}</td>
                       <td className={td}>{r.partKindLabel}</td>
                       <td className={`${td} text-slate-400`} dir="ltr">
                         {r.dimensions}
                       </td>
                       <td className={`${td} text-slate-400`} dir="ltr">
-                        {r.weight}
-                      </td>
-                      <td className={td}>{r.classification}</td>
-                      <td className={`${td} text-slate-400`} dir="ltr">
                         {r.rackCapacity}
                       </td>
-                      <td className={td}>{r.supplierLabel}</td>
                       <td className={`${td} text-slate-400`} dir="ltr">
                         {r.cartonQty}
                       </td>
                       <td className={td}>{r.feedingMethod}</td>
+                      <td className={td}>
+                        <input
+                          className="input-dark mx-auto w-20 text-center text-xs"
+                          type="text"
+                          disabled={!r.included}
+                          value={r.replenishmentFreq}
+                          onChange={e => updateRow(r.bomItemId, { replenishmentFreq: e.target.value })}
+                          placeholder={t('warehouses.feeding.cols.replenFreq')}
+                        />
+                      </td>
+                      <td className={td}>
+                        <input
+                          className="input-dark mx-auto w-20 text-center text-xs"
+                          type="text"
+                          disabled={!r.included}
+                          value={r.reorderPoint}
+                          onChange={e => updateRow(r.bomItemId, { reorderPoint: e.target.value })}
+                          placeholder={t('warehouses.feeding.cols.reorderPoint')}
+                        />
+                      </td>
                       <td className={td}>
                         <input
                           className="input-dark mx-auto w-16 text-center text-xs"
@@ -381,8 +390,9 @@ export function WarehouseFeedingPlanForm({
   )
 }
 
-export function useFeedingPlanFormState(warehouses: Warehouse[]) {
+export function useFeedingPlanFormState(warehouses: Warehouse[], models: VehicleModel[] = []) {
   const [warehouseId, setWarehouseId] = useState('')
+  const [warehouseType, setWarehouseType] = useState<FeedingWarehouseType>(defaultFeedingWarehouseType())
   const [variantId, setVariantId] = useState('')
   const [stationId, setStationId] = useState('')
   const [plannedDate, setPlannedDate] = useState(() => new Date().toISOString().slice(0, 10))
@@ -390,13 +400,23 @@ export function useFeedingPlanFormState(warehouses: Warehouse[]) {
   const [iplRows, setIplRows] = useState<IplPlanDraftRow[]>([])
   const [iplLoading, setIplLoading] = useState(false)
 
+  const defaultVariantId = useMemo(() => firstAssignableModelId(models), [models])
+
   useEffect(() => {
-    if (!warehouseId && warehouses.length > 0) setWarehouseId(warehouses[0].id)
-  }, [warehouses, warehouseId])
+    if (!warehouseId && warehouses.length > 0) {
+      setWarehouseId(resolveWarehouseIdForType(warehouses, warehouseType))
+    }
+  }, [warehouses, warehouseId, warehouseType])
+
+  useEffect(() => {
+    if (!variantId && defaultVariantId) setVariantId(defaultVariantId)
+  }, [variantId, defaultVariantId])
 
   return {
     warehouseId,
     setWarehouseId,
+    warehouseType,
+    setWarehouseType,
     variantId,
     setVariantId,
     stationId,

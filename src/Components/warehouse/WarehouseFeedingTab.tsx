@@ -1,9 +1,11 @@
-import { useEffect } from 'react'
-import { CalendarDays, Truck } from 'lucide-react'
+import { useState } from 'react'
+import { Settings2 } from 'lucide-react'
 import { useLang } from '../../i18n/LanguageContext'
 import { useNavigation } from '../../Context/NavigationContext'
 import { WarehouseFeedingActualTab } from './WarehouseFeedingActualTab'
 import { WarehouseFeedingPlanTab } from './WarehouseFeedingPlanTab'
+import { WarehouseKanbanTab } from './WarehouseKanbanTab'
+import { FeedingSettingsModal } from './FeedingSettingsModal'
 import type { Warehouse } from '../../Types/warehouse'
 import type { Station, VehicleModel } from '../../Types/settings'
 import type { WarehousesFeedingSubTab } from '../../Types/navigation'
@@ -17,43 +19,36 @@ type Props = {
   initialSubTab?: WarehousesFeedingSubTab
 }
 
-export function WarehouseFeedingTab({ warehouses, models, stations, canManage, notify, initialSubTab }: Props) {
+export function WarehouseFeedingTab({ warehouses, models, stations, canManage, notify }: Props) {
   const { t } = useLang()
   const nav = useNavigation()
   const subTab = nav.warehousesFeedingSubTab
+  const [settingsOpen, setSettingsOpen] = useState(false)
 
-  useEffect(() => {
-    if (initialSubTab) nav.setWarehousesFeedingSubTab(initialSubTab)
-  }, [initialSubTab, nav])
-
-  const subTabs: { key: WarehousesFeedingSubTab; label: string; icon: typeof CalendarDays }[] = [
-    { key: 'plan', label: t('warehouses.feeding.subTabs.plan'), icon: CalendarDays },
-    { key: 'actual', label: t('warehouses.feeding.subTabs.actual'), icon: Truck }
-  ]
+  if (!canManage && subTab === 'kanban') {
+    return (
+      <p className="rounded-xl border border-amber-500/30 bg-amber-500/10 p-4 text-sm text-amber-200">
+        {t('warehouses.readOnly')}
+      </p>
+    )
+  }
 
   return (
     <div className="space-y-4">
-      <div className="card-industrial p-3">
-        <nav className="flex flex-wrap gap-2">
-          {subTabs.map(item => {
-            const Icon = item.icon
-            const active = subTab === item.key
-            return (
-              <button
-                key={item.key}
-                type="button"
-                onClick={() => nav.setWarehousesFeedingSubTab(item.key)}
-                className={`flex items-center gap-1.5 rounded-xl px-3 py-2 text-sm font-black sm:px-4 ${
-                  active ? 'bg-amber-500 text-slate-950' : 'bg-slate-800 text-slate-300 hover:bg-slate-700'
-                }`}
-              >
-                <Icon className="h-4 w-4" />
-                {item.label}
-              </button>
-            )
-          })}
-        </nav>
-      </div>
+      {canManage && (
+        <div className="flex justify-end">
+          <button
+            type="button"
+            onClick={() => setSettingsOpen(true)}
+            className="flex items-center gap-2 rounded-xl border border-cyan-500/40 bg-cyan-500/10 px-4 py-2 text-sm font-bold text-cyan-200 hover:bg-cyan-500/20"
+          >
+            <Settings2 className="h-4 w-4" />
+            {t('warehouses.feeding.subTabs.settings')}
+          </button>
+        </div>
+      )}
+
+      <FeedingSettingsModal open={settingsOpen} onClose={() => setSettingsOpen(false)} notify={notify} />
 
       {subTab === 'plan' && (
         <WarehouseFeedingPlanTab
@@ -64,10 +59,10 @@ export function WarehouseFeedingTab({ warehouses, models, stations, canManage, n
           notify={notify}
         />
       )}
+      {subTab === 'kanban' && <WarehouseKanbanTab notify={notify} />}
       {subTab === 'actual' && (
         <WarehouseFeedingActualTab
           warehouses={warehouses}
-          models={models}
           stations={stations}
           canManage={canManage}
           notify={notify}

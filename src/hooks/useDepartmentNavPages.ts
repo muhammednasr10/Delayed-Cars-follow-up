@@ -1,4 +1,25 @@
 import { useCallback, useMemo } from 'react'
+import {
+  Activity,
+  AlertTriangle,
+  BookOpen,
+  Boxes,
+  CalendarDays,
+  Car,
+  ClipboardList,
+  Factory,
+  FileText,
+  Home,
+  List,
+  MessageSquare,
+  Package,
+  Settings2,
+  Target,
+  Truck,
+  Users,
+  Wrench
+} from 'lucide-react'
+import type { LucideIcon } from 'lucide-react'
 import { useLang } from '../i18n/LanguageContext'
 import { usePermissions } from '../Context/PermissionsContext'
 import { useCanAccessSettings } from './useCanAccessSettings'
@@ -11,15 +32,23 @@ import {
   type AppPagePermissionKey
 } from '../config/pageAccess'
 import { useNavigation } from '../Context/NavigationContext'
-import { SETTINGS_TAB_ORDER, PRODUCTION_AREA_ORDER, type DepartmentId } from '../Types/navigation'
+import { SETTINGS_TAB_ORDER, PRODUCTION_AREA_ORDER, BOM_TAB_ORDER, bomTabPermissionKey, type DepartmentId } from '../Types/navigation'
+import { buildWarehousesNavPages } from './warehouses/buildWarehousesNavPages'
 
-export type NavPageChild = { key: string; label: string; onClick: () => void; visible?: boolean }
+export type NavPageChild = {
+  key: string
+  label: string
+  onClick: () => void
+  visible?: boolean
+  icon?: LucideIcon
+}
 
 export type NavPageItem = {
   key: string
   label: string
   visible: boolean
   onNavigate: () => void
+  icon?: LucideIcon
   children?: NavPageChild[]
 }
 
@@ -51,10 +80,17 @@ export function useDepartmentNavPages() {
   )
 
   const productionAreaTabs = useMemo<NavPageItem[]>(
-    () =>
-      PRODUCTION_AREA_ORDER.map(key => ({
+    () => {
+      const icons: Record<string, LucideIcon> = {
+        body: Factory,
+        paint: Wrench,
+        assembly: Car,
+        externalRepair: Truck
+      }
+      return PRODUCTION_AREA_ORDER.map(key => ({
         key,
         label: t(`departments.productionArea.${key}`),
+        icon: icons[key],
         visible: true,
         onNavigate: () =>
           navTo({
@@ -62,7 +98,8 @@ export function useDepartmentNavPages() {
             productionArea: key,
             ...(key === 'assembly' ? { productionPage: 'home' } : {})
           })
-      })),
+      }))
+    },
     [navTo, t]
   )
 
@@ -71,18 +108,21 @@ export function useDepartmentNavPages() {
       {
         key: 'home',
         label: t('nav.home'),
+        icon: Home,
         visible: navLoading || canViewPage(pagePermForProduction('home')),
         onNavigate: () => navTo({ department: 'production', productionArea: 'assembly', productionPage: 'home' })
       },
       {
         key: 'missing',
         label: t('nav.missingParts'),
+        icon: AlertTriangle,
         visible: navLoading || canViewPage(pagePermForProduction('missing')),
         onNavigate: () => navTo({ department: 'production', productionArea: 'assembly', productionPage: 'missing' })
       },
       {
         key: 'vehicles',
         label: t('nav.productivity'),
+        icon: Activity,
         visible: navLoading || canViewPage(pagePermForProduction('vehicles')),
         onNavigate: () =>
           navTo({ department: 'production', productionArea: 'assembly', productionPage: 'vehicles', productivityTab: 'productivity' }),
@@ -106,6 +146,7 @@ export function useDepartmentNavPages() {
       {
         key: 'training',
         label: t('nav.training'),
+        icon: Users,
         visible: navLoading || canViewPage(pagePermForProduction('training')),
         onNavigate: () => navTo({ department: 'production', productionArea: 'assembly', productionPage: 'training', trainingTab: 'org' }),
         children: (['org', 'attendance', 'manpower', 'operations', 'stationSkills', 'matrix', 'qualification', 'expiry'] as const)
@@ -120,36 +161,42 @@ export function useDepartmentNavPages() {
       {
         key: 'damagedParts',
         label: t('nav.damagedParts'),
+        icon: Package,
         visible: navLoading || canViewPage(pagePermForProduction('damagedParts')),
         onNavigate: () => navTo({ department: 'production', productionArea: 'assembly', productionPage: 'damagedParts' })
       },
       {
         key: 'missions',
         label: t('nav.missions'),
+        icon: ClipboardList,
         visible: navLoading || canViewPage(pagePermForProduction('missions')),
         onNavigate: () => navTo({ department: 'production', productionArea: 'assembly', productionPage: 'missions' })
       },
       {
         key: 'requests',
         label: t('nav.requests'),
+        icon: FileText,
         visible: navLoading || canViewPage(pagePermForProduction('requests')),
         onNavigate: () => navTo({ department: 'production', productionArea: 'assembly', productionPage: 'requests' })
       },
       {
         key: 'scratches',
         label: t('nav.scratches'),
+        icon: Target,
         visible: navLoading || canViewPage(pagePermForProduction('scratches')),
         onNavigate: () => navTo({ department: 'production', productionArea: 'assembly', productionPage: 'scratches' })
       },
       {
         key: 'equipment',
         label: t('nav.equipment'),
+        icon: Wrench,
         visible: navLoading || canViewPage(pagePermForProduction('equipment')),
         onNavigate: () => navTo({ department: 'production', productionArea: 'assembly', productionPage: 'equipment' })
       },
       {
         key: 'feedback',
         label: t('nav.feedback'),
+        icon: MessageSquare,
         visible: navLoading || canViewPage(pagePermForProduction('feedback')),
         onNavigate: () => navTo({ department: 'production', productionArea: 'assembly', productionPage: 'feedback' })
       }
@@ -163,6 +210,7 @@ export function useDepartmentNavPages() {
     () => ({
       key: 'settings',
       label: t('nav.settings'),
+      icon: Settings2,
       visible: canAccessSettings,
       onNavigate: () => navTo({ department: 'production', productionArea: 'assembly', productionPage: 'settings', settingsTab: 'administrations' }),
       children: SETTINGS_TAB_ORDER.map(key => ({
@@ -180,19 +228,20 @@ export function useDepartmentNavPages() {
       {
         key: 'home',
         label: t('nav.home'),
+        icon: Home,
         visible: navLoading || canViewPage(pagePermForEngineering('home')),
         onNavigate: () => navTo({ department: 'engineering', engineeringPage: 'home' })
       },
       {
         key: 'ipl',
         label: t('nav.ipl'),
+        icon: List,
         visible: canShowEngineeringIpl,
-        onNavigate: () => navTo({ department: 'engineering', engineeringPage: 'ipl', bomTab: 'parts' }),
-        children: (['parts', 'partsGd', 'compare', 'categories', 'import', 'dashboard'] as const)
-          .map(key => ({
+        onNavigate: () => navTo({ department: 'engineering', engineeringPage: 'ipl', bomTab: 'consolidated' }),
+        children: BOM_TAB_ORDER.map(key => ({
             key,
             label: t(`bom.tabs.${key}`),
-            visible: tabVisible('engineering_ipl', key),
+            visible: tabVisible('engineering_ipl', bomTabPermissionKey(key)),
             onClick: () => navTo({ department: 'engineering', engineeringPage: 'ipl', bomTab: key })
           }))
           .filter(c => c.visible !== false)
@@ -200,6 +249,7 @@ export function useDepartmentNavPages() {
       {
         key: 'lineBalancing',
         label: t('nav.lineBalancing'),
+        icon: Activity,
         visible: canShowLineBalancing,
         onNavigate: () => navTo({ department: 'engineering', engineeringPage: 'lineBalancing', lineBalancingTab: 'operations' }),
         children: (['operations', 'opParts', 'timeStudy', 'routing', 'manpower', 'import'] as const)
@@ -214,48 +264,24 @@ export function useDepartmentNavPages() {
       {
         key: 'sop',
         label: t('nav.sop'),
+        icon: BookOpen,
         visible: canShowSop,
         onNavigate: () => navTo({ department: 'engineering', engineeringPage: 'sop' })
       }
     ],
-    [canShowEngineeringIpl, canShowLineBalancing, canShowSop, canViewPage, navLoading, navTo, t]
+    [canShowEngineeringIpl, canShowLineBalancing, canShowSop, canViewPage, navLoading, navTo, t, tabVisible]
   )
 
   const warehousesPages = useMemo<NavPageItem[]>(
-    () => [
-      {
-        key: 'home',
-        label: t('nav.home'),
-        visible: navLoading || canViewPage(pagePermForWarehouses('home')),
-        onNavigate: () => navTo({ department: 'warehouses', warehousesTab: 'home' })
-      },
-      {
-        key: 'currentStock',
-        label: t('warehouses.tabs.currentStock'),
-        visible: navLoading || canViewPage(pagePermForWarehouses('currentStock')),
-        onNavigate: () => navTo({ department: 'warehouses', warehousesTab: 'currentStock' })
-      },
-      {
-        key: 'feeding',
-        label: t('warehouses.tabs.feeding'),
-        visible: navLoading || canViewPage(pagePermForWarehouses('feeding')),
-        onNavigate: () => navTo({ department: 'warehouses', warehousesTab: 'feeding' }),
-        children: [
-          {
-            key: 'plan',
-            label: t('warehouses.feeding.subTabs.plan'),
-            visible: tabVisible('warehouses_feeding', 'plan'),
-            onClick: () => navTo({ department: 'warehouses', warehousesTab: 'feeding', warehousesFeedingSubTab: 'plan' })
-          },
-          {
-            key: 'actual',
-            label: t('warehouses.feeding.subTabs.actual'),
-            visible: tabVisible('warehouses_feeding', 'actual'),
-            onClick: () => navTo({ department: 'warehouses', warehousesTab: 'feeding', warehousesFeedingSubTab: 'actual' })
-          }
-        ].filter(c => c.visible !== false)
-      }
-    ],
+    () =>
+      buildWarehousesNavPages({
+        t,
+        navLoading,
+        navTo,
+        canViewPage,
+        tabVisible,
+        icons: { Home, Package, CalendarDays, Truck, Boxes }
+      }),
     [canViewPage, navLoading, navTo, t, tabVisible]
   )
 
@@ -264,24 +290,28 @@ export function useDepartmentNavPages() {
       {
         key: 'plan',
         label: t('productionOrders.title'),
+        icon: ClipboardList,
         visible: navLoading || canViewPage(pagePermForPlanning('plan')),
         onNavigate: () => navTo({ department: 'planning', planningTab: 'plan' })
       },
       {
         key: 'workDays',
         label: t('productionOrders.tabs.workDays'),
+        icon: CalendarDays,
         visible: navLoading || canViewPage(pagePermForPlanning('workDays')),
         onNavigate: () => navTo({ department: 'planning', planningTab: 'workDays' })
       },
       {
         key: 'tracking',
         label: t('planning.tracking.tab'),
+        icon: Target,
         visible: navLoading || canViewPage(pagePermForPlanning('tracking')),
         onNavigate: () => navTo({ department: 'planning', planningTab: 'tracking' })
       },
       {
         key: 'orders',
         label: t('productionOrders.ordersSection'),
+        icon: List,
         visible: navLoading || canViewPage(pagePermForPlanning('orders')),
         onNavigate: () => navTo({ department: 'planning', planningTab: 'orders' })
       }
@@ -294,6 +324,7 @@ export function useDepartmentNavPages() {
       {
         key: 'notes',
         label: t('qualityNotes.title'),
+        icon: MessageSquare,
         visible: navLoading || canViewPage('quality_notes' as AppPagePermissionKey),
         onNavigate: () => navTo({ department: 'quality', qualityTab: 'record' }),
         children: (['record', 'study'] as const)
@@ -306,7 +337,7 @@ export function useDepartmentNavPages() {
           .filter(c => c.visible !== false)
       }
     ],
-    [navTo, t]
+    [canViewPage, navLoading, navTo, t, tabVisible]
   )
 
   const hrPages = useMemo<NavPageItem[]>(
@@ -314,11 +345,12 @@ export function useDepartmentNavPages() {
       {
         key: 'employees',
         label: t('training.tabs.org'),
+        icon: Users,
         visible: navLoading || canViewPage(pagePermForProduction('training')),
         onNavigate: () => navTo({ department: 'hr' })
       }
     ],
-    [canViewPage, navLoading, navTo, t, tabVisible]
+    [canViewPage, navLoading, navTo, t]
   )
 
   function pagesForDepartment(dept: DepartmentId): NavPageItem[] {
@@ -342,9 +374,26 @@ export function useDepartmentNavPages() {
     if (dept === 'production') return nav.productionArea === 'assembly' && nav.productionPage === pageKey
     if (dept === 'planning') return nav.planningTab === pageKey
     if (dept === 'engineering') return nav.engineeringPage === pageKey
-    if (dept === 'warehouses') return nav.warehousesTab === pageKey
+    if (dept === 'warehouses') {
+      if (pageKey === 'feedingPlan') return nav.warehousesTab === 'feeding' && nav.warehousesFeedingSubTab === 'plan'
+      if (pageKey === 'feedingActual') return nav.warehousesTab === 'feeding' && nav.warehousesFeedingSubTab === 'actual'
+      if (pageKey === 'equipment') return nav.warehousesTab === 'equipment'
+      return nav.warehousesTab === pageKey
+    }
     if (dept === 'quality') return pageKey === 'notes'
     if (dept === 'hr') return pageKey === 'employees'
+    return false
+  }
+
+  function isNavChildActive(dept: DepartmentId, parentKey: string, childKey: string): boolean {
+    if (!isPageActive(dept, parentKey)) return false
+    if (dept === 'engineering' && parentKey === 'ipl') return nav.bomTab === childKey
+    if (dept === 'engineering' && parentKey === 'lineBalancing') return nav.lineBalancingTab === childKey
+    if (dept === 'production' && parentKey === 'vehicles') return nav.productivityTab === childKey
+    if (dept === 'production' && parentKey === 'training') return nav.trainingTab === childKey
+    if (dept === 'production' && parentKey === 'settings') return nav.settingsTab === childKey
+    if (dept === 'quality' && parentKey === 'notes') return nav.qualityTab === childKey
+    if (dept === 'warehouses' && parentKey === 'equipment') return nav.warehousesEquipmentSubTab === childKey
     return false
   }
 
@@ -370,6 +419,7 @@ export function useDepartmentNavPages() {
     pagesForDepartment,
     isProductionAreaActive,
     isPageActive,
+    isNavChildActive,
     selectDepartment,
     currentDepartment: nav.department,
     showProfile: nav.showProfile

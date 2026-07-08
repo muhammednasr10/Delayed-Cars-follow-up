@@ -3,7 +3,6 @@ import {
   BookOpen,
   ClipboardList,
   FileUp,
-  GitCompare,
   Layers,
   Map,
   Route,
@@ -42,7 +41,7 @@ export function EngineeringHomePage() {
         description: t('hub.engineering.iplDesc'),
         icon: Layers,
         tone: 'text-orange-300 bg-orange-500/15',
-        onClick: () => go({ department: 'engineering', engineeringPage: 'ipl', bomTab: 'parts' })
+        onClick: () => go({ department: 'engineering', engineeringPage: 'ipl', bomTab: 'consolidated' })
       },
       canStations && {
         key: 'stations',
@@ -77,9 +76,9 @@ export function EngineeringHomePage() {
     cards: canIpl
       ? (
           [
-            { key: 'parts', tab: 'parts' as const, icon: ClipboardList, tone: 'text-cyan-300 bg-cyan-500/15' },
-            { key: 'partsGd', tab: 'partsGd' as const, icon: ClipboardList, tone: 'text-emerald-300 bg-emerald-500/15' },
-            { key: 'compare', tab: 'compare' as const, icon: GitCompare, tone: 'text-blue-300 bg-blue-500/15' },
+            { key: 'consolidated', tab: 'consolidated' as const, icon: Layers, tone: 'text-violet-300 bg-violet-500/15' },
+            { key: 'partList', tab: 'partList' as const, icon: ClipboardList, tone: 'text-cyan-300 bg-cyan-500/15' },
+            { key: 'iplModels', tab: 'iplModels' as const, icon: Layers, tone: 'text-orange-300 bg-orange-500/15' },
             { key: 'categories', tab: 'categories' as const, icon: Settings2, tone: 'text-emerald-300 bg-emerald-500/15' },
             { key: 'import', tab: 'import' as const, icon: FileUp, tone: 'text-amber-300 bg-amber-500/15' },
             { key: 'dashboard', tab: 'dashboard' as const, icon: BarChart3, tone: 'text-violet-300 bg-violet-500/15' }

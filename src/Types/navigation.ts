@@ -31,7 +31,36 @@ export type ProductionArea = (typeof PRODUCTION_AREA_ORDER)[number]
 
 export type EngineeringPage = 'home' | 'ipl' | 'stations' | 'lineBalancing' | 'sop'
 
-export type BomTab = 'parts' | 'partsGd' | 'compare' | 'categories' | 'import' | 'dashboard'
+export type BomTab =
+  | 'consolidated'
+  | 'partList'
+  | 'iplModels'
+  | 'categories'
+  | 'import'
+  | 'dashboard'
+
+export const BOM_TAB_ORDER = [
+  'consolidated',
+  'partList',
+  'iplModels',
+  'categories',
+  'import',
+  'dashboard'
+] as const satisfies readonly BomTab[]
+
+/** ترحيل المفتاح القديم `parts` → `consolidated` */
+export function normalizeBomTab(tab: string | undefined): BomTab {
+  if (tab === 'parts' || tab === 'consolidated') return 'consolidated'
+  if (tab === 'partsGd' || tab === 'compare') return 'consolidated'
+  if (BOM_TAB_ORDER.includes(tab as BomTab)) return tab as BomTab
+  return 'consolidated'
+}
+
+/** مفتاح صلاحية التبويب الفرعي (القديم parts = consolidated) */
+export function bomTabPermissionKey(tab: BomTab): string {
+  if (tab === 'consolidated') return 'parts'
+  return tab
+}
 
 export type LineBalancingTab = 'operations' | 'opParts' | 'timeStudy' | 'routing' | 'manpower' | 'import'
 
@@ -60,9 +89,11 @@ export const PLANNING_TAB_ORDER = ['plan', 'workDays', 'tracking', 'orders'] as 
 
 export type PlanningTab = (typeof PLANNING_TAB_ORDER)[number]
 
-export type WarehousesTab = 'home' | 'currentStock' | 'feeding'
+export type WarehousesTab = 'home' | 'currentStock' | 'feeding' | 'equipment'
 
-export type WarehousesFeedingSubTab = 'plan' | 'actual'
+export type WarehousesFeedingSubTab = 'plan' | 'actual' | 'kanban'
+
+export type WarehousesEquipmentSubTab = 'racks' | 'carts'
 
 export type QualityTab = 'record' | 'study'
 
