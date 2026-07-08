@@ -251,10 +251,25 @@ export const translations = {
       empty: 'لا توجد خدوش مسجلة.',
       vinPlaceholder: 'آخر 6 أحرف من الشاسيه أو الرقم الكامل',
       areaOrgEmpty: 'أضف الأقسام (تريم أ، تريم ب، الشاسيه، الفاينال…) من الإعدادات → الإدارات.',
-      errVin: 'رقم الشاسيه يجب أن يكون 4 أحرف على الأقل.',
-      errArea: 'منطقة الخدش مطلوبة.',
+      errVin: 'رقم الشاسيه يجب ألا يقل عن 4 أرقام.',
+      errParentModel: 'يجب اختيار الموديل الأب.',
+      errVariant: 'يجب اختيار الموديل الفرعي.',
+      errArea: 'القسم مطلوب.',
       errDate: 'تاريخ التسجيل مطلوب.',
-      cols: { vin: 'الشاسيه', area: 'المنطقة', orgUnit: 'القسم', severity: 'الشدة', date: 'التاريخ' },
+      uploadImage: 'إرفاق صورة',
+      removeImage: 'إزالة الصورة',
+      errImageSize: 'حجم الصورة يجب ألا يتجاوز 5 ميجابايت.',
+      errImageType: 'نوع الصورة غير مدعوم (JPEG, PNG, WebP, GIF).',
+      cols: {
+        vin: 'الشاسيه',
+        parentModel: 'الموديل الأب',
+        variant: 'الفرع',
+        area: 'المنطقة',
+        orgUnit: 'القسم',
+        severity: 'الشدة',
+        date: 'التاريخ',
+        image: 'الصورة'
+      },
       severity: { light: 'خفيف', medium: 'متوسط', severe: 'شديد' },
       summaryTitle: 'ملخص الخدوش',
       summaryHint: 'إجمالي الخدوش المسجلة حسب الشدة والمناطق الأكثر تكراراً',
@@ -1111,6 +1126,7 @@ export const translations = {
       title: 'الحضور والانصراف',
       subtitle: 'تسجيل يومي لكل موظف خلال الشهر',
       month: 'الشهر',
+      year: 'السنة',
       export: 'تنزيل Excel',
       import: 'استيراد Excel',
       importTitle: 'استيراد حضور',
@@ -1129,6 +1145,12 @@ export const translations = {
         hint: 'استخدم تبويب «تسجيل اليوم» لتسجيل حضور اليوم — يُحفظ تلقائياً ويظهر هنا.',
         search: 'بحث عن موظف',
         searchPh: 'ابحث بالاسم أو الرقم الوظيفي…'
+      },
+      yearly: {
+        title: 'سنوي',
+        subtitle: 'مجموع حضور وانصراف كل موظف خلال السنة',
+        hint: 'يُجمَع من الشهور حسب أيام العمل — الأيام غير المسجّلة تُحسب من خطة الإنتاج. للتعديل استخدم التبويب الشهري.',
+        totalRow: 'إجمالي {year}'
       },
       today: {
         title: 'تسجيل اليوم',
@@ -1153,6 +1175,9 @@ export const translations = {
           'اليوم أجازة في ملخص الإنتاجية — الافتراضي إجازة بدون أوقات. يمكنك تغيير حالة موظف لـ حاضر أو إضافي يدوياً لمن حضر فعلاً.',
         holidayBanner: 'افتراضياً بدون حضور وانصراف — سجّل يدوياً من جاء إضافي.',
         planDayLabel: 'نوع اليوم في ملخص الإنتاجية',
+        selectDate: 'اختر التاريخ',
+        backToToday: 'العودة لليوم',
+        pastDayBanner: 'أنت تسجّل أو تعدّل حضور يوم سابق — التغييرات تُحفظ لهذا التاريخ وتظهر في الملخص الشهري.',
         summary: {
           title: 'ملخص اليوم',
           total: 'إجمالي العمالة',
@@ -1163,12 +1188,13 @@ export const translations = {
       monthEditor: 'تسجيل الشهر يوماً بيوم',
       saveMonth: 'حفظ الشهر',
       defaultsHint:
-        'الافتراضي: حاضر — حضور 7:00 ص — انصراف 5:30 م. الأيام السابقة تُحسب حاضراً إن لم تُسجَّل؛ اليوم يُحسب بعد الحفظ فقط.',
+        'الافتراضي حسب أيام العمل في ملخص الإنتاجية: عمل/إضافي/بدل = حاضر؛ أجازة = إجازة. الأيام السابقة تُحسب حسب الخطة إن لم تُسجَّل؛ اليوم يُحسب بعد الحفظ فقط.',
       markAllPresent: 'الكل حاضر (7:00 – 5:30)',
+      markAllFromPlan: 'تطبيق الافتراضي حسب أيام العمل',
       checkIn: 'وقت الحضور',
       checkOut: 'وقت الانصراف',
       cols: {
-        code: 'الكود', name: 'الاسم', role: 'المسمى', date: 'التاريخ', status: 'الحالة',
+        code: 'الكود', name: 'الاسم', role: 'المسمى', date: 'التاريخ', planDay: 'نوع اليوم', status: 'الحالة',
         present: 'حاضر', absent: 'غياب', vacation: 'إجازة', sick: 'مرضى', total: 'غياب/إجازة/مرض'
       },
       status: { present: 'حاضر', absent: 'غياب', vacation: 'إجازة', sick: 'مرضى', permission: 'إذن', late: 'تأخير' }
@@ -1484,6 +1510,20 @@ export const translations = {
       chartAlsoReportsTo: 'يرتبط أيضاً بـ: {names}',
       add: 'إضافة موظف', edit: 'تعديل الموظف', view: 'عرض التفاصيل',
       activate: 'تفعيل', deactivate: 'إيقاف',
+      leaveWork: 'ترك العمل',
+      leaveWorkConfirm: 'سيُنقل الموظف إلى «الموظفون السابقون» ولن يظهر في قوائم العمالة النشطة. يمكن إعادته لاحقاً من تبويب السابقين.',
+      leaveWorkReason: 'سبب المغادرة',
+      leaveWorkDone: 'تم تسجيل مغادرة الموظف.',
+      tabs: { current: 'الموظفون الحاليون', former: 'الموظفون السابقون' },
+      formerSubtitle: 'من تركوا العمل نهائياً — استبعاد، استقالة، أو إنهاء خدمة.',
+      formerEmpty: 'لا يوجد موظفون سابقون مسجلون.',
+      employmentStatus: {
+        active: 'على رأس العمل',
+        suspended: 'موقوف مؤقتاً',
+        resigned: 'استقالة',
+        terminated: 'إنهاء خدمة',
+        on_leave: 'إجازة'
+      },
       count: '{n} موظف',
       f: {
         code: 'كود الموظف', name: 'الاسم الكامل', role: 'المسمى الوظيفي', department: 'القسم',
@@ -1493,6 +1533,9 @@ export const translations = {
         assignmentStatus: 'حالة التعيين', assignmentStatusHint: 'من كشف العمالة — لا تغيّر تفعيل/إيقاف السجل.',
         recordActive: 'تفعيل السجل في النظام',
         active: 'مفعّل', inactive: 'موقوف', noManager: 'بدون مدير مباشر',
+        employmentStatus: 'حالة التوظيف',
+        departureDate: 'تاريخ المغادرة',
+        departureReason: 'سبب المغادرة',
         orgUnit: 'التبعية التنظيمية',
         orgUnitsHint: 'للمشرف/مساعد المشرف: حدّد القسم المسؤول عنه (مثل تريم أ&ب أو تريم أ) — يحدد ما يراه في الصفحات. اختر الإدارة ثم القسم ثم القسم الفرعي إن وُجد.',
         orgUnitsEmpty: 'أضف الإدارات من الإعدادات أولاً.'
@@ -1602,7 +1645,7 @@ export const translations = {
           byLevel: 'حسب أعلى مستوى'
         }
       },
-      attendanceTabs: { monthly: 'شهري', today: 'تسجيل اليوم' },
+      attendanceTabs: { monthly: 'شهري', yearly: 'سنوي', today: 'تسجيل اليوم' },
       opsQual: {
         station: 'المحطة', searchPh: 'بحث باسم العملية…', total: 'إجمالي العمليات',
         noSkill: 'بدون مهارة مرتبطة', noQualified: 'بدون عامل مؤهل', required: 'المستوى المطلوب',
@@ -2693,10 +2736,25 @@ export const translations = {
       empty: 'No scratches recorded.',
       vinPlaceholder: 'Last 6 VIN characters or full number',
       areaOrgEmpty: 'Add areas (Trim A, Trim B, Chassis, Final…) in Settings → Administrations.',
-      errVin: 'VIN must be at least 4 characters.',
-      errArea: 'Body area is required.',
+      errVin: 'VIN must contain at least 4 digits.',
+      errParentModel: 'Parent model is required.',
+      errVariant: 'Variant model is required.',
+      errArea: 'Section is required.',
       errDate: 'Record date is required.',
-      cols: { vin: 'VIN', area: 'Area', orgUnit: 'Section', severity: 'Severity', date: 'Date' },
+      uploadImage: 'Attach photo',
+      removeImage: 'Remove photo',
+      errImageSize: 'Image must be 5 MB or smaller.',
+      errImageType: 'Unsupported image type (JPEG, PNG, WebP, GIF).',
+      cols: {
+        vin: 'VIN',
+        parentModel: 'Parent model',
+        variant: 'Variant',
+        area: 'Area',
+        orgUnit: 'Section',
+        severity: 'Severity',
+        date: 'Date',
+        image: 'Photo'
+      },
       severity: { light: 'Light', medium: 'Medium', severe: 'Severe' },
       summaryTitle: 'Scratch summary',
       summaryHint: 'Totals by severity and most frequent body areas',
@@ -3553,6 +3611,7 @@ export const translations = {
       title: 'Attendance',
       subtitle: 'Daily check-in/out and leave per employee',
       month: 'Month',
+      year: 'Year',
       export: 'Download Excel',
       import: 'Import Excel',
       importTitle: 'Import attendance',
@@ -3571,6 +3630,12 @@ export const translations = {
         hint: 'Use the «Today» tab to record today — it appears here after saving.',
         search: 'Find employee',
         searchPh: 'Search by name or employee code…'
+      },
+      yearly: {
+        title: 'Yearly',
+        subtitle: 'Per-employee attendance totals for the full year',
+        hint: 'Aggregated from months using work-day plan defaults. Edit details in the monthly tab.',
+        totalRow: 'Total {year}'
       },
       today: {
         title: 'Today',
@@ -3595,6 +3660,9 @@ export const translations = {
           'This day is a holiday in the production summary — default is leave with no times. Change individual rows to present for anyone who worked overtime.',
         holidayBanner: 'No check-in/out by default — record overtime arrivals manually.',
         planDayLabel: 'Production summary day type',
+        selectDate: 'Select date',
+        backToToday: 'Back to today',
+        pastDayBanner: 'Recording or editing a past day — changes save for this date and appear in the monthly summary.',
         summary: {
           title: "Today's summary",
           total: 'Total workers',
@@ -3605,12 +3673,13 @@ export const translations = {
       monthEditor: 'Month (day by day)',
       saveMonth: 'Save month',
       defaultsHint:
-        'Default: present — in 7:00 AM, out 5:30 PM. Past days count as present if not recorded; today counts only after you save.',
+        'Defaults follow working days in the production summary: work/overtime/substitute = present; holidays = leave. Past days use the plan if not recorded; today counts only after save.',
       markAllPresent: 'All present (7:00 – 5:30)',
+      markAllFromPlan: 'Apply defaults from work days',
       checkIn: 'Check-in',
       checkOut: 'Check-out',
       cols: {
-        code: 'Code', name: 'Name', role: 'Role', date: 'Date', status: 'Status',
+        code: 'Code', name: 'Name', role: 'Role', date: 'Date', planDay: 'Day type', status: 'Status',
         present: 'Present', absent: 'Absent', vacation: 'Leave', sick: 'Sick', total: 'Issues'
       },
       status: { present: 'Present', absent: 'Absent', vacation: 'Leave', sick: 'Sick', permission: 'Permission', late: 'Late' }
@@ -3926,6 +3995,20 @@ export const translations = {
       chartAlsoReportsTo: 'Also reports to: {names}',
       add: 'Add employee', edit: 'Edit employee', view: 'View details',
       activate: 'Activate', deactivate: 'Deactivate',
+      leaveWork: 'Leave employment',
+      leaveWorkConfirm: 'The employee moves to «Former employees» and drops off active workforce lists. You can restore them later from that tab.',
+      leaveWorkReason: 'Departure reason',
+      leaveWorkDone: 'Employee departure recorded.',
+      tabs: { current: 'Current employees', former: 'Former employees' },
+      formerSubtitle: 'Permanent departures — resignation, termination, or end of employment.',
+      formerEmpty: 'No former employees on record.',
+      employmentStatus: {
+        active: 'Active',
+        suspended: 'Suspended',
+        resigned: 'Resigned',
+        terminated: 'Terminated',
+        on_leave: 'On leave'
+      },
       count: '{n} employees',
       f: {
         code: 'Employee code', name: 'Full name', role: 'Job role', department: 'Department',
@@ -3935,6 +4018,9 @@ export const translations = {
         assignmentStatus: 'Assignment status', assignmentStatusHint: 'From roster — separate from active/inactive record toggle.',
         recordActive: 'Record active in system',
         active: 'Active', inactive: 'Inactive', noManager: 'No direct manager',
+        employmentStatus: 'Employment status',
+        departureDate: 'Departure date',
+        departureReason: 'Departure reason',
         orgUnit: 'Org placement',
         orgUnitsHint: 'For supervisors: pick the org unit you are responsible for (e.g. Trim A&B or Trim A) — this controls what you see in pages. Pick administration, then section, then sub-section if needed.',
         orgUnitsEmpty: 'Add administrations in Settings first.'
@@ -4044,7 +4130,7 @@ export const translations = {
           byLevel: 'By highest level'
         }
       },
-      attendanceTabs: { monthly: 'Monthly', today: 'Today' },
+      attendanceTabs: { monthly: 'Monthly', yearly: 'Yearly', today: 'Today' },
       opsQual: {
         station: 'Station', searchPh: 'Search operation…', total: 'Total operations',
         noSkill: 'No linked skill', noQualified: 'No qualified workers', required: 'Required level',

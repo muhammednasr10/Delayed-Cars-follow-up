@@ -4,13 +4,13 @@ import { useLang } from '../i18n/LanguageContext'
 import { Modal } from './Modal'
 import { inputCls } from './FormField'
 import {
-  ATTENDANCE_STATUSES,
   attendanceStatusHasTimes,
   type AttendanceDayStatus
 } from '../Types/attendance'
 import type { PlanDayType } from '../Types/productionPlanWorkDayDaily'
 import {
   attendanceDefaultsFromPlanDay,
+  allowedAttendanceStatusesForPlanDay,
   isHolidayPlanDay,
   type AttendanceBulkDefaults
 } from '../Utils/attendanceDefaults'
@@ -63,6 +63,7 @@ export function TodayAttendanceDefaultsModal({
 
   const timesEnabled = attendanceStatusHasTimes(status)
   const holiday = isHolidayPlanDay(planDayType)
+  const allowedStatuses = allowedAttendanceStatusesForPlanDay(planDayType)
 
   return (
     <Modal
@@ -103,7 +104,7 @@ export function TodayAttendanceDefaultsModal({
             value={status}
             onChange={e => onStatusChange(e.target.value as AttendanceDayStatus)}
           >
-            {ATTENDANCE_STATUSES.map(s => (
+            {allowedStatuses.map(s => (
               <option key={s} value={s}>
                 {t(`attendance.status.${s}`)}
               </option>

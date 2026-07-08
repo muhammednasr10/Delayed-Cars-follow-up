@@ -4,20 +4,24 @@ import { useLang } from '../../i18n/LanguageContext'
 import { ScratchFormModal } from './ScratchFormModal'
 import { ExportableTable } from '../ExportableTable'
 import type { ScratchInput, ScratchRecord } from '../../Types/scratch'
+import type { VehicleModel } from '../../Types/settings'
 
 const cell = 'table-cell text-center align-middle whitespace-nowrap px-3 py-2.5'
 
 type Props = {
   items: ScratchRecord[]
+  models: VehicleModel[]
+  modelsLoading?: boolean
   loading?: boolean
   saving?: boolean
-  onAdd: (input: ScratchInput) => Promise<void>
+  onAdd: (input: ScratchInput, imageFile: File | null) => Promise<void>
 }
 
-export function ScratchesRecordTab({ items, loading, saving, onAdd }: Props) {
+export function ScratchesRecordTab({ items, models, modelsLoading, loading, saving, onAdd }: Props) {
   const { t, lang } = useLang()
   const [formOpen, setFormOpen] = useState(false)
   const [success, setSuccess] = useState('')
+  const [previewImage, setPreviewImage] = useState<string | null>(null)
 
   function formatDate(iso: string) {
     const d = new Date(iso.includes('T') ? iso : `${iso}T12:00:00`)
@@ -38,9 +42,9 @@ export function ScratchesRecordTab({ items, loading, saving, onAdd }: Props) {
     )
   }
 
-  async function handleSave(input: ScratchInput) {
+  async function handleSave(input: ScratchInput, imageFile: File | null) {
     try {
-      await onAdd(input)
+      await onAdd(input, imageFile)
       setFormOpen(false)
       setSuccess(t('settings.added'))
       window.setTimeout(() => setSuccess(''), 2500)
@@ -48,6 +52,8 @@ export function ScratchesRecordTab({ items, loading, saving, onAdd }: Props) {
       /* error shown by parent */
     }
   }
+
+  const colCount = 8
 
   return (
     <div className="space-y-4">
@@ -69,51 +75,82 @@ export function ScratchesRecordTab({ items, loading, saving, onAdd }: Props) {
 
       <div className="card-industrial overflow-hidden">
         <ExportableTable filename="scratches" title={t('scratches.title')} rowCount={items.length}>
-        <div className="overflow-x-auto">
-        <table className="w-full text-center text-sm">
-          <thead className="bg-slate-950/90">
-            <tr>
-              <th className={`${cell} font-black text-slate-400`}>{t('scratches.cols.vin')}</th>
-              <th className={`${cell} font-black text-slate-400`}>{t('scratches.cols.orgUnit')}</th>
-              <th className={`${cell} font-black text-slate-400`}>{t('scratches.cols.severity')}</th>
-              <th className={`${cell} font-black text-slate-400`}>{t('scratches.cols.date')}</th>
-              <th className={`${cell} font-black text-slate-400`}>{t('common.notes')}</th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-slate-800">
-            {loading ? (
-              <tr>
-                <td colSpan={5} className="px-4 py-12 text-slate-500">
-                  {t('common.loading')}
-                </td>
-              </tr>
-            ) : items.length === 0 ? (
-              <tr>
-                <td colSpan={5} className="px-4 py-12 text-slate-500">
-                  {t('scratches.empty')}
-                </td>
-              </tr>
-            ) : (
-              items.map(row => (
-                <tr key={row.id} className="bg-slate-900/30 hover:bg-slate-800/40">
-                  <td className={`${cell} font-mono font-bold text-white`}>{row.vin}</td>
-                  <td className={`${cell} text-slate-200`}>{row.bodyArea || '—'}</td>
-                  <td className={cell}>{severityBadge(row.severity)}</td>
-                  <td className={`${cell} text-slate-300`}>{formatDate(row.recordedAt)}</td>
-                  <td className={`${cell} max-w-[14rem] truncate text-slate-400`}>{row.notes || '—'}</td>
+          <div className="overflow-x-auto">
+            <table className="w-full text-center text-sm">
+              <thead className="bg-slate-950/90">
+                <tr>
+                  <th className={`${cell} font-black text-slate-400`}>{t('scratches.cols.parentModel')}</th>
+                  <th className={`${cell} font-black text-slate-400`}>{t('scratches.cols.variant')}</th>
+                  <th className={`${cell} font-black text-slate-400`}>{t('scratches.cols.vin')}</th>
+                  <th className={`${cell} font-black text-slate-400`}>{t('common.notes')}</th>
+                  <th className={`${cell} font-black text-slate-400`}>{t('scratches.cols.orgUnit')}</th>
+                  <th className={`${cell} font-black text-slate-400`}>{t('scratches.cols.severity')}</th>
+                  <th className={`${cell} font-black text-slate-400`}>{t('scratches.cols.date')}</th>
+                  <th className={`${cell} font-black text-slate-400`}>{t('scratches.cols.image')}</th>
                 </tr>
-              ))
-            )}
-          </tbody>
-        </table>
-        </div>
+              </thead>
+              <tbody className="divide-y divide-slate-800">
+                {loading ? (
+                  <tr>
+                    <td colSpan={colCount} className="px-4 py-12 text-slate-500">
+                      {t('common.loading')}
+                    </td>
+                  </tr>
+                ) : items.length === 0 ? (
+                  <tr>
+                    <td colSpan={colCount} className="px-4 py-12 text-slate-500">
+                      {t('scratches.empty')}
+                    </td>
+                  </tr>
+                ) : (
+                  items.map(row => (
+                    <tr key={row.id} className="bg-slate-900/30 hover:bg-slate-800/40">
+                      <td className={`${cell} text-slate-200`}>{row.parentModelName || '—'}</td>
+                      <td className={`${cell} font-bold text-white`}>{row.modelName || '—'}</td>
+                      <td className={`${cell} font-mono font-bold text-white`}>{row.vin}</td>
+                      <td className={`${cell} max-w-[14rem] truncate text-slate-400`}>{row.notes || '—'}</td>
+                      <td className={`${cell} text-slate-200`}>{row.bodyArea || '—'}</td>
+                      <td className={cell}>{severityBadge(row.severity)}</td>
+                      <td className={`${cell} text-slate-300`}>{formatDate(row.recordedAt)}</td>
+                      <td className={cell}>
+                        {row.imageUrl ? (
+                          <button type="button" onClick={() => setPreviewImage(row.imageUrl!)} className="mx-auto block">
+                            <img src={row.imageUrl} alt="" className="h-10 w-10 rounded-lg border border-slate-700 object-cover" />
+                          </button>
+                        ) : (
+                          '—'
+                        )}
+                      </td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
+          </div>
         </ExportableTable>
       </div>
 
+      {previewImage && (
+        <div
+          className="fixed inset-0 z-[80] flex items-center justify-center bg-black/80 p-4"
+          onClick={() => setPreviewImage(null)}
+          role="presentation"
+        >
+          <img
+            src={previewImage}
+            alt=""
+            className="max-h-[90vh] max-w-full rounded-xl object-contain"
+            onClick={e => e.stopPropagation()}
+          />
+        </div>
+      )}
+
       <ScratchFormModal
         open={formOpen}
+        models={models}
+        modelsLoading={modelsLoading}
         onClose={() => setFormOpen(false)}
-        onSave={input => void handleSave(input)}
+        onSave={(input, imageFile) => void handleSave(input, imageFile)}
         saving={saving}
       />
     </div>

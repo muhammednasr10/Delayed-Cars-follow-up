@@ -35,6 +35,7 @@ export type Employee = {
   isActive: boolean
   employmentStatus: EmploymentStatus
   stoppedReason: string | null
+  stoppedAt: string | null
   createdAt: string
   updatedAt: string
 }

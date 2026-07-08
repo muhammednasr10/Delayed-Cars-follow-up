@@ -8,6 +8,7 @@ import {
   localTodayIso
 } from '../services/attendanceService'
 import { EMPTY_TODAY_STATUS_COUNTS, type TodayAttendanceStatusCounts } from '../Utils/attendanceHubStats'
+import { getProductionPlanDayType } from '../services/productionPlanWorkDayDailyService'
 import { getEmployees } from '../services/employeesService'
 import { getFactoryOrgUnits } from '../services/factoryOrgService'
 import { filterAssemblyWorkforce } from '../Utils/assemblyWorkforce'
@@ -31,8 +32,13 @@ export function useTodayAttendanceEfficiency(refreshKey = 0) {
     const month = d.getMonth() + 1
 
     setLoading(true)
-    void Promise.all([getEmployees(), getFactoryOrgUnits({ includeInactive: true }), getAttendanceDaysForDate(today)])
-      .then(([employees, orgUnits, days]) => {
+    void Promise.all([
+      getEmployees(),
+      getFactoryOrgUnits({ includeInactive: true }),
+      getAttendanceDaysForDate(today),
+      getProductionPlanDayType(today)
+    ])
+      .then(([employees, orgUnits, days, planDayType]) => {
         if (cancelled) return
         const assemblyEmployees = filterAssemblyWorkforceForViewer(
           filterAssemblyWorkforce(employees, orgUnits).filter(e => e.isActive),
@@ -47,7 +53,8 @@ export function useTodayAttendanceEfficiency(refreshKey = 0) {
           workDate: record.workDate,
           status: record.status
         }))
-        const effMap = computeDailyAttendanceEfficiency(activeIds, year, month, dayRecords, today)
+        const planDayByDate = new Map(planDayType ? [[today, planDayType]] : [])
+        const effMap = computeDailyAttendanceEfficiency(activeIds, year, month, dayRecords, today, planDayByDate)
         setEfficiency(effMap.get(today) ?? null)
         setPresentTodayCount(countPresentToday(activeIds, dayRecords, today))
         setWorkforceCount(activeIds.length)

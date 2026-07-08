@@ -1,11 +1,15 @@
 import type { AttendanceDayStatus } from '../Types/attendance'
 import {
+  ATTENDANCE_STATUSES,
   DEFAULT_ATTENDANCE_CHECK_IN,
   DEFAULT_ATTENDANCE_CHECK_OUT,
   attendanceStatusHasTimes
 } from '../Types/attendance'
 import type { PlanDayType } from '../Types/productionPlanWorkDayDaily'
 import { isVacationOrFactoryHoliday } from './productionPlanWorkDayDaily'
+
+/** على يوم أجازة: إجازة افتراضياً، وحضور/تأخير فقط لمن جاء إضافي */
+export const HOLIDAY_ATTENDANCE_STATUSES: AttendanceDayStatus[] = ['vacation', 'present', 'late']
 
 export type AttendanceBulkDefaults = {
   status: AttendanceDayStatus
@@ -41,4 +45,17 @@ export function attendanceDefaultsFromPlanDay(
 
 export function isHolidayPlanDay(dayType: PlanDayType | null): boolean {
   return dayType !== null && isVacationOrFactoryHoliday(dayType)
+}
+
+export function resolvePlanDayType(workDate: string, savedByDate: Map<string, PlanDayType>): PlanDayType {
+  return savedByDate.get(workDate) ?? 'work'
+}
+
+export function allowedAttendanceStatusesForPlanDay(dayType: PlanDayType | null): AttendanceDayStatus[] {
+  if (isHolidayPlanDay(dayType)) return HOLIDAY_ATTENDANCE_STATUSES
+  return [...ATTENDANCE_STATUSES]
+}
+
+export function defaultAttendanceStatusForPlanDay(dayType: PlanDayType | null): AttendanceDayStatus {
+  return attendanceDefaultsFromPlanDay(dayType).status
 }

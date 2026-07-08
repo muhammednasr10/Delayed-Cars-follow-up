@@ -126,7 +126,9 @@ export function ProductionPlanWorkDaysTab({ onAvailableDaysChange, variant = 'su
         activeEmployeeIds,
         year,
         month,
-        attendanceDays.map(d => ({ employeeId: d.employeeId, workDate: d.workDate, status: d.status }))
+        attendanceDays.map(d => ({ employeeId: d.employeeId, workDate: d.workDate, status: d.status })),
+        undefined,
+        new Map(saved.map(r => [r.workDate, r.dayType]))
       )
       const { minutesByDate, lostVehiclesByDate } = aggregateStopsByDate(stops)
       const base = buildMonthWorkDayRows(year, month, saved)

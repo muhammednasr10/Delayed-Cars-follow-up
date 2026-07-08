@@ -6,8 +6,10 @@ import { useFactoryOrgScope } from '../../hooks/useFactoryOrgScope'
 import { PageTabShell } from '../../Components/layout/PageTabShell'
 import { ScratchesRecordTab } from '../../Components/scratches/ScratchesRecordTab'
 import { ScratchesSummaryTab } from '../../Components/scratches/ScratchesSummaryTab'
-import { createScratch, getScratches } from '../../services/scratchesService'
+import { createScratch, getScratches, uploadScratchImage } from '../../services/scratchesService'
+import { getVehicleModels } from '../../services/settingsService'
 import type { ScratchInput, ScratchRecord } from '../../Types/scratch'
+import type { VehicleModel } from '../../Types/settings'
 
 type ScratchTab = 'record' | 'summary'
 
@@ -17,6 +19,8 @@ export function ScratchesPage() {
   const { filterRecords, isScopedView, scopeLabel } = useFactoryOrgScope(employees)
   const [tab, setTab] = useState<ScratchTab>('record')
   const [items, setItems] = useState<ScratchRecord[]>([])
+  const [models, setModels] = useState<VehicleModel[]>([])
+  const [modelsLoading, setModelsLoading] = useState(true)
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
@@ -38,6 +42,11 @@ export function ScratchesPage() {
 
   useEffect(() => {
     void load()
+    setModelsLoading(true)
+    getVehicleModels()
+      .then(setModels)
+      .catch(() => setModels([]))
+      .finally(() => setModelsLoading(false))
   }, [load])
 
   const tabs: { key: ScratchTab; label: string; icon: typeof ClipboardList }[] = [
@@ -45,12 +54,16 @@ export function ScratchesPage() {
     { key: 'summary', label: t('scratches.tabs.summary'), icon: PieChart }
   ]
 
-  async function addScratch(input: ScratchInput) {
+  async function addScratch(input: ScratchInput, imageFile: File | null) {
     setSaving(true)
     setError('')
     try {
       const row = await createScratch(input)
-      setItems(prev => [row, ...prev])
+      if (imageFile) {
+        await uploadScratchImage(row.id, imageFile)
+      }
+      const fresh = await getScratches()
+      setItems(fresh)
     } catch (e) {
       setError(e instanceof Error ? e.message : t('common.error'))
       throw e
@@ -79,7 +92,14 @@ export function ScratchesPage() {
       }
     >
       {tab === 'record' && (
-        <ScratchesRecordTab items={visibleItems} loading={loading} saving={saving} onAdd={addScratch} />
+        <ScratchesRecordTab
+          items={visibleItems}
+          models={models}
+          modelsLoading={modelsLoading}
+          loading={loading}
+          saving={saving}
+          onAdd={addScratch}
+        />
       )}
       {tab === 'summary' && <ScratchesSummaryTab items={visibleItems} />}
     </PageTabShell>

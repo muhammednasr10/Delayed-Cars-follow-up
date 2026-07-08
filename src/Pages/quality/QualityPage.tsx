@@ -1,7 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import { BadgeCheck, ClipboardList, Microscope } from 'lucide-react'
 import { useLang } from '../../i18n/LanguageContext'
-import { PageTabShell } from '../../Components/layout/PageTabShell'
 import { SetupRequired } from '../../Components/SetupRequired'
 import { QualityNotesRecordTab } from '../../Components/quality/QualityNotesRecordTab'
 import { QualityNotesStudyTab } from '../../Components/quality/QualityNotesStudyTab'
@@ -19,7 +17,6 @@ import type { MpLookupOption } from '../../Types/mpLookup'
 import { getStations, getVehicleModels } from '../../services/settingsService'
 import type { Station, VehicleModel } from '../../Types/settings'
 import { useNavigation } from '../../Context/NavigationContext'
-import type { QualityTab } from '../../Types/navigation'
 
 function isSchemaMissing(message: string): boolean {
   const m = message.toLowerCase()
@@ -132,31 +129,15 @@ export function QualityPage() {
 
   if (setupRequired) return <SetupRequired detail={error} />
 
-  const tabs: { key: QualityTab; label: string; icon: typeof ClipboardList }[] = [
-    { key: 'record', label: t('qualityNotes.tabs.record'), icon: ClipboardList },
-    { key: 'study', label: t('qualityNotes.tabs.study'), icon: Microscope }
-  ]
-
   return (
-    <PageTabShell
-      title={t('qualityNotes.title')}
-      subtitle={t('qualityNotes.subtitle')}
-      icon={<BadgeCheck className="h-6 w-6" />}
-      tabs={tabs.map(item => ({ key: item.key, label: item.label, icon: <item.icon className="h-4 w-4" /> }))}
-      activeTab={tab}
-      onTabChange={setTab}
-      activeClassName="bg-emerald-500 text-white"
-      message={
-        <>
-          {error && !setupRequired && (
-            <div className="rounded-xl border border-red-500/30 bg-red-500/10 p-3 text-sm text-red-200">{error}</div>
-          )}
-          {success && (
-            <div className="rounded-xl border border-emerald-500/30 bg-emerald-500/10 p-3 text-sm text-emerald-200">{success}</div>
-          )}
-        </>
-      }
-    >
+    <section className="space-y-4">
+      {error && !setupRequired && (
+        <div className="rounded-xl border border-red-500/30 bg-red-500/10 p-3 text-sm text-red-200">{error}</div>
+      )}
+      {success && (
+        <div className="rounded-xl border border-emerald-500/30 bg-emerald-500/10 p-3 text-sm text-emerald-200">{success}</div>
+      )}
+
       {tab === 'record' && (
         <QualityNotesRecordTab
           items={displayItems}
@@ -181,6 +162,6 @@ export function QualityPage() {
           onInitialStudyHandled={clearPendingStudy}
         />
       )}
-    </PageTabShell>
+    </section>
   )
 }

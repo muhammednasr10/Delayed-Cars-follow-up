@@ -7,7 +7,6 @@ import { TodayAttendanceQuickEntry } from './TodayAttendanceQuickEntry'
 import { TodayAttendanceSummary } from './TodayAttendanceSummary'
 import { TodayAttendanceDefaultsModal } from './TodayAttendanceDefaultsModal'
 import {
-  ATTENDANCE_STATUSES,
   DEFAULT_ATTENDANCE_CHECK_IN,
   DEFAULT_ATTENDANCE_CHECK_OUT,
   attendanceStatusHasTimes,
@@ -25,6 +24,7 @@ import { getProductionPlanDayType } from '../services/productionPlanWorkDayDaily
 import { compareEmployees } from '../services/employeesService'
 import {
   DEFAULT_ATTENDANCE_BULK,
+  allowedAttendanceStatusesForPlanDay,
   attendanceDefaultsFromPlanDay,
   isHolidayPlanDay,
   type AttendanceBulkDefaults
@@ -86,7 +86,9 @@ function formatTodayLabel(workDate: string, lang: string): string {
 
 export function TodayAttendanceTab({ employees, canManage, onSaved }: Props) {
   const { t, lang } = useLang()
-  const workDate = localTodayIso()
+  const todayIso = localTodayIso()
+  const [workDate, setWorkDate] = useState(todayIso)
+  const isSelectedToday = workDate === todayIso
   const [rows, setRows] = useState<TodayRow[]>([])
   const [loading, setLoading] = useState(false)
   const [saveState, setSaveState] = useState<'idle' | 'saving' | 'saved'>('idle')
@@ -112,6 +114,11 @@ export function TodayAttendanceTab({ employees, canManage, onSaved }: Props) {
   const activeEmployees = useMemo(
     () => [...employees].filter(e => e.isActive).sort(compareEmployees),
     [employees]
+  )
+
+  const allowedStatuses = useMemo(
+    () => allowedAttendanceStatusesForPlanDay(todayPlanDayType),
+    [todayPlanDayType]
   )
 
   useEffect(() => {
@@ -178,14 +185,28 @@ export function TodayAttendanceTab({ employees, canManage, onSaved }: Props) {
   }, [loadFromServer])
 
   useEffect(() => {
+    for (const timer of saveTimers.current.values()) clearTimeout(timer)
+    saveTimers.current.clear()
+    savingIds.current.clear()
+    quickEmployeeIdRef.current = ''
+    setQuickEmployeeId('')
+    setQuickStatus('present')
+    setQuickCheckIn(DEFAULT_ATTENDANCE_CHECK_IN)
+    setQuickCheckOut(DEFAULT_ATTENDANCE_CHECK_OUT)
+    quickStatusRef.current = 'present'
+    quickCheckInRef.current = DEFAULT_ATTENDANCE_CHECK_IN
+    quickCheckOutRef.current = DEFAULT_ATTENDANCE_CHECK_OUT
+  }, [workDate])
+
+  useEffect(() => {
     const id = window.setInterval(() => {
-      if (document.visibilityState === 'hidden') return
+      if (!isSelectedToday || document.visibilityState === 'hidden') return
       void getAttendanceDaysForDate(workDate)
         .then(existing => mergeRowsFromServer(existing, todayPlanDayType))
         .catch(() => {})
     }, 30_000)
     return () => window.clearInterval(id)
-  }, [workDate, mergeRowsFromServer, todayPlanDayType])
+  }, [workDate, isSelectedToday, mergeRowsFromServer, todayPlanDayType])
 
   const flashSaved = useCallback(() => {
     setSaveState('saved')
@@ -437,31 +458,59 @@ export function TodayAttendanceTab({ employees, canManage, onSaved }: Props) {
   )
 
   function applyBulkDefaults(defaults: AttendanceBulkDefaults) {
+    const resolved = attendanceDefaultsFromPlanDay(todayPlanDayType, defaults)
     if (!isHolidayPlanDay(todayPlanDayType)) {
       setBulkDefaults(defaults)
     }
     const nextRows = rowsRef.current.map(row => ({
       ...row,
-      status: defaults.status,
-      checkIn: defaults.checkIn,
-      checkOut: defaults.checkOut
+      status: resolved.status,
+      checkIn: resolved.checkIn,
+      checkOut: resolved.checkOut
     }))
     rowsRef.current = nextRows
     setRows(nextRows)
     void persistAllRows(nextRows)
   }
 
+  function onWorkDateChange(next: string) {
+    if (!next || next > todayIso) return
+    setWorkDate(next)
+  }
+
   return (
     <div className="space-y-4 p-4 sm:p-5">
       <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-end sm:justify-between">
-        <div className="flex items-center gap-3">
-          <div className="rounded-xl bg-violet-500/15 p-3 text-violet-300">
-            <CalendarClock className="h-5 w-5" />
+        <div className="flex flex-wrap items-end gap-3">
+          <div className="flex items-center gap-3">
+            <div className="rounded-xl bg-violet-500/15 p-3 text-violet-300">
+              <CalendarClock className="h-5 w-5" />
+            </div>
+            <div>
+              <h3 className="text-lg font-black text-white">{t('attendance.today.title')}</h3>
+              <p className="text-sm text-slate-400">{formatTodayLabel(workDate, lang)}</p>
+            </div>
           </div>
-          <div>
-            <h3 className="text-lg font-black text-white">{t('attendance.today.title')}</h3>
-            <p className="text-sm text-slate-400">{formatTodayLabel(workDate, lang)}</p>
-          </div>
+          <label className="block">
+            <span className="mb-1 block text-xs font-bold text-slate-400">{t('attendance.today.selectDate')}</span>
+            <input
+              type="date"
+              className={inputCls()}
+              value={workDate}
+              max={todayIso}
+              onChange={e => onWorkDateChange(e.target.value)}
+              dir="ltr"
+            />
+          </label>
+          {!isSelectedToday && (
+            <button
+              type="button"
+              onClick={() => setWorkDate(todayIso)}
+              className="rounded-xl border border-violet-500/40 bg-violet-500/10 px-3 py-2 text-xs font-bold text-violet-200 hover:bg-violet-500/20"
+            >
+              {t('attendance.today.backToToday')}
+            </button>
+          )}
         </div>
         {canManage && (
           <div className="flex flex-wrap items-center gap-2">
@@ -485,6 +534,12 @@ export function TodayAttendanceTab({ employees, canManage, onSaved }: Props) {
       {!canManage && (
         <div className="rounded-xl border border-amber-500/30 bg-amber-500/10 p-3 text-sm text-amber-100">
           {t('attendance.today.readOnlyHint')}
+        </div>
+      )}
+
+      {!isSelectedToday && canManage && (
+        <div className="rounded-xl border border-cyan-500/30 bg-cyan-500/10 p-3 text-sm text-cyan-100">
+          {t('attendance.today.pastDayBanner')}
         </div>
       )}
 
@@ -521,6 +576,7 @@ export function TodayAttendanceTab({ employees, canManage, onSaved }: Props) {
         checkOut={quickCheckOut}
         onCheckInChange={onQuickCheckInChange}
         onCheckOutChange={onQuickCheckOutChange}
+        allowedStatuses={allowedStatuses}
       />
 
       {error && <div className="rounded-xl border border-red-500/30 bg-red-500/10 p-3 text-sm text-red-200">{error}</div>}
@@ -573,11 +629,14 @@ export function TodayAttendanceTab({ employees, canManage, onSaved }: Props) {
                         }
                       }}
                     >
-                      {ATTENDANCE_STATUSES.map(s => (
+                      {allowedStatuses.map(s => (
                         <option key={s} value={s}>
                           {t(`attendance.status.${s}`)}
                         </option>
                       ))}
+                      {!allowedStatuses.includes(row.status) && (
+                        <option value={row.status}>{t(`attendance.status.${row.status}`)}</option>
+                      )}
                     </select>
                   </td>
                   <td className="table-cell">

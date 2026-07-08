@@ -196,6 +196,43 @@ export function exportAttendanceMonthExcel(
   XLSX.writeFile(wb, `attendance_${year}_${String(month).padStart(2, '0')}.xlsx`)
 }
 
+export function exportAttendanceYearExcel(
+  year: number,
+  days: { employeeCode: string; fullName: string; workDate: string; status: AttendanceDayStatus; checkIn: string | null; checkOut: string | null; notes: string | null }[],
+  summaries: { employeeCode: string; fullName: string; absentDays: number; vacationDays: number; sickDays: number; presentDays: number; issueDays: number }[]
+): void {
+  const detailHeaders = ['الرقم الوظيفي', 'الاسم', 'التاريخ', 'الحالة', 'وقت الحضور', 'وقت الانصراف', 'ملاحظات']
+  const detailRows = days.map(d => [
+    d.employeeCode,
+    d.fullName,
+    d.workDate,
+    d.status,
+    d.checkIn ?? '',
+    d.checkOut ?? '',
+    d.notes ?? ''
+  ])
+
+  const sumHeaders = ['الرقم الوظيفي', 'الاسم', 'حاضر', 'غياب', 'إجازة', 'مرضى', 'إجمالي الغياب']
+  const sumRows = summaries
+    .filter(s => s.issueDays > 0 || s.presentDays > 0)
+    .map(s => [
+      s.employeeCode,
+      s.fullName,
+      s.presentDays,
+      s.absentDays,
+      s.vacationDays,
+      s.sickDays,
+      s.issueDays
+    ])
+
+  const wb = XLSX.utils.book_new()
+  const wsDetail = XLSX.utils.aoa_to_sheet([detailHeaders, ...detailRows])
+  const wsSum = XLSX.utils.aoa_to_sheet([sumHeaders, ...sumRows])
+  XLSX.utils.book_append_sheet(wb, wsDetail, 'تفاصيل_يومية')
+  XLSX.utils.book_append_sheet(wb, wsSum, `ملخص_${year}`)
+  XLSX.writeFile(wb, `attendance_${year}.xlsx`)
+}
+
 export function attendanceStatusLabel(status: AttendanceDayStatus, t: (k: string) => string): string {
   return t(`attendance.status.${status}`)
 }

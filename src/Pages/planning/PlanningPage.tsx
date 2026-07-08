@@ -2,7 +2,6 @@ import { useEffect, useMemo } from 'react'
 import { Activity, CalendarDays, ClipboardList, Target } from 'lucide-react'
 import { useLang } from '../../i18n/LanguageContext'
 import { useNavigation } from '../../Context/NavigationContext'
-import { PageTabShell } from '../../Components/layout/PageTabShell'
 import { ProductionPlanOrdersTab } from '../../Components/production/ProductionPlanOrdersTab'
 import { ProductionPlanWorkDaysTab } from '../../Components/ProductionPlanWorkDaysTab'
 import { PlanningDailyTrackingTab } from '../../Components/planning/PlanningDailyTrackingTab'
@@ -36,18 +35,11 @@ export function PlanningPage() {
   if (!activeTab) return null
 
   return (
-    <PageTabShell
-      title={t('departments.planning')}
-      subtitle={t('planning.subtitle')}
-      tabs={tabs.map(item => ({ key: item.key, label: item.label, icon: <item.icon className="h-4 w-4" /> }))}
-      activeTab={activeTab}
-      onTabChange={setTab}
-      activeClassName="bg-violet-500 text-slate-950"
-    >
+    <section className="space-y-4">
       {activeTab === 'plan' && <ProductionPlanOrdersTab view="plan" />}
       {activeTab === 'workDays' && <ProductionPlanWorkDaysTab variant="workDays" />}
       {activeTab === 'tracking' && <PlanningDailyTrackingTab />}
       {activeTab === 'orders' && <ProductionPlanOrdersTab view="orders" />}
-    </PageTabShell>
+    </section>
   )
 }

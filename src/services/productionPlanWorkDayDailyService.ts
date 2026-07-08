@@ -19,6 +19,10 @@ function monthBounds(year: number, month: number): { start: string; end: string 
   return { start, end }
 }
 
+function yearBounds(year: number): { start: string; end: string } {
+  return { start: `${year}-01-01`, end: `${year}-12-31` }
+}
+
 type Row = {
   work_date: string
   day_type: PlanDayType
@@ -74,6 +78,19 @@ export async function getProductionPlanDayType(workDate: string): Promise<PlanDa
     .maybeSingle()
   if (error) throw new Error(error.message)
   return data ? (data.day_type as PlanDayType) : null
+}
+
+export async function getProductionPlanWorkDaysYear(year: number): Promise<ProductionPlanWorkDayRow[]> {
+  const { start, end } = yearBounds(year)
+  const { data, error } = await requireClient()
+    .from('production_plan_work_days_daily')
+    .select('work_date, day_type, planned_hours, actual_hours, total_stops, work_despite_vacation, notes')
+    .gte('work_date', start)
+    .lte('work_date', end)
+    .order('work_date')
+
+  if (error) throw new Error(error.message)
+  return (data ?? []).map(r => mapRow(r as Row))
 }
 
 export async function getProductionPlanWorkDaysMonth(year: number, month: number): Promise<ProductionPlanWorkDayRow[]> {

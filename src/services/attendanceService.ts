@@ -11,6 +11,9 @@ import {
   type EmployeeAttendanceSummary
 } from '../Types/attendance'
 import type { JobRole } from '../Types/enums'
+import type { PlanDayType } from '../Types/productionPlanWorkDayDaily'
+import { attendanceDefaultsFromPlanDay, resolvePlanDayType } from '../Utils/attendanceDefaults'
+import { getProductionPlanWorkDaysMonth, getProductionPlanWorkDaysYear } from './productionPlanWorkDayDailyService'
 
 function requireClient() {
   if (!supabase) throw new Error('Supabase is not configured. Check .env')
@@ -22,6 +25,10 @@ function monthBounds(year: number, month: number): { start: string; end: string 
   const last = new Date(year, month, 0).getDate()
   const end = `${year}-${String(month).padStart(2, '0')}-${String(last).padStart(2, '0')}`
   return { start, end }
+}
+
+function yearBounds(year: number): { start: string; end: string } {
+  return { start: `${year}-01-01`, end: `${year}-12-31` }
 }
 
 /** Local calendar date (YYYY-MM-DD) for attendance cutoffs */
@@ -54,7 +61,8 @@ export function tallyElapsedMonthDays(
   year: number,
   month: number,
   dayRecords: { employeeId: string; workDate: string; status: AttendanceDayStatus }[],
-  today = localTodayIso()
+  today = localTodayIso(),
+  planDayByDate: Map<string, PlanDayType> = new Map()
 ): Map<string, { present: number; absent: number; vacation: number; sick: number; permission: number; late: number }> {
   const monthDates = listDatesInMonth(year, month).filter(d => d <= today)
   const byEmpDate = new Map<string, Map<string, AttendanceDayStatus>>()
@@ -84,7 +92,7 @@ export function tallyElapsedMonthDays(
         else if (recorded === 'late') t.late++
         continue
       }
-      const st = recorded ?? 'present'
+      const st = recorded ?? attendanceDefaultsFromPlanDay(resolvePlanDayType(workDate, planDayByDate)).status
       if (st === 'present') t.present++
       else if (st === 'absent') t.absent++
       else if (st === 'vacation') t.vacation++
@@ -93,6 +101,33 @@ export function tallyElapsedMonthDays(
       else if (st === 'late') t.late++
     }
     tallies.set(employeeId, t)
+  }
+  return tallies
+}
+
+export function tallyElapsedYearDays(
+  employeeIds: string[],
+  year: number,
+  dayRecords: { employeeId: string; workDate: string; status: AttendanceDayStatus }[],
+  today = localTodayIso(),
+  planDayByDate: Map<string, PlanDayType> = new Map()
+): Map<string, { present: number; absent: number; vacation: number; sick: number; permission: number; late: number }> {
+  const tallies = new Map<string, { present: number; absent: number; vacation: number; sick: number; permission: number; late: number }>()
+  for (const employeeId of employeeIds) {
+    tallies.set(employeeId, { present: 0, absent: 0, vacation: 0, sick: 0, permission: 0, late: 0 })
+  }
+  for (let month = 1; month <= 12; month++) {
+    const monthTallies = tallyElapsedMonthDays(employeeIds, year, month, dayRecords, today, planDayByDate)
+    for (const employeeId of employeeIds) {
+      const acc = tallies.get(employeeId)!
+      const t = monthTallies.get(employeeId) ?? acc
+      acc.present += t.present
+      acc.absent += t.absent
+      acc.vacation += t.vacation
+      acc.sick += t.sick
+      acc.permission += t.permission
+      acc.late += t.late
+    }
   }
   return tallies
 }
@@ -124,14 +159,21 @@ function normalizeTime(t: string | null | undefined): string | null {
   return t.length >= 5 ? t.slice(0, 5) : t
 }
 
-export function buildMonthDayEdits(year: number, month: number, existing: AttendanceDay[]): AttendanceDayEdit[] {
+export function buildMonthDayEdits(
+  year: number,
+  month: number,
+  existing: AttendanceDay[],
+  planDayByDate: Map<string, PlanDayType> = new Map()
+): AttendanceDayEdit[] {
   const byDate = new Map(existing.map(d => [d.workDate, d]))
   const last = new Date(year, month, 0).getDate()
   const rows: AttendanceDayEdit[] = []
   for (let day = 1; day <= last; day++) {
     const workDate = `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`
     const ex = byDate.get(workDate)
-    const status = ex?.status ?? 'present'
+    const dayType = resolvePlanDayType(workDate, planDayByDate)
+    const defaultStatus = attendanceDefaultsFromPlanDay(dayType).status
+    const status = ex?.status ?? defaultStatus
     rows.push({
       workDate,
       status,
@@ -149,7 +191,8 @@ export function computeDailyAttendanceEfficiency(
   year: number,
   month: number,
   dayRecords: { employeeId: string; workDate: string; status: AttendanceDayStatus }[],
-  today = localTodayIso()
+  today = localTodayIso(),
+  planDayByDate: Map<string, PlanDayType> = new Map()
 ): Map<string, number | null> {
   const byEmpDate = new Map<string, Map<string, AttendanceDayStatus>>()
   for (const r of dayRecords) {
@@ -175,11 +218,13 @@ export function computeDailyAttendanceEfficiency(
     let present = 0
     for (const employeeId of employeeIds) {
       const recorded = byEmpDate.get(employeeId)?.get(workDate)
+      const defaultStatus = attendanceDefaultsFromPlanDay(resolvePlanDayType(workDate, planDayByDate)).status
+      const effective = recorded ?? defaultStatus
       if (workDate === today) {
-        if (recorded === 'present' || recorded === 'late') present++
+        if (effective === 'present' || effective === 'late') present++
         continue
       }
-      if ((recorded ?? 'present') === 'present' || recorded === 'late') present++
+      if (effective === 'present' || effective === 'late') present++
     }
     result.set(workDate, Math.round((present / employeeIds.length) * 100))
   }
@@ -256,16 +301,21 @@ export async function getEmployeeAttendanceMonth(
   month: number
 ): Promise<AttendanceDayEdit[]> {
   const { start, end } = monthBounds(year, month)
-  const { data, error } = await requireClient()
-    .from('employee_attendance_days')
-    .select('*')
-    .eq('employee_id', employeeId)
-    .gte('work_date', start)
-    .lte('work_date', end)
-    .order('work_date')
+  const [daysResult, planRows] = await Promise.all([
+    requireClient()
+      .from('employee_attendance_days')
+      .select('*')
+      .eq('employee_id', employeeId)
+      .gte('work_date', start)
+      .lte('work_date', end)
+      .order('work_date'),
+    getProductionPlanWorkDaysMonth(year, month)
+  ])
+  const { data, error } = daysResult
   if (error) throw new Error(error.message)
   const days = (data ?? []).map(r => mapDay(r as DayRow))
-  return buildMonthDayEdits(year, month, days)
+  const planDayByDate = new Map(planRows.map(r => [r.workDate, r.dayType]))
+  return buildMonthDayEdits(year, month, days, planDayByDate)
 }
 
 export async function getEmployeeAttendanceForDate(
@@ -289,6 +339,19 @@ export async function getEmployeeAttendanceSummary(
 ): Promise<EmployeeAttendanceSummary | null> {
   const summaries = await getMonthlyAttendanceSummaries(year, month, true)
   return summaries.find(s => s.employeeId === employeeId) ?? null
+}
+
+export async function getAttendanceDaysForYear(year: number): Promise<AttendanceDay[]> {
+  const { start, end } = yearBounds(year)
+  const { data, error } = await requireClient()
+    .from('employee_attendance_days')
+    .select('*')
+    .gte('work_date', start)
+    .lte('work_date', end)
+    .order('work_date')
+
+  if (error) throw new Error(error.message)
+  return (data ?? []).map(r => mapDay(r as DayRow))
 }
 
 export async function getAttendanceDaysForMonth(year: number, month: number): Promise<AttendanceDay[]> {
@@ -370,6 +433,9 @@ export async function getMonthlyAttendanceSummaries(
     .lte('work_date', end)
   if (dayErr) throw new Error(dayErr.message)
 
+  const planRows = await getProductionPlanWorkDaysMonth(year, month)
+  const planDayByDate = new Map(planRows.map(r => [r.workDate, r.dayType]))
+
   const empRows = (emps ?? []) as EmpRow[]
   const dayRecords = (days ?? []).map(d => ({
     employeeId: d.employee_id as string,
@@ -380,7 +446,64 @@ export async function getMonthlyAttendanceSummaries(
     empRows.map(e => e.id),
     year,
     month,
-    dayRecords
+    dayRecords,
+    localTodayIso(),
+    planDayByDate
+  )
+
+  return empRows.map(e => {
+    const t = tallies.get(e.id) ?? { present: 0, absent: 0, vacation: 0, sick: 0, permission: 0, late: 0 }
+    const issueDays = t.absent + t.vacation + t.sick + t.permission
+    return {
+      employeeId: e.id,
+      employeeCode: e.employee_code,
+      fullName: e.full_name,
+      jobRole: e.job_role,
+      presentDays: t.present,
+      absentDays: t.absent,
+      vacationDays: t.vacation,
+      sickDays: t.sick,
+      permissionDays: t.permission,
+      lateDays: t.late,
+      issueDays
+    }
+  })
+}
+
+export async function getYearlyAttendanceSummaries(
+  year: number,
+  activeOnly = true
+): Promise<EmployeeAttendanceSummary[]> {
+  const { start, end } = yearBounds(year)
+  const client = requireClient()
+
+  let empQuery = client.from('employees').select('id, employee_code, full_name, job_role, is_active').order('employee_code')
+  if (activeOnly) empQuery = empQuery.eq('is_active', true)
+  const { data: emps, error: empErr } = await empQuery
+  if (empErr) throw new Error(empErr.message)
+
+  const { data: days, error: dayErr } = await client
+    .from('employee_attendance_days')
+    .select('employee_id, work_date, status')
+    .gte('work_date', start)
+    .lte('work_date', end)
+  if (dayErr) throw new Error(dayErr.message)
+
+  const planRows = await getProductionPlanWorkDaysYear(year)
+  const planDayByDate = new Map(planRows.map(r => [r.workDate, r.dayType]))
+
+  const empRows = (emps ?? []) as EmpRow[]
+  const dayRecords = (days ?? []).map(d => ({
+    employeeId: d.employee_id as string,
+    workDate: d.work_date as string,
+    status: d.status as AttendanceDayStatus
+  }))
+  const tallies = tallyElapsedYearDays(
+    empRows.map(e => e.id),
+    year,
+    dayRecords,
+    localTodayIso(),
+    planDayByDate
   )
 
   return empRows.map(e => {

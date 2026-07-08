@@ -5,7 +5,7 @@ import { useAuth } from '../../Context/AuthContext'
 import { useAssemblyWorkforceScope } from '../../hooks/useAssemblyWorkforceScope'
 import { useEmployees } from '../../hooks/useEmployees'
 import { getFactoryOrgUnits } from '../../services/factoryOrgService'
-import { createEmployee, reactivateEmployee, suspendEmployee, updateEmployee } from '../../services/employeesService'
+import { createEmployee, endEmployeeEmployment, reactivateEmployee, suspendEmployee, updateEmployee } from '../../services/employeesService'
 import { usePermissions } from '../../Context/PermissionsContext'
 import { Modal } from '../../Components/Modal'
 import { Field, inputCls } from '../../Components/FormField'
@@ -20,17 +20,21 @@ import type { FactoryOrgUnit } from '../../Types/factoryOrg'
 import type { WorkArea } from '../../Types/settings'
 import { employeeMatchesOrgFilter } from '../../Utils/employeeOrgPicker'
 import { assemblyOrgPath, filterAssemblyWorkforce } from '../../Utils/assemblyWorkforce'
+import { isCurrentRosterEmployee, isFormerEmployee } from '../../Utils/employeeRoster'
 import { getWorkAreas } from '../../services/settingsService'
 
 type View = 'table' | 'chart'
 export type WorkforceScope = 'all' | 'assembly'
+export type RosterMode = 'current' | 'former'
 
 export function OrgStructurePage({
   embedded = false,
-  workforceScope = 'all'
+  workforceScope = 'all',
+  rosterMode = 'current'
 }: {
   embedded?: boolean
   workforceScope?: WorkforceScope
+  rosterMode?: RosterMode
 }) {
   const { t } = useLang()
   const { hasRole } = useAuth()
@@ -51,7 +55,9 @@ export function OrgStructurePage({
   const [editing, setEditing] = useState<Employee | null>(null)
   const [saving, setSaving] = useState(false)
   const [toggleTarget, setToggleTarget] = useState<Employee | null>(null)
+  const [leaveTarget, setLeaveTarget] = useState<Employee | null>(null)
   const [suspendReason, setSuspendReason] = useState('')
+  const [leaveReason, setLeaveReason] = useState('')
   const [blockLinkedUser, setBlockLinkedUser] = useState(true)
   const [success, setSuccess] = useState('')
   const [actionError, setActionError] = useState('')
@@ -62,7 +68,8 @@ export function OrgStructurePage({
   }, [])
 
   const isAssemblyScope = workforceScope === 'assembly'
-  const canCreateScoped = canCreate && !isAssemblyScope
+  const isFormerRoster = rosterMode === 'former'
+  const canCreateScoped = canCreate && !isAssemblyScope && !isFormerRoster
   const canManageScoped = canManage && !isAssemblyScope
 
   const assemblyBase = useMemo(
@@ -75,6 +82,7 @@ export function OrgStructurePage({
   const filtered = useMemo(() => {
     const term = filters.search.trim().toLowerCase()
     return workforceEmployees.filter(e => {
+      if (isFormerRoster ? !isFormerEmployee(e) : !isCurrentRosterEmployee(e)) return false
       if (term && !e.fullName.toLowerCase().includes(term) && !e.employeeCode.toLowerCase().includes(term)) return false
       if (filters.role && e.jobRole !== filters.role) return false
       if (!employeeMatchesOrgFilter(e.factoryOrgUnitId, filters.factoryOrgUnitId, orgUnits)) return false
@@ -82,7 +90,7 @@ export function OrgStructurePage({
       if (filters.status === 'inactive' && e.isActive) return false
       return true
     })
-  }, [workforceEmployees, filters])
+  }, [workforceEmployees, filters, orgUnits, isFormerRoster])
 
   function flash(msg: string) {
     setSuccess(msg)
@@ -129,8 +137,9 @@ export function OrgStructurePage({
   async function confirmToggle() {
     if (!toggleTarget) return
     setSaving(true)
+    setActionError('')
     try {
-      if (toggleTarget.isActive || toggleTarget.employmentStatus === 'active') {
+      if (toggleTarget.isActive && !isFormerEmployee(toggleTarget)) {
         if (!suspendReason.trim()) {
           setActionError(t('permissions.reasonRequired'))
           return
@@ -150,6 +159,27 @@ export function OrgStructurePage({
     }
   }
 
+  async function confirmLeave() {
+    if (!leaveTarget) return
+    setSaving(true)
+    setActionError('')
+    try {
+      if (!leaveReason.trim()) {
+        setActionError(t('permissions.reasonRequired'))
+        return
+      }
+      await endEmployeeEmployment(leaveTarget.id, leaveReason.trim(), blockLinkedUser)
+      await reload()
+      flash(t('org.leaveWorkDone'))
+      setLeaveTarget(null)
+      setLeaveReason('')
+    } catch (e) {
+      setActionError(e instanceof Error ? e.message : t('common.error'))
+    } finally {
+      setSaving(false)
+    }
+  }
+
   return (
     <section className="space-y-5">
       <div className={embedded ? 'space-y-4' : 'card-industrial p-4 sm:p-5'}>
@@ -160,11 +190,13 @@ export function OrgStructurePage({
               <div>
                 <h2 className="text-xl font-black text-white">{t('org.title')}</h2>
                 <p className="text-sm text-slate-400">
-                  {isAssemblyScope
-                    ? t('org.assemblySubtitle')
-                    : !embedded
-                      ? t('org.hrSubtitle')
-                      : t('org.subtitle')}
+                  {isFormerRoster
+                    ? t('org.formerSubtitle')
+                    : isAssemblyScope
+                      ? t('org.assemblySubtitle')
+                      : !embedded
+                        ? t('org.hrSubtitle')
+                        : t('org.subtitle')}
                 </p>
               </div>
             </div>
@@ -214,14 +246,25 @@ export function OrgStructurePage({
         <div className="border-b border-slate-800 px-4 py-3 text-sm text-slate-400">{t('org.count', { n: filtered.length })}</div>
         {view === 'table' && (
           <ExportableTable filename="employees" title={t('org.title')} rowCount={filtered.length}>
-            <EmployeeTable employees={filtered} canEdit={canUpdate} canToggle={canUpdate || canDelete} onEdit={openEdit} onToggleActive={setToggleTarget} />
+            <EmployeeTable
+              employees={filtered}
+              rosterVariant={isFormerRoster ? 'former' : 'current'}
+              canEdit={canUpdate}
+              canToggle={canUpdate || canDelete}
+              canLeaveWork={(canUpdate || canDelete) && !isAssemblyScope}
+              onEdit={openEdit}
+              onToggleActive={setToggleTarget}
+              onLeaveWork={setLeaveTarget}
+            />
           </ExportableTable>
         )}
         {view === 'chart' && <EmployeeOrgChart employees={filtered} />}
 
         {loading && <div className="p-8 text-center text-slate-400">{t('common.loading')}</div>}
         {!loading && filtered.length === 0 && (
-          <div className="p-8 text-center text-slate-400">{t('org.empty')}</div>
+          <div className="p-8 text-center text-slate-400">
+            {isFormerRoster ? t('org.formerEmpty') : t('org.empty')}
+          </div>
         )}
       </div>
 
@@ -250,7 +293,11 @@ export function OrgStructurePage({
 
       <Modal
         open={Boolean(toggleTarget)}
-        title={toggleTarget?.isActive ? t('permissions.suspendEmployee') : t('permissions.reactivateEmployee')}
+        title={
+          toggleTarget && toggleTarget.isActive && !isFormerEmployee(toggleTarget)
+            ? t('permissions.suspendEmployee')
+            : t('permissions.reactivateEmployee')
+        }
         onClose={() => setToggleTarget(null)}
         footer={
           <>
@@ -268,7 +315,7 @@ export function OrgStructurePage({
             <p className="text-slate-300">
               {toggleTarget.fullName} — {toggleTarget.employeeCode}
             </p>
-            {toggleTarget.isActive ? (
+            {toggleTarget.isActive && !isFormerEmployee(toggleTarget) ? (
               <>
                 <p className="text-amber-200">{t('permissions.suspendConfirm')}</p>
                 <Field label={t('permissions.blockReason')} required>
@@ -282,6 +329,47 @@ export function OrgStructurePage({
             ) : (
               <p className="text-emerald-200">{t('permissions.reactivateConfirm')}</p>
             )}
+          </div>
+        )}
+      </Modal>
+
+      <Modal
+        open={Boolean(leaveTarget)}
+        title={t('org.leaveWork')}
+        onClose={() => {
+          setLeaveTarget(null)
+          setLeaveReason('')
+        }}
+        footer={
+          <>
+            <button
+              onClick={() => {
+                setLeaveTarget(null)
+                setLeaveReason('')
+              }}
+              className="rounded-xl bg-slate-800 px-4 py-2 font-bold"
+            >
+              {t('common.cancel')}
+            </button>
+            <button onClick={() => void confirmLeave()} disabled={saving} className="rounded-xl bg-violet-500 px-4 py-2 font-black text-slate-950">
+              {t('common.confirm')}
+            </button>
+          </>
+        }
+      >
+        {leaveTarget && (
+          <div className="space-y-3 text-sm">
+            <p className="text-slate-300">
+              {leaveTarget.fullName} — {leaveTarget.employeeCode}
+            </p>
+            <p className="text-violet-200">{t('org.leaveWorkConfirm')}</p>
+            <Field label={t('org.leaveWorkReason')} required>
+              <textarea className={inputCls()} rows={3} value={leaveReason} onChange={e => setLeaveReason(e.target.value)} />
+            </Field>
+            <label className="flex items-center gap-2">
+              <input type="checkbox" checked={blockLinkedUser} onChange={e => setBlockLinkedUser(e.target.checked)} />
+              {t('permissions.blockLinkedUser')}
+            </label>
           </div>
         )}
       </Modal>

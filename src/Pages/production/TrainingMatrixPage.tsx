@@ -1,5 +1,4 @@
 import { useEffect, useMemo, useState } from 'react'
-import { GraduationCap } from 'lucide-react'
 import { useNavigation } from '../../Context/NavigationContext'
 import { useLang } from '../../i18n/LanguageContext'
 import { useAuth } from '../../Context/AuthContext'
@@ -12,7 +11,6 @@ import { getStations, getVehicleModels } from '../../services/settingsService'
 import { useAssemblyWorkforceScope } from '../../hooks/useAssemblyWorkforceScope'
 import { filterAssemblyWorkforce, isAssemblyWorkforceFilterMissing } from '../../Utils/assemblyWorkforce'
 import { OrgStructurePage } from '../shared/OrgStructurePage'
-import { PageTabShell } from '../../Components/layout/PageTabShell'
 import { WorkforceAttendanceSection } from '../../Components/WorkforceAttendanceSection'
 import { WorkforceManpowerSection } from '../../Components/WorkforceManpowerSection'
 import { StationTrainingMatrixTab } from '../../Components/training/StationTrainingMatrixTab'
@@ -22,9 +20,6 @@ import { TrainingExpiryDashboard } from '../../Components/training/TrainingExpir
 import { OperationQualificationTab } from '../../Components/training/OperationQualificationTab'
 import type { Station, VehicleModel } from '../../Types/settings'
 import type { FactoryOrgUnit } from '../../Types/factoryOrg'
-
-type Tab = 'org' | 'attendance' | 'manpower' | 'operations' | 'stationSkills' | 'matrix' | 'qualification' | 'expiry'
-const TABS: Tab[] = ['org', 'attendance', 'manpower', 'operations', 'stationSkills', 'matrix', 'qualification', 'expiry']
 
 export function TrainingMatrixPage() {
   const { t } = useLang()
@@ -52,7 +47,7 @@ export function TrainingMatrixPage() {
   const { levels: stationLevels, reload: reloadStationLevels } = useEmployeeStationLevels()
   const [stations, setStations] = useState<Station[]>([])
   const [models, setModels] = useState<VehicleModel[]>([])
-  const { trainingTab: tab, setTrainingTab: setTab } = useNavigation()
+  const { trainingTab: tab } = useNavigation()
   const [success, setSuccess] = useState('')
   const [error, setError] = useState('')
 
@@ -73,43 +68,27 @@ export function TrainingMatrixPage() {
     }
   }
 
-  const feedback = (
-    <>
+  return (
+    <section className="space-y-4">
+      {!canManage && <p className="text-xs text-amber-300">{t('training.noPerm')}</p>}
       {success && <div className="rounded-xl border border-emerald-500/30 bg-emerald-500/10 p-3 text-sm text-emerald-200">{success}</div>}
       {error && <div className="rounded-xl border border-red-500/30 bg-red-500/10 p-3 text-sm text-red-200">{error}</div>}
-    </>
-  )
 
-  return (
-    <PageTabShell
-      title={t('training.title')}
-      subtitle={t('training.subtitle')}
-      icon={<GraduationCap className="h-6 w-6" />}
-      tabs={TABS.map(k => ({ key: k, label: t(`training.tabs.${k}`) }))}
-      activeTab={tab}
-      onTabChange={setTab}
-      message={
-        <>
-          {!canManage && <p className="text-xs text-amber-300">{t('training.noPerm')}</p>}
-          {feedback}
-        </>
-      }
-    >
       {tab === 'org' && <OrgStructurePage embedded workforceScope="assembly" />}
       {isScopedView && tab !== 'org' && (
-        <div className="mb-4 rounded-xl border border-cyan-500/25 bg-cyan-500/10 p-3 text-sm text-cyan-100">
+        <div className="rounded-xl border border-cyan-500/25 bg-cyan-500/10 p-3 text-sm text-cyan-100">
           {scopeLabel ? t('org.scopeBanner', { scope: scopeLabel }) : t('org.assemblySupervisorScopeHint')}
         </div>
       )}
       {tab === 'attendance' && (
         <>
           {assemblyFilterMissing && (
-            <div className="mb-4 rounded-xl border border-amber-500/30 bg-amber-500/10 p-3 text-sm text-amber-100">
+            <div className="rounded-xl border border-amber-500/30 bg-amber-500/10 p-3 text-sm text-amber-100">
               {t('attendance.assemblyFilterMissing')}
             </div>
           )}
           {assemblyWorkforceEmpty && (
-            <div className="mb-4 rounded-xl border border-amber-500/30 bg-amber-500/10 p-3 text-sm text-amber-100">
+            <div className="rounded-xl border border-amber-500/30 bg-amber-500/10 p-3 text-sm text-amber-100">
               {t('attendance.assemblyFilterEmpty')}
             </div>
           )}
@@ -135,6 +114,6 @@ export function TrainingMatrixPage() {
       )}
       {tab === 'qualification' && <StationQualificationTab employees={employees} required={required} records={records} stations={stations} />}
       {tab === 'expiry' && <TrainingExpiryDashboard employees={employees} records={records} />}
-    </PageTabShell>
+    </section>
   )
 }

@@ -1,3 +1,4 @@
+/// <reference types="vitest/config" />
 import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
 import { VitePWA } from 'vite-plugin-pwa'
@@ -52,5 +53,12 @@ export default defineConfig({
   ],
   optimizeDeps: {
     include: ['papaparse', 'xlsx', 'jspdf', 'html2canvas']
+  },
+  test: {
+    globals: true,
+    environment: 'jsdom',
+    setupFiles: './src/test/setup.ts',
+    css: true,
+    include: ['src/**/*.{test,spec}.{ts,tsx}']
   }
 })

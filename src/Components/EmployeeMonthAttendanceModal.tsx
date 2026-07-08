@@ -4,7 +4,6 @@ import { useLang } from '../i18n/LanguageContext'
 import { Modal } from './Modal'
 import { inputCls } from './FormField'
 import {
-  ATTENDANCE_STATUSES,
   DEFAULT_ATTENDANCE_CHECK_IN,
   DEFAULT_ATTENDANCE_CHECK_OUT,
   attendanceStatusHasTimes,
@@ -12,6 +11,7 @@ import {
   type AttendanceDayStatus,
   type EmployeeAttendanceSummary
 } from '../Types/attendance'
+import type { PlanDayType } from '../Types/productionPlanWorkDayDaily'
 import {
   bulkUpsertAttendanceDays,
   dayEditToInput,
@@ -19,6 +19,15 @@ import {
   isAttendanceDayPersistable,
   pruneFutureAttendanceDays
 } from '../services/attendanceService'
+import { getProductionPlanWorkDaysMonth } from '../services/productionPlanWorkDayDailyService'
+import {
+  DEFAULT_ATTENDANCE_BULK,
+  allowedAttendanceStatusesForPlanDay,
+  attendanceDefaultsFromPlanDay,
+  isHolidayPlanDay,
+  resolvePlanDayType
+} from '../Utils/attendanceDefaults'
+import { dayTypeBadgeClass } from '../Utils/productionPlanWorkDayDaily'
 
 type Props = {
   open: boolean
@@ -39,6 +48,7 @@ function formatDayLabel(workDate: string, lang: string): string {
 export function EmployeeMonthAttendanceModal({ open, summary, year, month, onClose, onSaved }: Props) {
   const { t, lang } = useLang()
   const [rows, setRows] = useState<AttendanceDayEdit[]>([])
+  const [planDayByDate, setPlanDayByDate] = useState<Map<string, PlanDayType>>(new Map())
   const [loading, setLoading] = useState(false)
   const [busy, setBusy] = useState(false)
   const [err, setErr] = useState('')
@@ -47,8 +57,14 @@ export function EmployeeMonthAttendanceModal({ open, summary, year, month, onClo
     if (!open || !summary) return
     setLoading(true)
     setErr('')
-    getEmployeeAttendanceMonth(summary.employeeId, year, month)
-      .then(setRows)
+    Promise.all([
+      getEmployeeAttendanceMonth(summary.employeeId, year, month),
+      getProductionPlanWorkDaysMonth(year, month)
+    ])
+      .then(([dayRows, planRows]) => {
+        setRows(dayRows)
+        setPlanDayByDate(new Map(planRows.map(r => [r.workDate, r.dayType])))
+      })
       .catch(e => setErr(e instanceof Error ? e.message : t('common.error')))
       .finally(() => setLoading(false))
   }, [open, summary, year, month, t])
@@ -71,14 +87,18 @@ export function EmployeeMonthAttendanceModal({ open, summary, year, month, onClo
     )
   }
 
-  function markAllPresent() {
+  function markAllFromPlan() {
     setRows(prev =>
-      prev.map(r => ({
-        ...r,
-        status: 'present' as AttendanceDayStatus,
-        checkIn: DEFAULT_ATTENDANCE_CHECK_IN,
-        checkOut: DEFAULT_ATTENDANCE_CHECK_OUT
-      }))
+      prev.map(r => {
+        const dayType = resolvePlanDayType(r.workDate, planDayByDate)
+        const defs = attendanceDefaultsFromPlanDay(dayType, DEFAULT_ATTENDANCE_BULK)
+        return {
+          ...r,
+          status: defs.status,
+          checkIn: defs.checkIn,
+          checkOut: defs.checkOut
+        }
+      })
     )
   }
 
@@ -125,8 +145,8 @@ export function EmployeeMonthAttendanceModal({ open, summary, year, month, onClo
       ) : (
         <>
           <div className="mb-3 flex justify-end">
-            <button type="button" onClick={markAllPresent} className="rounded-lg bg-slate-800 px-3 py-1.5 text-xs font-bold text-slate-200 hover:bg-slate-700">
-              {t('attendance.markAllPresent')}
+            <button type="button" onClick={markAllFromPlan} className="rounded-lg bg-slate-800 px-3 py-1.5 text-xs font-bold text-slate-200 hover:bg-slate-700">
+              {t('attendance.markAllFromPlan')}
             </button>
           </div>
           <div className="max-h-[min(28rem,60vh)] overflow-auto rounded-xl border border-slate-800">
@@ -134,6 +154,7 @@ export function EmployeeMonthAttendanceModal({ open, summary, year, month, onClo
               <thead className="sticky top-0 z-10 bg-slate-950">
                 <tr>
                   <th className="table-cell text-xs font-black uppercase text-slate-400">{t('attendance.cols.date')}</th>
+                  <th className="table-cell text-xs font-black uppercase text-slate-400">{t('attendance.cols.planDay')}</th>
                   <th className="table-cell text-xs font-black uppercase text-slate-400">{t('attendance.cols.status')}</th>
                   <th className="table-cell text-xs font-black uppercase text-slate-400">{t('attendance.checkIn')}</th>
                   <th className="table-cell text-xs font-black uppercase text-slate-400">{t('attendance.checkOut')}</th>
@@ -141,56 +162,72 @@ export function EmployeeMonthAttendanceModal({ open, summary, year, month, onClo
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-800">
-                {rows.map((row, i) => (
-                  <tr key={row.workDate} className="bg-slate-900/40 hover:bg-slate-800/50">
-                    <td className="table-cell whitespace-nowrap font-bold text-slate-200">
-                      {formatDayLabel(row.workDate, lang)}
-                      <span className="ms-2 font-mono text-xs text-slate-500" dir="ltr">
-                        {row.workDate}
-                      </span>
-                    </td>
-                    <td className="table-cell">
-                      <select
-                        className={`${inputCls()} min-w-[7rem] py-1.5 text-xs`}
-                        value={row.status}
-                        onChange={e => patchRow(i, { status: e.target.value as AttendanceDayStatus })}
-                      >
-                        {ATTENDANCE_STATUSES.map(s => (
-                          <option key={s} value={s}>
-                            {t(`attendance.status.${s}`)}
-                          </option>
-                        ))}
-                      </select>
-                    </td>
-                    <td className="table-cell">
-                      <input
-                        type="time"
-                        disabled={!attendanceStatusHasTimes(row.status)}
-                        className={`${inputCls()} w-28 py-1.5 text-xs disabled:opacity-40`}
-                        value={row.checkIn}
-                        onChange={e => patchRow(i, { checkIn: e.target.value })}
-                        dir="ltr"
-                      />
-                    </td>
-                    <td className="table-cell">
-                      <input
-                        type="time"
-                        disabled={!attendanceStatusHasTimes(row.status)}
-                        className={`${inputCls()} w-28 py-1.5 text-xs disabled:opacity-40`}
-                        value={row.checkOut}
-                        onChange={e => patchRow(i, { checkOut: e.target.value })}
-                        dir="ltr"
-                      />
-                    </td>
-                    <td className="table-cell">
-                      <input
-                        className={`${inputCls()} min-w-[8rem] py-1.5 text-xs`}
-                        value={row.notes}
-                        onChange={e => patchRow(i, { notes: e.target.value })}
-                      />
-                    </td>
-                  </tr>
-                ))}
+                {rows.map((row, i) => {
+                  const dayType = resolvePlanDayType(row.workDate, planDayByDate)
+                  const holiday = isHolidayPlanDay(dayType)
+                  const allowedStatuses = allowedAttendanceStatusesForPlanDay(dayType)
+                  return (
+                    <tr
+                      key={row.workDate}
+                      className={`hover:bg-slate-800/50 ${holiday ? 'bg-sky-500/5' : 'bg-slate-900/40'}`}
+                    >
+                      <td className="table-cell whitespace-nowrap font-bold text-slate-200">
+                        {formatDayLabel(row.workDate, lang)}
+                        <span className="ms-2 font-mono text-xs text-slate-500" dir="ltr">
+                          {row.workDate}
+                        </span>
+                      </td>
+                      <td className="table-cell">
+                        <span className={`rounded-lg px-2 py-0.5 text-[10px] font-black ${dayTypeBadgeClass(dayType)}`}>
+                          {t(`productionOrders.workDaysTab.dayTypes.${dayType}`)}
+                        </span>
+                      </td>
+                      <td className="table-cell">
+                        <select
+                          className={`${inputCls()} min-w-[7rem] py-1.5 text-xs`}
+                          value={row.status}
+                          onChange={e => patchRow(i, { status: e.target.value as AttendanceDayStatus })}
+                        >
+                          {allowedStatuses.map(s => (
+                            <option key={s} value={s}>
+                              {t(`attendance.status.${s}`)}
+                            </option>
+                          ))}
+                          {!allowedStatuses.includes(row.status) && (
+                            <option value={row.status}>{t(`attendance.status.${row.status}`)}</option>
+                          )}
+                        </select>
+                      </td>
+                      <td className="table-cell">
+                        <input
+                          type="time"
+                          disabled={!attendanceStatusHasTimes(row.status)}
+                          className={`${inputCls()} w-28 py-1.5 text-xs disabled:opacity-40`}
+                          value={row.checkIn}
+                          onChange={e => patchRow(i, { checkIn: e.target.value })}
+                          dir="ltr"
+                        />
+                      </td>
+                      <td className="table-cell">
+                        <input
+                          type="time"
+                          disabled={!attendanceStatusHasTimes(row.status)}
+                          className={`${inputCls()} w-28 py-1.5 text-xs disabled:opacity-40`}
+                          value={row.checkOut}
+                          onChange={e => patchRow(i, { checkOut: e.target.value })}
+                          dir="ltr"
+                        />
+                      </td>
+                      <td className="table-cell">
+                        <input
+                          className={`${inputCls()} min-w-[8rem] py-1.5 text-xs`}
+                          value={row.notes}
+                          onChange={e => patchRow(i, { notes: e.target.value })}
+                        />
+                      </td>
+                    </tr>
+                  )
+                })}
               </tbody>
             </table>
           </div>

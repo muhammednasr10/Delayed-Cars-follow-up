@@ -1,5 +1,6 @@
 import { useLang } from '../i18n/LanguageContext'
 import type { JobRole } from '../Types/enums'
+import type { EmploymentStatus } from '../Types/permissions'
 
 const base = 'inline-flex rounded-full px-3 py-1 text-xs font-bold ring-1 whitespace-nowrap'
 
@@ -23,4 +24,21 @@ export function ActiveBadge({ active }: { active: boolean }) {
   const { t } = useLang()
   const cls = active ? 'bg-emerald-500/15 text-emerald-200 ring-emerald-400/30' : 'bg-slate-600/20 text-slate-300 ring-slate-500/30'
   return <span className={`${base} ${cls}`}>{active ? t('org.f.active') : t('org.f.inactive')}</span>
+}
+
+const EMPLOYMENT_STATUS_CLASSES: Record<EmploymentStatus, string> = {
+  active: 'bg-emerald-500/15 text-emerald-200 ring-emerald-400/30',
+  suspended: 'bg-amber-500/15 text-amber-200 ring-amber-400/30',
+  resigned: 'bg-slate-500/15 text-slate-300 ring-slate-500/30',
+  terminated: 'bg-red-500/15 text-red-200 ring-red-400/30',
+  on_leave: 'bg-sky-500/15 text-sky-200 ring-sky-400/30'
+}
+
+export function EmploymentStatusBadge({ status }: { status: EmploymentStatus }) {
+  const { t } = useLang()
+  return (
+    <span className={`${base} ${EMPLOYMENT_STATUS_CLASSES[status]}`}>
+      {t(`org.employmentStatus.${status}`)}
+    </span>
+  )
 }

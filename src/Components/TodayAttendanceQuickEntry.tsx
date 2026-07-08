@@ -3,7 +3,6 @@ import { useLang } from '../i18n/LanguageContext'
 import { EmployeeAutocomplete } from './EmployeeAutocomplete'
 import { inputCls } from './FormField'
 import {
-  ATTENDANCE_STATUSES,
   attendanceStatusHasTimes,
   type AttendanceDayStatus
 } from '../Types/attendance'
@@ -20,6 +19,7 @@ type Props = {
   checkOut: string
   onCheckInChange: (value: string) => void
   onCheckOutChange: (value: string) => void
+  allowedStatuses: AttendanceDayStatus[]
 }
 
 export function TodayAttendanceQuickEntry({
@@ -32,7 +32,8 @@ export function TodayAttendanceQuickEntry({
   checkIn,
   checkOut,
   onCheckInChange,
-  onCheckOutChange
+  onCheckOutChange,
+  allowedStatuses
 }: Props) {
   const { t } = useLang()
 
@@ -65,7 +66,7 @@ export function TodayAttendanceQuickEntry({
             disabled={!employeeId}
             onChange={e => onStatusChange(e.target.value as AttendanceDayStatus)}
           >
-            {ATTENDANCE_STATUSES.map(s => (
+            {allowedStatuses.map(s => (
               <option key={s} value={s}>
                 {t(`attendance.status.${s}`)}
               </option>

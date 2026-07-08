@@ -30,6 +30,7 @@ type EmployeeRow = {
   is_active: boolean
   employment_status?: string
   stopped_reason?: string | null
+  stopped_at?: string | null
   created_at: string
   updated_at: string
   work_areas?: { name: string } | null
@@ -95,6 +96,7 @@ function mapRow(
     isActive: row.is_active,
     employmentStatus: (row.employment_status as Employee['employmentStatus']) ?? 'active',
     stoppedReason: row.stopped_reason ?? null,
+    stoppedAt: row.stopped_at ?? null,
     createdAt: row.created_at,
     updatedAt: row.updated_at
   }
@@ -238,6 +240,20 @@ export async function suspendEmployee(
 
 export async function reactivateEmployee(employeeId: string): Promise<void> {
   const { error } = await requireClient().rpc('reactivate_employee', { p_employee_id: employeeId })
+  if (error) throw new Error(error.message)
+}
+
+export async function endEmployeeEmployment(
+  employeeId: string,
+  reason: string,
+  blockLinkedUser = true
+): Promise<void> {
+  const { error } = await requireClient().rpc('end_employee_employment', {
+    p_employee_id: employeeId,
+    p_reason: reason,
+    p_status: 'resigned',
+    p_block_linked_user: blockLinkedUser
+  })
   if (error) throw new Error(error.message)
 }
 
