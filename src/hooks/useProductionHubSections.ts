@@ -49,7 +49,7 @@ export function useProductionHubSections(refreshKey = 0) {
     loading || (canViewPage(card) && moduleOk)
   const [reportOpen, setReportOpen] = useState(false)
   const { activeVehicles, archiveVehicles, loading: countsLoading } = useMissingPartsVehicleCounts(refreshKey)
-  const { entryEfficiency, exitEfficiency, loading: productivityLoading } = useProductivityMonthCounts(refreshKey)
+  const { entryVehicles, exitVehicles, entryEfficiency, exitEfficiency, loading: productivityLoading } = useProductivityMonthCounts(refreshKey)
   const { totalMinutes, lostVehicles: stopsLostVehicles, loading: stopsLoading } = useProductionStopMonthCounts(refreshKey)
   const { efficiency, presentTodayCount, workforceCount, statusCounts, loading: attendanceLoading } =
     useTodayAttendanceEfficiency(refreshKey)
@@ -80,11 +80,12 @@ export function useProductionHubSections(refreshKey = 0) {
       },
       showHomeCard('production_home__entry', canViewModule('production')) && {
         key: 'productivity',
-        title: t('productivity.entryTitle'),
-        description: t('productivity.entrySubtitle'),
+        title: t('home.productivitiesTitle'),
+        description: t('home.productivitiesDesc'),
         icon: LogIn,
         tone: 'text-emerald-300 bg-emerald-500/15',
         accent: 'emerald' as const,
+        wide: true,
         onClick: () =>
           go({
             productionArea: 'assembly',
@@ -92,7 +93,9 @@ export function useProductionHubSections(refreshKey = 0) {
             productivityTab: 'productivity'
           }),
         stats: [
+          { label: t('home.entryProductivityVehicles'), value: productivityLoading ? '…' : String(entryVehicles) },
           { label: t('home.entryProductivityEfficiency'), value: formatEfficiencyPct(entryEfficiency, productivityLoading) },
+          { label: t('home.exitProductivityVehicles'), value: productivityLoading ? '…' : String(exitVehicles) },
           { label: t('home.exitProductivityEfficiency'), value: formatEfficiencyPct(exitEfficiency, productivityLoading) }
         ]
       },

@@ -207,7 +207,7 @@ export async function reportMissingPartsBatch(
     }))
     .filter(p => p.part_description)
 
-  const { data, error } = await requireClient().rpc('report_missing_parts_batch', {
+  const baseParams = {
     p_vins: vins,
     p_model_id: input.modelId,
     p_parts: parts,
@@ -217,11 +217,35 @@ export async function reportMissingPartsBatch(
     p_department: input.department,
     p_priority: input.priority,
     p_stopper_type: input.stopperType,
-    p_notes: input.notes || null,
-    p_factory_org_unit_id: input.factoryOrgUnitId || null
-  })
+    p_notes: input.notes || null
+  }
 
-  if (error) throw new Error(error.message)
+  const withOrg = input.factoryOrgUnitId
+    ? { ...baseParams, p_factory_org_unit_id: input.factoryOrgUnitId }
+    : baseParams
+
+  let data: unknown
+  let error: { message: string } | null = null
+
+  ;({ data, error } = await requireClient().rpc('report_missing_parts_batch', withOrg))
+
+  if (
+    error &&
+    error.message.includes('Could not find the function') &&
+    'p_factory_org_unit_id' in withOrg
+  ) {
+    ;({ data, error } = await requireClient().rpc('report_missing_parts_batch', baseParams))
+  }
+
+  if (error) {
+    if (error.message.includes('Could not find the function')) {
+      throw new Error(
+        'دالة تبليغ النواقص غير محدّثة على Supabase. نفّذ الملف supabase/scripts/apply_report_missing_parts_batch.sql من SQL Editor.'
+      )
+    }
+    throw new Error(error.message)
+  }
+
   const row = data as ReportMissingPartsBatchResult
   return {
     vehicle_count: row.vehicle_count ?? vins.length,
