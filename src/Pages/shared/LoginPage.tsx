@@ -7,14 +7,26 @@ import { DeveloperCredit } from '../../Components/DeveloperCredit'
 import { UserSupportRequestModal } from '../../Components/permissions/UserSupportRequestModal'
 
 export function LoginPage() {
-  const { signIn, accessDeniedMessage } = useAuth()
+  const { signIn, accessDeniedMessage, tryRestoreSession } = useAuth()
   const { t, lang, toggle } = useLang()
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [showPassword, setShowPassword] = useState(false)
   const [error, setError] = useState('')
   const [submitting, setSubmitting] = useState(false)
+  const [restoring, setRestoring] = useState(false)
   const [helpOpen, setHelpOpen] = useState(false)
+
+  const sessionExpired =
+    Boolean(accessDeniedMessage) && accessDeniedMessage.includes('انتهت الجلسة')
+
+  async function handleRestoreSession() {
+    setError('')
+    setRestoring(true)
+    const ok = await tryRestoreSession()
+    setRestoring(false)
+    if (!ok) setError(t('login.restoreFailed'))
+  }
 
   async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault()
@@ -50,8 +62,18 @@ export function LoginPage() {
         </div>
 
         {accessDeniedMessage && (
-          <div className="mb-4 rounded-xl border border-amber-500/40 bg-amber-500/10 p-3 text-sm text-amber-200">
-            {accessDeniedMessage}
+          <div className="mb-4 space-y-2 rounded-xl border border-amber-500/40 bg-amber-500/10 p-3 text-sm text-amber-200">
+            <p>{accessDeniedMessage}</p>
+            {sessionExpired && (
+              <button
+                type="button"
+                disabled={restoring}
+                onClick={() => void handleRestoreSession()}
+                className="rounded-lg bg-amber-500/20 px-3 py-1.5 text-xs font-bold text-amber-100 hover:bg-amber-500/30 disabled:opacity-60"
+              >
+                {restoring ? t('login.restoringSession') : t('login.restoreSession')}
+              </button>
+            )}
           </div>
         )}
 

@@ -59,6 +59,7 @@ type AuthContextValue = {
   signIn: (email: string, password: string) => Promise<{ ok: boolean; message?: string }>
   signOut: () => Promise<void>
   reloadProfile: () => Promise<void>
+  tryRestoreSession: () => Promise<boolean>
   hasRole: (...roles: UserRole[]) => boolean
   isAdmin: boolean
 }
@@ -332,6 +333,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (uid) await loadProfile(uid, true)
   }, [session?.user?.id, loadProfile])
 
+  const tryRestoreSession = useCallback(async (): Promise<boolean> => {
+    const next = await refreshSessionOnWake()
+    if (!next?.user?.id) return false
+    setSession(next)
+    setAccessDeniedMessage(null)
+    const profileResult = await loadProfile(next.user.id, true)
+    if (profileResult !== 'ok') {
+      setAccessDeniedMessage(loadProfileFailureMessage(profileResult))
+      setSession(null)
+      setProfile(null)
+      return false
+    }
+    return true
+  }, [loadProfile])
+
   const role: UserRole = profile?.role ?? 'viewer'
   const displayRole = resolveDisplayRole(profile, role)
   const systemRoleCode = profile?.system_role_code ?? null
@@ -351,6 +367,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       signIn,
       signOut,
       reloadProfile,
+      tryRestoreSession,
       hasRole: (...roles: UserRole[]) => {
         if (roles.includes(role)) return true
         if (roles.includes('admin') && profileIsAdmin(profile)) return true
@@ -372,7 +389,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       systemRoleCode,
       accessDeniedMessage,
       isAdmin,
-      reloadProfile
+      reloadProfile,
+      tryRestoreSession
     ]
   )
 

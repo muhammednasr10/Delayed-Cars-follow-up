@@ -3,6 +3,9 @@
   "private": true,
   "version": "1.0.0",
   "type": "module",
+  "engines": {
+    "node": ">=20"
+  },
   "scripts": {
     "dev": "vite",
     "build": "tsc -b && vite build",
@@ -13,6 +16,7 @@
     "lint:fix": "eslint src supabase/functions eslint.config.js vite.config.ts --fix",
     "format": "prettier --write \"src/**/*.{ts,tsx,css}\" \"supabase/functions/**/*.ts\" \"*.{js,json,md,yml}\" \".github/**/*.yml\"",
     "format:check": "prettier --check \"src/**/*.{ts,tsx,css}\" \"supabase/functions/**/*.ts\" \"*.{js,json,md,yml}\" \".github/**/*.yml\"",
+    "check": "npm run lint && npm run format:check && npm run test:run && npm run build",
     "latency": "node scripts/latency-check.mjs"
   },
   "dependencies": {
@@ -24,7 +28,7 @@
     "papaparse": "^5.5.3",
     "react": "^19.2.7",
     "react-dom": "^19.2.7",
-    "typescript": "latest",
+    "typescript": "6.0.3",
     "xlsx": "^0.18.5"
   },
   "devDependencies": {

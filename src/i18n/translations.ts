@@ -1374,6 +1374,9 @@ export const translations = {
       submitting: 'جاري الدخول...',
       errRequired: 'برجاء إدخال البريد وكلمة المرور.',
       errFailed: 'فشل تسجيل الدخول.',
+      restoreSession: 'حاول استكمال الجلسة',
+      restoringSession: 'جاري استكمال الجلسة...',
+      restoreFailed: 'تعذّر استكمال الجلسة. سجّل الدخول مرة أخرى.',
       needHelp: 'نسيت كلمة المرور أو تحتاج مساعدة؟'
     },
     userRequests: {
@@ -4515,6 +4518,9 @@ export const translations = {
       submitting: 'Signing in...',
       errRequired: 'Please enter email and password.',
       errFailed: 'Sign in failed.',
+      restoreSession: 'Try to resume session',
+      restoringSession: 'Resuming session...',
+      restoreFailed: 'Could not resume session. Please sign in again.',
       needHelp: 'Forgot password or need help?'
     },
     userRequests: {

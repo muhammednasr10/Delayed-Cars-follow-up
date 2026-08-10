@@ -55,7 +55,8 @@ Open `http://localhost:5173`.
 | `npm run lint:fix` | ESLint with auto-fix |
 | `npm run format` | Prettier write |
 | `npm run format:check` | Prettier check (CI) |
-| `npm run latency` | Boot latency check (needs `LATENCY_EMAIL` / `LATENCY_PASSWORD` in env) |
+| `npm run check` | Full local CI (lint + format + test + build) |
+| `npm run latency` | Boot latency check (needs env credentials) |
 
 ---
 
