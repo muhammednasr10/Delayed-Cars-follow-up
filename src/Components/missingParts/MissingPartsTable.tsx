@@ -33,6 +33,7 @@ type Props = {
   reasons: MpLookupOption[]
   departments: MpLookupOption[]
   orgUnitLabelFor?: (id: string | null | undefined) => string
+  canBulkSelect: boolean
   canBulkInstall: boolean
   canExport: boolean
   canEdit: boolean
@@ -66,6 +67,7 @@ export function MissingPartsTable({
   reasons,
   departments,
   orgUnitLabelFor = () => '—',
+  canBulkSelect,
   canBulkInstall,
   canExport,
   canEdit,
@@ -96,9 +98,8 @@ export function MissingPartsTable({
   const tableRows = buildMissingPartTableRows(filtered)
 
   function rowSelectable(row: MissingPartTableRow) {
-    if (!canBulkInstall) return false
-    const ids = vehicleIdsFromTableRow(row)
-    return ids.some(id => selectableVehicleIds.has(id)) && partsFromTableRow(row).some(p => p.installedQty < p.requiredQty && p.status !== 'closed' && p.status !== 'cancelled')
+    if (!canBulkSelect) return false
+    return vehicleIdsFromTableRow(row).some(id => selectableVehicleIds.has(id))
   }
 
   function rowChecked(row: MissingPartTableRow) {
@@ -124,7 +125,7 @@ export function MissingPartsTable({
                 style={c === 'actions' ? { insetInlineEnd: 0 } : undefined}
                 {...(c === 'actions' || c === 'select' ? { 'data-export-skip': true } : {})}
               >
-                {c === 'select' && canBulkInstall ? (
+                {c === 'select' && canBulkSelect ? (
                   <input
                     type="checkbox"
                     checked={allSelectableSelected}
@@ -157,6 +158,7 @@ export function MissingPartsTable({
                   reasons={reasons}
                   departments={departments}
                   orgUnitLabelFor={orgUnitLabelFor}
+                  canBulkSelect={canBulkSelect}
                   canBulkInstall={canBulkInstall}
                   canEdit={canEdit}
                   canDelete={canDelete}
@@ -196,6 +198,7 @@ export function MissingPartsTable({
                   reasons={reasons}
                   departments={departments}
                   orgUnitLabelFor={orgUnitLabelFor}
+                  canBulkSelect={canBulkSelect}
                   canBulkInstall={canBulkInstall}
                   canEdit={canEdit}
                   canDelete={canDelete}
@@ -229,6 +232,7 @@ export function MissingPartsTable({
                 reasons={reasons}
                 departments={departments}
                 orgUnitLabelFor={orgUnitLabelFor}
+                canBulkSelect={canBulkSelect}
                 canBulkInstall={canBulkInstall}
                 canEdit={canEdit}
                 canDelete={canDelete}
@@ -268,6 +272,7 @@ type RowProps = {
   reasons: MpLookupOption[]
   departments: MpLookupOption[]
   orgUnitLabelFor: (id: string | null | undefined) => string
+  canBulkSelect: boolean
   canBulkInstall: boolean
   canEdit: boolean
   canDelete: boolean
@@ -442,7 +447,7 @@ function PartDataRow({
   reasons,
   departments,
   lang,
-  canBulkInstall,
+  canBulkSelect,
   canEdit,
   canDelete,
   canUpdateStatus,
@@ -487,9 +492,9 @@ function PartDataRow({
 
   return (
     <tr className={`bg-slate-900/30 hover:bg-slate-800/40 ${rowChecked ? 'ring-1 ring-inset ring-cyan-500/40' : ''} ${rowClassName}`}>
-      {listTab === 'active' && (
+      {(listTab === 'active' || listTab === 'history') && (
         <td data-export-skip className={cell}>
-          {canBulkInstall && (
+          {canBulkSelect && (
             <input
               type="checkbox"
               checked={rowChecked}

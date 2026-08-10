@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState, useCallback } from 'react'
-import { PackageCheck } from 'lucide-react'
+import { CheckCircle2, PackageCheck, Trash2 } from 'lucide-react'
 import { useLang } from '../../i18n/LanguageContext'
 import { useEmployees } from '../../hooks/useEmployees'
 import { useFactoryOrgScope } from '../../hooks/useFactoryOrgScope'
@@ -16,7 +16,6 @@ import { MissingPartIssuesModal } from '../../Components/MissingPartIssuesModal'
 import type { ReportGroupContext, VehicleIssuesContext } from '../../Types/missingPart'
 import {
   buildMissingPartTableRows,
-  hasPendingInstall,
   isReportGroup,
   partsFromTableRow,
   reportGroupMembers,
@@ -65,6 +64,10 @@ export function MissingPartsPage() {
     [orgUnits]
   )
   const canBulkInstall = canBulkInstallAndUpdate
+  const canBulkSelectActive = canBulkInstall || canComplete || canDelete
+  const canBulkSelectArchive = canDelete
+  const canBulkSelectForTab =
+    listTab === 'history' ? canBulkSelectArchive : listTab === 'active' ? canBulkSelectActive : false
   const [items, setItems] = useState<MissingPartDetail[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
@@ -86,7 +89,7 @@ export function MissingPartsPage() {
   const [success, setSuccess] = useState('')
   const [completingVehicleId, setCompletingVehicleId] = useState<string | null>(null)
   const [selectedVehicleIds, setSelectedVehicleIds] = useState<Set<string>>(new Set())
-  const [bulkInstalling, setBulkInstalling] = useState(false)
+  const [bulkActionBusy, setBulkActionBusy] = useState(false)
   const [completeTarget, setCompleteTarget] = useState<MissingPartDetail | null>(null)
   const [completeAllTargets, setCompleteAllTargets] = useState<MissingPartDetail[] | null>(null)
 
@@ -200,16 +203,19 @@ export function MissingPartsPage() {
   )
 
   const selectableVehicleIds = useMemo(() => {
-    if (!canBulkInstall) return new Set<string>()
+    if (!canBulkSelectForTab || (listTab !== 'active' && listTab !== 'history')) return new Set<string>()
     const ids = new Set<string>()
     for (const row of tableRows) {
-      const parts = partsFromTableRow(row).filter(p => p.status !== 'closed' && p.status !== 'cancelled')
-      if (hasPendingInstall(parts)) {
-        for (const id of vehicleIdsFromTableRow(row)) ids.add(id)
-      }
+      const parts = partsFromTableRow(row).filter(p => {
+        if (p.status === 'closed' || p.status === 'cancelled') return false
+        if (listTab === 'history') return !!p.shortageResolvedAt
+        return !p.shortageResolvedAt
+      })
+      if (parts.length === 0) continue
+      for (const id of vehicleIdsFromTableRow(row)) ids.add(id)
     }
     return ids
-  }, [tableRows, canBulkInstall])
+  }, [tableRows, canBulkSelectForTab, listTab])
 
   const allSelectableSelected = selectableVehicleIds.size > 0 && [...selectableVehicleIds].every(id => selectedVehicleIds.has(id))
   const someSelectableSelected = [...selectableVehicleIds].some(id => selectedVehicleIds.has(id))
@@ -241,7 +247,7 @@ export function MissingPartsPage() {
       return
     }
     if (!window.confirm(t('mp.bulk.installConfirm', { vehicles: ids.length, lines: pendingLines.length }))) return
-    setBulkInstalling(true)
+    setBulkActionBusy(true)
     setError('')
     try {
       const result = await bulkInstallVehiclesToFull(ids, filtered)
@@ -251,7 +257,55 @@ export function MissingPartsPage() {
     } catch (err) {
       setError(formatError(err))
     } finally {
-      setBulkInstalling(false)
+      setBulkActionBusy(false)
+    }
+  }
+
+  function bulkCompleteSelected() {
+    const ids = [...selectedVehicleIds]
+    const reps = uniqueVehicleReps(
+      filtered.filter(
+        p =>
+          ids.includes(p.vehicleId) &&
+          !p.shortageResolvedAt &&
+          p.status !== 'closed' &&
+          p.status !== 'cancelled'
+      )
+    )
+    if (reps.length === 0) {
+      setError(t('mp.bulk.nothingToComplete'))
+      return
+    }
+    requestCompleteAll(reps)
+  }
+
+  async function bulkDeleteSelected() {
+    if (!canDelete || selectedVehicleIds.size === 0) return
+    const ids = [...selectedVehicleIds]
+    const targets = filtered.filter(
+      p => ids.includes(p.vehicleId) && p.status !== 'closed' && p.status !== 'cancelled'
+    )
+    if (targets.length === 0) {
+      setError(t('mp.bulk.nothingToDelete'))
+      return
+    }
+    if (!window.confirm(
+      t(listTab === 'history' ? 'mp.bulk.deleteConfirmArchive' : 'mp.bulk.deleteConfirm', {
+        vehicles: ids.length,
+        lines: targets.length
+      })
+    )) return
+    setBulkActionBusy(true)
+    setError('')
+    try {
+      for (const row of targets) await deleteMissingPartRecord(row.id)
+      setSelectedVehicleIds(new Set())
+      showSuccess(t('mp.bulk.deleteSuccess', { vehicles: ids.length, lines: targets.length }))
+      await load()
+    } catch (err) {
+      setError(formatError(err))
+    } finally {
+      setBulkActionBusy(false)
     }
   }
 
@@ -299,6 +353,7 @@ export function MissingPartsPage() {
     try {
       await completeVehicleShortage(completeTarget.vehicleId)
       setCompleteTarget(null)
+      setSelectedVehicleIds(new Set())
       showSuccess(t('mp.completeSuccess', { vin: completeTarget.vin }))
       void load()
     } catch (err) {
@@ -321,6 +376,7 @@ export function MissingPartsPage() {
         archived += 1
       }
       setCompleteAllTargets(null)
+      setSelectedVehicleIds(new Set())
       showSuccess(t('mp.completeAllSuccess', { n: archived || targets.length }))
       void load()
     } catch (err) {
@@ -366,21 +422,45 @@ export function MissingPartsPage() {
           </div>
         )}
 
-        {listTab === 'active' && canBulkInstall && selectedVehicleIds.size > 0 && (
+        {(listTab === 'active' || listTab === 'history') && canBulkSelectForTab && selectedVehicleIds.size > 0 && (
           <div className="flex flex-wrap items-center gap-3 border-b border-slate-800 px-4 py-3 sm:px-5">
             <span className="text-sm font-bold text-slate-300">{t('mp.bulk.selected', { n: selectedVehicleIds.size })}</span>
+            {listTab === 'active' && canBulkInstall && (
+              <button
+                type="button"
+                disabled={bulkActionBusy}
+                onClick={() => void bulkInstallSelected()}
+                className="inline-flex items-center gap-2 rounded-xl bg-emerald-600 px-4 py-2 text-sm font-black text-white hover:bg-emerald-500 disabled:opacity-50"
+              >
+                <PackageCheck className="h-4 w-4" />
+                {t('mp.bulk.installSelected')}
+              </button>
+            )}
+            {listTab === 'active' && canComplete && (
+              <button
+                type="button"
+                disabled={bulkActionBusy || Boolean(completingVehicleId)}
+                onClick={bulkCompleteSelected}
+                className="inline-flex items-center gap-2 rounded-xl bg-cyan-600 px-4 py-2 text-sm font-black text-white hover:bg-cyan-500 disabled:opacity-50"
+              >
+                <CheckCircle2 className="h-4 w-4" />
+                {t('mp.bulk.completeSelected')}
+              </button>
+            )}
+            {canDelete && (
+              <button
+                type="button"
+                disabled={bulkActionBusy}
+                onClick={() => void bulkDeleteSelected()}
+                className="inline-flex items-center gap-2 rounded-xl bg-red-600/90 px-4 py-2 text-sm font-black text-white hover:bg-red-500 disabled:opacity-50"
+              >
+                <Trash2 className="h-4 w-4" />
+                {t('mp.bulk.deleteSelected')}
+              </button>
+            )}
             <button
               type="button"
-              disabled={bulkInstalling}
-              onClick={() => void bulkInstallSelected()}
-              className="inline-flex items-center gap-2 rounded-xl bg-emerald-600 px-4 py-2 text-sm font-black text-white hover:bg-emerald-500 disabled:opacity-50"
-            >
-              <PackageCheck className="h-4 w-4" />
-              {t('mp.bulk.installSelected')}
-            </button>
-            <button
-              type="button"
-              disabled={bulkInstalling}
+              disabled={bulkActionBusy}
               onClick={() => setSelectedVehicleIds(new Set())}
               className="rounded-xl bg-slate-800 px-4 py-2 text-sm font-bold text-slate-300 hover:bg-slate-700 disabled:opacity-50"
             >
@@ -434,6 +514,7 @@ export function MissingPartsPage() {
             reasons={reasons}
             departments={departments}
             orgUnitLabelFor={orgUnitLabelFor}
+            canBulkSelect={canBulkSelectForTab}
             canBulkInstall={canBulkInstall}
             canExport={canExport}
             canEdit={canEdit}
@@ -443,7 +524,7 @@ export function MissingPartsPage() {
             canComplete={canComplete}
             selectableVehicleIds={selectableVehicleIds}
             selectedVehicleIds={selectedVehicleIds}
-            bulkInstalling={bulkInstalling}
+            bulkInstalling={bulkActionBusy}
             completingVehicleId={completingVehicleId}
             allSelectableSelected={allSelectableSelected}
             someSelectableSelected={someSelectableSelected}

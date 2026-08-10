@@ -29,6 +29,8 @@ export const translations = {
       installTitle: 'ثبّت التطبيق',
       installHint: 'أضف التطبيق للشاشة الرئيسية للوصول السريع من الموبايل أو سطح المكتب.',
       installAction: 'إضافة للشاشة الرئيسية',
+      headerLabel: 'تثبيت التطبيق',
+      desktopHint: 'من Chrome أو Edge: قائمة المتصفح ⋮ ثم «تثبيت التطبيق» أو Install app. على سطح المكتب قد يظهر أيقونة ⊕ في شريط العنوان.',
       later: 'لاحقاً',
       iosHint: 'من Safari: اضغط زر المشاركة ثم «إضافة إلى الشاشة الرئيسية».'
     },
@@ -1399,8 +1401,10 @@ export const translations = {
       errNoOrgUnit: 'لا يمكن التبليغ: حسابك غير مرتبط بموظف أو بقسم تنظيمي في الهيكل.',
       sectionVehicle: 'بيانات السيارة',
       sectionIssues: 'بيانات النقص',
-      sectionIssuesHint: 'لكل مشكلة: تصنيف السبب، القسم المسؤول، ثم وصف السبب.',
+      sectionIssuesHint: 'لكل مشكلة: تصنيف السبب، القسم المسؤول، ثم وصف السبب. يمكنك إضافة أكثر من سبب بزر + أو مشكلة جديدة بـ «إضافة مشكلة».',
       issueN: 'مشكلة {n}', issueReasonPlaceholder: 'مثال: بدون كراسى، خبطة باب أ…',
+      addReasonLine: 'إضافة سبب',
+      reasonItemsHint: 'لكل سبب خانة منفصلة — اضغط + لإضافة سبب آخر (نفس التصنيف والقسم).',
       addStockItem: 'إضافة قطعة ناقصة',
       stockItemPlaceholder: 'مثال: كراسى، تريمات…',
       stockItemsHint: 'لكل قطعة ناقصة خانة منفصلة — اضغط + لإضافة قطعة أخرى.',
@@ -1463,7 +1467,14 @@ export const translations = {
         installConfirm: 'تركيب الكميات المتبقية على {vehicles} سيارة ({lines} سطر)؟ لن تُؤرشف السيارات تلقائياً.',
         installSuccess: 'تم تحديث التركيب لـ {lines} سطر على {vehicles} سيارة. الأرشيف يدوياً عند الجاهزية.',
         nothingToInstall: 'لا توجد كميات متبقية للتركيب على السيارات المحددة.',
-        noInstallPerm: 'لا صلاحية لتركيب القطع.'
+        noInstallPerm: 'لا صلاحية لتركيب القطع.',
+        completeSelected: 'أرشفة المحدد',
+        deleteSelected: 'حذف المحدد',
+        deleteConfirm: 'حذف {lines} سجل نقص على {vehicles} سيارة؟ لا يمكن التراجع.',
+        deleteConfirmArchive: 'حذف {lines} سجل من الأرشيف على {vehicles} سيارة؟ لا يمكن التراجع.',
+        deleteSuccess: 'تم حذف {lines} سجل على {vehicles} سيارة.',
+        nothingToComplete: 'لا توجد سيارات محددة يمكن أرشفتها.',
+        nothingToDelete: 'لا توجد سجلات للحذف على السيارات المحددة.'
       },
       searchPlaceholder: 'بحث VIN / القطعة',
       search: {
@@ -1472,7 +1483,14 @@ export const translations = {
         kindModel: 'موديل',
         noMatches: 'لا توجد اقتراحات مطابقة'
       },
-      tabs: { active: 'قائمة النواقص', byFamily: 'حسب الموديل', summary: 'ملخص النواقص', history: 'الأرشيف', historySummary: 'ملخص الأرشيف' },
+      tabs: {
+        current: 'النواقص الحالية',
+        active: 'قائمة النواقص',
+        byFamily: 'الكروت',
+        summary: 'ملخص النواقص',
+        history: 'الأرشيف',
+        historySummary: 'ملخص الأرشيف'
+      },
       summary: {
         title: 'ملخص النواقص الحالية',
         hint: 'نظرة عامة على السيارات المفتوحة والأسباب والأقسام والمحطات — مع احترام الفلاتر أعلاه.',
@@ -1488,7 +1506,7 @@ export const translations = {
         byReason: 'حسب تصنيف السبب',
         byStation: 'أكثر المحطات'
       },
-      actionsHint: 'الأزرار بجانب الشاسيه: «انتهاء من السيارة» | عمود «إجراءات»: تعديل · تحديث · حذف. تأكد أنك في تبويب «قائمة النواقص» وليس الأرشيف.',
+      actionsHint: 'حدّد سيارات من عمود التحديد أو «تحديد الكل»، ثم نفّذ إجراءً جماعياً. بجانب الشاسيه: «انتهاء من السيارة» · عمود «إجراءات»: تعديل · تحديث · حذف.',
       complete: 'انتهاء من السيارة',
       completeDisabledHint: 'لا توجد متابعة مفتوحة لهذه السيارة.',
       completeConfirm: 'إنهاء متابعة النقص للسيارة {vin} ونقلها للأرشيف؟',
@@ -2587,6 +2605,8 @@ export const translations = {
       installTitle: 'Install app',
       installHint: 'Add this app to your home screen for quick access on mobile or desktop.',
       installAction: 'Add to home screen',
+      headerLabel: 'Install app',
+      desktopHint: 'In Chrome or Edge: browser menu ⋮ → «Install app». On desktop, look for the ⊕ icon in the address bar.',
       later: 'Later',
       iosHint: 'In Safari: tap Share, then «Add to Home Screen».'
     },
@@ -3957,8 +3977,10 @@ export const translations = {
       errNoOrgUnit: 'Cannot report: your account is not linked to an employee or org unit.',
       sectionVehicle: 'Vehicle details',
       sectionIssues: 'Shortage details',
-      sectionIssuesHint: 'Per issue: reason class, responsible department, then reason description.',
+      sectionIssuesHint: 'Per issue: reason class, responsible department, then reason text. Use + for more reasons, or «Add issue» for a different class/department.',
       issueN: 'Issue {n}', issueReasonPlaceholder: 'e.g. no seats, door A dent…',
+      addReasonLine: 'Add reason',
+      reasonItemsHint: 'One field per reason — press + to add another (same class and department).',
       addStockItem: 'Add missing part',
       stockItemPlaceholder: 'e.g. seats, trims…',
       stockItemsHint: 'One field per missing part — press + to add another.',
@@ -4015,7 +4037,14 @@ export const translations = {
         installConfirm: 'Install remaining quantities on {vehicles} vehicles ({lines} lines)? Vehicles will not be archived automatically.',
         installSuccess: 'Updated install qty on {lines} lines for {vehicles} vehicles. Archive manually when ready.',
         nothingToInstall: 'No remaining quantities to install on selected vehicles.',
-        noInstallPerm: 'No permission to install parts.'
+        noInstallPerm: 'No permission to install parts.',
+        completeSelected: 'Archive selected',
+        deleteSelected: 'Delete selected',
+        deleteConfirm: 'Delete {lines} shortage records on {vehicles} vehicles? This cannot be undone.',
+        deleteConfirmArchive: 'Delete {lines} archived records on {vehicles} vehicles? This cannot be undone.',
+        deleteSuccess: 'Deleted {lines} records on {vehicles} vehicles.',
+        nothingToComplete: 'No selected vehicles can be archived.',
+        nothingToDelete: 'No records to delete on selected vehicles.'
       },
       searchPlaceholder: 'Search VIN / part',
       search: {
@@ -4024,7 +4053,14 @@ export const translations = {
         kindModel: 'Model',
         noMatches: 'No matching suggestions'
       },
-      tabs: { active: 'Active shortages', byFamily: 'By model', summary: 'Shortages summary', history: 'Archive', historySummary: 'Archive summary' },
+      tabs: {
+        current: 'Current shortages',
+        active: 'Shortages list',
+        byFamily: 'Cards',
+        summary: 'Shortages summary',
+        history: 'Archive',
+        historySummary: 'Archive summary'
+      },
       summary: {
         title: 'Current shortages overview',
         hint: 'Open vehicles, reasons, departments and stations — respects the filters above.',

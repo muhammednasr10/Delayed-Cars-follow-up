@@ -3,7 +3,7 @@ import type { VehicleModel } from '../Types/settings'
 import { inferParentNameFromVariant } from './vehicleModelHierarchy'
 
 export const ACTIVE_COLS = ['select', 'vin', 'model', 'color', 'orgUnit', 'qty', 'reason', 'reasonClass', 'department', 'dateTime', 'actions'] as const
-export const HISTORY_COLS = ['vin', 'model', 'color', 'orgUnit', 'qty', 'reason', 'reasonClass', 'department', 'dateTime', 'resolvedAt', 'actions'] as const
+export const HISTORY_COLS = ['select', 'vin', 'model', 'color', 'orgUnit', 'qty', 'reason', 'reasonClass', 'department', 'dateTime', 'resolvedAt', 'actions'] as const
 
 export const cell = 'table-cell-compact whitespace-nowrap text-center align-middle'
 export const actionsCell = `${cell} sticky z-10 bg-slate-900/95 shadow-[inset_8px_0_12px_rgba(0,0,0,0.3)]`

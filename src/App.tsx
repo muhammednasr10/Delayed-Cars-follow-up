@@ -30,6 +30,7 @@ import { pagePermForEngineering, pagePermForPlanning, pagePermForProduction, pag
 import { SETTINGS_TAB_ORDER } from './Types/navigation'
 import { formatRoleBadge } from './Utils/roleBadge'
 import { PwaInstallPrompt } from './Components/PwaInstallPrompt'
+import { PwaInstallButton } from './Components/PwaInstallButton'
 import { usePresenceHeartbeat } from './hooks/usePresenceHeartbeat'
 
 export type { AppPage as Page, DepartmentId, ProductionPage, EngineeringPage } from './Types/navigation'
@@ -176,6 +177,7 @@ function Shell() {
                   <Settings className="h-5 w-5" />
                 </button>
               )}
+              <PwaInstallButton />
               <HeaderNotificationsBell />
               <button onClick={toggle} className="touch-target rounded-xl bg-slate-800 px-3 py-2 text-sm font-bold text-slate-200 hover:bg-slate-700">
                 <Languages className="inline h-4 w-4 sm:me-1" /> <span>{lang === 'ar' ? 'EN' : 'عربي'}</span>
