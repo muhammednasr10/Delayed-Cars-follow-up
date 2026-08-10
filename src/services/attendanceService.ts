@@ -76,7 +76,10 @@ export function tallyElapsedMonthDays(
     m.set(r.workDate, r.status)
   }
 
-  const tallies = new Map<string, { present: number; absent: number; vacation: number; sick: number; permission: number; late: number }>()
+  const tallies = new Map<
+    string,
+    { present: number; absent: number; vacation: number; sick: number; permission: number; late: number }
+  >()
   for (const employeeId of employeeIds) {
     const byDate = byEmpDate.get(employeeId)
     const t = { present: 0, absent: 0, vacation: 0, sick: 0, permission: 0, late: 0 }
@@ -112,7 +115,10 @@ export function tallyElapsedYearDays(
   today = localTodayIso(),
   planDayByDate: Map<string, PlanDayType> = new Map()
 ): Map<string, { present: number; absent: number; vacation: number; sick: number; permission: number; late: number }> {
-  const tallies = new Map<string, { present: number; absent: number; vacation: number; sick: number; permission: number; late: number }>()
+  const tallies = new Map<
+    string,
+    { present: number; absent: number; vacation: number; sick: number; permission: number; late: number }
+  >()
   for (const employeeId of employeeIds) {
     tallies.set(employeeId, { present: 0, absent: 0, vacation: 0, sick: 0, permission: 0, late: 0 })
   }
@@ -177,8 +183,8 @@ export function buildMonthDayEdits(
     rows.push({
       workDate,
       status,
-      checkIn: attendanceStatusHasTimes(status) ? normalizeTime(ex?.checkIn) ?? DEFAULT_ATTENDANCE_CHECK_IN : '',
-      checkOut: attendanceStatusHasTimes(status) ? normalizeTime(ex?.checkOut) ?? DEFAULT_ATTENDANCE_CHECK_OUT : '',
+      checkIn: attendanceStatusHasTimes(status) ? (normalizeTime(ex?.checkIn) ?? DEFAULT_ATTENDANCE_CHECK_IN) : '',
+      checkOut: attendanceStatusHasTimes(status) ? (normalizeTime(ex?.checkOut) ?? DEFAULT_ATTENDANCE_CHECK_OUT) : '',
       notes: ex?.notes ?? ''
     })
   }
@@ -277,8 +283,8 @@ export function dayEditToInput(employeeId: string, row: AttendanceDayEdit): Atte
     employeeId,
     workDate: row.workDate,
     status: row.status,
-    checkIn: hasTimes ? normalizeTime(row.checkIn) ?? DEFAULT_ATTENDANCE_CHECK_IN : null,
-    checkOut: hasTimes ? normalizeTime(row.checkOut) ?? DEFAULT_ATTENDANCE_CHECK_OUT : null,
+    checkIn: hasTimes ? (normalizeTime(row.checkIn) ?? DEFAULT_ATTENDANCE_CHECK_IN) : null,
+    checkOut: hasTimes ? (normalizeTime(row.checkOut) ?? DEFAULT_ATTENDANCE_CHECK_OUT) : null,
     notes: row.notes.trim() || null
   }
 }
@@ -289,8 +295,8 @@ function toPayload(input: AttendanceDayInput): Record<string, unknown> {
     employee_id: input.employeeId,
     work_date: input.workDate,
     status: input.status,
-    check_in: hasTimes ? normalizeTime(input.checkIn) ?? DEFAULT_ATTENDANCE_CHECK_IN : null,
-    check_out: hasTimes ? normalizeTime(input.checkOut) ?? DEFAULT_ATTENDANCE_CHECK_OUT : null,
+    check_in: hasTimes ? (normalizeTime(input.checkIn) ?? DEFAULT_ATTENDANCE_CHECK_IN) : null,
+    check_out: hasTimes ? (normalizeTime(input.checkOut) ?? DEFAULT_ATTENDANCE_CHECK_OUT) : null,
     notes: input.notes?.trim() || null
   }
 }
@@ -421,7 +427,10 @@ export async function getMonthlyAttendanceSummaries(
   const { start, end } = monthBounds(year, month)
   const client = requireClient()
 
-  let empQuery = client.from('employees').select('id, employee_code, full_name, job_role, is_active').order('employee_code')
+  let empQuery = client
+    .from('employees')
+    .select('id, employee_code, full_name, job_role, is_active')
+    .order('employee_code')
   if (activeOnly) empQuery = empQuery.eq('is_active', true)
   const { data: emps, error: empErr } = await empQuery
   if (empErr) throw new Error(empErr.message)
@@ -477,7 +486,10 @@ export async function getYearlyAttendanceSummaries(
   const { start, end } = yearBounds(year)
   const client = requireClient()
 
-  let empQuery = client.from('employees').select('id, employee_code, full_name, job_role, is_active').order('employee_code')
+  let empQuery = client
+    .from('employees')
+    .select('id, employee_code, full_name, job_role, is_active')
+    .order('employee_code')
   if (activeOnly) empQuery = empQuery.eq('is_active', true)
   const { data: emps, error: empErr } = await empQuery
   if (empErr) throw new Error(empErr.message)

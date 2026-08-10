@@ -69,10 +69,7 @@ async function loadExistingNormalizedParts(normals: string[]): Promise<Set<strin
 async function loadExistingBomLineKeys(keys: string[]): Promise<Set<string>> {
   const found = new Set<string>()
   for (const batch of chunk(keys, CHUNK)) {
-    const { data, error } = await client()
-      .from('bom_items')
-      .select('import_line_key')
-      .in('import_line_key', batch)
+    const { data, error } = await client().from('bom_items').select('import_line_key').in('import_line_key', batch)
     if (error) throw new Error(error.message)
     ;(data ?? []).forEach(r => {
       if (r.import_line_key) found.add(String(r.import_line_key))
@@ -233,8 +230,7 @@ export async function runBomImport(
           station_category: row.stationCategory || null,
           supply_source: effectiveSupplySource(row.supplySource),
           bom_classification: row.bomClassification || null,
-          qty_by_model_raw:
-            row.qtyByModelRaw || row.qtyByModel.map(q => `${q.model}=${q.qty}`).join('; ') || null,
+          qty_by_model_raw: row.qtyByModelRaw || row.qtyByModel.map(q => `${q.model}=${q.qty}`).join('; ') || null,
           source_file: options.sourceFile ?? options.fileName,
           source_sheet: row.sourceSheet || options.sheetName,
           source_row_number: row.sourceRow,
@@ -248,9 +244,7 @@ export async function runBomImport(
       })
     } catch (e) {
       summary.errorsCount++
-      summary.errors.push(
-        `Row ${row.rowNumber}: ${e instanceof Error ? e.message : String(e)}`
-      )
+      summary.errors.push(`Row ${row.rowNumber}: ${e instanceof Error ? e.message : String(e)}`)
     }
   }
 
@@ -302,9 +296,7 @@ export async function runBomImport(
         existingBomKeys.add(l.lineKey)
       }
     }
-    const { error } = await client()
-      .from('bom_items')
-      .upsert(payloads, { onConflict: 'import_line_key' })
+    const { error } = await client().from('bom_items').upsert(payloads, { onConflict: 'import_line_key' })
     if (error) {
       for (const l of batch) {
         summary.errorsCount++

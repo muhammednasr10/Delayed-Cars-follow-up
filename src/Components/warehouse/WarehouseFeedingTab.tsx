@@ -61,12 +61,7 @@ export function WarehouseFeedingTab({ warehouses, models, stations, canManage, n
       )}
       {subTab === 'kanban' && <WarehouseKanbanTab notify={notify} />}
       {subTab === 'actual' && (
-        <WarehouseFeedingActualTab
-          warehouses={warehouses}
-          stations={stations}
-          canManage={canManage}
-          notify={notify}
-        />
+        <WarehouseFeedingActualTab warehouses={warehouses} stations={stations} canManage={canManage} notify={notify} />
       )}
     </div>
   )

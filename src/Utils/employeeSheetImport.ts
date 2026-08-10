@@ -39,7 +39,7 @@ export function jobRoleFromSheetTitle(title: string): JobRole | null {
   const map: Record<string, JobRole> = {
     مشرف: 'supervisor',
     'مدخل بيانات': 'data_entry',
-    'مدخل': 'data_entry',
+    مدخل: 'data_entry',
     'مساعد مشرف': 'assistant_supervisor',
     'قائد مجموعة': 'leader',
     فني: 'technician',
@@ -103,7 +103,7 @@ export function buildEmployeeImportPreview(
       jobRole,
       assignmentStatus,
       workAreaName,
-      workAreaId: workAreaName ? areaByName.get(workAreaName) ?? null : null,
+      workAreaId: workAreaName ? (areaByName.get(workAreaName) ?? null) : null,
       errors
     }
   })
@@ -132,7 +132,11 @@ export function previewRowToInput(row: EmployeeImportPreviewRow): EmployeeInput 
 function sheetRowsToRecords(rows: string[][]): Record<string, string>[] {
   const nonEmpty = rows.filter(r => r.some(c => String(c).trim()))
   if (nonEmpty.length < 2) return []
-  const headers = nonEmpty[0].map(h => String(h).replace(/^\uFEFF/, '').trim())
+  const headers = nonEmpty[0].map(h =>
+    String(h)
+      .replace(/^\uFEFF/, '')
+      .trim()
+  )
   return nonEmpty.slice(1).map(row => {
     const rec: Record<string, string> = {}
     headers.forEach((h, i) => {

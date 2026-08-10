@@ -130,10 +130,7 @@ export function ProductionStopsTab() {
   useEffect(() => {
     if (!formOpen || editing) return
     setForm(prev => {
-      const lost = lostVehiclesFromStopMinutes(
-        stopDurationMinutes(prev.startedAt, prev.endedAt),
-        taktMinutes
-      )
+      const lost = lostVehiclesFromStopMinutes(stopDurationMinutes(prev.startedAt, prev.endedAt), taktMinutes)
       return prev.lostVehicles === lost ? prev : { ...prev, lostVehicles: lost }
     })
   }, [formOpen, editing, taktMinutes])
@@ -201,10 +198,7 @@ export function ProductionStopsTab() {
   function applyLostFromDuration(input: ProductionLineStopInput): ProductionLineStopInput {
     return {
       ...input,
-      lostVehicles: lostVehiclesFromStopMinutes(
-        stopDurationMinutes(input.startedAt, input.endedAt),
-        taktMinutes
-      )
+      lostVehicles: lostVehiclesFromStopMinutes(stopDurationMinutes(input.startedAt, input.endedAt), taktMinutes)
     }
   }
 
@@ -254,7 +248,8 @@ export function ProductionStopsTab() {
     if (!form.stopReason.trim()) return t('productivity.stops.errReason')
     if (!form.department) return t('productivity.stops.errDepartment')
     if (!form.startedAt || !form.endedAt) return t('productivity.stops.errTime')
-    if (new Date(form.endedAt).getTime() <= new Date(form.startedAt).getTime()) return t('productivity.stops.errTimeOrder')
+    if (new Date(form.endedAt).getTime() <= new Date(form.startedAt).getTime())
+      return t('productivity.stops.errTimeOrder')
     if (form.lostVehicles < 0) return t('productivity.stops.errLost')
     return null
   }
@@ -387,8 +382,14 @@ export function ProductionStopsTab() {
         </div>
       )}
 
-      {success && <div className="rounded-xl border border-emerald-500/30 bg-emerald-500/10 p-3 text-sm text-emerald-200">{success}</div>}
-      {error && !setupRequired && <div className="rounded-xl border border-red-500/30 bg-red-500/10 p-3 text-sm text-red-200">{error}</div>}
+      {success && (
+        <div className="rounded-xl border border-emerald-500/30 bg-emerald-500/10 p-3 text-sm text-emerald-200">
+          {success}
+        </div>
+      )}
+      {error && !setupRequired && (
+        <div className="rounded-xl border border-red-500/30 bg-red-500/10 p-3 text-sm text-red-200">{error}</div>
+      )}
 
       <div className="card-industrial overflow-x-auto">
         <table className="w-full text-center text-sm">
@@ -435,10 +436,20 @@ export function ProductionStopsTab() {
                   {canManage && (
                     <td className={cell}>
                       <div className="flex justify-center gap-1">
-                        <button type="button" title={t('common.edit')} onClick={() => openEdit(row)} className="rounded-lg p-2 text-slate-300 hover:bg-slate-700">
+                        <button
+                          type="button"
+                          title={t('common.edit')}
+                          onClick={() => openEdit(row)}
+                          className="rounded-lg p-2 text-slate-300 hover:bg-slate-700"
+                        >
                           <Pencil className="h-4 w-4" />
                         </button>
-                        <button type="button" title={t('common.delete')} onClick={() => setDeleteTarget(row)} className="rounded-lg p-2 text-red-300 hover:bg-red-500/20">
+                        <button
+                          type="button"
+                          title={t('common.delete')}
+                          onClick={() => setDeleteTarget(row)}
+                          className="rounded-lg p-2 text-red-300 hover:bg-red-500/20"
+                        >
                           <Trash2 className="h-4 w-4" />
                         </button>
                       </div>
@@ -461,7 +472,11 @@ export function ProductionStopsTab() {
         onClose={() => setFormOpen(false)}
         footer={
           <>
-            <button type="button" onClick={() => setFormOpen(false)} className="rounded-xl bg-slate-800 px-4 py-2 font-bold text-slate-200">
+            <button
+              type="button"
+              onClick={() => setFormOpen(false)}
+              className="rounded-xl bg-slate-800 px-4 py-2 font-bold text-slate-200"
+            >
               {t('common.cancel')}
             </button>
             <button
@@ -476,7 +491,11 @@ export function ProductionStopsTab() {
         }
       >
         <div className="space-y-4">
-          {formError && <div className="rounded-xl border border-red-500/30 bg-red-500/10 p-3 text-sm text-red-200">{formError}</div>}
+          {formError && (
+            <div className="rounded-xl border border-red-500/30 bg-red-500/10 p-3 text-sm text-red-200">
+              {formError}
+            </div>
+          )}
           <Field label={t('productivity.stops.fields.model')}>
             <select
               className={inputCls()}
@@ -557,7 +576,9 @@ export function ProductionStopsTab() {
               min={0}
               className={inputCls()}
               value={form.lostVehicles}
-              onChange={e => setForm(p => ({ ...p, lostVehicles: Math.max(0, Math.floor(Number(e.target.value) || 0)) }))}
+              onChange={e =>
+                setForm(p => ({ ...p, lostVehicles: Math.max(0, Math.floor(Number(e.target.value) || 0)) }))
+              }
             />
             {taktMinutes != null && taktMinutes > 0 && (
               <p className="mt-1 text-xs text-slate-500">
@@ -566,7 +587,11 @@ export function ProductionStopsTab() {
             )}
           </Field>
           <Field label={t('productivity.stops.fields.notes')}>
-            <textarea className={`${inputCls()} min-h-20`} value={form.notes ?? ''} onChange={e => setForm(p => ({ ...p, notes: e.target.value }))} />
+            <textarea
+              className={`${inputCls()} min-h-20`}
+              value={form.notes ?? ''}
+              onChange={e => setForm(p => ({ ...p, notes: e.target.value }))}
+            />
           </Field>
         </div>
       </Modal>
@@ -586,8 +611,7 @@ export function ProductionStopsTab() {
 }
 
 function StatPill({ label, value, tone = 'cyan' }: { label: string; value: string; tone?: 'cyan' | 'amber' | 'red' }) {
-  const toneCls =
-    tone === 'amber' ? 'text-amber-300' : tone === 'red' ? 'text-red-300' : 'text-cyan-300'
+  const toneCls = tone === 'amber' ? 'text-amber-300' : tone === 'red' ? 'text-red-300' : 'text-cyan-300'
   return (
     <div className="rounded-xl border border-slate-800 bg-slate-950/50 px-4 py-3 text-center">
       <p className="text-xs font-bold text-slate-500">{label}</p>

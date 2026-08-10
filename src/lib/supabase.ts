@@ -33,12 +33,11 @@ async function authAwareFetch(input: RequestInfo | URL, init: RequestInit = {}):
 
   if (!skipRefresh) {
     try {
-      const { readRawSession, isAccessTokenExpired, ensureFreshSession, withTimeout } = await import(
-        '../services/authService'
-      )
+      const { readRawSession, isAccessTokenExpired, ensureFreshSession, withTimeout } =
+        await import('../services/authService')
       const stored = readRawSession()
       if (stored && isAccessTokenExpired(stored)) {
-        await withTimeout(ensureFreshSession(), 8_000, null)
+        await withTimeout(ensureFreshSession(), 15_000, null)
       }
     } catch {
       // auth helpers unavailable during early boot
@@ -59,7 +58,7 @@ async function authAwareFetch(input: RequestInfo | URL, init: RequestInit = {}):
     const { isJwtExpiredMessage, ensureFreshSession, withTimeout } = await import('../services/authService')
     if (!isJwtExpiredMessage(message)) return response
 
-    const refreshed = await withTimeout(ensureFreshSession(), 8_000, null)
+    const refreshed = await withTimeout(ensureFreshSession({ kickOnFailure: true }), 15_000, null)
     if (!refreshed) return response
     response = await run()
   } catch {

@@ -15,14 +15,8 @@ import {
   productivityModelRows,
   readDayQuantities
 } from '../../services/entryProductivityService'
-import {
-  bulkUpsertExitProductivity,
-  getExitProductivityMonth
-} from '../../services/exitProductivityService'
-import {
-  bulkUpsertRepairProductivity,
-  getRepairProductivityMonth
-} from '../../services/repairProductivityService'
+import { bulkUpsertExitProductivity, getExitProductivityMonth } from '../../services/exitProductivityService'
+import { bulkUpsertRepairProductivity, getRepairProductivityMonth } from '../../services/repairProductivityService'
 import { getProductionLineStops } from '../../services/productionStopService'
 import { getVehicleModels } from '../../services/settingsService'
 import type { ProductionLineStop } from '../../Types/productionStop'

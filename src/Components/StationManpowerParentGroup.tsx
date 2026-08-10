@@ -30,9 +30,7 @@ export function StationManpowerParentGroup({
   const workerCount = headcount ?? group.workers.length
 
   const operationsHeader =
-    operationsMode === 'compare'
-      ? t('manpower.daily.cols.operationsCompare')
-      : t('manpower.daily.cols.operationsName')
+    operationsMode === 'compare' ? t('manpower.daily.cols.operationsCompare') : t('manpower.daily.cols.operationsName')
 
   return (
     <div className="overflow-hidden rounded-2xl border border-slate-800 bg-slate-900/30">
@@ -77,9 +75,7 @@ export function StationManpowerParentGroup({
                 <th className="table-cell text-xs font-black uppercase text-slate-400">
                   {t('manpower.daily.cols.workerLine')}
                 </th>
-                <th className="table-cell text-xs font-black uppercase text-slate-400">
-                  {operationsHeader}
-                </th>
+                <th className="table-cell text-xs font-black uppercase text-slate-400">{operationsHeader}</th>
                 <th className="table-cell text-xs font-black uppercase text-violet-300">
                   {t('manpower.daily.cols.manpower')}
                 </th>

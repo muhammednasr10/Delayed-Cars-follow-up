@@ -55,7 +55,10 @@ function toPayload(input: ProductionLineStopInput) {
 const STOP_SELECT = '*, vehicle_models(name)'
 
 export async function getProductionLineStops(year?: number, month?: number): Promise<ProductionLineStop[]> {
-  let query = requireClient().from('production_line_stops').select(STOP_SELECT).order('started_at', { ascending: false })
+  let query = requireClient()
+    .from('production_line_stops')
+    .select(STOP_SELECT)
+    .order('started_at', { ascending: false })
 
   if (year && month) {
     const start = `${year}-${String(month).padStart(2, '0')}-01`
@@ -71,13 +74,25 @@ export async function getProductionLineStops(year?: number, month?: number): Pro
 }
 
 export async function createProductionLineStop(input: ProductionLineStopInput): Promise<ProductionLineStop> {
-  const { data, error } = await requireClient().from('production_line_stops').insert(toPayload(input)).select(STOP_SELECT).single()
+  const { data, error } = await requireClient()
+    .from('production_line_stops')
+    .insert(toPayload(input))
+    .select(STOP_SELECT)
+    .single()
   if (error) throw new Error(error.message)
   return mapRow(data as Row)
 }
 
-export async function updateProductionLineStop(id: string, input: ProductionLineStopInput): Promise<ProductionLineStop> {
-  const { data, error } = await requireClient().from('production_line_stops').update(toPayload(input)).eq('id', id).select(STOP_SELECT).single()
+export async function updateProductionLineStop(
+  id: string,
+  input: ProductionLineStopInput
+): Promise<ProductionLineStop> {
+  const { data, error } = await requireClient()
+    .from('production_line_stops')
+    .update(toPayload(input))
+    .eq('id', id)
+    .select(STOP_SELECT)
+    .single()
   if (error) throw new Error(error.message)
   return mapRow(data as Row)
 }
@@ -94,9 +109,10 @@ export function stopDurationMinutes(startedAt: string, endedAt: string): number 
 }
 
 /** Per-day stop downtime (minutes) and lost vehicles from the line-stops log. */
-export function aggregateStopsByDate(
-  stops: { startedAt: string; endedAt: string; lostVehicles: number }[]
-): { minutesByDate: Map<string, number>; lostVehiclesByDate: Map<string, number> } {
+export function aggregateStopsByDate(stops: { startedAt: string; endedAt: string; lostVehicles: number }[]): {
+  minutesByDate: Map<string, number>
+  lostVehiclesByDate: Map<string, number>
+} {
   const minutesByDate = new Map<string, number>()
   const lostVehiclesByDate = new Map<string, number>()
   for (const stop of stops) {
@@ -109,9 +125,7 @@ export function aggregateStopsByDate(
 }
 
 /** @deprecated Use aggregateStopsByDate — hours kept for legacy snapshots */
-export function sumStopDowntimeHoursByDate(
-  stops: { startedAt: string; endedAt: string }[]
-): Map<string, number> {
+export function sumStopDowntimeHoursByDate(stops: { startedAt: string; endedAt: string }[]): Map<string, number> {
   const map = new Map<string, number>()
   for (const stop of stops) {
     const date = stop.startedAt.slice(0, 10)
@@ -121,9 +135,7 @@ export function sumStopDowntimeHoursByDate(
   return map
 }
 
-export function sumStopLostVehiclesByDate(
-  stops: { startedAt: string; lostVehicles: number }[]
-): Map<string, number> {
+export function sumStopLostVehiclesByDate(stops: { startedAt: string; lostVehicles: number }[]): Map<string, number> {
   const map = new Map<string, number>()
   for (const stop of stops) {
     const date = stop.startedAt.slice(0, 10)

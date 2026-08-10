@@ -74,9 +74,27 @@ export function ProductionDashboard({ deptRefreshKey = 0 }: Props) {
   return (
     <>
       <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
-        <StatCard title={t('home.total')} value={counts.total} subtitle={t('home.totalSub')} tone="cyan" icon={<Car className="h-6 w-6" />} />
-        <StatCard title={t('home.withMissing')} value={counts.withMissing} subtitle={t('home.withMissingSub')} tone="orange" icon={<AlertTriangle className="h-6 w-6" />} />
-        <StatCard title={t('home.blocked')} value={counts.blocked} subtitle={t('home.blockedSub')} tone="red" icon={<ShieldAlert className="h-6 w-6" />} />
+        <StatCard
+          title={t('home.total')}
+          value={counts.total}
+          subtitle={t('home.totalSub')}
+          tone="cyan"
+          icon={<Car className="h-6 w-6" />}
+        />
+        <StatCard
+          title={t('home.withMissing')}
+          value={counts.withMissing}
+          subtitle={t('home.withMissingSub')}
+          tone="orange"
+          icon={<AlertTriangle className="h-6 w-6" />}
+        />
+        <StatCard
+          title={t('home.blocked')}
+          value={counts.blocked}
+          subtitle={t('home.blockedSub')}
+          tone="red"
+          icon={<ShieldAlert className="h-6 w-6" />}
+        />
       </div>
 
       <div className="card-industrial p-5 sm:p-6">
@@ -162,7 +180,9 @@ export function ProductionDashboard({ deptRefreshKey = 0 }: Props) {
                       {t('home.deptReportVehicles', { n: row.vehicleCount })}
                     </span>
                   </div>
-                  <div className={`h-2.5 overflow-hidden rounded-full bg-slate-800 ${dir === 'rtl' ? 'flex justify-end' : ''}`}>
+                  <div
+                    className={`h-2.5 overflow-hidden rounded-full bg-slate-800 ${dir === 'rtl' ? 'flex justify-end' : ''}`}
+                  >
                     <div
                       className="h-full rounded-full bg-gradient-to-r from-cyan-500 to-cyan-400 transition-all"
                       style={{ width: `${pct}%` }}

@@ -53,7 +53,11 @@ export function WarehouseEquipmentCommonFields({
       </label>
       <label className="block">
         <span className="mb-1 block text-xs text-slate-500">{t('warehouses.equipment.cols.status')}</span>
-        <select className={inputCls()} value={status} onChange={e => onChange({ status: e.target.value as WarehouseEquipmentStatus })}>
+        <select
+          className={inputCls()}
+          value={status}
+          onChange={e => onChange({ status: e.target.value as WarehouseEquipmentStatus })}
+        >
           {EQUIPMENT_STATUSES.map(s => (
             <option key={s} value={s}>
               {t(`warehouses.equipment.status.${s}`)}
@@ -81,7 +85,11 @@ export function WarehouseEquipmentModalFooter({
   const { t } = useLang()
   return (
     <>
-      <button type="button" onClick={onCancel} className="rounded-xl bg-slate-800 px-4 py-2 text-sm font-bold text-slate-300">
+      <button
+        type="button"
+        onClick={onCancel}
+        className="rounded-xl bg-slate-800 px-4 py-2 text-sm font-bold text-slate-300"
+      >
         {t('common.cancel')}
       </button>
       <button

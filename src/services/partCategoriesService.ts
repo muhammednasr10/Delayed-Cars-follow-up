@@ -7,7 +7,11 @@ function client() {
 }
 
 export async function getPartCategories(): Promise<PartCategory[]> {
-  const { data, error } = await client().from('part_categories').select('*').eq('is_active', true).order('category_name_ar')
+  const { data, error } = await client()
+    .from('part_categories')
+    .select('*')
+    .eq('is_active', true)
+    .order('category_name_ar')
   if (error) throw new Error(error.message)
   return (data ?? []) as PartCategory[]
 }

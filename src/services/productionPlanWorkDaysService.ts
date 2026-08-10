@@ -33,7 +33,9 @@ function mapRow(row: Row): ProductionPlanWorkDays {
 export async function getProductionPlanWorkDays(year: number, month: number): Promise<ProductionPlanWorkDays | null> {
   const { data, error } = await requireClient()
     .from('production_plan_working_days')
-    .select('plan_year, plan_month, working_days, vacation_days, overtime_days, available_days, available_hours, line_jph')
+    .select(
+      'plan_year, plan_month, working_days, vacation_days, overtime_days, available_days, available_hours, line_jph'
+    )
     .eq('plan_year', year)
     .eq('plan_month', month)
     .maybeSingle()

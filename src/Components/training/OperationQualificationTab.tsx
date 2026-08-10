@@ -104,9 +104,7 @@ export function OperationQualificationTab({ stations }: Props) {
                   </td>
                   <td className="p-3 text-center text-xs">{r.requiredLevel}</td>
                   <td className="p-3 text-center">
-                    <span
-                      className={`font-black ${r.qualifiedCount > 0 ? 'text-emerald-300' : 'text-amber-300'}`}
-                    >
+                    <span className={`font-black ${r.qualifiedCount > 0 ? 'text-emerald-300' : 'text-amber-300'}`}>
                       {r.qualifiedCount}
                     </span>
                   </td>

@@ -94,10 +94,7 @@ export function wipCarryoverMap(dbTargets: ModelPlanTarget[]): Map<string, numbe
 }
 
 /** @deprecated استخدم planTargetsMap — البذرة من الأوامر لم تعد مناسبة لخطة شهرية */
-export function mergePlanTargets(
-  dbTargets: ModelPlanTarget[],
-  orders: ProductionOrder[]
-): Map<string, number> {
+export function mergePlanTargets(dbTargets: ModelPlanTarget[], orders: ProductionOrder[]): Map<string, number> {
   const map = new Map<string, number>()
   for (const order of orders) {
     if (!order.modelId) continue

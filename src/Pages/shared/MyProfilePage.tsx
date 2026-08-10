@@ -6,12 +6,7 @@ import { useNavigation } from '../../Context/NavigationContext'
 import { useCanViewPage } from '../../hooks/useCanViewPage'
 import { formatRoleBadge } from '../../Utils/roleBadge'
 import { Field, inputCls } from '../../Components/FormField'
-import {
-  changeMyPassword,
-  removeMyAvatar,
-  updateMyProfile,
-  uploadMyAvatar
-} from '../../services/myProfileService'
+import { changeMyPassword, removeMyAvatar, updateMyProfile, uploadMyAvatar } from '../../services/myProfileService'
 import { UserSupportRequestModal } from '../../Components/permissions/UserSupportRequestModal'
 import { MissionsMyTab } from '../../Components/missions/MissionsMyTab'
 import { MyProfileOrgTab } from '../../Components/profile/MyProfileOrgTab'
@@ -72,9 +67,7 @@ export function MyProfilePage({ onBack }: Props) {
   const p = profile
   const u = user
 
-  const employee = p.employee_code
-    ? `${p.employee_code} — ${p.employee_full_name ?? ''}`
-    : null
+  const employee = p.employee_code ? `${p.employee_code} — ${p.employee_full_name ?? ''}` : null
 
   function mapError(e: unknown): string {
     const m = e instanceof Error ? e.message : t('common.error')
@@ -187,7 +180,11 @@ export function MyProfilePage({ onBack }: Props) {
           </div>
         </div>
         {onBack && (
-          <button type="button" onClick={onBack} className="rounded-xl bg-slate-800 px-4 py-2 text-sm font-bold text-slate-200">
+          <button
+            type="button"
+            onClick={onBack}
+            className="rounded-xl bg-slate-800 px-4 py-2 text-sm font-bold text-slate-200"
+          >
             {t('common.back')}
           </button>
         )}
@@ -209,7 +206,9 @@ export function MyProfilePage({ onBack }: Props) {
       </div>
 
       {activeTab === 'account' && msg && (
-        <p className="rounded-xl border border-emerald-500/30 bg-emerald-500/10 px-4 py-2 text-sm text-emerald-200">{msg}</p>
+        <p className="rounded-xl border border-emerald-500/30 bg-emerald-500/10 px-4 py-2 text-sm text-emerald-200">
+          {msg}
+        </p>
       )}
       {activeTab === 'account' && err && (
         <p className="rounded-xl border border-red-500/30 bg-red-500/10 px-4 py-2 text-sm text-red-200">{err}</p>
@@ -218,11 +217,17 @@ export function MyProfilePage({ onBack }: Props) {
       {activeTab === 'account' && (
         <>
           <section className="card-industrial p-6">
-            <h3 className="mb-4 text-sm font-black uppercase tracking-wide text-slate-400">{t('myProfile.avatarSection')}</h3>
+            <h3 className="mb-4 text-sm font-black uppercase tracking-wide text-slate-400">
+              {t('myProfile.avatarSection')}
+            </h3>
             <div className="flex flex-wrap items-center gap-5">
               <div className="relative">
                 {p.avatar_url ? (
-                  <img src={p.avatar_url} alt="" className="h-24 w-24 rounded-2xl border-2 border-slate-700 object-cover" />
+                  <img
+                    src={p.avatar_url}
+                    alt=""
+                    className="h-24 w-24 rounded-2xl border-2 border-slate-700 object-cover"
+                  />
                 ) : (
                   <div className="flex h-24 w-24 items-center justify-center rounded-2xl border-2 border-slate-700 bg-slate-800 text-2xl font-black text-cyan-300">
                     {initials}
@@ -303,7 +308,9 @@ export function MyProfilePage({ onBack }: Props) {
           <section className="card-industrial space-y-4 p-6">
             <div className="flex items-center gap-2 text-violet-300">
               <KeyRound className="h-5 w-5" />
-              <h3 className="text-sm font-black uppercase tracking-wide text-slate-400">{t('myProfile.passwordSection')}</h3>
+              <h3 className="text-sm font-black uppercase tracking-wide text-slate-400">
+                {t('myProfile.passwordSection')}
+              </h3>
             </div>
             <Field label={t('myProfile.currentPassword')} required>
               <input
@@ -348,7 +355,9 @@ export function MyProfilePage({ onBack }: Props) {
           <section className="card-industrial space-y-4 p-6">
             <div className="flex items-center gap-2 text-amber-300">
               <MessageSquarePlus className="h-5 w-5" />
-              <h3 className="text-sm font-black uppercase tracking-wide text-slate-400">{t('userRequests.mySection')}</h3>
+              <h3 className="text-sm font-black uppercase tracking-wide text-slate-400">
+                {t('userRequests.mySection')}
+              </h3>
             </div>
             <p className="text-sm text-slate-400">{t('userRequests.mySectionHint')}</p>
             <button

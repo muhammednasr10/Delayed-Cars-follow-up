@@ -12,10 +12,16 @@ import { supabase } from '../../lib/supabase'
 import { ModelsHierarchySection } from '../../Components/ModelsHierarchySection'
 import { FactoryOrgHierarchySection } from '../../Components/FactoryOrgHierarchySection'
 import { StationsSection, type StationsSectionHandle } from '../../Components/StationsSection'
-import { SettingsColorsTab } from '../../Components/settings/SettingsLookupTabs'
+import {
+  SettingsColorsTab,
+  SettingsDepartmentsTab,
+  SettingsReasonsTab
+} from '../../Components/settings/SettingsLookupTabs'
+import { getMpDepartmentOptions, getMpReasonOptions } from '../../services/mpLookupService'
+import type { MpLookupOption } from '../../Types/mpLookup'
 import { useLang } from '../../i18n/LanguageContext'
 
-const crudTabs: SettingsTab[] = ['administrations', 'models', 'stations', 'colors']
+const crudTabs: SettingsTab[] = ['administrations', 'models', 'stations', 'colors', 'helperLists']
 
 export function SettingsPage() {
   const { t } = useLang()
@@ -29,6 +35,8 @@ export function SettingsPage() {
   const [models, setModels] = useState<VehicleModel[]>([])
   const [orgUnits, setOrgUnits] = useState<FactoryOrgUnit[]>([])
   const [colors, setColors] = useState<VehicleColor[]>([])
+  const [reasonOptions, setReasonOptions] = useState<MpLookupOption[]>([])
+  const [departmentOptions, setDepartmentOptions] = useState<MpLookupOption[]>([])
 
   useEffect(() => {
     if (!SETTINGS_TAB_ORDER.includes(activeTab)) {
@@ -44,14 +52,18 @@ export function SettingsPage() {
     setLoading(true)
     setError('')
     try {
-      const [modelsData, orgUnitsData, colorsData] = await Promise.all([
+      const [modelsData, orgUnitsData, colorsData, reasonsData, departmentsData] = await Promise.all([
         getVehicleModels(),
         getFactoryOrgUnits({ includeInactive: true }),
-        getAllVehicleColors()
+        getAllVehicleColors(),
+        getMpReasonOptions(false),
+        getMpDepartmentOptions(false)
       ])
       setModels(modelsData)
       setOrgUnits(orgUnitsData)
       setColors(colorsData)
+      setReasonOptions(reasonsData)
+      setDepartmentOptions(departmentsData)
     } catch (err) {
       setError(err instanceof Error ? err.message : t('common.error'))
     } finally {
@@ -107,8 +119,14 @@ export function SettingsPage() {
   const feedback =
     crudTabs.includes(activeTab) && (error || success) ? (
       <>
-        {error && <div className="rounded-xl border border-red-500/30 bg-red-500/10 p-3 text-sm text-red-200">{error}</div>}
-        {success && <div className="rounded-xl border border-emerald-500/30 bg-emerald-500/10 p-3 text-sm text-emerald-200">{success}</div>}
+        {error && (
+          <div className="rounded-xl border border-red-500/30 bg-red-500/10 p-3 text-sm text-red-200">{error}</div>
+        )}
+        {success && (
+          <div className="rounded-xl border border-emerald-500/30 bg-emerald-500/10 p-3 text-sm text-emerald-200">
+            {success}
+          </div>
+        )}
       </>
     ) : null
 
@@ -150,7 +168,13 @@ export function SettingsPage() {
         />
       )}
       {activeTab === 'models' && (
-        <ModelsHierarchySection models={models} busy={loading} onChanged={loadAll} onError={setError} onSuccess={showSuccess} />
+        <ModelsHierarchySection
+          models={models}
+          busy={loading}
+          onChanged={loadAll}
+          onError={setError}
+          onSuccess={showSuccess}
+        />
       )}
       {activeTab === 'stations' && settingsStationsSubTab === 'assemblyLine' && (
         <StationsSection
@@ -163,6 +187,12 @@ export function SettingsPage() {
         />
       )}
       {activeTab === 'colors' && <SettingsColorsTab colors={colors} busy={loading} runAction={runAction} />}
+      {activeTab === 'helperLists' && (
+        <div className="space-y-4">
+          <SettingsReasonsTab reasonOptions={reasonOptions} busy={loading} runAction={runAction} />
+          <SettingsDepartmentsTab departmentOptions={departmentOptions} busy={loading} runAction={runAction} />
+        </div>
+      )}
       {activeTab === 'users' && (
         <UsersPermissionsPanel
           notify={(m, err) => {

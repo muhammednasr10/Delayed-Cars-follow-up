@@ -241,45 +241,44 @@ export function BomPartListTab({ notify }: Props) {
                 items.map(part => {
                   const models = displayModelNames(part)
                   return (
-                  <tr key={part.id} className="border-b border-slate-800/60 hover:bg-slate-900/40">
-                    <td className="px-3 py-2 text-center">{part.common_station || '—'}</td>
-                    <td className="px-3 py-2 text-center">{part.part_name_ar || '—'}</td>
-                    <td className="px-3 py-2 text-center" dir="ltr">
-                      {part.part_name_en || '—'}
-                    </td>
-                    <td className="px-3 py-2 text-center font-medium text-white">{part.common_name || '—'}</td>
-                    <td className="max-w-[14rem] px-3 py-2 text-center text-xs text-slate-300" title={models.join(', ')}>
-                      {models.length > 0 ? (
-                        <span className="line-clamp-2">{models.join('، ')}</span>
-                      ) : (
-                        '—'
-                      )}
-                    </td>
-                    {canManage && (
-                      <td className="px-3 py-2 text-center">
-                        <div className="flex justify-center gap-1">
-                          <button
-                            type="button"
-                            onClick={() => openEdit(part)}
-                            className="rounded-lg bg-slate-800 p-2 text-slate-300 hover:bg-slate-700"
-                            title={t('common.edit')}
-                          >
-                            <Pencil className="h-4 w-4" />
-                          </button>
-                          {canDelete && (
+                    <tr key={part.id} className="border-b border-slate-800/60 hover:bg-slate-900/40">
+                      <td className="px-3 py-2 text-center">{part.common_station || '—'}</td>
+                      <td className="px-3 py-2 text-center">{part.part_name_ar || '—'}</td>
+                      <td className="px-3 py-2 text-center" dir="ltr">
+                        {part.part_name_en || '—'}
+                      </td>
+                      <td className="px-3 py-2 text-center font-medium text-white">{part.common_name || '—'}</td>
+                      <td
+                        className="max-w-[14rem] px-3 py-2 text-center text-xs text-slate-300"
+                        title={models.join(', ')}
+                      >
+                        {models.length > 0 ? <span className="line-clamp-2">{models.join('، ')}</span> : '—'}
+                      </td>
+                      {canManage && (
+                        <td className="px-3 py-2 text-center">
+                          <div className="flex justify-center gap-1">
                             <button
                               type="button"
-                              onClick={() => setDeleteId(part.id)}
-                              className="rounded-lg bg-red-500/15 p-2 text-red-300 hover:bg-red-500/25"
-                              title={t('common.delete')}
+                              onClick={() => openEdit(part)}
+                              className="rounded-lg bg-slate-800 p-2 text-slate-300 hover:bg-slate-700"
+                              title={t('common.edit')}
                             >
-                              <Trash2 className="h-4 w-4" />
+                              <Pencil className="h-4 w-4" />
                             </button>
-                          )}
-                        </div>
-                      </td>
-                    )}
-                  </tr>
+                            {canDelete && (
+                              <button
+                                type="button"
+                                onClick={() => setDeleteId(part.id)}
+                                className="rounded-lg bg-red-500/15 p-2 text-red-300 hover:bg-red-500/25"
+                                title={t('common.delete')}
+                              >
+                                <Trash2 className="h-4 w-4" />
+                              </button>
+                            )}
+                          </div>
+                        </td>
+                      )}
+                    </tr>
                   )
                 })
               )}

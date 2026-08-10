@@ -19,6 +19,6 @@ const FALLBACK_DECISIONS: Record<string, string> = {
 export function dpLookupLabel(options: MpLookupOption[], code: string, lang: string): string {
   const hit = options.find(o => o.code === code)
   if (hit) return lang === 'ar' ? hit.labelAr : hit.labelEn
-  const fallback = lang === 'ar' ? FALLBACK_REASONS[code] ?? FALLBACK_DECISIONS[code] : code
+  const fallback = lang === 'ar' ? (FALLBACK_REASONS[code] ?? FALLBACK_DECISIONS[code]) : code
   return fallback ?? code
 }

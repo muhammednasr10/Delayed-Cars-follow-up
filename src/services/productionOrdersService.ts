@@ -49,7 +49,10 @@ export async function getProductionOrders(): Promise<ProductionOrder[]> {
     .order('created_at', { ascending: false })
 
   if (error) {
-    const fallback = await requireClient().from('production_orders').select('*').order('created_at', { ascending: false })
+    const fallback = await requireClient()
+      .from('production_orders')
+      .select('*')
+      .order('created_at', { ascending: false })
     if (fallback.error) throw new Error(fallback.error.message)
     return ((fallback.data ?? []) as ProductionOrderRow[]).map(mapRow)
   }

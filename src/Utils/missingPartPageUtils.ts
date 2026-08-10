@@ -2,8 +2,33 @@ import type { MissingPartDetail, MissingPartFilters } from '../Types/missingPart
 import type { VehicleModel } from '../Types/settings'
 import { inferParentNameFromVariant } from './vehicleModelHierarchy'
 
-export const ACTIVE_COLS = ['select', 'vin', 'model', 'color', 'orgUnit', 'qty', 'reason', 'reasonClass', 'department', 'dateTime', 'actions'] as const
-export const HISTORY_COLS = ['select', 'vin', 'model', 'color', 'orgUnit', 'qty', 'reason', 'reasonClass', 'department', 'dateTime', 'resolvedAt', 'actions'] as const
+export const ACTIVE_COLS = [
+  'select',
+  'vin',
+  'model',
+  'color',
+  'orgUnit',
+  'qty',
+  'reason',
+  'reasonClass',
+  'department',
+  'dateTime',
+  'actions'
+] as const
+export const HISTORY_COLS = [
+  'select',
+  'vin',
+  'model',
+  'color',
+  'orgUnit',
+  'qty',
+  'reason',
+  'reasonClass',
+  'department',
+  'dateTime',
+  'resolvedAt',
+  'actions'
+] as const
 
 export const cell = 'table-cell-compact whitespace-nowrap text-center align-middle'
 export const actionsCell = `${cell} sticky z-10 bg-slate-900/95 shadow-[inset_8px_0_12px_rgba(0,0,0,0.3)]`
@@ -130,10 +155,7 @@ export type VariantVehicleSummary = {
   parts: MissingPartDetail[]
 }
 
-export function buildVariantVehicleSummaries(
-  items: MissingPartDetail[],
-  variantName: string
-): VariantVehicleSummary[] {
+export function buildVariantVehicleSummaries(items: MissingPartDetail[], variantName: string): VariantVehicleSummary[] {
   const normalized = variantName.trim().toUpperCase()
   const map = new Map<string, MissingPartDetail[]>()
   for (const item of items) {
@@ -176,10 +198,7 @@ export function buildFamilyVehicleCounts(
     return { familyKey: `name:${familyName.toUpperCase()}`, familyName, variantName: name }
   }
 
-  const families = new Map<
-    string,
-    { familyName: string; vehicles: Set<string>; variants: Map<string, Set<string>> }
-  >()
+  const families = new Map<string, { familyName: string; vehicles: Set<string>; variants: Map<string, Set<string>> }>()
 
   for (const item of items) {
     const { familyKey, familyName, variantName } = resolve(item.modelName)

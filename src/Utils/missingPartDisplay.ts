@@ -1,8 +1,7 @@
 import type { MissingPartDetail } from '../Types/missingPart'
 
 export type MissingPartDisplayRow =
-  | { kind: 'single'; item: MissingPartDetail; key: string }
-  | { kind: 'group'; items: MissingPartDetail[]; key: string }
+  { kind: 'single'; item: MissingPartDetail; key: string } | { kind: 'group'; items: MissingPartDetail[]; key: string }
 
 export function reportGroupMembers(item: MissingPartDetail, pool: MissingPartDetail[]): MissingPartDetail[] {
   if (!item.reportGroupId) return [item]
@@ -65,9 +64,7 @@ export function vehicleIdsFromDisplayRow(row: MissingPartDisplayRow): string[] {
 
 export function openPartsForDisplayRow(row: MissingPartDisplayRow, pool: MissingPartDetail[]): MissingPartDetail[] {
   const vehicleIds = new Set(vehicleIdsFromDisplayRow(row))
-  return pool.filter(
-    p => vehicleIds.has(p.vehicleId) && p.status !== 'closed' && p.status !== 'cancelled'
-  )
+  return pool.filter(p => vehicleIds.has(p.vehicleId) && p.status !== 'closed' && p.status !== 'cancelled')
 }
 
 export function hasPendingInstall(parts: MissingPartDetail[]): boolean {
@@ -101,9 +98,7 @@ export function buildMissingPartTableRows(filtered: MissingPartDetail[]): Missin
     if (seenVehicles.has(vehicleId)) continue
     seenVehicles.add(vehicleId)
 
-    const parts = filtered
-      .filter(p => p.vehicleId === vehicleId)
-      .sort((a, b) => b.createdAt.localeCompare(a.createdAt))
+    const parts = filtered.filter(p => p.vehicleId === vehicleId).sort((a, b) => b.createdAt.localeCompare(a.createdAt))
 
     if (parts.length > 1) {
       rows.push({ kind: 'vehicle', vehicleId, parts })

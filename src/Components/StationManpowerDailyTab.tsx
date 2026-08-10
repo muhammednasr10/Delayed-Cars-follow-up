@@ -86,7 +86,8 @@ export function StationManpowerDailyTab({ stations, employees, models, canManage
 
   const activeEmployees = [...employees].filter(e => e.isActive).sort(compareEmployees)
   const familyModels = useMemo(
-    () => models.filter(m => m.is_active && m.model_kind === 'family').sort((a, b) => a.name.localeCompare(b.name, 'ar')),
+    () =>
+      models.filter(m => m.is_active && m.model_kind === 'family').sort((a, b) => a.name.localeCompare(b.name, 'ar')),
     [models]
   )
   const familyModelIds = useMemo(() => familyModels.map(m => m.id), [familyModels])
@@ -118,7 +119,10 @@ export function StationManpowerDailyTab({ stations, employees, models, canManage
       ])
       setLineBalanceLabels(buildLineBalanceLabelsByModel(parentGroups, models, familyModels))
       setLineBalanceHeadcount(buildLineBalanceHeadcountByModel(parentGroups, familyModels))
-      const baseGeneral = buildStationManpowerDayRows(stations, saved.filter(r => !r.vehicleModelId))
+      const baseGeneral = buildStationManpowerDayRows(
+        stations,
+        saved.filter(r => !r.vehicleModelId)
+      )
       setDayState(
         saved.some(r => r.vehicleModelId)
           ? buildDayStateFromDb(stations, saved, familyModelIds)
@@ -153,10 +157,7 @@ export function StationManpowerDailyTab({ stations, employees, models, canManage
   }
 
   function getOperationsComparison(stationId: string): string {
-    return formatOperationsLabelComparison(
-      labelsForStationAcrossModels(stationId, lineBalanceLabels, familyModels),
-      t
-    )
+    return formatOperationsLabelComparison(labelsForStationAcrossModels(stationId, lineBalanceLabels, familyModels), t)
   }
 
   async function save() {
@@ -245,12 +246,17 @@ export function StationManpowerDailyTab({ stations, employees, models, canManage
             type="button"
             onClick={() => setActiveModelId(model.id)}
             className={`rounded-xl px-3 py-2 text-sm font-black sm:px-4 ${
-              activeModelId === model.id ? 'bg-cyan-500 text-slate-950' : 'bg-slate-800 text-slate-300 hover:bg-slate-700'
+              activeModelId === model.id
+                ? 'bg-cyan-500 text-slate-950'
+                : 'bg-slate-800 text-slate-300 hover:bg-slate-700'
             }`}
           >
             {model.name}
             {(dayState?.overrideStations.get(model.id)?.size ?? 0) > 0 && (
-              <span className="mr-1.5 inline-block h-1.5 w-1.5 rounded-full bg-amber-400" title={t('manpower.daily.hasOverrides')} />
+              <span
+                className="mr-1.5 inline-block h-1.5 w-1.5 rounded-full bg-amber-400"
+                title={t('manpower.daily.hasOverrides')}
+              />
             )}
           </button>
         ))}
@@ -261,8 +267,14 @@ export function StationManpowerDailyTab({ stations, employees, models, canManage
         {activeModelId == null ? t('manpower.daily.generalOperationsHint') : t('manpower.daily.modelOperationsHint')}
       </p>
       <p className="text-xs text-slate-500">{t('manpower.daily.hint')}</p>
-      {success && <div className="rounded-xl border border-emerald-500/30 bg-emerald-500/10 p-3 text-sm text-emerald-200">{success}</div>}
-      {error && <div className="rounded-xl border border-red-500/30 bg-red-500/10 p-3 text-sm text-red-200">{error}</div>}
+      {success && (
+        <div className="rounded-xl border border-emerald-500/30 bg-emerald-500/10 p-3 text-sm text-emerald-200">
+          {success}
+        </div>
+      )}
+      {error && (
+        <div className="rounded-xl border border-red-500/30 bg-red-500/10 p-3 text-sm text-red-200">{error}</div>
+      )}
 
       {loading ? (
         <p className="p-8 text-center text-slate-500">{t('common.loading')}</p>
@@ -280,13 +292,8 @@ export function StationManpowerDailyTab({ stations, employees, models, canManage
               getOperationsComparison={activeModelId == null ? getOperationsComparison : undefined}
               headcount={
                 activeModelId == null
-                  ? maxHeadcountForParent(
-                      group.parentCode,
-                      lineBalanceHeadcount,
-                      familyModelIds,
-                      group.workers.length
-                    )
-                  : lineBalanceHeadcount.get(activeModelId)?.get(group.parentCode) ?? group.workers.length
+                  ? maxHeadcountForParent(group.parentCode, lineBalanceHeadcount, familyModelIds, group.workers.length)
+                  : (lineBalanceHeadcount.get(activeModelId)?.get(group.parentCode) ?? group.workers.length)
               }
               onEmployeeIds={setEmployeeIds}
             />

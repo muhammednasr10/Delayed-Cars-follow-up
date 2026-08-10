@@ -31,7 +31,9 @@ export function DamagedPartsFiltersBar({
 }: Props) {
   const { t, lang } = useLang()
 
-  const modelOptions = [...new Set(items.map(i => i.modelName).filter(Boolean))].sort((a, b) => a.localeCompare(b, 'ar'))
+  const modelOptions = [...new Set(items.map(i => i.modelName).filter(Boolean))].sort((a, b) =>
+    a.localeCompare(b, 'ar')
+  )
   const causerIds = new Set(items.map(i => i.causedByEmployeeId).filter(Boolean) as string[])
   const hasUnknownCausers = items.some(i => !i.causedByEmployeeId)
   const causerOptions = employees
@@ -60,7 +62,11 @@ export function DamagedPartsFiltersBar({
           onChange={e => onChange({ search: e.target.value })}
         />
 
-        <select className="input-dark" value={filters.modelName} onChange={e => onChange({ modelName: e.target.value })}>
+        <select
+          className="input-dark"
+          value={filters.modelName}
+          onChange={e => onChange({ modelName: e.target.value })}
+        >
           <option value="">{t('damagedParts.filters.allModels')}</option>
           {modelOptions.map(m => (
             <option key={m} value={m}>
@@ -69,7 +75,11 @@ export function DamagedPartsFiltersBar({
           ))}
         </select>
 
-        <select className="input-dark" value={filters.damageReason} onChange={e => onChange({ damageReason: e.target.value })}>
+        <select
+          className="input-dark"
+          value={filters.damageReason}
+          onChange={e => onChange({ damageReason: e.target.value })}
+        >
           <option value="">{t('damagedParts.filters.allReasons')}</option>
           {reasons.map(r => (
             <option key={r.code} value={r.code}>
@@ -78,7 +88,11 @@ export function DamagedPartsFiltersBar({
           ))}
         </select>
 
-        <select className="input-dark" value={filters.finalDecision} onChange={e => onChange({ finalDecision: e.target.value })}>
+        <select
+          className="input-dark"
+          value={filters.finalDecision}
+          onChange={e => onChange({ finalDecision: e.target.value })}
+        >
           <option value="">{t('damagedParts.filters.allDecisions')}</option>
           {decisions.map(d => (
             <option key={d.code} value={d.code}>
@@ -93,9 +107,7 @@ export function DamagedPartsFiltersBar({
           onChange={e => onChange({ causedByEmployeeId: e.target.value })}
         >
           <option value="">{t('damagedParts.filters.allCausers')}</option>
-          {hasUnknownCausers && (
-            <option value={UNKNOWN_CAUSER_FILTER}>{t('damagedParts.unknownCauser')}</option>
-          )}
+          {hasUnknownCausers && <option value={UNKNOWN_CAUSER_FILTER}>{t('damagedParts.unknownCauser')}</option>}
           {causerOptions.map(e => (
             <option key={e.id} value={e.id}>
               {e.fullName}

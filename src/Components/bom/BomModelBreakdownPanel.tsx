@@ -2,7 +2,13 @@ import { Fragment, useEffect, useMemo, useState, type Dispatch, type SetStateAct
 import { ChevronDown, ChevronUp, Pencil, Trash2 } from 'lucide-react'
 import { useLang } from '../../i18n/LanguageContext'
 import { inputCls } from '../FormField'
-import { labelForPartKindValue, labelForSupplySourceValue, partKindPresetOptions, supplySourcePresetOptions, defaultSupplySourceValue } from '../../Utils/bomPresetOptions'
+import {
+  labelForPartKindValue,
+  labelForSupplySourceValue,
+  partKindPresetOptions,
+  supplySourcePresetOptions,
+  defaultSupplySourceValue
+} from '../../Utils/bomPresetOptions'
 import { effectivePartKind } from '../../Utils/bomDefaults'
 import {
   bomModelBreakdownFamilies,
@@ -125,7 +131,9 @@ function VariantRow({
             </datalist>
           </>
         ) : (
-          <span className="font-mono text-xs text-cyan-100">{displayBomStationCode(draft.station_code_text) || '—'}</span>
+          <span className="font-mono text-xs text-cyan-100">
+            {displayBomStationCode(draft.station_code_text) || '—'}
+          </span>
         )}
       </td>
       <td className="px-2 py-1.5" dir="ltr">
@@ -230,7 +238,10 @@ export function BomModelBreakdownPanel({
   const families = useMemo(() => bomModelBreakdownFamilies(models, group), [models, group])
   const allLines = useMemo(() => families.flatMap(f => f.lines), [families])
   const stationOptions = useMemo(
-    () => masterStationsForBom(stations).map(s => displayBomStationCode(s.station_number)).filter(Boolean),
+    () =>
+      masterStationsForBom(stations)
+        .map(s => displayBomStationCode(s.station_number))
+        .filter(Boolean),
     [stations]
   )
   const [draftByModel, setDraftByModel] = useState<Record<string, BomModelLineDraft>>({})
@@ -257,10 +268,12 @@ export function BomModelBreakdownPanel({
   }
 
   function toggleActive(modelName: string, active: boolean) {
-    const current = draftByModel[modelName] ?? lineDraftFromBreakdown(
-      allLines.find(l => l.modelName === modelName)!,
-      group
-    )
+    const current =
+      draftByModel[modelName] ??
+      lineDraftFromBreakdown(
+        allLines.find(l => l.modelName === modelName)!,
+        group
+      )
     if (active) {
       const groupStation = group.primary.station_code_text || group.primary.station_number || ''
       patchDraft(setDraftByModel, modelName, {
@@ -314,7 +327,16 @@ export function BomModelBreakdownPanel({
           <thead>
             <tr>
               {BOM_BREAKDOWN_COLUMNS.map(c => (
-                <th key={c} className={c === 'active' ? 'text-center' : c === 'vehicle_model' || c === 'station_code' || c === 'part_number' ? 'text-start' : 'text-center'}>
+                <th
+                  key={c}
+                  className={
+                    c === 'active'
+                      ? 'text-center'
+                      : c === 'vehicle_model' || c === 'station_code' || c === 'part_number'
+                        ? 'text-start'
+                        : 'text-center'
+                  }
+                >
                   <span className="bom-th-label">{t(breakdownLabelKey(c))}</span>
                 </th>
               ))}

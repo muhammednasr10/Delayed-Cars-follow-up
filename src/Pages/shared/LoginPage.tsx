@@ -40,13 +40,19 @@ export function LoginPage() {
               <p className="text-sm text-slate-400">{t('login.subtitle')}</p>
             </div>
           </div>
-          <button type="button" onClick={toggle} className="rounded-xl bg-slate-800 px-3 py-2 text-xs font-bold text-slate-200 hover:bg-slate-700">
+          <button
+            type="button"
+            onClick={toggle}
+            className="rounded-xl bg-slate-800 px-3 py-2 text-xs font-bold text-slate-200 hover:bg-slate-700"
+          >
             {lang === 'ar' ? 'EN' : 'عربي'}
           </button>
         </div>
 
         {accessDeniedMessage && (
-          <div className="mb-4 rounded-xl border border-amber-500/40 bg-amber-500/10 p-3 text-sm text-amber-200">{accessDeniedMessage}</div>
+          <div className="mb-4 rounded-xl border border-amber-500/40 bg-amber-500/10 p-3 text-sm text-amber-200">
+            {accessDeniedMessage}
+          </div>
         )}
 
         <form onSubmit={handleSubmit} className="space-y-4">

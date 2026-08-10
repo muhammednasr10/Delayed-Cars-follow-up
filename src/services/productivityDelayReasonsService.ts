@@ -52,16 +52,14 @@ export async function getProductivityDelayReasonsMonth(
 }
 
 export async function upsertProductivityDelayReason(input: ProductivityDelayReasonInput): Promise<void> {
-  const { error } = await requireClient()
-    .from('productivity_delay_reasons')
-    .upsert(
-      {
-        work_date: input.workDate,
-        kind: input.kind,
-        reasons: input.reasons.trim()
-      },
-      { onConflict: 'work_date,kind' }
-    )
+  const { error } = await requireClient().from('productivity_delay_reasons').upsert(
+    {
+      work_date: input.workDate,
+      kind: input.kind,
+      reasons: input.reasons.trim()
+    },
+    { onConflict: 'work_date,kind' }
+  )
 
   if (error) throw new Error(error.message)
 }

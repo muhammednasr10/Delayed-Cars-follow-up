@@ -8,8 +8,22 @@ import type { CalibrationResult, EquipmentTransactionType, LineEquipment } from 
 import { CALIBRATION_RESULTS } from '../../Types/equipment'
 
 export type TransactionFormPayload =
-  | { kind: 'calibration'; equipmentId: string; occurredAt: string; calibrationResult: CalibrationResult; nextCalibrationDue?: string | null; notes?: string }
-  | { kind: 'scrap'; equipmentId: string; occurredAt: string; scrapReason: string; scrapQty?: number | null; notes?: string }
+  | {
+      kind: 'calibration'
+      equipmentId: string
+      occurredAt: string
+      calibrationResult: CalibrationResult
+      nextCalibrationDue?: string | null
+      notes?: string
+    }
+  | {
+      kind: 'scrap'
+      equipmentId: string
+      occurredAt: string
+      scrapReason: string
+      scrapQty?: number | null
+      notes?: string
+    }
 
 type Props = {
   open: boolean
@@ -92,7 +106,11 @@ export function EquipmentTransactionFormModal({ open, kind, equipment, onClose, 
       maxWidthClass="max-w-xl"
       footer={
         <div className="flex justify-end gap-2">
-          <button type="button" onClick={onClose} className="rounded-xl bg-slate-800 px-4 py-2 text-sm font-bold text-slate-200 hover:bg-slate-700">
+          <button
+            type="button"
+            onClick={onClose}
+            className="rounded-xl bg-slate-800 px-4 py-2 text-sm font-bold text-slate-200 hover:bg-slate-700"
+          >
             {t('common.cancel')}
           </button>
           <button
@@ -108,7 +126,9 @@ export function EquipmentTransactionFormModal({ open, kind, equipment, onClose, 
     >
       <div className="space-y-4 p-5">
         {eligible.length === 0 && <p className="text-sm text-amber-200">{t('equipment.noEligibleEquipment')}</p>}
-        {error && <div className="rounded-xl border border-red-500/30 bg-red-500/10 p-3 text-sm text-red-200">{error}</div>}
+        {error && (
+          <div className="rounded-xl border border-red-500/30 bg-red-500/10 p-3 text-sm text-red-200">{error}</div>
+        )}
 
         <Field label={t('equipment.cols.equipment')} required>
           <select className={inputCls()} value={equipmentId} onChange={e => setEquipmentId(e.target.value)}>
@@ -122,13 +142,22 @@ export function EquipmentTransactionFormModal({ open, kind, equipment, onClose, 
         </Field>
 
         <Field label={t('equipment.cols.occurredAt')} required>
-          <input type="datetime-local" className={inputCls()} value={occurredAt} onChange={e => setOccurredAt(e.target.value)} />
+          <input
+            type="datetime-local"
+            className={inputCls()}
+            value={occurredAt}
+            onChange={e => setOccurredAt(e.target.value)}
+          />
         </Field>
 
         {kind === 'calibration' ? (
           <>
             <Field label={t('equipment.cols.calibrationResult')} required>
-              <select className={inputCls()} value={calibrationResult} onChange={e => setCalibrationResult(e.target.value as CalibrationResult)}>
+              <select
+                className={inputCls()}
+                value={calibrationResult}
+                onChange={e => setCalibrationResult(e.target.value as CalibrationResult)}
+              >
                 {CALIBRATION_RESULTS.map(key => (
                   <option key={key} value={key}>
                     {t(`equipment.calibration.${key}`)}
@@ -137,22 +166,42 @@ export function EquipmentTransactionFormModal({ open, kind, equipment, onClose, 
               </select>
             </Field>
             <Field label={t('equipment.cols.nextCalibration')}>
-              <input type="date" className={inputCls()} value={nextCalibrationDue} onChange={e => setNextCalibrationDue(e.target.value)} />
+              <input
+                type="date"
+                className={inputCls()}
+                value={nextCalibrationDue}
+                onChange={e => setNextCalibrationDue(e.target.value)}
+              />
             </Field>
           </>
         ) : (
           <>
             <Field label={t('equipment.cols.scrapReason')} required>
-              <input className={inputCls()} value={scrapReason} onChange={e => setScrapReason(e.target.value)} placeholder={t('equipment.scrapReasonPlaceholder')} />
+              <input
+                className={inputCls()}
+                value={scrapReason}
+                onChange={e => setScrapReason(e.target.value)}
+                placeholder={t('equipment.scrapReasonPlaceholder')}
+              />
             </Field>
             <Field label={t('equipment.cols.scrapQty')}>
-              <input type="number" min={0} className={inputCls()} value={scrapQty} onChange={e => setScrapQty(e.target.value)} />
+              <input
+                type="number"
+                min={0}
+                className={inputCls()}
+                value={scrapQty}
+                onChange={e => setScrapQty(e.target.value)}
+              />
             </Field>
           </>
         )}
 
         <Field label={t('common.notes')}>
-          <textarea className={`${inputCls()} min-h-[3rem] resize-y`} value={notes} onChange={e => setNotes(e.target.value)} />
+          <textarea
+            className={`${inputCls()} min-h-[3rem] resize-y`}
+            value={notes}
+            onChange={e => setNotes(e.target.value)}
+          />
         </Field>
       </div>
     </Modal>

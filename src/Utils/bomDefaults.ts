@@ -17,15 +17,7 @@ export function normalizePartKindRaw(raw?: string | null): string {
 
   const u = s.toUpperCase().replace(/\s+/g, '')
   if (u === '1' || u === 'P' || u === 'PART' || u === 'PARTS' || s.includes('جزء')) return DEFAULT_PART_KIND
-  if (
-    u === '2' ||
-    u === 'H/W' ||
-    u === 'HW' ||
-    u === 'H' ||
-    u === 'W' ||
-    u.includes('HARD') ||
-    s.includes('هارد')
-  ) {
+  if (u === '2' || u === 'H/W' || u === 'HW' || u === 'H' || u === 'W' || u.includes('HARD') || s.includes('هارد')) {
     return HARDWARE_PART_KIND
   }
   if (u === 'PL' || u === 'PLASTICS' || u === 'PLASTIC' || u.includes('PLAST') || s.includes('بلاستيك')) {

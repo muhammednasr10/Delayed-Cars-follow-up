@@ -10,9 +10,7 @@ import { NewVehicleEntryForm } from '../../Components/NewVehicleEntryForm'
 import { EditVehicleEntryModal } from '../../Components/EditVehicleEntryModal'
 import { SetupRequired } from '../../Components/SetupRequired'
 import { ExportableTable } from '../../Components/ExportableTable'
-import {
-  DeliveryBadge
-} from '../../Components/VehicleBadges'
+import { DeliveryBadge } from '../../Components/VehicleBadges'
 import { getProductionOrders } from '../../services/productionOrdersService'
 import { vinInChassisRange } from '../../Utils/chassisRange'
 import { orgPathFromLeaf, orgPathLabel } from '../../Utils/employeeOrgPicker'
@@ -126,10 +124,34 @@ export function VehiclesPage({ mode = 'exit' }: Props) {
   return (
     <section className="space-y-6">
       <div className="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-4">
-        <StatCard title={t('vehicles.total')} value={counts.total} subtitle={t('home.totalSub')} tone="cyan" icon={<Car className="h-6 w-6" />} />
-        <StatCard title={t('vehicles.withMissing')} value={counts.withMissing} subtitle={t('home.withMissingSub')} tone="orange" icon={<AlertTriangle className="h-6 w-6" />} />
-        <StatCard title={t('vehicles.blocked')} value={counts.blocked} subtitle={t('home.blockedSub')} tone="red" icon={<ShieldAlert className="h-6 w-6" />} />
-        <StatCard title={t('vehicles.qcFailed')} value={counts.qcFailed} subtitle="QC" tone="red" icon={<ShieldAlert className="h-6 w-6" />} />
+        <StatCard
+          title={t('vehicles.total')}
+          value={counts.total}
+          subtitle={t('home.totalSub')}
+          tone="cyan"
+          icon={<Car className="h-6 w-6" />}
+        />
+        <StatCard
+          title={t('vehicles.withMissing')}
+          value={counts.withMissing}
+          subtitle={t('home.withMissingSub')}
+          tone="orange"
+          icon={<AlertTriangle className="h-6 w-6" />}
+        />
+        <StatCard
+          title={t('vehicles.blocked')}
+          value={counts.blocked}
+          subtitle={t('home.blockedSub')}
+          tone="red"
+          icon={<ShieldAlert className="h-6 w-6" />}
+        />
+        <StatCard
+          title={t('vehicles.qcFailed')}
+          value={counts.qcFailed}
+          subtitle="QC"
+          tone="red"
+          icon={<ShieldAlert className="h-6 w-6" />}
+        />
       </div>
 
       {mode === 'entry' && canAddEntry && <NewVehicleEntryForm onSaved={() => void refresh()} />}
@@ -148,7 +170,10 @@ export function VehiclesPage({ mode = 'exit' }: Props) {
               <p className="text-sm text-slate-400">{pageSubtitle}</p>
             </div>
             <div className="flex gap-2">
-              <button onClick={refresh} className="rounded-xl bg-slate-800 px-3 py-2 text-sm font-bold text-slate-200 hover:bg-slate-700">
+              <button
+                onClick={refresh}
+                className="rounded-xl bg-slate-800 px-3 py-2 text-sm font-bold text-slate-200 hover:bg-slate-700"
+              >
                 <RefreshCcw className="mr-1 inline h-4 w-4" /> {t('common.refresh')}
               </button>
             </div>
@@ -164,163 +189,183 @@ export function VehiclesPage({ mode = 'exit' }: Props) {
           </div>
         </div>
 
-        {error && !setupRequired && <div className="m-4 rounded-xl border border-red-500/30 bg-red-500/10 p-3 text-sm text-red-200">{error}</div>}
-        {actionError && <div className="m-4 rounded-xl border border-red-500/30 bg-red-500/10 p-3 text-sm text-red-200">{actionError}</div>}
+        {error && !setupRequired && (
+          <div className="m-4 rounded-xl border border-red-500/30 bg-red-500/10 p-3 text-sm text-red-200">{error}</div>
+        )}
+        {actionError && (
+          <div className="m-4 rounded-xl border border-red-500/30 bg-red-500/10 p-3 text-sm text-red-200">
+            {actionError}
+          </div>
+        )}
 
         <ExportableTable
           filename={mode === 'entry' ? 'vehicles-entry' : 'vehicles-exit'}
           title={t('vehicles.title')}
           rowCount={filtered.length}
         >
-        <div className="overflow-x-auto">
-          {mode === 'entry' ? (
-            <table className="w-full min-w-[720px] text-sm">
-              <thead className="bg-slate-950/90">
-                <tr>
-                  <th className={`${entryCell} text-xs font-black uppercase text-slate-400`}>{t('vehicles.cols.model')}</th>
-                  <th className={`${entryCell} text-xs font-black uppercase text-slate-400`}>{t('vehicles.cols.color')}</th>
-                  <th className={`${entryCell} text-xs font-black uppercase text-slate-400`}>{t('vehicles.cols.vin')}</th>
-                  <th className={`${entryCell} text-xs font-black uppercase text-slate-400`}>{t('vehicles.cols.orgUnit')}</th>
-                  <th className={`${entryCell} text-xs font-black uppercase text-slate-400`}>{t('vehicles.cols.po')}</th>
-                  {canManage && (
-                    <th data-export-skip className={`${entryCell} text-xs font-black uppercase text-slate-400`}>{t('common.actions')}</th>
-                  )}
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-800">
-                {filtered.map(v => (
-                  <tr key={v.id} className="bg-slate-900/30 hover:bg-slate-800/40">
-                    <td className={entryCell}>{v.modelName || '—'}</td>
-                    <td className={entryCell}>
-                      {v.colorName ? (
-                        <span className="inline-flex items-center justify-center gap-2">
-                          <span
-                            className="inline-block h-4 w-4 rounded-full ring-1 ring-slate-500"
-                            style={{ backgroundColor: v.colorHex ?? '#fff' }}
-                          />
-                          {v.colorName}
-                        </span>
-                      ) : (
-                        '—'
-                      )}
-                    </td>
-                    <td className={`${entryCell} font-mono font-black text-white`} dir="ltr">
-                      {v.vin}
-                    </td>
-                    <td className={entryCell}>{orgUnitLabel(v.factoryOrgUnitId)}</td>
-                    <td className={`${entryCell} font-mono`} dir="ltr">
-                      {resolveProductionOrderLabel(v, productionOrders)}
-                    </td>
-                    {canManage && (
-                      <td data-export-skip className={entryCell}>
-                        <div className="flex items-center justify-center gap-2">
-                          <button
-                            type="button"
-                            title={t('common.edit')}
-                            disabled={busyId === v.id}
-                            onClick={() => setEditingVehicle(v)}
-                            className="rounded-lg bg-orange-500/15 p-2 text-orange-200 hover:bg-orange-500/25 disabled:opacity-40"
-                          >
-                            <Pencil className="h-4 w-4" />
-                          </button>
-                          <button
-                            type="button"
-                            title={t('common.delete')}
-                            disabled={busyId === v.id}
-                            onClick={() => void handleDelete(v)}
-                            className="rounded-lg bg-red-500/15 p-2 text-red-200 hover:bg-red-500/25 disabled:opacity-40"
-                          >
-                            <Trash2 className="h-4 w-4" />
-                          </button>
-                        </div>
-                      </td>
-                    )}
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          ) : (
-            <table className="w-full min-w-[720px] text-sm">
-              <thead className="bg-slate-950/90">
-                <tr>
-                  {exitTableCols.map(c => (
-                    <th key={c} className={`${entryCell} text-xs font-black uppercase text-slate-400`}>
-                      {t(`vehicles.cols.${c}`)}
+          <div className="overflow-x-auto">
+            {mode === 'entry' ? (
+              <table className="w-full min-w-[720px] text-sm">
+                <thead className="bg-slate-950/90">
+                  <tr>
+                    <th className={`${entryCell} text-xs font-black uppercase text-slate-400`}>
+                      {t('vehicles.cols.model')}
                     </th>
-                  ))}
-                  {canRelease && (
-                    <th data-export-skip className={`${entryCell} text-xs font-black uppercase text-slate-400`}>{t('common.actions')}</th>
-                  )}
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-800">
-                {filtered.map(v => (
-                  <tr
-                    key={v.id}
-                    className={`bg-slate-900/30 hover:bg-slate-800/40 ${v.deliveryBlocked ? 'bg-red-500/5' : ''}`}
-                  >
-                    <td className={entryCell}>{v.modelName || '—'}</td>
-                    <td className={entryCell}>
-                      {v.colorName ? (
-                        <span className="inline-flex items-center justify-center gap-2">
-                          <span
-                            className="inline-block h-4 w-4 rounded-full ring-1 ring-slate-500"
-                            style={{ backgroundColor: v.colorHex ?? '#fff' }}
-                          />
-                          {v.colorName}
-                        </span>
-                      ) : (
-                        '—'
-                      )}
-                    </td>
-                    <td className={`${entryCell} font-mono font-black text-white`} dir="ltr">
-                      {v.vin}
-                    </td>
-                    <td className={`${entryCell} font-mono`} dir="ltr">
-                      {resolveProductionOrderLabel(v, productionOrders)}
-                    </td>
-                    <td className={entryCell}>
-                      <DeliveryBadge status={v.deliveryStatus} />
-                    </td>
-                    {canRelease && (
-                      <td data-export-skip className={entryCell}>
-                        <div className="flex items-center justify-center gap-2">
-                          {v.deliveryStatus === 'blocked' && (
-                            <button
-                              type="button"
-                              title={v.deliveryBlocked ? t('vehicles.blockedHint') : t('vehicles.release')}
-                              disabled={busyId === v.id || v.deliveryBlocked}
-                              onClick={() => handleRelease(v)}
-                              className="rounded-lg bg-cyan-500/15 p-2 text-cyan-200 hover:bg-cyan-500/25 disabled:cursor-not-allowed disabled:opacity-40"
-                            >
-                              <CheckCircle2 className="h-4 w-4" />
-                            </button>
-                          )}
-                          {v.deliveryStatus === 'ready' && (
-                            <button
-                              type="button"
-                              title={t('vehicles.deliver')}
-                              disabled={busyId === v.id}
-                              onClick={() => handleDeliver(v)}
-                              className="rounded-lg bg-emerald-500/15 p-2 text-emerald-200 hover:bg-emerald-500/25 disabled:opacity-40"
-                            >
-                              <Truck className="h-4 w-4" />
-                            </button>
-                          )}
-                        </div>
-                      </td>
+                    <th className={`${entryCell} text-xs font-black uppercase text-slate-400`}>
+                      {t('vehicles.cols.color')}
+                    </th>
+                    <th className={`${entryCell} text-xs font-black uppercase text-slate-400`}>
+                      {t('vehicles.cols.vin')}
+                    </th>
+                    <th className={`${entryCell} text-xs font-black uppercase text-slate-400`}>
+                      {t('vehicles.cols.orgUnit')}
+                    </th>
+                    <th className={`${entryCell} text-xs font-black uppercase text-slate-400`}>
+                      {t('vehicles.cols.po')}
+                    </th>
+                    {canManage && (
+                      <th data-export-skip className={`${entryCell} text-xs font-black uppercase text-slate-400`}>
+                        {t('common.actions')}
+                      </th>
                     )}
                   </tr>
-                ))}
-              </tbody>
-            </table>
-          )}
-        </div>
+                </thead>
+                <tbody className="divide-y divide-slate-800">
+                  {filtered.map(v => (
+                    <tr key={v.id} className="bg-slate-900/30 hover:bg-slate-800/40">
+                      <td className={entryCell}>{v.modelName || '—'}</td>
+                      <td className={entryCell}>
+                        {v.colorName ? (
+                          <span className="inline-flex items-center justify-center gap-2">
+                            <span
+                              className="inline-block h-4 w-4 rounded-full ring-1 ring-slate-500"
+                              style={{ backgroundColor: v.colorHex ?? '#fff' }}
+                            />
+                            {v.colorName}
+                          </span>
+                        ) : (
+                          '—'
+                        )}
+                      </td>
+                      <td className={`${entryCell} font-mono font-black text-white`} dir="ltr">
+                        {v.vin}
+                      </td>
+                      <td className={entryCell}>{orgUnitLabel(v.factoryOrgUnitId)}</td>
+                      <td className={`${entryCell} font-mono`} dir="ltr">
+                        {resolveProductionOrderLabel(v, productionOrders)}
+                      </td>
+                      {canManage && (
+                        <td data-export-skip className={entryCell}>
+                          <div className="flex items-center justify-center gap-2">
+                            <button
+                              type="button"
+                              title={t('common.edit')}
+                              disabled={busyId === v.id}
+                              onClick={() => setEditingVehicle(v)}
+                              className="rounded-lg bg-orange-500/15 p-2 text-orange-200 hover:bg-orange-500/25 disabled:opacity-40"
+                            >
+                              <Pencil className="h-4 w-4" />
+                            </button>
+                            <button
+                              type="button"
+                              title={t('common.delete')}
+                              disabled={busyId === v.id}
+                              onClick={() => void handleDelete(v)}
+                              className="rounded-lg bg-red-500/15 p-2 text-red-200 hover:bg-red-500/25 disabled:opacity-40"
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </button>
+                          </div>
+                        </td>
+                      )}
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            ) : (
+              <table className="w-full min-w-[720px] text-sm">
+                <thead className="bg-slate-950/90">
+                  <tr>
+                    {exitTableCols.map(c => (
+                      <th key={c} className={`${entryCell} text-xs font-black uppercase text-slate-400`}>
+                        {t(`vehicles.cols.${c}`)}
+                      </th>
+                    ))}
+                    {canRelease && (
+                      <th data-export-skip className={`${entryCell} text-xs font-black uppercase text-slate-400`}>
+                        {t('common.actions')}
+                      </th>
+                    )}
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-800">
+                  {filtered.map(v => (
+                    <tr
+                      key={v.id}
+                      className={`bg-slate-900/30 hover:bg-slate-800/40 ${v.deliveryBlocked ? 'bg-red-500/5' : ''}`}
+                    >
+                      <td className={entryCell}>{v.modelName || '—'}</td>
+                      <td className={entryCell}>
+                        {v.colorName ? (
+                          <span className="inline-flex items-center justify-center gap-2">
+                            <span
+                              className="inline-block h-4 w-4 rounded-full ring-1 ring-slate-500"
+                              style={{ backgroundColor: v.colorHex ?? '#fff' }}
+                            />
+                            {v.colorName}
+                          </span>
+                        ) : (
+                          '—'
+                        )}
+                      </td>
+                      <td className={`${entryCell} font-mono font-black text-white`} dir="ltr">
+                        {v.vin}
+                      </td>
+                      <td className={`${entryCell} font-mono`} dir="ltr">
+                        {resolveProductionOrderLabel(v, productionOrders)}
+                      </td>
+                      <td className={entryCell}>
+                        <DeliveryBadge status={v.deliveryStatus} />
+                      </td>
+                      {canRelease && (
+                        <td data-export-skip className={entryCell}>
+                          <div className="flex items-center justify-center gap-2">
+                            {v.deliveryStatus === 'blocked' && (
+                              <button
+                                type="button"
+                                title={v.deliveryBlocked ? t('vehicles.blockedHint') : t('vehicles.release')}
+                                disabled={busyId === v.id || v.deliveryBlocked}
+                                onClick={() => handleRelease(v)}
+                                className="rounded-lg bg-cyan-500/15 p-2 text-cyan-200 hover:bg-cyan-500/25 disabled:cursor-not-allowed disabled:opacity-40"
+                              >
+                                <CheckCircle2 className="h-4 w-4" />
+                              </button>
+                            )}
+                            {v.deliveryStatus === 'ready' && (
+                              <button
+                                type="button"
+                                title={t('vehicles.deliver')}
+                                disabled={busyId === v.id}
+                                onClick={() => handleDeliver(v)}
+                                className="rounded-lg bg-emerald-500/15 p-2 text-emerald-200 hover:bg-emerald-500/25 disabled:opacity-40"
+                              >
+                                <Truck className="h-4 w-4" />
+                              </button>
+                            )}
+                          </div>
+                        </td>
+                      )}
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            )}
+          </div>
 
-        {loading && <div className="p-8 text-center text-slate-400">{t('common.loading')}</div>}
-        {!loading && filtered.length === 0 && (
-          <div className="p-8 text-center text-slate-400">{t('common.noResults')}</div>
-        )}
+          {loading && <div className="p-8 text-center text-slate-400">{t('common.loading')}</div>}
+          {!loading && filtered.length === 0 && (
+            <div className="p-8 text-center text-slate-400">{t('common.noResults')}</div>
+          )}
         </ExportableTable>
       </div>
 

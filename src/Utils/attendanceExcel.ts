@@ -1,11 +1,7 @@
 import * as XLSX from 'xlsx'
 import { parseSpreadsheetFile } from './parseSpreadsheet'
 import type { AttendanceDayInput, AttendanceDayStatus } from '../Types/attendance'
-import {
-  ATTENDANCE_STATUSES,
-  DEFAULT_ATTENDANCE_CHECK_IN,
-  DEFAULT_ATTENDANCE_CHECK_OUT
-} from '../Types/attendance'
+import { ATTENDANCE_STATUSES, DEFAULT_ATTENDANCE_CHECK_IN, DEFAULT_ATTENDANCE_CHECK_OUT } from '../Types/attendance'
 import { dayEditToInput } from '../services/attendanceService'
 import type { Employee } from '../Types/employee'
 
@@ -55,10 +51,10 @@ const COL: Record<string, keyof ParsedCols> = {
   status: 'status',
   'وقت الحضور': 'checkIn',
   check_in: 'checkIn',
-  'حضور': 'checkIn',
+  حضور: 'checkIn',
   'وقت الانصراف': 'checkOut',
   check_out: 'checkOut',
-  'انصراف': 'checkOut',
+  انصراف: 'checkOut',
   ملاحظات: 'notes',
   notes: 'notes'
 }
@@ -100,10 +96,7 @@ export type AttendanceImportRow = {
   errors: string[]
 }
 
-export async function parseAttendanceImportFile(
-  file: File,
-  employees: Employee[]
-): Promise<AttendanceImportRow[]> {
+export async function parseAttendanceImportFile(file: File, employees: Employee[]): Promise<AttendanceImportRow[]> {
   const rows = await parseSpreadsheetFile(file)
   if (rows.length < 2) return []
 
@@ -161,8 +154,24 @@ export async function parseAttendanceImportFile(
 export function exportAttendanceMonthExcel(
   year: number,
   month: number,
-  days: { employeeCode: string; fullName: string; workDate: string; status: AttendanceDayStatus; checkIn: string | null; checkOut: string | null; notes: string | null }[],
-  summaries: { employeeCode: string; fullName: string; absentDays: number; vacationDays: number; sickDays: number; presentDays: number; issueDays: number }[]
+  days: {
+    employeeCode: string
+    fullName: string
+    workDate: string
+    status: AttendanceDayStatus
+    checkIn: string | null
+    checkOut: string | null
+    notes: string | null
+  }[],
+  summaries: {
+    employeeCode: string
+    fullName: string
+    absentDays: number
+    vacationDays: number
+    sickDays: number
+    presentDays: number
+    issueDays: number
+  }[]
 ): void {
   const detailHeaders = ['الرقم الوظيفي', 'الاسم', 'التاريخ', 'الحالة', 'وقت الحضور', 'وقت الانصراف', 'ملاحظات']
   const detailRows = days.map(d => [
@@ -178,15 +187,7 @@ export function exportAttendanceMonthExcel(
   const sumHeaders = ['الرقم الوظيفي', 'الاسم', 'حاضر', 'غياب', 'إجازة', 'مرضى', 'إجمالي الغياب']
   const sumRows = summaries
     .filter(s => s.issueDays > 0 || s.presentDays > 0)
-    .map(s => [
-      s.employeeCode,
-      s.fullName,
-      s.presentDays,
-      s.absentDays,
-      s.vacationDays,
-      s.sickDays,
-      s.issueDays
-    ])
+    .map(s => [s.employeeCode, s.fullName, s.presentDays, s.absentDays, s.vacationDays, s.sickDays, s.issueDays])
 
   const wb = XLSX.utils.book_new()
   const wsDetail = XLSX.utils.aoa_to_sheet([detailHeaders, ...detailRows])
@@ -198,8 +199,24 @@ export function exportAttendanceMonthExcel(
 
 export function exportAttendanceYearExcel(
   year: number,
-  days: { employeeCode: string; fullName: string; workDate: string; status: AttendanceDayStatus; checkIn: string | null; checkOut: string | null; notes: string | null }[],
-  summaries: { employeeCode: string; fullName: string; absentDays: number; vacationDays: number; sickDays: number; presentDays: number; issueDays: number }[]
+  days: {
+    employeeCode: string
+    fullName: string
+    workDate: string
+    status: AttendanceDayStatus
+    checkIn: string | null
+    checkOut: string | null
+    notes: string | null
+  }[],
+  summaries: {
+    employeeCode: string
+    fullName: string
+    absentDays: number
+    vacationDays: number
+    sickDays: number
+    presentDays: number
+    issueDays: number
+  }[]
 ): void {
   const detailHeaders = ['الرقم الوظيفي', 'الاسم', 'التاريخ', 'الحالة', 'وقت الحضور', 'وقت الانصراف', 'ملاحظات']
   const detailRows = days.map(d => [
@@ -215,15 +232,7 @@ export function exportAttendanceYearExcel(
   const sumHeaders = ['الرقم الوظيفي', 'الاسم', 'حاضر', 'غياب', 'إجازة', 'مرضى', 'إجمالي الغياب']
   const sumRows = summaries
     .filter(s => s.issueDays > 0 || s.presentDays > 0)
-    .map(s => [
-      s.employeeCode,
-      s.fullName,
-      s.presentDays,
-      s.absentDays,
-      s.vacationDays,
-      s.sickDays,
-      s.issueDays
-    ])
+    .map(s => [s.employeeCode, s.fullName, s.presentDays, s.absentDays, s.vacationDays, s.sickDays, s.issueDays])
 
   const wb = XLSX.utils.book_new()
   const wsDetail = XLSX.utils.aoa_to_sheet([detailHeaders, ...detailRows])

@@ -202,8 +202,14 @@ export function ExitProductivityMonthlyTab() {
           </div>
         </div>
 
-        {success && <div className="mb-3 rounded-xl border border-emerald-500/30 bg-emerald-500/10 p-3 text-sm text-emerald-200">{success}</div>}
-        {error && <div className="mb-3 rounded-xl border border-red-500/30 bg-red-500/10 p-3 text-sm text-red-200">{error}</div>}
+        {success && (
+          <div className="mb-3 rounded-xl border border-emerald-500/30 bg-emerald-500/10 p-3 text-sm text-emerald-200">
+            {success}
+          </div>
+        )}
+        {error && (
+          <div className="mb-3 rounded-xl border border-red-500/30 bg-red-500/10 p-3 text-sm text-red-200">{error}</div>
+        )}
         <p className="text-xs text-slate-500">{t('productivity.exitMonthly.hint')}</p>
       </div>
 
@@ -214,7 +220,9 @@ export function ExitProductivityMonthlyTab() {
               <th className={`${stickyHead} min-w-[72px] text-xs font-black uppercase text-emerald-300`}>
                 {t('productivity.exitMonthly.total')}
               </th>
-              <th className={`${stickyHead} start-[72px] min-w-[72px] border-s border-slate-800 text-xs font-black uppercase text-slate-400`}>
+              <th
+                className={`${stickyHead} start-[72px] min-w-[72px] border-s border-slate-800 text-xs font-black uppercase text-slate-400`}
+              >
                 {t('productivity.exitMonthly.date')}
               </th>
               {columns.map(col => (
@@ -233,7 +241,9 @@ export function ExitProductivityMonthlyTab() {
               return (
                 <tr key={workDate} className="bg-slate-900/30 hover:bg-slate-800/40">
                   <td className={`${stickyCell} font-black text-emerald-300`}>{rowTotal || '—'}</td>
-                  <td className={`${stickyCell} start-[72px] border-s border-slate-800 font-mono font-bold text-slate-200`}>
+                  <td
+                    className={`${stickyCell} start-[72px] border-s border-slate-800 font-mono font-bold text-slate-200`}
+                  >
                     {workDate.slice(8)}
                   </td>
                   {columns.map(col => (

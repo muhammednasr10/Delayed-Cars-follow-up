@@ -120,7 +120,12 @@ export async function getModelPartInventory(filters: {
       const key = `${row.vehicleModelId}:${row.partId}`
       const existing = map.get(key)
       if (!existing || row.qtyOnHand > existing.qtyOnHand) {
-        map.set(key, { ...row, warehouseId: row.warehouseId, warehouseCode: row.warehouseCode, warehouseName: row.warehouseName })
+        map.set(key, {
+          ...row,
+          warehouseId: row.warehouseId,
+          warehouseCode: row.warehouseCode,
+          warehouseName: row.warehouseName
+        })
       }
     }
     return [...map.values()].sort((a, b) => a.partNumber.localeCompare(b.partNumber))
@@ -141,9 +146,7 @@ export async function getIplFeedingParts(
   t?: (k: string) => string
 ): Promise<IplFeedingRow[]> {
   const options: IplFeedingPartsOptions =
-    typeof warehouseIdOrOptions === 'string'
-      ? { warehouseId: warehouseIdOrOptions }
-      : (warehouseIdOrOptions ?? {})
+    typeof warehouseIdOrOptions === 'string' ? { warehouseId: warehouseIdOrOptions } : (warehouseIdOrOptions ?? {})
 
   const { data: vm, error: vmErr } = await client()
     .from('vehicle_models')
@@ -202,9 +205,7 @@ export async function getIplFeedingParts(
   }
 
   return rows.sort(
-    (a, b) =>
-      (a.stationCode ?? '').localeCompare(b.stationCode ?? '') ||
-      a.partNumber.localeCompare(b.partNumber)
+    (a, b) => (a.stationCode ?? '').localeCompare(b.stationCode ?? '') || a.partNumber.localeCompare(b.partNumber)
   )
 }
 

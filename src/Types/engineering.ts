@@ -1,35 +1,12 @@
 import type { TrainingLevel } from './enums'
 
 export type EngineeringTaskKind =
-  | 'install'
-  | 'fit'
-  | 'torque'
-  | 'connect'
-  | 'clip'
-  | 'inspect'
-  | 'adjust'
-  | 'test'
-  | 'other'
+  'install' | 'fit' | 'torque' | 'connect' | 'clip' | 'inspect' | 'adjust' | 'test' | 'other'
 
-export type OperationSide =
-  | 'RH'
-  | 'LH'
-  | 'front'
-  | 'rear'
-  | 'upper'
-  | 'lower'
-  | 'interior'
-  | 'exterior'
-  | 'none'
+export type OperationSide = 'RH' | 'LH' | 'front' | 'rear' | 'upper' | 'lower' | 'interior' | 'exterior' | 'none'
 
 export type OperationPartUsageType =
-  | 'main_part'
-  | 'fastener'
-  | 'clip'
-  | 'hardware'
-  | 'consumable'
-  | 'tool_reference'
-  | 'other'
+  'main_part' | 'fastener' | 'clip' | 'hardware' | 'consumable' | 'tool_reference' | 'other'
 
 export type BomStopperType = 'line_stopper' | 'car_stopper' | 'non_stopper'
 
@@ -37,10 +14,7 @@ export type TimeStudyMeasurementScope = 'station' | 'worker' | 'operation'
 
 export type TimeStudyStatus = 'draft' | 'under_review' | 'approved' | 'rejected' | 'archived'
 
-export type RoutingClassification =
-  | 'common_within_model_family'
-  | 'model_specific'
-  | 'optional'
+export type RoutingClassification = 'common_within_model_family' | 'model_specific' | 'optional'
 
 export type OperationPartRow = {
   id: string

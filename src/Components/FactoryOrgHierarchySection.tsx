@@ -4,11 +4,7 @@ import { useLang } from '../i18n/LanguageContext'
 import { Modal } from './Modal'
 import { ConfirmDialog } from './ConfirmDialog'
 import { Field, inputCls } from './FormField'
-import {
-  createFactoryOrgUnit,
-  deleteFactoryOrgUnit,
-  updateFactoryOrgUnit
-} from '../services/factoryOrgService'
+import { createFactoryOrgUnit, deleteFactoryOrgUnit, updateFactoryOrgUnit } from '../services/factoryOrgService'
 import type { FactoryOrgUnit, FactoryOrgUnitKind, FactoryOrgUnitNode } from '../Types/factoryOrg'
 import { buildFactoryOrgTree, factoryOrgUnitKindLabel, nextFactoryOrgSortOrder } from '../Utils/factoryOrgHierarchy'
 
@@ -173,7 +169,11 @@ export function FactoryOrgHierarchySection({ units, busy, onChanged, onError, on
         onClose={closeForm}
         footer={
           <>
-            <button type="button" onClick={closeForm} className="rounded-xl bg-slate-800 px-4 py-2 font-bold text-slate-200">
+            <button
+              type="button"
+              onClick={closeForm}
+              className="rounded-xl bg-slate-800 px-4 py-2 font-bold text-slate-200"
+            >
               {t('common.cancel')}
             </button>
             <button
@@ -190,7 +190,8 @@ export function FactoryOrgHierarchySection({ units, busy, onChanged, onError, on
         <div className="space-y-4">
           {formMode?.parent && !formMode.editing && (
             <p className="rounded-xl border border-slate-700 bg-slate-900/50 px-3 py-2 text-sm text-slate-300">
-              {t('settings.administrations.under')}: <span className="font-bold text-white">{formMode.parent.name}</span>
+              {t('settings.administrations.under')}:{' '}
+              <span className="font-bold text-white">{formMode.parent.name}</span>
               {' · '}
               <span className="text-slate-400">{factoryOrgUnitKindLabel(formMode.parent.unitKind, t)}</span>
             </p>
@@ -202,9 +203,7 @@ export function FactoryOrgHierarchySection({ units, busy, onChanged, onError, on
             <input className={inputCls()} value={name} onChange={e => setName(e.target.value)} />
           </Field>
           {!formMode?.editing && (
-            <p className="text-xs text-slate-500">
-              {t('settings.administrations.autoSortOrder', { n: sortOrder })}
-            </p>
+            <p className="text-xs text-slate-500">{t('settings.administrations.autoSortOrder', { n: sortOrder })}</p>
           )}
         </div>
       </Modal>
@@ -245,7 +244,11 @@ function OrgUnitNodeBlock({
 }) {
   const { unit, children } = node
   const childKind: FactoryOrgUnitKind | null =
-    unit.unitKind === 'administration' ? 'section' : unit.unitKind === 'section' || unit.unitKind === 'subsection' ? 'subsection' : null
+    unit.unitKind === 'administration'
+      ? 'section'
+      : unit.unitKind === 'section' || unit.unitKind === 'subsection'
+        ? 'subsection'
+        : null
   const addLabel =
     childKind === 'section'
       ? t('settings.administrations.addSection')
@@ -268,13 +271,13 @@ function OrgUnitNodeBlock({
         className="flex flex-wrap items-center gap-2 px-4 py-3 hover:bg-slate-900/40"
         style={{ paddingInlineStart: `${16 + depth * 20}px` }}
       >
-        <button
-          type="button"
-          onClick={onToggle}
-          className="text-slate-400 hover:text-white"
-        >
+        <button type="button" onClick={onToggle} className="text-slate-400 hover:text-white">
           {children.length > 0 ? (
-            expanded ? <ChevronDown className="h-5 w-5" /> : <ChevronLeft className="h-5 w-5" />
+            expanded ? (
+              <ChevronDown className="h-5 w-5" />
+            ) : (
+              <ChevronLeft className="h-5 w-5" />
+            )
           ) : (
             <span className="inline-block w-5" />
           )}
@@ -293,10 +296,18 @@ function OrgUnitNodeBlock({
             <Plus className="mr-0.5 inline h-3 w-3" /> {addLabel}
           </button>
         )}
-        <button type="button" onClick={() => onEdit(unit)} className="rounded-lg p-1.5 text-slate-300 hover:bg-slate-800">
+        <button
+          type="button"
+          onClick={() => onEdit(unit)}
+          className="rounded-lg p-1.5 text-slate-300 hover:bg-slate-800"
+        >
           <Pencil className="h-4 w-4" />
         </button>
-        <button type="button" onClick={() => onDelete(unit)} className="rounded-lg p-1.5 text-red-300 hover:bg-red-500/20">
+        <button
+          type="button"
+          onClick={() => onDelete(unit)}
+          className="rounded-lg p-1.5 text-red-300 hover:bg-red-500/20"
+        >
           <Trash2 className="h-4 w-4" />
         </button>
       </div>

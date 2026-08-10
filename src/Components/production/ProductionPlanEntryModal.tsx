@@ -88,15 +88,9 @@ export function ProductionPlanEntryModal({
     [models, draftTargets, achievedByModelId, draftWip]
   )
 
-  const draftPlannedTotal = useMemo(
-    () => draftSections.reduce((sum, s) => sum + s.group.planned, 0),
-    [draftSections]
-  )
+  const draftPlannedTotal = useMemo(() => draftSections.reduce((sum, s) => sum + s.group.planned, 0), [draftSections])
 
-  const draftWipTotal = useMemo(
-    () => draftSections.reduce((sum, s) => sum + s.group.wipCarryover, 0),
-    [draftSections]
-  )
+  const draftWipTotal = useMemo(() => draftSections.reduce((sum, s) => sum + s.group.wipCarryover, 0), [draftSections])
 
   const taktMinutes = useMemo(() => computeTaktMinutes(draftJph > 0 ? draftJph : null), [draftJph])
 
@@ -162,9 +156,7 @@ export function ProductionPlanEntryModal({
     }
   }
 
-  const title = isAnnual
-    ? t('productionOrders.planEntry.annualTitle')
-    : t('productionOrders.planEntry.title')
+  const title = isAnnual ? t('productionOrders.planEntry.annualTitle') : t('productionOrders.planEntry.title')
   const subtitle = isAnnual
     ? t('productionOrders.planEntry.annualSubtitle', { year: planYear })
     : t('productionOrders.planEntry.subtitle', { month: monthLabel })
@@ -209,7 +201,9 @@ export function ProductionPlanEntryModal({
           <section className="rounded-2xl border border-slate-700/60 bg-slate-950/50 p-4">
             <div className="mb-4 flex items-center gap-2">
               <Settings2 className="h-4 w-4 text-emerald-300" />
-              <h4 className="text-sm font-black text-emerald-200">{t('productionOrders.planEntry.requirementsTitle')}</h4>
+              <h4 className="text-sm font-black text-emerald-200">
+                {t('productionOrders.planEntry.requirementsTitle')}
+              </h4>
             </div>
             <p className="mb-4 text-xs text-slate-500">{t('productionOrders.planEntry.requirementsHint')}</p>
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
@@ -267,7 +261,9 @@ export function ProductionPlanEntryModal({
           <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
             <div>
               <h4 className="text-sm font-black text-violet-200">
-                {isAnnual ? t('productionOrders.planEntry.annualTargetsTitle') : t('productionOrders.planEntry.targetsTitle')}
+                {isAnnual
+                  ? t('productionOrders.planEntry.annualTargetsTitle')
+                  : t('productionOrders.planEntry.targetsTitle')}
               </h4>
               <p className="mt-1 text-xs text-slate-500">{t('productionOrders.planEntryModesHint')}</p>
             </div>
@@ -336,14 +332,9 @@ function FamilyPlanBlock({
 }) {
   const variantIds = group.variants.map(v => v.modelId)
   const familyIsLeaf = variantIds.length === 1 && variantIds[0] === group.familyId
-  const familyPlanned =
-    group.entryMode === 'family_aggregate' ? group.planned : group.entryMode === 'flexible' ? 0 : 0
+  const familyPlanned = group.entryMode === 'family_aggregate' ? group.planned : group.entryMode === 'flexible' ? 0 : 0
   const familyWip =
-    group.entryMode === 'family_aggregate'
-      ? group.wipCarryover
-      : group.entryMode === 'per_variant'
-        ? 0
-        : 0
+    group.entryMode === 'family_aggregate' ? group.wipCarryover : group.entryMode === 'per_variant' ? 0 : 0
   const modeLabel =
     group.entryMode === 'family_aggregate'
       ? t('productionOrders.planModeFamily')
@@ -376,18 +367,13 @@ function FamilyPlanBlock({
           <QtyField
             label={t('productionOrders.plannedQty')}
             value={familyIsLeaf ? group.planned : familyPlanned}
-            canEdit={
-              canManage &&
-              (familyIsLeaf || (group.entryMode !== 'per_variant' && !familyIsLeaf))
-            }
+            canEdit={canManage && (familyIsLeaf || (group.entryMode !== 'per_variant' && !familyIsLeaf))}
             onChange={v =>
               familyIsLeaf
                 ? onSetVariant(group.familyId, group.familyId, v)
                 : onSetFamily(group.familyId, variantIds, v)
             }
-            displayValue={
-              !familyIsLeaf && group.entryMode === 'per_variant' ? '—' : undefined
-            }
+            displayValue={!familyIsLeaf && group.entryMode === 'per_variant' ? '—' : undefined}
             tone="cyan"
           />
           {showWip && (
@@ -400,9 +386,7 @@ function FamilyPlanBlock({
                   ? onSetVariantWip(group.familyId, group.familyId, v)
                   : onSetFamilyWip(group.familyId, variantIds, v)
               }
-              displayValue={
-                !familyIsLeaf && group.entryMode === 'per_variant' ? '—' : undefined
-              }
+              displayValue={!familyIsLeaf && group.entryMode === 'per_variant' ? '—' : undefined}
               tone="rose"
             />
           )}

@@ -117,9 +117,7 @@ export async function createUserAccount(input: CreateUserAccountInput): Promise<
     } catch (edgeErr) {
       const msg = edgeErr instanceof Error ? edgeErr.message : String(edgeErr)
       if (msg.includes('FunctionsFetchError') || msg.includes('Failed to send')) {
-        throw new Error(
-          'Apply migration 0055_custom_app_auth.sql in Supabase SQL Editor, then try again.'
-        )
+        throw new Error('Apply migration 0055_custom_app_auth.sql in Supabase SQL Editor, then try again.')
       }
       throw edgeErr instanceof Error ? edgeErr : new Error(msg)
     }

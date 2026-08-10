@@ -2,11 +2,7 @@ import { useMemo } from 'react'
 import { Shield } from 'lucide-react'
 import { useLang } from '../../i18n/LanguageContext'
 import { usePermissions } from '../../Context/PermissionsContext'
-import {
-  formatPermissionLabel,
-  groupModulesForMatrix,
-  sortActionsForMatrix
-} from '../../Utils/permissionLabels'
+import { formatPermissionLabel, groupModulesForMatrix, sortActionsForMatrix } from '../../Utils/permissionLabels'
 
 export function MyProfilePermissionsTab() {
   const { t, lang } = useLang()
@@ -41,7 +37,9 @@ export function MyProfilePermissionsTab() {
     <section className="card-industrial space-y-4 p-6">
       <div className="flex items-center gap-2 text-violet-300">
         <Shield className="h-5 w-5" />
-        <h3 className="text-sm font-black uppercase tracking-wide text-slate-400">{t('myProfile.permissionsSection')}</h3>
+        <h3 className="text-sm font-black uppercase tracking-wide text-slate-400">
+          {t('myProfile.permissionsSection')}
+        </h3>
       </div>
       <p className="text-sm text-slate-500">{t('myProfile.permissionsHint')}</p>
 
@@ -55,7 +53,11 @@ export function MyProfilePermissionsTab() {
               <div className="space-y-2">
                 {g.modules.map(({ module, actions }) => (
                   <div key={module} className="rounded-xl border border-slate-800 bg-slate-950/40 p-3">
-                    <p className="mb-2 text-sm font-bold text-slate-200">{t(`permissions.modules.${module}`) === `permissions.modules.${module}` ? module : t(`permissions.modules.${module}`)}</p>
+                    <p className="mb-2 text-sm font-bold text-slate-200">
+                      {t(`permissions.modules.${module}`) === `permissions.modules.${module}`
+                        ? module
+                        : t(`permissions.modules.${module}`)}
+                    </p>
                     <div className="flex flex-wrap gap-1.5">
                       {actions.map(action => (
                         <span

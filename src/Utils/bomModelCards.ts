@@ -2,11 +2,7 @@ import { DEFAULT_PART_KIND, DEFAULT_SUPPLY_SOURCE, effectivePartKind, effectiveS
 import { resolveSupplySource } from './bomDisplayFormat'
 import { formatQtyByModelRaw, maxModelQty, modelQtyFromBomRow, parseApplicableModelNames } from './bomQtyByModel'
 import { normalizeBomStationCodeText, findMasterStationByCode } from './bomStationCode'
-import {
-  bomModelBreakdownFamilies,
-  lineDraftFromBreakdown,
-  type BomModelLineDraft
-} from './bomModelBreakdown'
+import { bomModelBreakdownFamilies, lineDraftFromBreakdown, type BomModelLineDraft } from './bomModelBreakdown'
 import { buildModelFamilyGroups, inferParentNameFromVariant, isAssignableModel } from './vehicleModelHierarchy'
 import type { BomDisplayGroup } from './bomRowGroups'
 import type { BomItemDetail } from '../Types/bom'
@@ -44,7 +40,10 @@ export function emptyCard(model: VehicleModel, seed?: Partial<ModelCardDraft>): 
   }
 }
 
-export function cardsFromBomRow(models: VehicleModel[], row: BomItemDetail): {
+export function cardsFromBomRow(
+  models: VehicleModel[],
+  row: BomItemDetail
+): {
   familyIds: string[]
   cards: ModelCardDraft[]
 } {
@@ -133,7 +132,10 @@ export function syncModelCardsWithFamilies(
   })
 }
 
-export function cardsFromBomRows(models: VehicleModel[], rows: BomItemDetail[]): {
+export function cardsFromBomRows(
+  models: VehicleModel[],
+  rows: BomItemDetail[]
+): {
   familyIds: string[]
   cards: ModelCardDraft[]
 } {
@@ -203,7 +205,7 @@ export function buildBreakdownSaveCards(
         part_kind: effectivePartKind(draft.part_kind || existing?.part_kind),
         supply_source: effectiveSupplySource(draft.supply_source || existing?.supply_source),
         station_code_text: stationText,
-        station_id: draft.active ? matchedStation?.id ?? existing?.station_id ?? '' : ''
+        station_id: draft.active ? (matchedStation?.id ?? existing?.station_id ?? '') : ''
       })
     }
   }

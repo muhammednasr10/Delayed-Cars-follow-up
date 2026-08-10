@@ -4,11 +4,7 @@ import { useLang } from '../../i18n/LanguageContext'
 import { ExportableTable } from '../ExportableTable'
 import { parseSpreadsheetFile } from '../../Utils/parseSpreadsheet'
 import { parseKanbanFeedingRows } from '../../Utils/kanbanFeedingImport'
-import {
-  computeKanbanBoard,
-  splitIntoFeedingTrips,
-  totalTripsPerShift
-} from '../../Utils/kanbanReplenishment'
+import { computeKanbanBoard, splitIntoFeedingTrips, totalTripsPerShift } from '../../Utils/kanbanReplenishment'
 import { useFeedingScenarioSettings } from '../../hooks/useFeedingScenarioSettings'
 import { useKanbanCalculationBasis } from '../../hooks/usePlanningWorkSchedule'
 import { formatShiftRange } from '../../Utils/workScheduleDefaults'
@@ -101,8 +97,7 @@ export function WarehouseKanbanTab({ notify }: Props) {
 
         <div className="mb-3 flex flex-wrap items-center gap-2 rounded-xl border border-slate-700/60 bg-slate-900/40 px-3 py-2 text-xs text-slate-400">
           <span>
-            {t('warehouses.feeding.settings.jph')}:{' '}
-            <strong className="text-violet-200">{basis.jph}</strong>
+            {t('warehouses.feeding.settings.jph')}: <strong className="text-violet-200">{basis.jph}</strong>
           </span>
           <span className="text-slate-600">·</span>
           <span dir="ltr">
@@ -200,7 +195,9 @@ export function WarehouseKanbanTab({ notify }: Props) {
                         <td className={cell}>{row.cartonQty}</td>
                         <td className={`${cell} text-cyan-300`}>{row.consumptionPerHour}/h</td>
                         <td className={cell}>{formatMinutes(row.rackCoverageMinutes)}</td>
-                        <td className={`${cell} font-bold text-amber-300`}>{formatMinutes(row.replenishmentFreqMinutes)}</td>
+                        <td className={`${cell} font-bold text-amber-300`}>
+                          {formatMinutes(row.replenishmentFreqMinutes)}
+                        </td>
                         <td className={`${cell} font-bold text-rose-300`}>{row.reorderPointQty}</td>
                         <td className={cell}>{row.safetyStockQty}</td>
                         <td className={cell}>{row.tripsPerRackRefill}</td>
@@ -222,7 +219,8 @@ export function WarehouseKanbanTab({ notify }: Props) {
               {trips.map(trip => (
                 <div key={trip.tripIndex} className="rounded-xl border border-slate-700/60 bg-slate-900/50 p-3">
                   <p className="mb-2 text-sm font-black text-violet-300">
-                    {t('warehouses.kanban.trip', { n: trip.tripIndex })} · {trip.totalUnits} {t('warehouses.kanban.units')}
+                    {t('warehouses.kanban.trip', { n: trip.tripIndex })} · {trip.totalUnits}{' '}
+                    {t('warehouses.kanban.units')}
                   </p>
                   <ul className="max-h-40 space-y-1 overflow-y-auto text-xs text-slate-400">
                     {trip.parts.map(p => (

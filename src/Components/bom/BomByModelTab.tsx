@@ -4,11 +4,35 @@ import { useLang } from '../../i18n/LanguageContext'
 import { usePermissions } from '../../Context/PermissionsContext'
 import { useAuth } from '../../Context/AuthContext'
 import { getVehicleModels, getStations } from '../../services/settingsService'
-import { deleteBomItem, deactivateBomItemsForPartModel, ensureBomLineForPart, getBomItemById, getBomItemsAll, getBomItemsForPartIds, saveBomFromModelCards, updateBomIplFeedingCard, updateBomItemStationForPart, updateIplModelLine, type BomExcelColumnFilters, type BomListFilters } from '../../services/bomService'
-import { getPartById, getT4cIplStationOptions, listPartsForIplModel, updatePartMaster, type PartListStationOption } from '../../services/partsService'
+import {
+  deleteBomItem,
+  deactivateBomItemsForPartModel,
+  ensureBomLineForPart,
+  getBomItemById,
+  getBomItemsAll,
+  getBomItemsForPartIds,
+  saveBomFromModelCards,
+  updateBomIplFeedingCard,
+  updateBomItemStationForPart,
+  updateIplModelLine,
+  type BomExcelColumnFilters,
+  type BomListFilters
+} from '../../services/bomService'
+import {
+  getPartById,
+  getT4cIplStationOptions,
+  listPartsForIplModel,
+  updatePartMaster,
+  type PartListStationOption
+} from '../../services/partsService'
 import { parseApplicableModelNames } from '../../Utils/bomQtyByModel'
 import { mergePartToBomItem } from '../../Utils/iplModelParts'
-import { BOM_IPL_MODEL_ROW_COLUMNS, BOM_IPL_TABLE_COL_WIDTH, BOM_MAIN_ROW_COLUMNS, BOM_TABLE_COL_WIDTH } from '../../Utils/bomPartsColumns'
+import {
+  BOM_IPL_MODEL_ROW_COLUMNS,
+  BOM_IPL_TABLE_COL_WIDTH,
+  BOM_MAIN_ROW_COLUMNS,
+  BOM_TABLE_COL_WIDTH
+} from '../../Utils/bomPartsColumns'
 import { bomColumnLabelKey, BOM_COMPACT_HEADER_COLS } from '../../Utils/bomColumnHeader'
 import { groupBomItemsForDisplay, bomItemsAsFlatGroups, type BomDisplayGroup } from '../../Utils/bomRowGroups'
 import {
@@ -79,9 +103,10 @@ export function BomByModelTab({
   const [formMode, setFormMode] = useState<'create' | 'edit' | null>(null)
   const [editId, setEditId] = useState<string | null>(null)
   const [editIds, setEditIds] = useState<string[]>([])
-  const [deleteTarget, setDeleteTarget] = useState<
-    { group: BomDisplayGroup; variant?: { id: string; modelName: string } } | null
-  >(null)
+  const [deleteTarget, setDeleteTarget] = useState<{
+    group: BomDisplayGroup
+    variant?: { id: string; modelName: string }
+  } | null>(null)
   const [deleting, setDeleting] = useState(false)
   const [breakdownSaving, setBreakdownSaving] = useState(false)
   const [iplSaving, setIplSaving] = useState(false)
@@ -96,7 +121,10 @@ export function BomByModelTab({
   const [partsCache, setPartsCache] = useState<Map<string, Part>>(new Map())
 
   const perModel = viewMode === 'perModel'
-  const modelPicker = useMemo(() => filterModelFamilyPicker(buildModelFamilyGroups(models), lineScope), [models, lineScope])
+  const modelPicker = useMemo(
+    () => filterModelFamilyPicker(buildModelFamilyGroups(models), lineScope),
+    [models, lineScope]
+  )
   const masterStations = useMemo(() => masterStationsForBom(stations), [stations])
   const scopedItems = useMemo(() => filterBomItemsByLineScope(items, lineScope), [items, lineScope])
   const displayGroups = useMemo(
@@ -255,7 +283,8 @@ export function BomByModelTab({
     setIplSaving(true)
     try {
       if (perModel && iplLogisticsGroup) {
-        const part = partsCache.get(iplLogisticsGroup.primary.part_id) ?? (await getPartById(iplLogisticsGroup.primary.part_id))
+        const part =
+          partsCache.get(iplLogisticsGroup.primary.part_id) ?? (await getPartById(iplLogisticsGroup.primary.part_id))
         const vehicleModel = models.find(m => m.name === modelName)
         if (!part || !vehicleModel) throw new Error(t('common.error'))
         const bomId = await ensureBomLineForPart(
@@ -376,9 +405,9 @@ export function BomByModelTab({
   async function saveBreakdown(group: BomDisplayGroup, draftByModel: Record<string, BomModelLineDraft>) {
     setBreakdownSaving(true)
     try {
-      const rows = (
-        await Promise.all(group.allIds.map(id => getBomItemById(id)))
-      ).filter((r): r is NonNullable<typeof r> => Boolean(r))
+      const rows = (await Promise.all(group.allIds.map(id => getBomItemById(id)))).filter(
+        (r): r is NonNullable<typeof r> => Boolean(r)
+      )
       if (rows.length === 0) throw new Error(t('common.error'))
 
       const { familyIds, cards } = buildBreakdownSaveCards(models, group, rows, draftByModel, stations)
@@ -408,13 +437,7 @@ export function BomByModelTab({
           const editId =
             existing?.id && !usedIds.has(existing.id) ? existing.id : usedIds.size === 0 ? group.primary.id : undefined
           const famId = familyIdForModel(models, card.modelId)
-          const id = await saveBomFromModelCards(
-            editId,
-            famId ? [famId] : familyIds,
-            [card],
-            names,
-            models
-          )
+          const id = await saveBomFromModelCards(editId, famId ? [famId] : familyIds, [card], names, models)
           usedIds.add(id)
         }
       }
@@ -522,9 +545,7 @@ export function BomByModelTab({
               }}
             >
               {!perModel && <option value="">{t('bom.allModels')}</option>}
-              {perModel && !modelName && (
-                <option value="">{t('bom.selectModel')}</option>
-              )}
+              {perModel && !modelName && <option value="">{t('bom.selectModel')}</option>}
               {modelPicker.groups.map(g => (
                 <optgroup key={g.family.id} label={g.family.name}>
                   {g.variants.filter(isAssignableModel).map(m => (
@@ -560,38 +581,40 @@ export function BomByModelTab({
             </select>
           </label>
           {!perModel && (
-          <>
-          <label className="block">
-            <span className="mb-1 block text-[10px] font-bold uppercase text-slate-500">{t('bom.stopperType')}</span>
-            <select
-              className={inputCls()}
-              value={stopperType}
-              onChange={e => {
-                setStopperType(e.target.value)
-                setPage(1)
-              }}
-            >
-              <option value="">{t('common.all')}</option>
-              <option value="line_stopper">{t('bom.stopperLine')}</option>
-              <option value="car_stopper">{t('bom.stopperCar')}</option>
-              <option value="non_stopper">{t('bom.stopperNone')}</option>
-            </select>
-          </label>
-          <div className="flex items-end">
-            <label className="flex cursor-pointer items-center gap-2 pb-2.5 text-sm text-slate-300">
-              <input
-                type="checkbox"
-                className="rounded border-slate-600"
-                checked={noOperationOnly}
-                onChange={e => {
-                  setNoOperationOnly(e.target.checked)
-                  setPage(1)
-                }}
-              />
-              {t('bom.noOperationOnly')}
-            </label>
-          </div>
-          </>
+            <>
+              <label className="block">
+                <span className="mb-1 block text-[10px] font-bold uppercase text-slate-500">
+                  {t('bom.stopperType')}
+                </span>
+                <select
+                  className={inputCls()}
+                  value={stopperType}
+                  onChange={e => {
+                    setStopperType(e.target.value)
+                    setPage(1)
+                  }}
+                >
+                  <option value="">{t('common.all')}</option>
+                  <option value="line_stopper">{t('bom.stopperLine')}</option>
+                  <option value="car_stopper">{t('bom.stopperCar')}</option>
+                  <option value="non_stopper">{t('bom.stopperNone')}</option>
+                </select>
+              </label>
+              <div className="flex items-end">
+                <label className="flex cursor-pointer items-center gap-2 pb-2.5 text-sm text-slate-300">
+                  <input
+                    type="checkbox"
+                    className="rounded border-slate-600"
+                    checked={noOperationOnly}
+                    onChange={e => {
+                      setNoOperationOnly(e.target.checked)
+                      setPage(1)
+                    }}
+                  />
+                  {t('bom.noOperationOnly')}
+                </label>
+              </div>
+            </>
           )}
         </div>
 
@@ -609,117 +632,121 @@ export function BomByModelTab({
 
       <div className="card-industrial overflow-hidden">
         <ExportableTable filename="bom-parts" title={t('bom.title')} rowCount={pagedGroups.length}>
-        <table className="bom-parts-table">
-          <colgroup>
-            {rowColumns.map(c => (
-              <col key={c} style={{ width: colWidths[c as keyof typeof colWidths] }} />
-            ))}
-          </colgroup>
-          <thead>
-            <tr className="border-b border-slate-800">
-              {rowColumns.map(c => {
-                if (c === 'actions') {
+          <table className="bom-parts-table">
+            <colgroup>
+              {rowColumns.map(c => (
+                <col key={c} style={{ width: colWidths[c as keyof typeof colWidths] }} />
+              ))}
+            </colgroup>
+            <thead>
+              <tr className="border-b border-slate-800">
+                {rowColumns.map(c => {
+                  if (c === 'actions') {
+                    return (
+                      <th key={c}>
+                        <span className="bom-th-label">{t('common.actions')}</span>
+                      </th>
+                    )
+                  }
+                  const compact = BOM_COMPACT_HEADER_COLS.has(c)
+                  const fullLabel = t(bomColumnLabelKey(c, false))
+                  const headerLabel = compact ? t(bomColumnLabelKey(c, true)) : fullLabel
                   return (
                     <th key={c}>
-                      <span className="bom-th-label">{t('common.actions')}</span>
+                      <div className="bom-th-wrap">
+                        <span className={`bom-th-label${compact ? ' bom-th-label--compact' : ''}`} title={fullLabel}>
+                          {headerLabel}
+                        </span>
+                        {!perModel && (
+                          <ExcelColumnFilter
+                            column={c}
+                            label={fullLabel}
+                            baseFilters={baseFilters}
+                            selected={excelFilters[c]}
+                            onApply={v => setColumnFilter(c, v)}
+                          />
+                        )}
+                      </div>
                     </th>
                   )
-                }
-                const compact = BOM_COMPACT_HEADER_COLS.has(c)
-                const fullLabel = t(bomColumnLabelKey(c, false))
-                const headerLabel = compact ? t(bomColumnLabelKey(c, true)) : fullLabel
-                return (
-                <th
-                  key={c}
-                >
-                  <div className="bom-th-wrap">
-                    <span
-                      className={`bom-th-label${compact ? ' bom-th-label--compact' : ''}`}
-                      title={fullLabel}
-                    >
-                      {headerLabel}
-                    </span>
-                    {!perModel && (
-                    <ExcelColumnFilter
-                      column={c}
-                      label={fullLabel}
-                      baseFilters={baseFilters}
-                      selected={excelFilters[c]}
-                      onApply={v => setColumnFilter(c, v)}
-                    />
-                    )}
-                  </div>
-                </th>
-              )})}
-            </tr>
-          </thead>
-          <tbody>
-            {loading ? (
-              <tr>
-                <td colSpan={colCount} className="text-slate-400">
-                  {t('common.loading')}
-                </td>
+                })}
               </tr>
-            ) : pagedGroups.length === 0 ? (
-              <tr>
-                <td colSpan={colCount} className="text-slate-400">
-                  {t('bom.noModelBom')}
-                </td>
-              </tr>
-            ) : (
-              pagedGroups.map(group => (
-                <BomGroupedTableRow
-                  key={group.key}
-                  group={group}
-                  models={models}
-                  stations={stations}
-                  expanded={expandedKeys.has(group.key)}
-                  onToggle={() => toggleExpanded(group.key)}
-                  canUpdate={canUpdate}
-                  canDelete={canDelete}
-                  iplModelMode={perModel}
-                  stationOptions={perModel ? stationOptions : undefined}
-                  onStationChange={perModel && canUpdate ? onIplStationChange : undefined}
-                  onIplFieldSave={perModel && canUpdate ? onIplFieldSave : undefined}
-                  onOpenFeeding={perModel ? g => setIplLogisticsGroup(g) : undefined}
-                  onDeleteRow={perModel && canDelete ? g => setIplDeleteTarget(g) : undefined}
-                  onEdit={() => {
-                    if (perModel) {
-                      void openPartEdit(group)
-                      return
-                    }
-                    setFormMode('edit')
-                    setEditId(group.primary.id)
-                    setEditIds(group.allIds)
-                  }}
-                  onEditVariant={id => {
-                    setFormMode('edit')
-                    setEditId(id)
-                    setEditIds([id])
-                  }}
-                  onDeleteVariant={v => setDeleteTarget({ group, variant: { id: v.id, modelName: v.modelName } })}
-                  onSaveBreakdown={canUpdate ? saveBreakdown : undefined}
-                  onSaveIplLogistics={canUpdate ? saveIplLogistics : undefined}
-                  breakdownSaving={breakdownSaving}
-                  iplSaving={iplSaving}
-                />
-              ))
-            )}
-          </tbody>
-        </table>
+            </thead>
+            <tbody>
+              {loading ? (
+                <tr>
+                  <td colSpan={colCount} className="text-slate-400">
+                    {t('common.loading')}
+                  </td>
+                </tr>
+              ) : pagedGroups.length === 0 ? (
+                <tr>
+                  <td colSpan={colCount} className="text-slate-400">
+                    {t('bom.noModelBom')}
+                  </td>
+                </tr>
+              ) : (
+                pagedGroups.map(group => (
+                  <BomGroupedTableRow
+                    key={group.key}
+                    group={group}
+                    models={models}
+                    stations={stations}
+                    expanded={expandedKeys.has(group.key)}
+                    onToggle={() => toggleExpanded(group.key)}
+                    canUpdate={canUpdate}
+                    canDelete={canDelete}
+                    iplModelMode={perModel}
+                    stationOptions={perModel ? stationOptions : undefined}
+                    onStationChange={perModel && canUpdate ? onIplStationChange : undefined}
+                    onIplFieldSave={perModel && canUpdate ? onIplFieldSave : undefined}
+                    onOpenFeeding={perModel ? g => setIplLogisticsGroup(g) : undefined}
+                    onDeleteRow={perModel && canDelete ? g => setIplDeleteTarget(g) : undefined}
+                    onEdit={() => {
+                      if (perModel) {
+                        void openPartEdit(group)
+                        return
+                      }
+                      setFormMode('edit')
+                      setEditId(group.primary.id)
+                      setEditIds(group.allIds)
+                    }}
+                    onEditVariant={id => {
+                      setFormMode('edit')
+                      setEditId(id)
+                      setEditIds([id])
+                    }}
+                    onDeleteVariant={v => setDeleteTarget({ group, variant: { id: v.id, modelName: v.modelName } })}
+                    onSaveBreakdown={canUpdate ? saveBreakdown : undefined}
+                    onSaveIplLogistics={canUpdate ? saveIplLogistics : undefined}
+                    breakdownSaving={breakdownSaving}
+                    iplSaving={iplSaving}
+                  />
+                ))
+              )}
+            </tbody>
+          </table>
         </ExportableTable>
       </div>
 
       <div className="flex items-center justify-between text-sm text-slate-400">
-        <span>
-          {t('bom.mergedRowCount', { rows: total, groups: groupTotal })}
-        </span>
+        <span>{t('bom.mergedRowCount', { rows: total, groups: groupTotal })}</span>
         <div className="flex gap-2">
-          <button type="button" disabled={page <= 1} className="rounded-lg bg-slate-800 px-3 py-1 font-bold disabled:opacity-40" onClick={() => setPage(p => p - 1)}>
+          <button
+            type="button"
+            disabled={page <= 1}
+            className="rounded-lg bg-slate-800 px-3 py-1 font-bold disabled:opacity-40"
+            onClick={() => setPage(p => p - 1)}
+          >
             {t('common.back')}
           </button>
           <span className="px-2 py-1">{page}</span>
-          <button type="button" disabled={page * PAGE_SIZE >= groupTotal} className="rounded-lg bg-slate-800 px-3 py-1 font-bold disabled:opacity-40" onClick={() => setPage(p => p + 1)}>
+          <button
+            type="button"
+            disabled={page * PAGE_SIZE >= groupTotal}
+            className="rounded-lg bg-slate-800 px-3 py-1 font-bold disabled:opacity-40"
+            onClick={() => setPage(p => p + 1)}
+          >
             {t('common.next')}
           </button>
         </div>

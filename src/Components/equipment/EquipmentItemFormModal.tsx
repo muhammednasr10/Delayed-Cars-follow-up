@@ -84,7 +84,11 @@ export function EquipmentItemFormModal({ open, equipmentType, editing, onClose, 
       maxWidthClass="max-w-xl"
       footer={
         <div className="flex justify-end gap-2">
-          <button type="button" onClick={onClose} className="rounded-xl bg-slate-800 px-4 py-2 text-sm font-bold text-slate-200 hover:bg-slate-700">
+          <button
+            type="button"
+            onClick={onClose}
+            className="rounded-xl bg-slate-800 px-4 py-2 text-sm font-bold text-slate-200 hover:bg-slate-700"
+          >
             {t('common.cancel')}
           </button>
           <button
@@ -99,7 +103,9 @@ export function EquipmentItemFormModal({ open, equipmentType, editing, onClose, 
       }
     >
       <div className="space-y-4 p-5">
-        {error && <div className="rounded-xl border border-red-500/30 bg-red-500/10 p-3 text-sm text-red-200">{error}</div>}
+        {error && (
+          <div className="rounded-xl border border-red-500/30 bg-red-500/10 p-3 text-sm text-red-200">{error}</div>
+        )}
 
         <Field label={t('equipment.cols.id')} required>
           <input
@@ -112,20 +118,36 @@ export function EquipmentItemFormModal({ open, equipmentType, editing, onClose, 
         </Field>
 
         <Field label={t('equipment.cols.name')}>
-          <input className={inputCls()} value={form.name ?? ''} onChange={e => setForm(f => ({ ...f, name: e.target.value }))} />
+          <input
+            className={inputCls()}
+            value={form.name ?? ''}
+            onChange={e => setForm(f => ({ ...f, name: e.target.value }))}
+          />
         </Field>
 
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
           <Field label={t('equipment.cols.model')}>
-            <input className={inputCls()} value={form.model ?? ''} onChange={e => setForm(f => ({ ...f, model: e.target.value }))} />
+            <input
+              className={inputCls()}
+              value={form.model ?? ''}
+              onChange={e => setForm(f => ({ ...f, model: e.target.value }))}
+            />
           </Field>
           <Field label={t('equipment.cols.serial')}>
-            <input className={inputCls()} value={form.serialNumber ?? ''} onChange={e => setForm(f => ({ ...f, serialNumber: e.target.value }))} />
+            <input
+              className={inputCls()}
+              value={form.serialNumber ?? ''}
+              onChange={e => setForm(f => ({ ...f, serialNumber: e.target.value }))}
+            />
           </Field>
         </div>
 
         <Field label={t('equipment.cols.location')}>
-          <input className={inputCls()} value={form.location ?? ''} onChange={e => setForm(f => ({ ...f, location: e.target.value }))} />
+          <input
+            className={inputCls()}
+            value={form.location ?? ''}
+            onChange={e => setForm(f => ({ ...f, location: e.target.value }))}
+          />
         </Field>
 
         {editing && (
@@ -145,7 +167,11 @@ export function EquipmentItemFormModal({ open, equipmentType, editing, onClose, 
         )}
 
         <Field label={t('common.notes')}>
-          <textarea className={`${inputCls()} min-h-[3rem] resize-y`} value={form.notes ?? ''} onChange={e => setForm(f => ({ ...f, notes: e.target.value }))} />
+          <textarea
+            className={`${inputCls()} min-h-[3rem] resize-y`}
+            value={form.notes ?? ''}
+            onChange={e => setForm(f => ({ ...f, notes: e.target.value }))}
+          />
         </Field>
       </div>
     </Modal>

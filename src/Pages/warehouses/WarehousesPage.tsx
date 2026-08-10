@@ -33,9 +33,15 @@ export function WarehousesPage() {
   const [setupRequired, setSetupRequired] = useState(false)
 
   useEffect(() => {
-    getWarehouses().then(setWarehouses).catch(() => setWarehouses([]))
-    getVehicleModels().then(setModels).catch(() => setModels([]))
-    getStations().then(setStations).catch(() => setStations([]))
+    getWarehouses()
+      .then(setWarehouses)
+      .catch(() => setWarehouses([]))
+    getVehicleModels()
+      .then(setModels)
+      .catch(() => setModels([]))
+    getStations()
+      .then(setStations)
+      .catch(() => setStations([]))
     getWarehouseFeedingPlans(1)
       .then(() => setSetupRequired(false))
       .catch(e => {
@@ -61,17 +67,29 @@ export function WarehousesPage() {
 
   return (
     <section className="space-y-4">
-      {success && <div className="rounded-xl border border-emerald-500/30 bg-emerald-500/10 p-3 text-sm text-emerald-200">{success}</div>}
+      {success && (
+        <div className="rounded-xl border border-emerald-500/30 bg-emerald-500/10 p-3 text-sm text-emerald-200">
+          {success}
+        </div>
+      )}
       {setupRequired ? (
         <WarehouseDbSetupBanner detail={error} />
       ) : (
-        error && <div className="rounded-xl border border-red-500/30 bg-red-500/10 p-3 text-sm text-red-200">{error}</div>
+        error && (
+          <div className="rounded-xl border border-red-500/30 bg-red-500/10 p-3 text-sm text-red-200">{error}</div>
+        )
       )}
 
       {!setupRequired && tab === 'home' && <WarehousesHomePage />}
       {!setupRequired && tab === 'currentStock' && <WarehouseCurrentStockTab warehouses={warehouses} models={models} />}
       {!setupRequired && tab === 'feeding' && (
-        <WarehouseFeedingTab warehouses={warehouses} models={models} stations={stations} canManage={canManage} notify={notify} />
+        <WarehouseFeedingTab
+          warehouses={warehouses}
+          models={models}
+          stations={stations}
+          canManage={canManage}
+          notify={notify}
+        />
       )}
       {!setupRequired && tab === 'equipment' && (
         <WarehouseEquipmentTab warehouses={warehouses} stations={stations} canManage={canManage} notify={notify} />

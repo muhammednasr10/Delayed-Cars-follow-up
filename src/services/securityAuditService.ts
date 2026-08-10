@@ -41,12 +41,13 @@ type Row = {
   new_values: Record<string, unknown> | null
   reason: string | null
   created_at: string
-  profiles?: { email: string | null; full_name: string | null } | { email: string | null; full_name: string | null }[] | null
+  profiles?:
+    { email: string | null; full_name: string | null } | { email: string | null; full_name: string | null }[] | null
 }
 
 function relOne<T>(value: T | T[] | null | undefined): T | null {
   if (value == null) return null
-  return Array.isArray(value) ? value[0] ?? null : value
+  return Array.isArray(value) ? (value[0] ?? null) : value
 }
 
 function mapRow(row: Row): PermissionAuditEvent {
@@ -69,7 +70,9 @@ function mapRow(row: Row): PermissionAuditEvent {
 export async function getPermissionAuditEvents(limit = 150): Promise<PermissionAuditEvent[]> {
   const { data, error } = await client()
     .from('security_audit_events')
-    .select('id, actor_user_id, action, entity_type, entity_id, old_values, new_values, reason, created_at, profiles:actor_user_id(email, full_name)')
+    .select(
+      'id, actor_user_id, action, entity_type, entity_id, old_values, new_values, reason, created_at, profiles:actor_user_id(email, full_name)'
+    )
     .in('action', [...PERMISSION_AUDIT_ACTIONS])
     .order('created_at', { ascending: false })
     .limit(limit)

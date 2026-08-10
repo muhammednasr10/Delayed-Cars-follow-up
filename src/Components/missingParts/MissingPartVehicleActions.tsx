@@ -61,9 +61,7 @@ export function MissingPartVehicleActions({
   const singleBusy = completingVehicleId === target.vehicleId
 
   const wrapClass =
-    layout === 'stacked'
-      ? 'flex flex-wrap items-center justify-end gap-1'
-      : 'flex items-center justify-center gap-1'
+    layout === 'stacked' ? 'flex flex-wrap items-center justify-end gap-1' : 'flex items-center justify-center gap-1'
 
   return (
     <div className={wrapClass}>
@@ -77,7 +75,11 @@ export function MissingPartVehicleActions({
         </IconBtn>
       )}
       {!archiveMode && rowOpen && canNotes && (
-        <IconBtn title={t('mp.thread.open')} onClick={() => onOpenNotes(item)} className="text-cyan-400 hover:bg-cyan-500/20">
+        <IconBtn
+          title={t('mp.thread.open')}
+          onClick={() => onOpenNotes(item)}
+          className="text-cyan-400 hover:bg-cyan-500/20"
+        >
           <MessageSquare className={iconSize} />
         </IconBtn>
       )}
@@ -137,7 +139,13 @@ function IconBtn({
   children: ReactNode
 }) {
   return (
-    <button type="button" title={title} disabled={disabled} onClick={onClick} className={`rounded-md p-1.5 ${className}`}>
+    <button
+      type="button"
+      title={title}
+      disabled={disabled}
+      onClick={onClick}
+      className={`rounded-md p-1.5 ${className}`}
+    >
       {children}
     </button>
   )

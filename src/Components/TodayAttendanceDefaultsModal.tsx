@@ -3,10 +3,7 @@ import { useEffect, useState } from 'react'
 import { useLang } from '../i18n/LanguageContext'
 import { Modal } from './Modal'
 import { inputCls } from './FormField'
-import {
-  attendanceStatusHasTimes,
-  type AttendanceDayStatus
-} from '../Types/attendance'
+import { attendanceStatusHasTimes, type AttendanceDayStatus } from '../Types/attendance'
 import type { PlanDayType } from '../Types/productionPlanWorkDayDaily'
 import {
   attendanceDefaultsFromPlanDay,
@@ -24,13 +21,7 @@ type Props = {
   onApply: (defaults: AttendanceBulkDefaults) => void
 }
 
-export function TodayAttendanceDefaultsModal({
-  open,
-  planDayType,
-  savedDefaults,
-  onClose,
-  onApply
-}: Props) {
+export function TodayAttendanceDefaultsModal({ open, planDayType, savedDefaults, onClose, onApply }: Props) {
   const { t } = useLang()
   const [status, setStatus] = useState<AttendanceDayStatus>('present')
   const [checkIn, setCheckIn] = useState('')
@@ -74,10 +65,18 @@ export function TodayAttendanceDefaultsModal({
       maxWidthClass="max-w-md"
       footer={
         <>
-          <button type="button" onClick={onClose} className="rounded-xl bg-slate-800 px-4 py-2 font-bold text-slate-200">
+          <button
+            type="button"
+            onClick={onClose}
+            className="rounded-xl bg-slate-800 px-4 py-2 font-bold text-slate-200"
+          >
             {t('common.cancel')}
           </button>
-          <button type="button" onClick={apply} className="rounded-xl bg-violet-500 px-5 py-2 font-black text-slate-950">
+          <button
+            type="button"
+            onClick={apply}
+            className="rounded-xl bg-violet-500 px-5 py-2 font-black text-slate-950"
+          >
             {t('attendance.today.defaultsApply')}
           </button>
         </>
@@ -87,7 +86,9 @@ export function TodayAttendanceDefaultsModal({
         {planDayType && (
           <div className="rounded-xl border border-slate-700 bg-slate-900/60 p-3">
             <p className="text-xs font-bold text-slate-400">{t('attendance.today.planDayLabel')}</p>
-            <p className={`mt-1 inline-block rounded-lg px-2.5 py-1 text-sm font-black ${dayTypeBadgeClass(planDayType)}`}>
+            <p
+              className={`mt-1 inline-block rounded-lg px-2.5 py-1 text-sm font-black ${dayTypeBadgeClass(planDayType)}`}
+            >
               {t(`productionOrders.workDaysTab.dayTypes.${planDayType}`)}
             </p>
           </div>

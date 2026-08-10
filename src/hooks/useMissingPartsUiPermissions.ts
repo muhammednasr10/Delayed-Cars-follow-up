@@ -45,27 +45,39 @@ export function useMissingPartsUiPermissions() {
     hasRole('admin', 'production', 'warehouse', 'quality', 'purchasing')
   )
 
-  const canFilter = resolveMissingPartAction(bits, 'filter', () =>
-    hasRole('admin', 'production', 'warehouse', 'quality', 'purchasing') ||
-    Boolean(permissions[permissionKey('missing_parts', 'view')])
+  const canFilter = resolveMissingPartAction(
+    bits,
+    'filter',
+    () =>
+      hasRole('admin', 'production', 'warehouse', 'quality', 'purchasing') ||
+      Boolean(permissions[permissionKey('missing_parts', 'view')])
   )
 
-  const canExport = resolveMissingPartAction(bits, 'export', () =>
-    hasRole('admin', 'production', 'warehouse', 'quality', 'purchasing') ||
-    Boolean(permissions[permissionKey('missing_parts', 'view')])
+  const canExport = resolveMissingPartAction(
+    bits,
+    'export',
+    () =>
+      hasRole('admin', 'production', 'warehouse', 'quality', 'purchasing') ||
+      Boolean(permissions[permissionKey('missing_parts', 'view')])
   )
 
-  const canUpdateStatus = resolveMissingPartAction(bits, 'update_status', () =>
-    bits.isAdmin ||
-    bits.hasRole('admin', 'production') ||
-    bits.hasRole('quality') ||
-    Boolean(permissions[permissionKey('missing_parts', 'update')]) ||
-    Boolean(permissions[permissionKey('missing_parts', 'approve')])
+  const canUpdateStatus = resolveMissingPartAction(
+    bits,
+    'update_status',
+    () =>
+      bits.isAdmin ||
+      bits.hasRole('admin', 'production') ||
+      bits.hasRole('quality') ||
+      Boolean(permissions[permissionKey('missing_parts', 'update')]) ||
+      Boolean(permissions[permissionKey('missing_parts', 'approve')])
   )
 
-  const canNotes = resolveMissingPartAction(bits, 'notes', () =>
-    hasRole('admin', 'production', 'warehouse', 'quality', 'purchasing') ||
-    Boolean(permissions[permissionKey('missing_parts', 'view')])
+  const canNotes = resolveMissingPartAction(
+    bits,
+    'notes',
+    () =>
+      hasRole('admin', 'production', 'warehouse', 'quality', 'purchasing') ||
+      Boolean(permissions[permissionKey('missing_parts', 'view')])
   )
 
   const canEdit = resolveMissingPartAction(bits, 'update', () => {
@@ -93,8 +105,13 @@ export function useMissingPartsUiPermissions() {
     )
   })
 
-  const canBulkInstall = resolveMissingPartAction(bits, 'bulk_install', () =>
-    bits.isAdmin || bits.hasRole('admin', 'production') || Boolean(permissions[permissionKey('missing_parts', 'update')])
+  const canBulkInstall = resolveMissingPartAction(
+    bits,
+    'bulk_install',
+    () =>
+      bits.isAdmin ||
+      bits.hasRole('admin', 'production') ||
+      Boolean(permissions[permissionKey('missing_parts', 'update')])
   )
 
   return {

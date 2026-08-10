@@ -93,39 +93,33 @@ const RACK_SELECT = '*, warehouses(code, name), stations(station_number, station
 const CART_SELECT = '*, warehouses(code, name)'
 
 export async function getWarehouseRacks(): Promise<WarehouseRack[]> {
-  const { data, error } = await client()
-    .from('warehouse_racks')
-    .select(RACK_SELECT)
-    .eq('is_active', true)
-    .order('code')
+  const { data, error } = await client().from('warehouse_racks').select(RACK_SELECT).eq('is_active', true).order('code')
   if (error) throw new Error(error.message)
   return (data ?? []).map(row => mapRack(row as RackRow))
 }
 
 export async function getWarehouseCarts(): Promise<WarehouseCart[]> {
-  const { data, error } = await client()
-    .from('warehouse_carts')
-    .select(CART_SELECT)
-    .eq('is_active', true)
-    .order('code')
+  const { data, error } = await client().from('warehouse_carts').select(CART_SELECT).eq('is_active', true).order('code')
   if (error) throw new Error(error.message)
   return (data ?? []).map(row => mapCart(row as CartRow))
 }
 
 export async function createWarehouseRack(input: WarehouseRackInput): Promise<void> {
-  const { error } = await client().from('warehouse_racks').insert({
-    warehouse_id: input.warehouseId || null,
-    station_id: input.stationId || null,
-    code: input.code.trim(),
-    name: input.name?.trim() || null,
-    capacity: input.capacity?.trim() || null,
-    length_mm: input.lengthMm ?? null,
-    width_mm: input.widthMm ?? null,
-    height_mm: input.heightMm ?? null,
-    direction: input.direction?.trim() || null,
-    status: input.status ?? 'active',
-    notes: input.notes?.trim() || null
-  })
+  const { error } = await client()
+    .from('warehouse_racks')
+    .insert({
+      warehouse_id: input.warehouseId || null,
+      station_id: input.stationId || null,
+      code: input.code.trim(),
+      name: input.name?.trim() || null,
+      capacity: input.capacity?.trim() || null,
+      length_mm: input.lengthMm ?? null,
+      width_mm: input.widthMm ?? null,
+      height_mm: input.heightMm ?? null,
+      direction: input.direction?.trim() || null,
+      status: input.status ?? 'active',
+      notes: input.notes?.trim() || null
+    })
   if (error) throw new Error(error.message)
 }
 
@@ -155,20 +149,22 @@ export async function deleteWarehouseRack(id: string): Promise<void> {
 }
 
 export async function createWarehouseCart(input: WarehouseCartInput): Promise<void> {
-  const { error } = await client().from('warehouse_carts').insert({
-    warehouse_id: input.warehouseId || null,
-    code: input.code.trim(),
-    name: input.name?.trim() || null,
-    cart_type: input.cartType?.trim() || null,
-    capacity: input.capacity?.trim() || null,
-    max_load_kg: input.maxLoadKg ?? null,
-    doll_count: input.dollCount ?? null,
-    doll_length_cm: input.dollLengthCm ?? null,
-    doll_width_cm: input.dollWidthCm ?? null,
-    doll_height_cm: input.dollHeightCm ?? null,
-    status: input.status ?? 'active',
-    notes: input.notes?.trim() || null
-  })
+  const { error } = await client()
+    .from('warehouse_carts')
+    .insert({
+      warehouse_id: input.warehouseId || null,
+      code: input.code.trim(),
+      name: input.name?.trim() || null,
+      cart_type: input.cartType?.trim() || null,
+      capacity: input.capacity?.trim() || null,
+      max_load_kg: input.maxLoadKg ?? null,
+      doll_count: input.dollCount ?? null,
+      doll_length_cm: input.dollLengthCm ?? null,
+      doll_width_cm: input.dollWidthCm ?? null,
+      doll_height_cm: input.dollHeightCm ?? null,
+      status: input.status ?? 'active',
+      notes: input.notes?.trim() || null
+    })
   if (error) throw new Error(error.message)
 }
 

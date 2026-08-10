@@ -38,9 +38,7 @@ type EtRow = {
   effective_status: string
 }
 
-export async function listOperationTrainingSummaries(
-  stationId?: string
-): Promise<OperationTrainingSummary[]> {
+export async function listOperationTrainingSummaries(stationId?: string): Promise<OperationTrainingSummary[]> {
   let q = client()
     .from('station_operations')
     .select(

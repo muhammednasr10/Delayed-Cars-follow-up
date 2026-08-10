@@ -56,10 +56,7 @@ export function MissingPartsToolbar({
 }: Props) {
   const { t, lang } = useLang()
 
-  const modelSelectOptions = useMemo(
-    () => modelOptions.map(m => ({ value: m, label: m })),
-    [modelOptions]
-  )
+  const modelSelectOptions = useMemo(() => modelOptions.map(m => ({ value: m, label: m })), [modelOptions])
   const departmentSelectOptions = useMemo(
     () => departmentFilterCodes.map(code => ({ value: code, label: mpLookupLabel(departments, code, lang) })),
     [departmentFilterCodes, departments, lang]
@@ -133,7 +130,9 @@ export function MissingPartsToolbar({
           disabled={!canReport}
           title={!canReport ? t('mp.noReportPermHint', { role }) : t('mp.report')}
           className={`inline-flex shrink-0 items-center justify-center gap-2 rounded-xl px-4 py-3 text-sm font-black sm:px-5 ${
-            canReport ? 'bg-cyan-500 text-slate-950 hover:bg-cyan-400' : 'cursor-not-allowed bg-slate-700 text-slate-500'
+            canReport
+              ? 'bg-cyan-500 text-slate-950 hover:bg-cyan-400'
+              : 'cursor-not-allowed bg-slate-700 text-slate-500'
           }`}
         >
           <PlusCircle className="h-6 w-6 shrink-0" />

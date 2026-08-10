@@ -124,9 +124,7 @@ export function EmployeeMultiSelect({ employees, value, onChange, activeOnly = t
       )}
 
       {selected.length > 0 && (
-        <p className="text-[10px] text-slate-500">
-          {t('missions.selectedCount', { n: selected.length })}
-        </p>
+        <p className="text-[10px] text-slate-500">{t('missions.selectedCount', { n: selected.length })}</p>
       )}
     </div>
   )

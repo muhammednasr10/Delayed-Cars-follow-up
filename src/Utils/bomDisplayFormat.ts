@@ -3,9 +3,7 @@ import { DEFAULT_PART_KIND, DEFAULT_SUPPLY_SOURCE, effectivePartKind, effectiveS
 
 /** Type column: P / H/W → جزء / هاردوير */
 export function formatPartKind(raw: string | null | undefined): string {
-  const s = effectivePartKind(raw)
-    .toUpperCase()
-    .replace(/\s+/g, '')
+  const s = effectivePartKind(raw).toUpperCase().replace(/\s+/g, '')
   if (s === 'P' || s === 'PART' || s === 'PARTS' || s === '1' || s.includes('جزء')) return 'part'
   if (
     s === '2' ||

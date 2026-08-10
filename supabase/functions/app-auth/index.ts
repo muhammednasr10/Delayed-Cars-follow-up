@@ -16,6 +16,7 @@ type RefreshBody = {
 type Body = LoginBody | RefreshBody
 
 const SESSION_HOURS = 24
+const REFRESH_TOKEN_DAYS = 30
 
 Deno.serve(async (req: Request) => {
   if (req.method === 'OPTIONS') {
@@ -29,9 +30,7 @@ Deno.serve(async (req: Request) => {
   const supabaseUrl = Deno.env.get('SUPABASE_URL')
   const serviceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')
   const jwtSecret =
-    Deno.env.get('SUPABASE_JWT_SECRET') ??
-    Deno.env.get('JWT_SECRET') ??
-    Deno.env.get('SUPABASE_AUTH_JWT_SECRET')
+    Deno.env.get('SUPABASE_JWT_SECRET') ?? Deno.env.get('JWT_SECRET') ?? Deno.env.get('SUPABASE_AUTH_JWT_SECRET')
   if (!supabaseUrl || !serviceKey || !jwtSecret) {
     return json({ error: 'Server configuration missing' }, 500)
   }
@@ -151,7 +150,7 @@ async function issueTokens(userId: string, email: string | null, jwtSecret: stri
     .setSubject(userId)
     .setAudience('authenticated')
     .setIssuedAt(now)
-    .setExpirationTime(exp + 7 * 24 * 60 * 60)
+    .setExpirationTime(exp + REFRESH_TOKEN_DAYS * 24 * 60 * 60)
     .sign(secret)
 
   return json(

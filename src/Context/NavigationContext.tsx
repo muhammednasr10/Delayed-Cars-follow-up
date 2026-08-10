@@ -160,17 +160,13 @@ function loadNavState(): NavState {
     // ترحيل: الخطة / الأوامر / أيام العمل كانت تحت الإنتاجية
     const legacyProductivityTab = parsed.productivityTab as string | undefined
     const legacyToPlanning: PlanningTab | null =
-      legacyProductivityTab === 'orders'
-        ? 'orders'
-        : legacyProductivityTab === 'workDays'
-          ? 'workDays'
-          : null
+      legacyProductivityTab === 'orders' ? 'orders' : legacyProductivityTab === 'workDays' ? 'workDays' : null
     const productivityTab = PRODUCTIVITY_TABS.includes(parsed.productivityTab as ProductivityTab)
       ? (parsed.productivityTab as ProductivityTab)
       : normalizeProductivityTab(parsed.productivityTab)
     const planningTab = PLANNING_TABS.includes(parsed.planningTab as PlanningTab)
       ? (parsed.planningTab as PlanningTab)
-      : legacyToPlanning ?? initialState.planningTab
+      : (legacyToPlanning ?? initialState.planningTab)
     const planScope = PLAN_SCOPES.includes(parsed.planScope as PlanScope)
       ? (parsed.planScope as PlanScope)
       : initialState.planScope
@@ -204,9 +200,7 @@ function loadNavState(): NavState {
       ...(legacyToPlanning
         ? { department: 'planning' as const, planningTab: legacyToPlanning, showGlobalHome: false }
         : {}),
-      ...(legacyWorkerPage
-        ? { showProfile: true, productionPage: 'home' as const, showGlobalHome: false }
-        : {}),
+      ...(legacyWorkerPage ? { showProfile: true, productionPage: 'home' as const, showGlobalHome: false } : {}),
       sidebarOpen: false,
       productivityStopFormOpen: false
     }
@@ -234,7 +228,9 @@ export function NavigationProvider({ children }: { children: ReactNode }) {
   const navigate = useCallback((patch: NavigatePatch) => {
     setState(prev => {
       if (patch.productionPage === 'workerProfile') {
-        const profileTab = profileTabFromWorkerTab((patch.workerProfileTab ?? prev.workerProfileTab) as WorkerProfileTab)
+        const profileTab = profileTabFromWorkerTab(
+          (patch.workerProfileTab ?? prev.workerProfileTab) as WorkerProfileTab
+        )
         return {
           ...prev,
           showProfile: true,
@@ -262,14 +258,14 @@ export function NavigationProvider({ children }: { children: ReactNode }) {
           patch.productionPage != null ||
           patch.engineeringPage != null ||
           patch.planningTab != null ||
-        patch.planScope != null ||
+          patch.planScope != null ||
           patch.department != null
             ? false
             : prev.showProfile),
         showGlobalHome:
-          patch.showGlobalHome ??
-          (patch.showProfile === true || leavesGlobalHome ? false : prev.showGlobalHome),
-        sidebarOpen: patch.closeSidebar === false ? prev.sidebarOpen : patch.closeSidebar === true ? false : prev.sidebarOpen
+          patch.showGlobalHome ?? (patch.showProfile === true || leavesGlobalHome ? false : prev.showGlobalHome),
+        sidebarOpen:
+          patch.closeSidebar === false ? prev.sidebarOpen : patch.closeSidebar === true ? false : prev.sidebarOpen
       }
       if (patch.bomTab != null) next.bomTab = normalizeBomTab(patch.bomTab as string)
       if (patch.settingsTab === 'stations' && patch.settingsStationsSubTab == null) {
@@ -310,7 +306,8 @@ export function NavigationProvider({ children }: { children: ReactNode }) {
       openProfile: (tab = 'account') =>
         setState(prev => ({ ...prev, showProfile: true, profileTab: tab, showGlobalHome: false, sidebarOpen: false })),
       closeProfile: () => setState(prev => ({ ...prev, showProfile: false, profileTab: 'account' })),
-      openGlobalHome: () => setState(prev => ({ ...prev, showGlobalHome: true, showProfile: false, sidebarOpen: false })),
+      openGlobalHome: () =>
+        setState(prev => ({ ...prev, showGlobalHome: true, showProfile: false, sidebarOpen: false })),
       setBomTab: bomTab => setState(prev => ({ ...prev, bomTab: normalizeBomTab(bomTab) })),
       setLineBalancingTab: lineBalancingTab => setState(prev => ({ ...prev, lineBalancingTab })),
       setTrainingTab: trainingTab => setState(prev => ({ ...prev, trainingTab })),
@@ -318,12 +315,16 @@ export function NavigationProvider({ children }: { children: ReactNode }) {
         setState(prev => ({
           ...prev,
           settingsTab,
-          ...(settingsTab === 'stations' ? { settingsStationsSubTab: prev.settingsStationsSubTab ?? 'assemblyLine' } : {})
+          ...(settingsTab === 'stations'
+            ? { settingsStationsSubTab: prev.settingsStationsSubTab ?? 'assemblyLine' }
+            : {})
         })),
-      setSettingsStationsSubTab: settingsStationsSubTab => setState(prev => ({ ...prev, settingsStationsSubTab, settingsTab: 'stations' })),
+      setSettingsStationsSubTab: settingsStationsSubTab =>
+        setState(prev => ({ ...prev, settingsStationsSubTab, settingsTab: 'stations' })),
       setProductivityTab: productivityTab => setState(prev => ({ ...prev, productivityTab })),
       setProductivitySubTab: productivitySubTab => setState(prev => ({ ...prev, productivitySubTab })),
-      setProductivityStopFormOpen: productivityStopFormOpen => setState(prev => ({ ...prev, productivityStopFormOpen })),
+      setProductivityStopFormOpen: productivityStopFormOpen =>
+        setState(prev => ({ ...prev, productivityStopFormOpen })),
       setAttendanceSubTab: attendanceSubTab => setState(prev => ({ ...prev, attendanceSubTab })),
       setPlanningTab: planningTab =>
         setState(prev => ({
@@ -334,7 +335,8 @@ export function NavigationProvider({ children }: { children: ReactNode }) {
       setPlanScope: planScope => setState(prev => ({ ...prev, planScope, planningTab: 'plan' })),
       setWarehousesTab: warehousesTab => setState(prev => ({ ...prev, warehousesTab })),
       setWarehousesFeedingSubTab: warehousesFeedingSubTab => setState(prev => ({ ...prev, warehousesFeedingSubTab })),
-      setWarehousesEquipmentSubTab: warehousesEquipmentSubTab => setState(prev => ({ ...prev, warehousesEquipmentSubTab })),
+      setWarehousesEquipmentSubTab: warehousesEquipmentSubTab =>
+        setState(prev => ({ ...prev, warehousesEquipmentSubTab })),
       setQualityTab: qualityTab => setState(prev => ({ ...prev, qualityTab })),
       setWorkerProfileTab: workerProfileTab => setState(prev => ({ ...prev, workerProfileTab })),
       setSidebarOpen: sidebarOpen => setState(prev => ({ ...prev, sidebarOpen })),

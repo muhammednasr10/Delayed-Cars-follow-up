@@ -31,8 +31,14 @@ export function TrainingStatusBadge({ status }: { status: TrainingStatus }) {
 
 export function QualificationBadge({ qualified }: { qualified: boolean }) {
   const { t } = useLang()
-  const cls = qualified ? 'bg-emerald-500/15 text-emerald-200 ring-emerald-400/30' : 'bg-red-500/15 text-red-200 ring-red-400/30'
-  return <span className={`${base} ${cls}`}>{qualified ? t('training.qualifiedBadge') : t('trainingStatus.not_trained')}</span>
+  const cls = qualified
+    ? 'bg-emerald-500/15 text-emerald-200 ring-emerald-400/30'
+    : 'bg-red-500/15 text-red-200 ring-red-400/30'
+  return (
+    <span className={`${base} ${cls}`}>
+      {qualified ? t('training.qualifiedBadge') : t('trainingStatus.not_trained')}
+    </span>
+  )
 }
 
 // 1..5 rating shown as filled/empty stars (RTL-safe, no locale text).
@@ -43,7 +49,9 @@ export function RatingBadge({ rating }: { rating: number | null }) {
   return (
     <span className={`inline-flex items-center gap-0.5 text-sm font-bold ${tone}`} dir="ltr" title={`${rating}/5`}>
       {[1, 2, 3, 4, 5].map(i => (
-        <span key={i} className={i <= rating ? '' : 'text-slate-600'}>★</span>
+        <span key={i} className={i <= rating ? '' : 'text-slate-600'}>
+          ★
+        </span>
       ))}
     </span>
   )

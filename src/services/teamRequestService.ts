@@ -30,7 +30,7 @@ type Row = {
 
 function relOne<T>(value: T | T[] | null | undefined): T | null {
   if (value == null) return null
-  return Array.isArray(value) ? value[0] ?? null : value
+  return Array.isArray(value) ? (value[0] ?? null) : value
 }
 
 function mapManagers(
@@ -48,11 +48,13 @@ function mapManagers(
       }
     })
   }
-  return [{
-    id: fallbackManagerId,
-    name: fallbackManager?.full_name ?? '—',
-    code: fallbackManager?.employee_code ?? '—'
-  }]
+  return [
+    {
+      id: fallbackManagerId,
+      name: fallbackManager?.full_name ?? '—',
+      code: fallbackManager?.employee_code ?? '—'
+    }
+  ]
 }
 
 function mapRow(row: Row): TeamRequest {
@@ -113,7 +115,11 @@ export async function createTeamRequest(_requesterId: string, input: TeamRequest
     throw new Error(error.message)
   }
   const id = data as string
-  const { data: full, error: loadErr } = await requireClient().from('team_requests').select(SELECT).eq('id', id).single()
+  const { data: full, error: loadErr } = await requireClient()
+    .from('team_requests')
+    .select(SELECT)
+    .eq('id', id)
+    .single()
   if (loadErr) throw new Error(loadErr.message)
   return mapRow(full as Row)
 }

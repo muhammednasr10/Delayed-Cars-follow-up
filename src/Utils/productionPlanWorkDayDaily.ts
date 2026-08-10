@@ -1,4 +1,8 @@
-import type { PlanDayType, ProductionPlanWorkDayEdit, ProductionPlanWorkDayRow } from '../Types/productionPlanWorkDayDaily'
+import type {
+  PlanDayType,
+  ProductionPlanWorkDayEdit,
+  ProductionPlanWorkDayRow
+} from '../Types/productionPlanWorkDayDaily'
 import { defaultWorkDayRow } from '../Types/productionPlanWorkDayDaily'
 import { listDatesInMonth } from '../services/entryProductivityService'
 import { DEFAULT_PLANNED_WORK_HOURS } from './workScheduleDefaults'
@@ -95,11 +99,7 @@ export function computeProductivityLossRemainder(productivity: number, stopLostV
   return Math.max(0, computeProductivityLostCars(productivity) - stopLostVehicles)
 }
 
-export function computeProductivityDeficit(
-  actualHours: number,
-  lineJph: number,
-  productivity: number
-): number {
+export function computeProductivityDeficit(actualHours: number, lineJph: number, productivity: number): number {
   if (lineJph <= 0) return 0
   return Math.round(actualHours * lineJph - productivity)
 }
@@ -123,11 +123,7 @@ export function computeMonthProductivityEfficiency(
 }
 
 /** @deprecated use computeProductivityDeficit */
-export function computeTotalLostVehicles(
-  actualHours: number,
-  lineJph: number,
-  entryProductivity: number
-): number {
+export function computeTotalLostVehicles(actualHours: number, lineJph: number, entryProductivity: number): number {
   return computeProductivityDeficit(actualHours, lineJph, entryProductivity)
 }
 

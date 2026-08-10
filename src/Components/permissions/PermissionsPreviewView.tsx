@@ -62,7 +62,9 @@ export function PermissionsPreviewView({ items, effectivePerms, subjectLabel }: 
   return (
     <div className="space-y-4">
       <div className="rounded-xl border border-emerald-500/25 bg-emerald-500/5 px-4 py-3">
-        <p className="text-sm font-black text-emerald-100">{t('permissions.preview.heading', { name: subjectLabel })}</p>
+        <p className="text-sm font-black text-emerald-100">
+          {t('permissions.preview.heading', { name: subjectLabel })}
+        </p>
         <p className="mt-1 text-xs text-slate-400">{t('permissions.preview.hint')}</p>
         <div className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-4">
           <div className="rounded-lg border border-emerald-500/20 bg-emerald-500/10 px-3 py-2 text-center">

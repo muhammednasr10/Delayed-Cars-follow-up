@@ -27,7 +27,7 @@ function normRawKey(k: string): string {
 /** English column from IPL raw row (Part Name(EN), etc.). */
 export function englishFromRaw(raw: Record<string, string> | null | undefined): string {
   if (!raw) return ''
-  let best = ''
+  const best = ''
   for (const [key, val] of Object.entries(raw)) {
     const v = String(val ?? '').trim()
     if (!v || isMostlyArabic(v)) continue
@@ -213,11 +213,7 @@ export function resolvePartNameEn(row: {
 }
 
 /** Pick English name for import (never store Arabic in part_name_en). */
-export function sanitizePartNameEn(
-  partNameAr: string,
-  partNameEn: string,
-  raw?: Record<string, string>
-): string {
+export function sanitizePartNameEn(partNameAr: string, partNameEn: string, raw?: Record<string, string>): string {
   const en = partNameEn.trim()
   if (en && isLatinPartName(en)) return en
   const fromRaw = englishFromRaw(raw)

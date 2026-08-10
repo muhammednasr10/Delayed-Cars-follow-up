@@ -48,7 +48,9 @@ export function normalizePartDirection(value: string | null | undefined): string
 }
 
 export function normalizePackingType(value: string | null | undefined): PackingType | '' {
-  const s = String(value ?? '').trim().toLowerCase()
+  const s = String(value ?? '')
+    .trim()
+    .toLowerCase()
   if (!s) return ''
   if (s === 'carton' || s.includes('كرتون')) return 'carton'
   if (s === 'bin' || s.includes('برنيك')) return 'bin'
@@ -74,8 +76,7 @@ export function iplFeedingCardFromBomItem(
 ): BomIplFeedingCard {
   const logistics = iplLogisticsFromBomItem(item)
   const stopper = item.stopper_type
-  const stopper_type =
-    stopper === 'line_stopper' || stopper === 'car_stopper' ? stopper : 'non_stopper'
+  const stopper_type = stopper === 'line_stopper' || stopper === 'car_stopper' ? stopper : 'non_stopper'
   return { ...logistics, stopper_type }
 }
 
@@ -134,24 +135,8 @@ export function extractIplLogisticsFromRaw(raw?: Record<string, string> | null):
     'الكمية في الكرتونة',
     'كمية_الكرتونة'
   )
-  const part_weight = pickRaw(
-    raw,
-    'part_weight',
-    'weight',
-    'الوزن',
-    'وزن',
-    'وزن_الجزء',
-    'weight_kg',
-    'wt',
-    'mass'
-  )
-  const carton_weight = pickRaw(
-    raw,
-    'carton_weight',
-    'box_weight',
-    'وزن_الكرتونة',
-    'وزن الكرتونة'
-  )
+  const part_weight = pickRaw(raw, 'part_weight', 'weight', 'الوزن', 'وزن', 'وزن_الجزء', 'weight_kg', 'wt', 'mass')
+  const carton_weight = pickRaw(raw, 'carton_weight', 'box_weight', 'وزن_الكرتونة', 'وزن الكرتونة')
   const rack_size = pickRaw(
     raw,
     'rack_size',

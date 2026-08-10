@@ -38,9 +38,7 @@ export function buildVariantToFamilyMap(models: VehicleModel[]): Map<string, str
 }
 
 export function productivityModelRows(models: VehicleModel[]): VehicleModel[] {
-  return models
-    .filter(m => m.is_active && m.model_kind === 'family')
-    .sort((a, b) => a.name.localeCompare(b.name, 'ar'))
+  return models.filter(m => m.is_active && m.model_kind === 'family').sort((a, b) => a.name.localeCompare(b.name, 'ar'))
 }
 
 export function modelDisplayLabel(model: VehicleModel): string {
@@ -67,19 +65,11 @@ export function buildModelColumns(models: VehicleModel[]): ModelColumn[] {
   }))
 }
 
-export function sumVariantsForDay(
-  grid: Map<string, number>,
-  modelIds: string[],
-  workDate: string
-): number {
+export function sumVariantsForDay(grid: Map<string, number>, modelIds: string[], workDate: string): number {
   return modelIds.reduce((sum, modelId) => sum + (grid.get(`${modelId}|${workDate}`) ?? 0), 0)
 }
 
-export function sumVariantForMonth(
-  grid: Map<string, number>,
-  modelId: string,
-  dates: string[]
-): number {
+export function sumVariantForMonth(grid: Map<string, number>, modelId: string, dates: string[]): number {
   return dates.reduce((sum, workDate) => sum + (grid.get(`${modelId}|${workDate}`) ?? 0), 0)
 }
 
@@ -155,11 +145,7 @@ export function buildMonthGrid(
   return grid
 }
 
-export function tallyVehiclesByModelDay(
-  vehicles: VehicleOverview[],
-  year: number,
-  month: number
-): Map<string, number> {
+export function tallyVehiclesByModelDay(vehicles: VehicleOverview[], year: number, month: number): Map<string, number> {
   const prefix = `${year}-${String(month).padStart(2, '0')}`
   const grid = new Map<string, number>()
   for (const vehicle of vehicles) {

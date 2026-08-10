@@ -111,15 +111,9 @@ export function TodayAttendanceTab({ employees, canManage, onSaved }: Props) {
   const quickCheckInRef = useRef(DEFAULT_ATTENDANCE_CHECK_IN)
   const quickCheckOutRef = useRef(DEFAULT_ATTENDANCE_CHECK_OUT)
 
-  const activeEmployees = useMemo(
-    () => [...employees].filter(e => e.isActive).sort(compareEmployees),
-    [employees]
-  )
+  const activeEmployees = useMemo(() => [...employees].filter(e => e.isActive).sort(compareEmployees), [employees])
 
-  const allowedStatuses = useMemo(
-    () => allowedAttendanceStatusesForPlanDay(todayPlanDayType),
-    [todayPlanDayType]
-  )
+  const allowedStatuses = useMemo(() => allowedAttendanceStatusesForPlanDay(todayPlanDayType), [todayPlanDayType])
 
   useEffect(() => {
     rowsRef.current = rows
@@ -329,15 +323,12 @@ export function TodayAttendanceTab({ employees, canManage, onSaved }: Props) {
   )
 
   const flushQuickEntryFor = useCallback(
-    async (
-      empId: string,
-      quick: { status: AttendanceDayStatus; checkIn: string; checkOut: string }
-    ) => {
+    async (empId: string, quick: { status: AttendanceDayStatus; checkIn: string; checkOut: string }) => {
       if (!canManage || !empId) return
       const index = rowsRef.current.findIndex(r => r.employeeId === empId)
       if (index === -1) return
       const row = rowsRef.current[index]
-      let status = quick.status
+      const status = quick.status
       let checkIn = quick.checkIn
       let checkOut = quick.checkOut
       if (!attendanceStatusHasTimes(status)) {
@@ -370,7 +361,7 @@ export function TodayAttendanceTab({ employees, canManage, onSaved }: Props) {
       const index = rowsRef.current.findIndex(r => r.employeeId === empId)
       if (index === -1) return
       const row = rowsRef.current[index]
-      let status = patch?.status ?? quickStatusRef.current
+      const status = patch?.status ?? quickStatusRef.current
       let checkIn = patch?.checkIn ?? quickCheckInRef.current
       let checkOut = patch?.checkOut ?? quickCheckOutRef.current
       if (!attendanceStatusHasTimes(status)) {
@@ -521,9 +512,7 @@ export function TodayAttendanceTab({ employees, canManage, onSaved }: Props) {
             >
               <Settings2 className="me-1 inline h-4 w-4" /> {t('attendance.today.defaultsBtn')}
             </button>
-            {saveState === 'saving' && (
-              <span className="text-xs font-bold text-violet-300">{t('common.saving')}</span>
-            )}
+            {saveState === 'saving' && <span className="text-xs font-bold text-violet-300">{t('common.saving')}</span>}
             {saveState === 'saved' && (
               <span className="text-xs font-bold text-emerald-300">{t('attendance.today.autoSaved')}</span>
             )}
@@ -579,7 +568,9 @@ export function TodayAttendanceTab({ employees, canManage, onSaved }: Props) {
         allowedStatuses={allowedStatuses}
       />
 
-      {error && <div className="rounded-xl border border-red-500/30 bg-red-500/10 p-3 text-sm text-red-200">{error}</div>}
+      {error && (
+        <div className="rounded-xl border border-red-500/30 bg-red-500/10 p-3 text-sm text-red-200">{error}</div>
+      )}
 
       <div className="overflow-x-auto rounded-2xl border border-slate-800">
         {loading ? (
@@ -591,7 +582,9 @@ export function TodayAttendanceTab({ employees, canManage, onSaved }: Props) {
                 <th className="table-cell text-xs font-black uppercase text-slate-400">{t('attendance.cols.code')}</th>
                 <th className="table-cell text-xs font-black uppercase text-slate-400">{t('attendance.cols.name')}</th>
                 <th className="table-cell text-xs font-black uppercase text-slate-400">{t('attendance.cols.role')}</th>
-                <th className="table-cell text-xs font-black uppercase text-slate-400">{t('attendance.cols.status')}</th>
+                <th className="table-cell text-xs font-black uppercase text-slate-400">
+                  {t('attendance.cols.status')}
+                </th>
                 <th className="table-cell text-xs font-black uppercase text-slate-400">{t('attendance.checkIn')}</th>
                 <th className="table-cell text-xs font-black uppercase text-slate-400">{t('attendance.checkOut')}</th>
                 <th className="table-cell text-xs font-black uppercase text-slate-400">{t('common.notes')}</th>

@@ -273,7 +273,9 @@ export function UsersPermissionsPanel({ notify }: { notify: (m: string, err?: bo
 
   useEffect(() => {
     if (!selectedRoleId) return
-    getRolePermissions(selectedRoleId).then(setRolePerms).catch(() => setRolePerms(new Map()))
+    getRolePermissions(selectedRoleId)
+      .then(setRolePerms)
+      .catch(() => setRolePerms(new Map()))
   }, [selectedRoleId])
 
   useEffect(() => {
@@ -388,90 +390,90 @@ export function UsersPermissionsPanel({ notify }: { notify: (m: string, err?: bo
           </div>
           <div className="card-industrial overflow-hidden">
             <ExportableTable filename="users" title={t('permissions.tabs.users')} rowCount={users.length}>
-            <div className="overflow-x-auto">
-            <table className="w-full min-w-[900px] text-sm">
-              <thead>
-                <tr className="border-b border-slate-800 text-[10px] font-black uppercase text-slate-500">
-                  <th className="table-cell">{t('permissions.userEmail')}</th>
-                  <th className="table-cell">{t('permissions.linkedEmployee')}</th>
-                  <th className="table-cell">{t('permissions.jobRole')}</th>
-                  <th className="table-cell">{t('permissions.systemRole')}</th>
-                  <th className="table-cell">{t('permissions.status')}</th>
-                  <th data-export-skip className="table-cell">{t('common.actions')}</th>
-                </tr>
-              </thead>
-              <tbody>
-                {users.map(u => {
-                  const st = userStatus(u)
-                  return (
-                    <tr key={u.id} className="border-b border-slate-800/80">
-                      <td className="table-cell">{u.email}</td>
-                      <td className="table-cell">
-                        {u.employee_full_name ? `${u.employee_code} — ${u.employee_full_name}` : '—'}
-                      </td>
-                      <td className="table-cell">{u.job_role ? t(`jobRole.${u.job_role}`) : '—'}</td>
-                      <td className="table-cell">{u.system_role_name_ar || '—'}</td>
-                      <td className={`table-cell font-bold ${st.cls}`}>{st.label}</td>
-                      <td data-export-skip className="table-cell">
-                        <div className="flex flex-wrap items-center gap-2">
-                          <button
-                            type="button"
-                            title={t('common.edit')}
-                            className="rounded-lg p-1.5 text-cyan-400 hover:bg-slate-800"
-                            onClick={() => setUserForm({ mode: 'edit', user: u })}
-                          >
-                            <Pencil className="h-4 w-4" />
-                          </button>
-                          <button
-                            type="button"
-                            title={t('permissions.managePassword')}
-                            className="rounded-lg p-1.5 text-amber-300 hover:bg-slate-800"
-                            onClick={() => setPasswordUser(u)}
-                          >
-                            <KeyRound className="h-4 w-4" />
-                          </button>
-                          {u.id !== profile?.id && (
-                            <button
-                              type="button"
-                              title={t('permissions.deleteUserPermanently')}
-                              className="rounded-lg p-1.5 text-red-400 hover:bg-slate-800"
-                              onClick={() => setDeleteUser(u)}
-                            >
-                              <Trash2 className="h-4 w-4" />
-                            </button>
-                          )}
-                          {!u.is_blocked ? (
-                            <button type="button" className="text-xs text-red-400" onClick={() => setBlockModal(u)}>
-                              {t('permissions.blockUser')}
-                            </button>
-                          ) : (
-                            <button
-                              type="button"
-                              className="text-xs text-emerald-400"
-                              onClick={() =>
-                                void unblockUser(u.id).then(() => reload().then(() => notify(t('permissions.userUnblocked'))))
-                              }
-                            >
-                              {t('permissions.unblockUser')}
-                            </button>
-                          )}
-                        </div>
-                      </td>
+              <div className="overflow-x-auto">
+                <table className="w-full min-w-[900px] text-sm">
+                  <thead>
+                    <tr className="border-b border-slate-800 text-[10px] font-black uppercase text-slate-500">
+                      <th className="table-cell">{t('permissions.userEmail')}</th>
+                      <th className="table-cell">{t('permissions.linkedEmployee')}</th>
+                      <th className="table-cell">{t('permissions.jobRole')}</th>
+                      <th className="table-cell">{t('permissions.systemRole')}</th>
+                      <th className="table-cell">{t('permissions.status')}</th>
+                      <th data-export-skip className="table-cell">
+                        {t('common.actions')}
+                      </th>
                     </tr>
-                  )
-                })}
-              </tbody>
-            </table>
-            </div>
+                  </thead>
+                  <tbody>
+                    {users.map(u => {
+                      const st = userStatus(u)
+                      return (
+                        <tr key={u.id} className="border-b border-slate-800/80">
+                          <td className="table-cell">{u.email}</td>
+                          <td className="table-cell">
+                            {u.employee_full_name ? `${u.employee_code} — ${u.employee_full_name}` : '—'}
+                          </td>
+                          <td className="table-cell">{u.job_role ? t(`jobRole.${u.job_role}`) : '—'}</td>
+                          <td className="table-cell">{u.system_role_name_ar || '—'}</td>
+                          <td className={`table-cell font-bold ${st.cls}`}>{st.label}</td>
+                          <td data-export-skip className="table-cell">
+                            <div className="flex flex-wrap items-center gap-2">
+                              <button
+                                type="button"
+                                title={t('common.edit')}
+                                className="rounded-lg p-1.5 text-cyan-400 hover:bg-slate-800"
+                                onClick={() => setUserForm({ mode: 'edit', user: u })}
+                              >
+                                <Pencil className="h-4 w-4" />
+                              </button>
+                              <button
+                                type="button"
+                                title={t('permissions.managePassword')}
+                                className="rounded-lg p-1.5 text-amber-300 hover:bg-slate-800"
+                                onClick={() => setPasswordUser(u)}
+                              >
+                                <KeyRound className="h-4 w-4" />
+                              </button>
+                              {u.id !== profile?.id && (
+                                <button
+                                  type="button"
+                                  title={t('permissions.deleteUserPermanently')}
+                                  className="rounded-lg p-1.5 text-red-400 hover:bg-slate-800"
+                                  onClick={() => setDeleteUser(u)}
+                                >
+                                  <Trash2 className="h-4 w-4" />
+                                </button>
+                              )}
+                              {!u.is_blocked ? (
+                                <button type="button" className="text-xs text-red-400" onClick={() => setBlockModal(u)}>
+                                  {t('permissions.blockUser')}
+                                </button>
+                              ) : (
+                                <button
+                                  type="button"
+                                  className="text-xs text-emerald-400"
+                                  onClick={() =>
+                                    void unblockUser(u.id).then(() =>
+                                      reload().then(() => notify(t('permissions.userUnblocked')))
+                                    )
+                                  }
+                                >
+                                  {t('permissions.unblockUser')}
+                                </button>
+                              )}
+                            </div>
+                          </td>
+                        </tr>
+                      )
+                    })}
+                  </tbody>
+                </table>
+              </div>
             </ExportableTable>
           </div>
         </>
       ) : subTab === 'requests' ? (
-        <UserRequestsTab
-          users={users}
-          notify={notify}
-          onChanged={() => void reloadOpenRequestCount()}
-        />
+        <UserRequestsTab users={users} notify={notify} onChanged={() => void reloadOpenRequestCount()} />
       ) : subTab === 'roles' ? (
         <>
           <div className="flex justify-end">
@@ -487,7 +489,10 @@ export function UsersPermissionsPanel({ notify }: { notify: (m: string, err?: bo
           <div className="card-industrial p-4">
             <ul className="space-y-2">
               {roles.map(r => (
-                <li key={r.id} className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-slate-800 px-3 py-2">
+                <li
+                  key={r.id}
+                  className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-slate-800 px-3 py-2"
+                >
                   <div>
                     <span className="font-bold text-white">{r.role_name_ar}</span>
                     {!r.is_active && <span className="ms-2 text-xs text-slate-500">({t('permissions.inactive')})</span>}
@@ -549,19 +554,23 @@ export function UsersPermissionsPanel({ notify }: { notify: (m: string, err?: bo
       ) : (
         <div className="card-industrial p-4">
           <ul className="space-y-2">
-            {users.filter(u => u.is_blocked).map(u => (
-              <li key={u.id} className="rounded-lg border border-red-500/30 bg-red-500/5 p-3 text-sm">
-                <p className="font-bold text-white">{u.email}</p>
-                <p className="text-red-200">{u.blocked_reason}</p>
-                <button
-                  type="button"
-                  className="mt-2 text-xs text-emerald-400"
-                  onClick={() => void unblockUser(u.id).then(() => reload().then(() => notify(t('permissions.userUnblocked'))))}
-                >
-                  {t('permissions.unblockUser')}
-                </button>
-              </li>
-            ))}
+            {users
+              .filter(u => u.is_blocked)
+              .map(u => (
+                <li key={u.id} className="rounded-lg border border-red-500/30 bg-red-500/5 p-3 text-sm">
+                  <p className="font-bold text-white">{u.email}</p>
+                  <p className="text-red-200">{u.blocked_reason}</p>
+                  <button
+                    type="button"
+                    className="mt-2 text-xs text-emerald-400"
+                    onClick={() =>
+                      void unblockUser(u.id).then(() => reload().then(() => notify(t('permissions.userUnblocked'))))
+                    }
+                  >
+                    {t('permissions.unblockUser')}
+                  </button>
+                </li>
+              ))}
           </ul>
         </div>
       )}
@@ -637,7 +646,12 @@ export function UsersPermissionsPanel({ notify }: { notify: (m: string, err?: bo
         }
       >
         <Field label={t('permissions.blockReason')} required>
-          <textarea className={inputCls()} rows={3} value={blockReason} onChange={e => setBlockReason(e.target.value)} />
+          <textarea
+            className={inputCls()}
+            rows={3}
+            value={blockReason}
+            onChange={e => setBlockReason(e.target.value)}
+          />
         </Field>
       </Modal>
     </div>

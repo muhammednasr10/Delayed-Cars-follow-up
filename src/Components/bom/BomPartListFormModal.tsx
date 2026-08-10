@@ -5,7 +5,12 @@ import { inputCls } from '../FormField'
 import { Modal } from '../Modal'
 import { getT4cIplStationOptions, type PartListStationOption } from '../../services/partsService'
 import { getVehicleModels } from '../../services/settingsService'
-import { isLatinPartName, isMostlyArabic, translateArabicPartName, translateEnglishPartName } from '../../Utils/partNameEn'
+import {
+  isLatinPartName,
+  isMostlyArabic,
+  translateArabicPartName,
+  translateEnglishPartName
+} from '../../Utils/partNameEn'
 import { displayBomStationCode } from '../../Utils/bomStationCode'
 import { isAssignableModel } from '../../Utils/vehicleModelHierarchy'
 import type { VehicleModel } from '../../Types/settings'
@@ -29,7 +34,16 @@ type Props = {
   onChange: (form: PartListFormState) => void
 }
 
-export function BomPartListFormModal({ open, editId, form, busy, defaultModelNames, onClose, onSave, onChange }: Props) {
+export function BomPartListFormModal({
+  open,
+  editId,
+  form,
+  busy,
+  defaultModelNames,
+  onClose,
+  onSave,
+  onChange
+}: Props) {
   const { t } = useLang()
   const [stationOptions, setStationOptions] = useState<PartListStationOption[]>([])
   const [vehicleModels, setVehicleModels] = useState<VehicleModel[]>([])
@@ -198,7 +212,11 @@ export function BomPartListFormModal({ open, editId, form, busy, defaultModelNam
         </label>
         <label className="block sm:col-span-2">
           <span className="mb-1 block text-xs text-slate-500">{t('bom.col.common_name')}</span>
-          <input className={inputCls()} value={form.common_name} onChange={e => patch({ common_name: e.target.value })} />
+          <input
+            className={inputCls()}
+            value={form.common_name}
+            onChange={e => patch({ common_name: e.target.value })}
+          />
         </label>
         <div className="sm:col-span-2">
           <span className="mb-2 block text-xs text-slate-500">{t('bom.col.used_in_models')}</span>

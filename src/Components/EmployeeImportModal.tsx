@@ -3,11 +3,7 @@ import { FileUp, Upload } from 'lucide-react'
 import { useLang } from '../i18n/LanguageContext'
 import { Modal } from './Modal'
 import { bulkCreateEmployees } from '../services/employeesService'
-import {
-  parseEmployeeImportFile,
-  previewRowToInput,
-  type EmployeeImportPreviewRow
-} from '../Utils/employeeSheetImport'
+import { parseEmployeeImportFile, previewRowToInput, type EmployeeImportPreviewRow } from '../Utils/employeeSheetImport'
 import type { Employee } from '../Types/employee'
 import type { WorkArea } from '../Types/settings'
 
@@ -85,7 +81,12 @@ export function EmployeeImportModal({ open, employees, areas, busy, onClose, onD
       maxWidthClass="max-w-4xl"
       footer={
         <>
-          <button type="button" disabled={busy || importing} onClick={handleClose} className="rounded-xl bg-slate-800 px-4 py-2 font-bold text-slate-200 hover:bg-slate-700 disabled:opacity-50">
+          <button
+            type="button"
+            disabled={busy || importing}
+            onClick={handleClose}
+            className="rounded-xl bg-slate-800 px-4 py-2 font-bold text-slate-200 hover:bg-slate-700 disabled:opacity-50"
+          >
             {t('common.cancel')}
           </button>
           <button
@@ -126,7 +127,9 @@ export function EmployeeImportModal({ open, employees, areas, busy, onClose, onD
           {t('org.import.chooseFile')}
         </button>
 
-        {parseError && <div className="rounded-lg border border-red-500/30 bg-red-500/10 p-3 text-red-200">{parseError}</div>}
+        {parseError && (
+          <div className="rounded-lg border border-red-500/30 bg-red-500/10 p-3 text-red-200">{parseError}</div>
+        )}
 
         {preview.length > 0 && (
           <div className="space-y-2">
@@ -150,22 +153,32 @@ export function EmployeeImportModal({ open, employees, areas, busy, onClose, onD
                   {preview.slice(0, 50).map(r => (
                     <tr key={r.rowNum} className={r.errors.length ? 'bg-red-500/5' : ''}>
                       <td className="table-cell text-slate-500">{r.rowNum}</td>
-                      <td className="table-cell font-mono text-white" dir="ltr">{r.employeeCode || '—'}</td>
+                      <td className="table-cell font-mono text-white" dir="ltr">
+                        {r.employeeCode || '—'}
+                      </td>
                       <td className="table-cell">{r.fullName || '—'}</td>
-                      <td className="table-cell">{r.jobRole ? t(`jobRole.${r.jobRole}`) : r.errors.includes('UNKNOWN_ROLE') ? '?' : '—'}</td>
-                      <td className="table-cell">{r.assignmentStatus ? t(`org.assignmentStatus.${r.assignmentStatus}`) : '—'}</td>
+                      <td className="table-cell">
+                        {r.jobRole ? t(`jobRole.${r.jobRole}`) : r.errors.includes('UNKNOWN_ROLE') ? '?' : '—'}
+                      </td>
+                      <td className="table-cell">
+                        {r.assignmentStatus ? t(`org.assignmentStatus.${r.assignmentStatus}`) : '—'}
+                      </td>
                       <td className="table-cell">{r.workAreaName ?? '—'}</td>
                       <td className="table-cell">
-                        {r.errors.length === 0
-                          ? <span className="text-emerald-400">{t('org.import.ok')}</span>
-                          : <span className="text-red-300">{r.errors.map(c => errLabel(t, c)).join(' · ')}</span>}
+                        {r.errors.length === 0 ? (
+                          <span className="text-emerald-400">{t('org.import.ok')}</span>
+                        ) : (
+                          <span className="text-red-300">{r.errors.map(c => errLabel(t, c)).join(' · ')}</span>
+                        )}
                       </td>
                     </tr>
                   ))}
                 </tbody>
               </table>
             </div>
-            {preview.length > 50 && <p className="text-xs text-slate-500">{t('org.import.moreRows', { n: preview.length - 50 })}</p>}
+            {preview.length > 50 && (
+              <p className="text-xs text-slate-500">{t('org.import.moreRows', { n: preview.length - 50 })}</p>
+            )}
           </div>
         )}
       </div>

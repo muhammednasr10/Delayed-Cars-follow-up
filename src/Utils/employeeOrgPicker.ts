@@ -12,9 +12,7 @@ export function orgChildren(
   includeIds: string[] = []
 ): FactoryOrgUnit[] {
   const include = new Set(includeIds.filter(Boolean))
-  return units
-    .filter(u => u.parentId === parentId && (u.isActive || include.has(u.id)))
-    .sort(compareUnits)
+  return units.filter(u => u.parentId === parentId && (u.isActive || include.has(u.id))).sort(compareUnits)
 }
 
 export function orgPathFromLeaf(leafId: string | null | undefined, units: FactoryOrgUnit[]): string[] {
@@ -43,11 +41,7 @@ export function orgPathLabel(pathIds: string[], units: FactoryOrgUnit[]): string
   return names.length > 0 ? names.join(' / ') : null
 }
 
-export function orgLevelLabel(
-  parentId: string | null,
-  units: FactoryOrgUnit[],
-  t: (key: string) => string
-): string {
+export function orgLevelLabel(parentId: string | null, units: FactoryOrgUnit[], t: (key: string) => string): string {
   if (!parentId) return t('settings.administrations.kinds.administration')
   const parent = units.find(u => u.id === parentId)
   if (!parent) return ''

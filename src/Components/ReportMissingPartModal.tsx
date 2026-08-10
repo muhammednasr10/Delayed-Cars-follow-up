@@ -133,17 +133,13 @@ export function ReportMissingPartModal({ open, onClose, onReported }: Props) {
   function updatePartItem(key: string, index: number, value: string) {
     setIssues(prev =>
       prev.map(line =>
-        line.key === key
-          ? { ...line, partItems: line.partItems.map((item, i) => (i === index ? value : item)) }
-          : line
+        line.key === key ? { ...line, partItems: line.partItems.map((item, i) => (i === index ? value : item)) } : line
       )
     )
   }
 
   function addPartItem(key: string) {
-    setIssues(prev =>
-      prev.map(line => (line.key === key ? { ...line, partItems: [...line.partItems, ''] } : line))
-    )
+    setIssues(prev => prev.map(line => (line.key === key ? { ...line, partItems: [...line.partItems, ''] } : line)))
   }
 
   function removePartItem(key: string, index: number) {
@@ -232,8 +228,7 @@ export function ReportMissingPartModal({ open, onClose, onReported }: Props) {
     }
   }
 
-  const totalRecords =
-    issues.reduce((sum, line) => sum + issuePartDescriptions(line).length, 0) * vehicle.vehicleCount
+  const totalRecords = issues.reduce((sum, line) => sum + issuePartDescriptions(line).length, 0) * vehicle.vehicleCount
 
   return (
     <Modal
@@ -245,10 +240,16 @@ export function ReportMissingPartModal({ open, onClose, onReported }: Props) {
       footer={
         <div className="w-full space-y-3">
           {formError && (
-            <div className="rounded-xl border border-red-500/40 bg-red-500/15 px-3 py-2 text-sm text-red-200">{formError}</div>
+            <div className="rounded-xl border border-red-500/40 bg-red-500/15 px-3 py-2 text-sm text-red-200">
+              {formError}
+            </div>
           )}
           <div className="flex justify-end gap-2">
-            <button type="button" onClick={onClose} className="rounded-xl bg-slate-800 px-4 py-2 font-bold text-slate-200 hover:bg-slate-700">
+            <button
+              type="button"
+              onClick={onClose}
+              className="rounded-xl bg-slate-800 px-4 py-2 font-bold text-slate-200 hover:bg-slate-700"
+            >
               {t('common.cancel')}
             </button>
             <button
@@ -270,7 +271,9 @@ export function ReportMissingPartModal({ open, onClose, onReported }: Props) {
           {scopeLabel ? (
             <p className="text-sm font-bold text-white">{scopeLabel}</p>
           ) : (
-            <p className="rounded-xl border border-amber-500/30 bg-amber-500/10 p-2 text-xs text-amber-200">{t('mp.errNoOrgUnit')}</p>
+            <p className="rounded-xl border border-amber-500/30 bg-amber-500/10 p-2 text-xs text-amber-200">
+              {t('mp.errNoOrgUnit')}
+            </p>
           )}
         </section>
 
@@ -332,7 +335,11 @@ export function ReportMissingPartModal({ open, onClose, onReported }: Props) {
             </p>
             <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
               {vehicle.vins.map((vin, vi) => (
-                <Field key={vi} label={vehicle.vehicleCount === 1 ? t('mp.f.vin') : t('mp.f.vinN', { n: vi + 1 })} required>
+                <Field
+                  key={vi}
+                  label={vehicle.vehicleCount === 1 ? t('mp.f.vin') : t('mp.f.vinN', { n: vi + 1 })}
+                  required
+                >
                   <input
                     className="input-dark font-mono"
                     dir="ltr"
@@ -354,7 +361,11 @@ export function ReportMissingPartModal({ open, onClose, onReported }: Props) {
               <h3 className="text-xs font-black uppercase tracking-wider text-cyan-300">{t('mp.sectionIssues')}</h3>
               <p className="mt-0.5 text-[10px] text-slate-500">{t('mp.sectionIssuesHint')}</p>
             </div>
-            <button type="button" onClick={addIssue} className="inline-flex items-center gap-1 rounded-lg bg-slate-800 px-3 py-1.5 text-xs font-bold text-cyan-300 hover:bg-slate-700">
+            <button
+              type="button"
+              onClick={addIssue}
+              className="inline-flex items-center gap-1 rounded-lg bg-slate-800 px-3 py-1.5 text-xs font-bold text-cyan-300 hover:bg-slate-700"
+            >
               <Plus className="h-3.5 w-3.5" /> {t('mp.addIssueLine')}
             </button>
           </div>
@@ -414,7 +425,11 @@ export function ReportMissingPartModal({ open, onClose, onReported }: Props) {
 
         <section>
           <Field label={t('mp.f.notes')}>
-            <textarea className="input-dark min-h-16" value={vehicle.notes} onChange={e => setVehicle(p => ({ ...p, notes: e.target.value }))} />
+            <textarea
+              className="input-dark min-h-16"
+              value={vehicle.notes}
+              onChange={e => setVehicle(p => ({ ...p, notes: e.target.value }))}
+            />
           </Field>
         </section>
       </div>
@@ -482,9 +497,7 @@ function ReasonItemsField({
             )}
           </div>
         ))}
-        <p className="text-[10px] text-slate-500">
-          {stockShortage ? t('mp.stockItemsHint') : t('mp.reasonItemsHint')}
-        </p>
+        <p className="text-[10px] text-slate-500">{stockShortage ? t('mp.stockItemsHint') : t('mp.reasonItemsHint')}</p>
       </div>
     </Field>
   )

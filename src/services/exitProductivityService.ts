@@ -2,11 +2,7 @@ import { supabase } from '../lib/supabase'
 import type { EntryProductivityDay, EntryProductivityDayInput } from '../Types/entryProductivity'
 import type { VehicleOverview } from '../Types/vehicle'
 import type { VehicleModel } from '../Types/settings'
-import {
-  buildMonthGrid,
-  buildVariantToFamilyMap,
-  gridToInputs
-} from './entryProductivityService'
+import { buildMonthGrid, buildVariantToFamilyMap, gridToInputs } from './entryProductivityService'
 
 function requireClient() {
   if (!supabase) throw new Error('Supabase غير مهيأ. تحقق من ملف .env')

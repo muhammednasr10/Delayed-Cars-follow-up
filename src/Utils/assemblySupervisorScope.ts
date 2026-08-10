@@ -7,14 +7,7 @@ import { filterWorkforceByOrgScope } from './factoryOrgScope'
 /** إنتاجية الدخول (تريم أ/ب) مقابل الخروج (شاسيه/فاينال) */
 export type AssemblyLineScope = 'entry' | 'exit'
 
-const ENTRY_AREA_PATTERNS = [
-  /تريم\s*[أا]/i,
-  /trim\s*a/i,
-  /تريم\s*[بb]/i,
-  /trim\s*b/i,
-  /^تريم$/i,
-  /^trim$/i
-]
+const ENTRY_AREA_PATTERNS = [/تريم\s*[أا]/i, /trim\s*a/i, /تريم\s*[بb]/i, /trim\s*b/i, /^تريم$/i, /^trim$/i]
 
 const EXIT_AREA_PATTERNS = [/شاسيه/i, /chassis/i, /فاينال/i, /final/i]
 

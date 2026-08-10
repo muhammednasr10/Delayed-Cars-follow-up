@@ -51,9 +51,7 @@ export async function getRolePermissions(roleId: string): Promise<Map<string, bo
   const m = new Map<string, boolean>()
   for (const row of data ?? []) {
     const raw = row.system_permissions as
-      | { module_key: string; permission_key: string }
-      | { module_key: string; permission_key: string }[]
-      | null
+      { module_key: string; permission_key: string } | { module_key: string; permission_key: string }[] | null
     const sp = Array.isArray(raw) ? raw[0] : raw
     if (!sp) continue
     m.set(permissionKey(sp.module_key, sp.permission_key), Boolean(row.allowed))
@@ -112,9 +110,7 @@ export async function getUserEffectivePermissions(
     const permId = row.permission_id as string
     overrideByPermId.set(permId, Boolean(row.allowed))
     const raw = row.system_permissions as
-      | { module_key: string; permission_key: string }
-      | { module_key: string; permission_key: string }[]
-      | null
+      { module_key: string; permission_key: string } | { module_key: string; permission_key: string }[] | null
     const sp = Array.isArray(raw) ? raw[0] : raw
     if (sp) overrideKeys.add(permissionKey(sp.module_key, sp.permission_key))
   }

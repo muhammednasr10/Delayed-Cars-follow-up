@@ -2,10 +2,7 @@ import { UserSearch } from 'lucide-react'
 import { useLang } from '../i18n/LanguageContext'
 import { EmployeeAutocomplete } from './EmployeeAutocomplete'
 import { inputCls } from './FormField'
-import {
-  attendanceStatusHasTimes,
-  type AttendanceDayStatus
-} from '../Types/attendance'
+import { attendanceStatusHasTimes, type AttendanceDayStatus } from '../Types/attendance'
 import type { Employee } from '../Types/employee'
 
 type Props = {

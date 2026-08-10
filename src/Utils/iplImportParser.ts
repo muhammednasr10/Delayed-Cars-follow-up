@@ -41,9 +41,7 @@ function headerIndexEnglishName(headerRow: string[]): number | null {
     const i = norms.indexOf(n)
     if (i >= 0) return i
   }
-  const i = norms.findIndex(
-    h => h !== 'part_name' && (/part_name.*en|english|انجليز/i.test(h) || h.endsWith('_en'))
-  )
+  const i = norms.findIndex(h => h !== 'part_name' && (/part_name.*en|english|انجليز/i.test(h) || h.endsWith('_en')))
   return i >= 0 ? i : null
 }
 
@@ -103,8 +101,7 @@ function parseGroupedVariantSheet(cfg: GroupedSheetConfig): BomImportValidation 
   const iClass = headerIndex(headerRow, ...cfg.classHeaders)
   const iNameAr = headerIndex(headerRow, ...cfg.nameArHeaders)
   const iNameEn =
-    (cfg.nameEnHeaders ? headerIndex(headerRow, ...cfg.nameEnHeaders) : null) ??
-    headerIndexEnglishName(headerRow)
+    (cfg.nameEnHeaders ? headerIndex(headerRow, ...cfg.nameEnHeaders) : null) ?? headerIndexEnglishName(headerRow)
   const iSt = headerIndex(headerRow, ...cfg.stationHeaders)
   const iKind = cfg.partKindHeaders.length > 0 ? headerIndex(headerRow, ...cfg.partKindHeaders) : null
   const iPartClass = cfg.partClassHeaders ? headerIndex(headerRow, ...cfg.partClassHeaders) : null
@@ -316,15 +313,10 @@ const IPL_PARSERS: {
   },
   {
     test: (h, sn) => isGdF12Headers(h, sn),
-    parse: grouped(
-      'IPL-GD-F12',
-      'GD',
-      [{ modelName: 'F12', flag: 'F12', fixedQty: 1 }],
-      {
-        altPartHeaders: ['Alternative Part No.1', 'Alternative Part No.2'],
-        partKindHeaders: []
-      }
-    )
+    parse: grouped('IPL-GD-F12', 'GD', [{ modelName: 'F12', flag: 'F12', fixedQty: 1 }], {
+      altPartHeaders: ['Alternative Part No.1', 'Alternative Part No.2'],
+      partKindHeaders: []
+    })
   },
   {
     test: (h, sn) => isGdF10Headers(h, sn),
@@ -351,9 +343,7 @@ function isT4Headers(headerRow: string[]): boolean {
   const hasSt = headers.includes('st') || headers.includes('station')
   const hasTlc = headers.includes('t') && headers.includes('l') && headers.includes('c')
   const hasNamed =
-    headers.some(h => h.includes('t4t')) &&
-    headers.some(h => h.includes('t4l')) &&
-    headers.some(h => h.includes('t4c'))
+    headers.some(h => h.includes('t4t')) && headers.some(h => h.includes('t4l')) && headers.some(h => h.includes('t4c'))
   return hasPart && hasSt && (hasTlc || hasNamed)
 }
 
@@ -386,11 +376,7 @@ function isGdF12Headers(headerRow: string[], sheetName: string): boolean {
   )
 }
 
-export function parseIplSheetRows(
-  rows: string[][],
-  sheetName: string,
-  headerIdx?: number
-): BomImportValidation | null {
+export function parseIplSheetRows(rows: string[][], sheetName: string, headerIdx?: number): BomImportValidation | null {
   if (rows.length < 2) return null
   const headerRow = rows[headerIdx ?? 0] ?? rows[0]
   const match = IPL_PARSERS.find(p => p.test(headerRow, sheetName))

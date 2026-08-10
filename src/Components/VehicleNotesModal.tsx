@@ -177,9 +177,7 @@ export function VehicleNotesModal({ target, onClose }: Props) {
               <div
                 key={note.id}
                 className={`rounded-xl border px-4 py-3 ${
-                  mine
-                    ? 'border-cyan-500/30 bg-cyan-500/10 ms-6'
-                    : 'border-slate-700 bg-slate-950/60 me-6'
+                  mine ? 'border-cyan-500/30 bg-cyan-500/10 ms-6' : 'border-slate-700 bg-slate-950/60 me-6'
                 }`}
               >
                 <div className="mb-1.5 flex flex-wrap items-center justify-between gap-2 text-xs text-slate-400">

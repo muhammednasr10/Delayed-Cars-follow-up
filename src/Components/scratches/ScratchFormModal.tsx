@@ -61,10 +61,7 @@ export function ScratchFormModal({ open, models, modelsLoading, onClose, onSave,
   const [imagePreview, setImagePreview] = useState<string | null>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
 
-  const orgPreview = useMemo(
-    () => orgPathLabel(form.orgPath, orgUnits),
-    [form.orgPath, orgUnits]
-  )
+  const orgPreview = useMemo(() => orgPathLabel(form.orgPath, orgUnits), [form.orgPath, orgUnits])
 
   useEffect(() => {
     if (!open) return
@@ -145,7 +142,11 @@ export function ScratchFormModal({ open, models, modelsLoading, onClose, onSave,
       maxWidthClass="max-w-xl"
       footer={
         <div className="flex justify-end gap-2">
-          <button type="button" onClick={onClose} className="rounded-xl bg-slate-800 px-4 py-2 text-sm font-bold text-slate-200 hover:bg-slate-700">
+          <button
+            type="button"
+            onClick={onClose}
+            className="rounded-xl bg-slate-800 px-4 py-2 text-sm font-bold text-slate-200 hover:bg-slate-700"
+          >
             {t('common.cancel')}
           </button>
           <button
@@ -160,7 +161,9 @@ export function ScratchFormModal({ open, models, modelsLoading, onClose, onSave,
       }
     >
       <div className="space-y-4 p-5">
-        {error && <div className="rounded-xl border border-red-500/30 bg-red-500/10 p-3 text-sm text-red-200">{error}</div>}
+        {error && (
+          <div className="rounded-xl border border-red-500/30 bg-red-500/10 p-3 text-sm text-red-200">{error}</div>
+        )}
 
         <VehicleModelFamilyPicker
           models={models}
@@ -203,7 +206,9 @@ export function ScratchFormModal({ open, models, modelsLoading, onClose, onSave,
             />
           )}
           {orgPreview && (
-            <p className="rounded-xl border border-slate-700 bg-slate-900/50 px-3 py-2 text-sm text-slate-300">{orgPreview}</p>
+            <p className="rounded-xl border border-slate-700 bg-slate-900/50 px-3 py-2 text-sm text-slate-300">
+              {orgPreview}
+            </p>
           )}
         </div>
 

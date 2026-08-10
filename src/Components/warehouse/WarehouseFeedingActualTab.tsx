@@ -20,8 +20,7 @@ const ACTIVE_ORDER_STATUSES = new Set<ProductionOrder['status']>(['planned', 'in
 
 function orderLabel(order: ProductionOrder) {
   const model = order.modelName ?? '—'
-  const chassis =
-    order.chassisStart && order.chassisEnd ? ` · ${order.chassisStart}–${order.chassisEnd}` : ''
+  const chassis = order.chassisStart && order.chassisEnd ? ` · ${order.chassisStart}–${order.chassisEnd}` : ''
   return `${order.orderNumber} — ${model} (${order.plannedQty})${chassis}`
 }
 
@@ -48,13 +47,7 @@ export function WarehouseFeedingActualTab({ warehouses, stations, canManage, not
   const availableOrders = useMemo(
     () =>
       orders
-        .filter(
-          o =>
-            o.modelId &&
-            o.plannedQty > 0 &&
-            ACTIVE_ORDER_STATUSES.has(o.status) &&
-            !fedOrderIds.has(o.id)
-        )
+        .filter(o => o.modelId && o.plannedQty > 0 && ACTIVE_ORDER_STATUSES.has(o.status) && !fedOrderIds.has(o.id))
         .sort((a, b) => b.createdAt?.localeCompare(a.createdAt ?? '') ?? 0),
     [orders, fedOrderIds]
   )
@@ -171,8 +164,7 @@ export function WarehouseFeedingActualTab({ warehouses, stations, canManage, not
     }
   }
 
-  const canSubmit =
-    Boolean(selectedOrder?.modelId) && iplRows.some(r => r.included) && !iplLoading && !ordersLoading
+  const canSubmit = Boolean(selectedOrder?.modelId) && iplRows.some(r => r.included) && !iplLoading && !ordersLoading
 
   const th = 'whitespace-nowrap px-2 py-2 text-center align-middle text-[10px] font-bold text-slate-400'
   const td = 'whitespace-nowrap px-2 py-1.5 text-center align-middle text-xs text-slate-300'

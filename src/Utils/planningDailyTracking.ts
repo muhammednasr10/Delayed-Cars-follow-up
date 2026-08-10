@@ -23,10 +23,7 @@ export function isPlanWorkingDay(dayType: PlanDayType): boolean {
 }
 
 /** توزيع خطة الشهر على أيام العمل حسب ساعات الخطة اليومية */
-export function allocateDailyPlan(
-  monthlyPlan: number,
-  rows: DailyTrackingSourceRow[]
-): Map<string, number> {
+export function allocateDailyPlan(monthlyPlan: number, rows: DailyTrackingSourceRow[]): Map<string, number> {
   const map = new Map<string, number>()
   const working = rows.filter(r => isPlanWorkingDay(r.dayType))
   for (const row of rows) map.set(row.workDate, 0)

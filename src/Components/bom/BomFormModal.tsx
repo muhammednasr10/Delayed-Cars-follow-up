@@ -12,7 +12,12 @@ import {
 import { getStations, getVehicleModels } from '../../services/settingsService'
 import { BomModelCardsEditor } from './BomModelCardsEditor'
 import { BomStopperExclusionsEditor } from './BomStopperExclusionsEditor'
-import { cardsFromBomRow, cardsFromBomRows, syncModelCardsWithFamilies, type ModelCardDraft } from '../../Utils/bomModelCards'
+import {
+  cardsFromBomRow,
+  cardsFromBomRows,
+  syncModelCardsWithFamilies,
+  type ModelCardDraft
+} from '../../Utils/bomModelCards'
 import { DEFAULT_PART_KIND, DEFAULT_SUPPLY_SOURCE } from '../../Utils/bomDefaults'
 import { effectiveBomStopperType } from '../../Utils/bomStopper'
 import type { BomStopperType } from '../../Types/engineering'
@@ -139,14 +144,13 @@ export function BomFormModal({ mode, itemId, editItemIds, open, defaultVehicleMo
     setError('')
     try {
       const savedId = await saveBomFromModelCards(
-        isCreate ? undefined : itemId ?? undefined,
+        isCreate ? undefined : (itemId ?? undefined),
         familyIds,
         cards,
         { part_name_ar: partNameAr, part_name_en: partNameEn, notes, stopper_type: stopperType },
         models
       )
-      const partIds =
-        stopperType === 'non_stopper' ? [] : exclusions.map(e => e.part_id)
+      const partIds = stopperType === 'non_stopper' ? [] : exclusions.map(e => e.part_id)
       await saveStopperExclusions(savedId, partIds)
       onSaved()
       onClose()
@@ -211,11 +215,7 @@ export function BomFormModal({ mode, itemId, editItemIds, open, defaultVehicleMo
             </select>
           </Field>
 
-          <BomStopperExclusionsEditor
-            stopperType={stopperType}
-            exclusions={exclusions}
-            onChange={setExclusions}
-          />
+          <BomStopperExclusionsEditor stopperType={stopperType} exclusions={exclusions} onChange={setExclusions} />
 
           <BomModelCardsEditor
             models={models}

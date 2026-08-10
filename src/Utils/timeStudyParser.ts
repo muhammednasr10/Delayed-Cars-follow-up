@@ -31,11 +31,7 @@ function cell(row: string[], i: number): string {
 }
 
 export function normalizeStationCode(raw: string): string {
-  return raw
-    .trim()
-    .replace(/^St\./i, 'ST')
-    .replace(/\s+/g, '')
-    .toUpperCase()
+  return raw.trim().replace(/^St\./i, 'ST').replace(/\s+/g, '').toUpperCase()
 }
 
 function parseNum(v: string): number | null {

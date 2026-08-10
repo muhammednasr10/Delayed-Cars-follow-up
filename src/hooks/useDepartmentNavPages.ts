@@ -32,7 +32,13 @@ import {
   type AppPagePermissionKey
 } from '../config/pageAccess'
 import { useNavigation } from '../Context/NavigationContext'
-import { SETTINGS_TAB_ORDER, PRODUCTION_AREA_ORDER, BOM_TAB_ORDER, bomTabPermissionKey, type DepartmentId } from '../Types/navigation'
+import {
+  SETTINGS_TAB_ORDER,
+  PRODUCTION_AREA_ORDER,
+  BOM_TAB_ORDER,
+  bomTabPermissionKey,
+  type DepartmentId
+} from '../Types/navigation'
 import { buildWarehousesNavPages } from './warehouses/buildWarehousesNavPages'
 
 export type NavPageChild = {
@@ -79,29 +85,26 @@ export function useDepartmentNavPages() {
     [go]
   )
 
-  const productionAreaTabs = useMemo<NavPageItem[]>(
-    () => {
-      const icons: Record<string, LucideIcon> = {
-        body: Factory,
-        paint: Wrench,
-        assembly: Car,
-        externalRepair: Truck
-      }
-      return PRODUCTION_AREA_ORDER.map(key => ({
-        key,
-        label: t(`departments.productionArea.${key}`),
-        icon: icons[key],
-        visible: true,
-        onNavigate: () =>
-          navTo({
-            department: 'production',
-            productionArea: key,
-            ...(key === 'assembly' ? { productionPage: 'home' } : {})
-          })
-      }))
-    },
-    [navTo, t]
-  )
+  const productionAreaTabs = useMemo<NavPageItem[]>(() => {
+    const icons: Record<string, LucideIcon> = {
+      body: Factory,
+      paint: Wrench,
+      assembly: Car,
+      externalRepair: Truck
+    }
+    return PRODUCTION_AREA_ORDER.map(key => ({
+      key,
+      label: t(`departments.productionArea.${key}`),
+      icon: icons[key],
+      visible: true,
+      onNavigate: () =>
+        navTo({
+          department: 'production',
+          productionArea: key,
+          ...(key === 'assembly' ? { productionPage: 'home' } : {})
+        })
+    }))
+  }, [navTo, t])
 
   const assemblyPages = useMemo<NavPageItem[]>(
     () => [
@@ -125,21 +128,36 @@ export function useDepartmentNavPages() {
         icon: Activity,
         visible: navLoading || canViewPage(pagePermForProduction('vehicles')),
         onNavigate: () =>
-          navTo({ department: 'production', productionArea: 'assembly', productionPage: 'vehicles', productivityTab: 'productivity' }),
+          navTo({
+            department: 'production',
+            productionArea: 'assembly',
+            productionPage: 'vehicles',
+            productivityTab: 'productivity'
+          }),
         children: [
           {
             key: 'productivity',
             label: t('productivity.tabs.productivity'),
             visible: tabVisible('production_productivity', 'productivity'),
             onClick: () =>
-              navTo({ department: 'production', productionArea: 'assembly', productionPage: 'vehicles', productivityTab: 'productivity' })
+              navTo({
+                department: 'production',
+                productionArea: 'assembly',
+                productionPage: 'vehicles',
+                productivityTab: 'productivity'
+              })
           },
           {
             key: 'stops',
             label: t('productivity.tabs.stops'),
             visible: tabVisible('production_productivity', 'stops'),
             onClick: () =>
-              navTo({ department: 'production', productionArea: 'assembly', productionPage: 'vehicles', productivityTab: 'stops' })
+              navTo({
+                department: 'production',
+                productionArea: 'assembly',
+                productionPage: 'vehicles',
+                productivityTab: 'stops'
+              })
           }
         ].filter(c => c.visible !== false)
       },
@@ -148,13 +166,27 @@ export function useDepartmentNavPages() {
         label: t('nav.training'),
         icon: Users,
         visible: navLoading || canViewPage(pagePermForProduction('training')),
-        onNavigate: () => navTo({ department: 'production', productionArea: 'assembly', productionPage: 'training', trainingTab: 'org' }),
-        children: (['org', 'attendance', 'manpower', 'operations', 'stationSkills', 'matrix', 'qualification', 'expiry'] as const)
+        onNavigate: () =>
+          navTo({
+            department: 'production',
+            productionArea: 'assembly',
+            productionPage: 'training',
+            trainingTab: 'org'
+          }),
+        children: (
+          ['org', 'attendance', 'manpower', 'operations', 'stationSkills', 'matrix', 'qualification', 'expiry'] as const
+        )
           .map(key => ({
             key,
             label: t(`training.tabs.${key}`),
             visible: tabVisible('production_training', key),
-            onClick: () => navTo({ department: 'production', productionArea: 'assembly', productionPage: 'training', trainingTab: key })
+            onClick: () =>
+              navTo({
+                department: 'production',
+                productionArea: 'assembly',
+                productionPage: 'training',
+                trainingTab: key
+              })
           }))
           .filter(c => c.visible !== false)
       },
@@ -163,7 +195,8 @@ export function useDepartmentNavPages() {
         label: t('nav.damagedParts'),
         icon: Package,
         visible: navLoading || canViewPage(pagePermForProduction('damagedParts')),
-        onNavigate: () => navTo({ department: 'production', productionArea: 'assembly', productionPage: 'damagedParts' })
+        onNavigate: () =>
+          navTo({ department: 'production', productionArea: 'assembly', productionPage: 'damagedParts' })
       },
       {
         key: 'missions',
@@ -212,7 +245,13 @@ export function useDepartmentNavPages() {
       label: t('nav.settings'),
       icon: Settings2,
       visible: canAccessSettings,
-      onNavigate: () => navTo({ department: 'production', productionArea: 'assembly', productionPage: 'settings', settingsTab: 'administrations' }),
+      onNavigate: () =>
+        navTo({
+          department: 'production',
+          productionArea: 'assembly',
+          productionPage: 'settings',
+          settingsTab: 'administrations'
+        }),
       children: SETTINGS_TAB_ORDER.map(key => ({
         key,
         label: t(`settings.tabs.${key}`),
@@ -246,19 +285,19 @@ export function useDepartmentNavPages() {
         visible: canShowEngineeringIpl,
         onNavigate: () => navTo({ department: 'engineering', engineeringPage: 'ipl', bomTab: 'consolidated' }),
         children: BOM_TAB_ORDER.map(key => ({
-            key,
-            label: t(`bom.tabs.${key}`),
-            visible: tabVisible('engineering_ipl', bomTabPermissionKey(key)),
-            onClick: () => navTo({ department: 'engineering', engineeringPage: 'ipl', bomTab: key })
-          }))
-          .filter(c => c.visible !== false)
+          key,
+          label: t(`bom.tabs.${key}`),
+          visible: tabVisible('engineering_ipl', bomTabPermissionKey(key)),
+          onClick: () => navTo({ department: 'engineering', engineeringPage: 'ipl', bomTab: key })
+        })).filter(c => c.visible !== false)
       },
       {
         key: 'lineBalancing',
         label: t('nav.lineBalancing'),
         icon: Activity,
         visible: canShowLineBalancing,
-        onNavigate: () => navTo({ department: 'engineering', engineeringPage: 'lineBalancing', lineBalancingTab: 'operations' }),
+        onNavigate: () =>
+          navTo({ department: 'engineering', engineeringPage: 'lineBalancing', lineBalancingTab: 'operations' }),
         children: (['operations', 'opParts', 'timeStudy', 'routing', 'manpower', 'import'] as const)
           .map(key => ({
             key,
@@ -383,7 +422,8 @@ export function useDepartmentNavPages() {
     if (dept === 'engineering') return nav.engineeringPage === pageKey
     if (dept === 'warehouses') {
       if (pageKey === 'feedingPlan') return nav.warehousesTab === 'feeding' && nav.warehousesFeedingSubTab === 'plan'
-      if (pageKey === 'feedingActual') return nav.warehousesTab === 'feeding' && nav.warehousesFeedingSubTab === 'actual'
+      if (pageKey === 'feedingActual')
+        return nav.warehousesTab === 'feeding' && nav.warehousesFeedingSubTab === 'actual'
       if (pageKey === 'equipment') return nav.warehousesTab === 'equipment'
       return nav.warehousesTab === pageKey
     }

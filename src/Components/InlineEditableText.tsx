@@ -11,15 +11,7 @@ type Props = {
   onSave: (next: string) => Promise<void>
 }
 
-export function InlineEditableText({
-  value,
-  placeholder,
-  canEdit,
-  dir,
-  accent,
-  sub,
-  onSave
-}: Props) {
+export function InlineEditableText({ value, placeholder, canEdit, dir, accent, sub, onSave }: Props) {
   const [editing, setEditing] = useState(false)
   const [draft, setDraft] = useState(value)
   const [saving, setSaving] = useState(false)

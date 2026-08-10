@@ -15,8 +15,18 @@ import {
   updateStationOperation
 } from '../../services/stationOperationsService'
 import { deactivateStation, getStations, getWorkAreas, updateStation } from '../../services/settingsService'
-import { masterStationCode, filterMasterReferenceStations, resolveMasterStationRecord, countWorkerLines } from '../../Utils/stationMaster'
-import { normalizeStationReferenceCode, composeStationNumber, parseStationNumberParts, formatStationWorkerDisplayCode } from '../../Utils/stationHierarchy'
+import {
+  masterStationCode,
+  filterMasterReferenceStations,
+  resolveMasterStationRecord,
+  countWorkerLines
+} from '../../Utils/stationMaster'
+import {
+  normalizeStationReferenceCode,
+  composeStationNumber,
+  parseStationNumberParts,
+  formatStationWorkerDisplayCode
+} from '../../Utils/stationHierarchy'
 import { MODEL_LINES, MODEL_LINE_STYLES, type ModelLine } from '../../Utils/modelLines'
 import { getVariantsForLine } from '../../Utils/lineClassifications'
 import { familyModelIdForLine } from '../../Utils/operationClassificationBuilder'
@@ -106,7 +116,10 @@ export function StationOperationsTab({ parentGroups, models, loading, loadError,
   )
 
   const masterStationsAvailable = useMemo(
-    () => filterMasterReferenceStations(allStations).filter(s => !linkedMasterCodes.includes(masterStationCode(s).toUpperCase())),
+    () =>
+      filterMasterReferenceStations(allStations).filter(
+        s => !linkedMasterCodes.includes(masterStationCode(s).toUpperCase())
+      ),
     [allStations, linkedMasterCodes]
   )
 
@@ -135,7 +148,9 @@ export function StationOperationsTab({ parentGroups, models, loading, loadError,
     return resolveMasterStationRecord(parent, allStations)
   }
 
-  function resolveParentDeleteIds(parent: ParentStationOperationsGroup): { parentId: string; workerIds: string[] } | null {
+  function resolveParentDeleteIds(
+    parent: ParentStationOperationsGroup
+  ): { parentId: string; workerIds: string[] } | null {
     const workerIds = parent.workers.map(w => w.stationId).filter(Boolean) as string[]
     const parentId = parent.stationId ?? resolveEditStationId(parent) ?? workerIds[0] ?? null
     if (!parentId) return null
@@ -314,7 +329,9 @@ export function StationOperationsTab({ parentGroups, models, loading, loadError,
             onEditOp={setEditingOp}
             onDeleteOp={op => setDeleteTarget({ kind: 'operation', operationId: op.id, label: op.operationNameAr })}
             onMoveOp={(op, workerStationId) => setMoveOp({ op, workerStationId })}
-            onDeleteWorker={worker => setDeleteTarget({ kind: 'worker', workerId: worker.stationId, label: worker.displayCode })}
+            onDeleteWorker={worker =>
+              setDeleteTarget({ kind: 'worker', workerId: worker.stationId, label: worker.displayCode })
+            }
             onReload={() => void reload()}
             t={t}
           />

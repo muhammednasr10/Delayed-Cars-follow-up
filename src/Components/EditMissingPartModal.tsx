@@ -121,7 +121,11 @@ export function EditMissingPartModal({ vehicle, onClose, onSaved }: Props) {
       maxWidthClass="max-w-lg"
       footer={
         <>
-          <button type="button" onClick={onClose} className="rounded-xl bg-slate-800 px-4 py-2 text-sm font-bold text-slate-200">
+          <button
+            type="button"
+            onClick={onClose}
+            className="rounded-xl bg-slate-800 px-4 py-2 text-sm font-bold text-slate-200"
+          >
             {t('common.cancel')}
           </button>
           <button
@@ -152,16 +156,12 @@ export function EditMissingPartModal({ vehicle, onClose, onSaved }: Props) {
           </div>
         </div>
 
-        {openParts.length === 0 && (
-          <p className="text-center text-sm text-slate-400">{t('mp.act.noOpenIssues')}</p>
-        )}
+        {openParts.length === 0 && <p className="text-center text-sm text-slate-400">{t('mp.act.noOpenIssues')}</p>}
 
         <div className="max-h-[min(55vh,420px)] space-y-3 overflow-y-auto pe-1">
           {lines.map((line, idx) => (
             <div key={line.part.id} className="space-y-2 rounded-xl border border-slate-700 bg-slate-950/50 p-3">
-              <p className="text-[10px] font-black uppercase text-cyan-400/90">
-                {t('mp.issueN', { n: idx + 1 })}
-              </p>
+              <p className="text-[10px] font-black uppercase text-cyan-400/90">{t('mp.issueN', { n: idx + 1 })}</p>
               <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
                 <div>
                   <label className="mb-1 block text-xs font-bold text-slate-400">{t('mp.cols.reasonClass')}</label>
@@ -207,7 +207,9 @@ export function EditMissingPartModal({ vehicle, onClose, onSaved }: Props) {
           ))}
         </div>
 
-        {error && <div className="rounded-xl border border-red-500/30 bg-red-500/10 p-3 text-sm text-red-200">{error}</div>}
+        {error && (
+          <div className="rounded-xl border border-red-500/30 bg-red-500/10 p-3 text-sm text-red-200">{error}</div>
+        )}
       </div>
     </Modal>
   )

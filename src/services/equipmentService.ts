@@ -10,20 +10,13 @@ import type {
   ScrapTransactionInput
 } from '../Types/equipment'
 
-
-
 function requireClient() {
-
   if (!supabase) throw new Error('Supabase غير مهيأ. تحقق من ملف .env')
 
   return supabase
-
 }
 
-
-
 type EquipmentRow = {
-
   id: string
 
   equipment_code: string
@@ -49,13 +42,9 @@ type EquipmentRow = {
   created_at: string
 
   updated_at: string
-
 }
 
-
-
 type TransactionRow = {
-
   id: string
 
   equipment_id: string
@@ -77,21 +66,13 @@ type TransactionRow = {
   created_at: string
 
   line_equipment?:
-
     | { equipment_code: string; equipment_type: EquipmentType; name: string | null }
-
     | { equipment_code: string; equipment_type: EquipmentType; name: string | null }[]
-
     | null
-
 }
 
-
-
 function mapEquipment(row: EquipmentRow): LineEquipment {
-
   return {
-
     id: row.id,
 
     equipmentCode: row.equipment_code,
@@ -117,19 +98,13 @@ function mapEquipment(row: EquipmentRow): LineEquipment {
     createdAt: row.created_at,
 
     updatedAt: row.updated_at
-
   }
-
 }
 
-
-
 function mapTransaction(row: TransactionRow): LineEquipmentTransaction {
-
   const eq = Array.isArray(row.line_equipment) ? row.line_equipment[0] : row.line_equipment
 
   return {
-
     id: row.id,
 
     equipmentId: row.equipment_id,
@@ -155,17 +130,11 @@ function mapTransaction(row: TransactionRow): LineEquipmentTransaction {
     notes: row.notes,
 
     createdAt: row.created_at
-
   }
-
 }
 
-
-
 function toEquipmentPayload(input: LineEquipmentInput) {
-
   return {
-
     equipment_code: input.equipmentCode.trim().toUpperCase(),
 
     equipment_type: input.equipmentType,
@@ -181,22 +150,18 @@ function toEquipmentPayload(input: LineEquipmentInput) {
     status: input.status ?? 'active',
 
     notes: input.notes?.trim() || null
-
   }
-
 }
-
-
 
 const EQUIPMENT_SELECT = '*'
 
 const TX_SELECT = '*, line_equipment(equipment_code, equipment_type, name)'
 
-
-
 export async function getLineEquipment(type?: EquipmentType): Promise<LineEquipment[]> {
-
-  let query = requireClient().from('line_equipment').select(EQUIPMENT_SELECT).order('equipment_code', { ascending: true })
+  let query = requireClient()
+    .from('line_equipment')
+    .select(EQUIPMENT_SELECT)
+    .order('equipment_code', { ascending: true })
 
   if (type) query = query.eq('equipment_type', type)
 
@@ -205,27 +170,22 @@ export async function getLineEquipment(type?: EquipmentType): Promise<LineEquipm
   if (error) throw new Error(error.message)
 
   return ((data ?? []) as EquipmentRow[]).map(mapEquipment)
-
 }
 
-
-
 export async function createLineEquipment(input: LineEquipmentInput): Promise<LineEquipment> {
-
-  const { data, error } = await requireClient().from('line_equipment').insert(toEquipmentPayload(input)).select(EQUIPMENT_SELECT).single()
+  const { data, error } = await requireClient()
+    .from('line_equipment')
+    .insert(toEquipmentPayload(input))
+    .select(EQUIPMENT_SELECT)
+    .single()
 
   if (error) throw new Error(error.message)
 
   return mapEquipment(data as EquipmentRow)
-
 }
 
-
-
 export async function updateLineEquipment(id: string, input: LineEquipmentInput): Promise<LineEquipment> {
-
   const { data, error } = await requireClient()
-
     .from('line_equipment')
 
     .update(toEquipmentPayload(input))
@@ -239,28 +199,22 @@ export async function updateLineEquipment(id: string, input: LineEquipmentInput)
   if (error) throw new Error(error.message)
 
   return mapEquipment(data as EquipmentRow)
-
 }
 
-
-
 export async function deleteLineEquipment(id: string): Promise<void> {
-
   const { error } = await requireClient().from('line_equipment').delete().eq('id', id)
 
   if (error) throw new Error(error.message)
-
 }
 
-
-
-export async function getLineEquipmentTransactions(
-
-  filters?: { type?: EquipmentTransactionType; equipmentType?: EquipmentType }
-
-): Promise<LineEquipmentTransaction[]> {
-
-  let query = requireClient().from('line_equipment_transactions').select(TX_SELECT).order('occurred_at', { ascending: false })
+export async function getLineEquipmentTransactions(filters?: {
+  type?: EquipmentTransactionType
+  equipmentType?: EquipmentType
+}): Promise<LineEquipmentTransaction[]> {
+  let query = requireClient()
+    .from('line_equipment_transactions')
+    .select(TX_SELECT)
+    .order('occurred_at', { ascending: false })
 
   if (filters?.type) query = query.eq('transaction_type', filters.type)
 
@@ -273,47 +227,38 @@ export async function getLineEquipmentTransactions(
   if (filters?.equipmentType) rows = rows.filter(r => r.equipmentType === filters.equipmentType)
 
   return rows
-
 }
 
-
-
-async function syncEquipmentAfterCalibration(equipmentId: string, occurredAt: string, result: string, nextDue: string | null) {
-
+async function syncEquipmentAfterCalibration(
+  equipmentId: string,
+  occurredAt: string,
+  result: string,
+  nextDue: string | null
+) {
   const patch: Record<string, unknown> = {
-
     last_calibration_at: occurredAt,
 
     next_calibration_due: nextDue
-
   }
 
   if (result === 'pass') patch.status = 'active'
-
   else patch.status = 'out_of_service'
 
   const { error } = await requireClient().from('line_equipment').update(patch).eq('id', equipmentId)
 
   if (error) throw new Error(error.message)
-
 }
 
-
-
 async function syncEquipmentAfterScrap(equipmentId: string) {
-
   const { error } = await requireClient().from('line_equipment').update({ status: 'scrapped' }).eq('id', equipmentId)
 
   if (error) throw new Error(error.message)
-
 }
 
-
-
-export async function createCalibrationTransaction(input: CalibrationTransactionInput): Promise<LineEquipmentTransaction> {
-
+export async function createCalibrationTransaction(
+  input: CalibrationTransactionInput
+): Promise<LineEquipmentTransaction> {
   const payload = {
-
     equipment_id: input.equipmentId,
 
     transaction_type: 'calibration' as const,
@@ -325,25 +270,28 @@ export async function createCalibrationTransaction(input: CalibrationTransaction
     next_calibration_due: input.nextCalibrationDue || null,
 
     notes: input.notes?.trim() || null
-
   }
 
-  const { data, error } = await requireClient().from('line_equipment_transactions').insert(payload).select(TX_SELECT).single()
+  const { data, error } = await requireClient()
+    .from('line_equipment_transactions')
+    .insert(payload)
+    .select(TX_SELECT)
+    .single()
 
   if (error) throw new Error(error.message)
 
-  await syncEquipmentAfterCalibration(input.equipmentId, input.occurredAt, input.calibrationResult, input.nextCalibrationDue ?? null)
+  await syncEquipmentAfterCalibration(
+    input.equipmentId,
+    input.occurredAt,
+    input.calibrationResult,
+    input.nextCalibrationDue ?? null
+  )
 
   return mapTransaction(data as TransactionRow)
-
 }
 
-
-
 export async function createScrapTransaction(input: ScrapTransactionInput): Promise<LineEquipmentTransaction> {
-
   const payload = {
-
     equipment_id: input.equipmentId,
 
     transaction_type: 'scrap' as const,
@@ -355,23 +303,22 @@ export async function createScrapTransaction(input: ScrapTransactionInput): Prom
     scrap_qty: input.scrapQty ?? null,
 
     notes: input.notes?.trim() || null
-
   }
 
-  const { data, error } = await requireClient().from('line_equipment_transactions').insert(payload).select(TX_SELECT).single()
+  const { data, error } = await requireClient()
+    .from('line_equipment_transactions')
+    .insert(payload)
+    .select(TX_SELECT)
+    .single()
 
   if (error) throw new Error(error.message)
 
   await syncEquipmentAfterScrap(input.equipmentId)
 
   return mapTransaction(data as TransactionRow)
-
 }
-
-
 
 export async function deleteLineEquipmentTransaction(id: string): Promise<void> {
   const { error } = await requireClient().from('line_equipment_transactions').delete().eq('id', id)
   if (error) throw new Error(error.message)
 }
-

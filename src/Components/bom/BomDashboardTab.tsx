@@ -16,13 +16,43 @@ export function BomDashboardTab() {
   return (
     <div className="space-y-4">
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
-        <StatCard title={t('bom.dashTotalRows')} value={String(stats.totalBomRows)} icon={<Layers className="h-5 w-5" />} />
-        <StatCard title={t('bom.dashUniqueParts')} value={String(stats.uniquePartNumbers)} icon={<Package className="h-5 w-5" />} />
-        <StatCard title={t('bom.dashDuplicates')} value={String(stats.duplicatePartNumbers)} icon={<AlertTriangle className="h-5 w-5" />} tone="orange" />
-        <StatCard title={t('bom.dashUncategorized')} value={String(stats.uncategorizedParts)} icon={<Boxes className="h-5 w-5" />} tone="orange" />
-        <StatCard title={t('bom.dashStations')} value={String(stats.totalStations)} icon={<Layers className="h-5 w-5" />} />
-        <StatCard title={t('bom.dashModels')} value={String(stats.totalModels)} icon={<Package className="h-5 w-5" />} />
-        <StatCard title={t('bom.dashCategories')} value={String(stats.totalCategories)} icon={<Boxes className="h-5 w-5" />} />
+        <StatCard
+          title={t('bom.dashTotalRows')}
+          value={String(stats.totalBomRows)}
+          icon={<Layers className="h-5 w-5" />}
+        />
+        <StatCard
+          title={t('bom.dashUniqueParts')}
+          value={String(stats.uniquePartNumbers)}
+          icon={<Package className="h-5 w-5" />}
+        />
+        <StatCard
+          title={t('bom.dashDuplicates')}
+          value={String(stats.duplicatePartNumbers)}
+          icon={<AlertTriangle className="h-5 w-5" />}
+          tone="orange"
+        />
+        <StatCard
+          title={t('bom.dashUncategorized')}
+          value={String(stats.uncategorizedParts)}
+          icon={<Boxes className="h-5 w-5" />}
+          tone="orange"
+        />
+        <StatCard
+          title={t('bom.dashStations')}
+          value={String(stats.totalStations)}
+          icon={<Layers className="h-5 w-5" />}
+        />
+        <StatCard
+          title={t('bom.dashModels')}
+          value={String(stats.totalModels)}
+          icon={<Package className="h-5 w-5" />}
+        />
+        <StatCard
+          title={t('bom.dashCategories')}
+          value={String(stats.totalCategories)}
+          icon={<Boxes className="h-5 w-5" />}
+        />
         <StatCard
           title={t('bom.dashLastImport')}
           value={stats.lastImportAt ? new Date(stats.lastImportAt).toLocaleDateString() : '—'}
@@ -36,10 +66,28 @@ export function BomDashboardTab() {
             {t('engineering.dashTitle')}
           </h3>
           <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
-            <StatCard title={t('engineering.dashOps')} value={String(eng.stats.operations_total)} icon={<Wrench className="h-5 w-5" />} />
-            <StatCard title={t('engineering.dashOpsNoParts')} value={String(eng.stats.operations_without_parts)} icon={<AlertTriangle className="h-5 w-5" />} tone="orange" />
-            <StatCard title={t('engineering.dashTsApproved')} value={String(eng.stats.time_studies_approved)} icon={<Clock className="h-5 w-5" />} />
-            <StatCard title={t('engineering.dashOpsNoTime')} value={String(eng.stats.operations_without_standard_time)} icon={<Clock className="h-5 w-5" />} tone="orange" />
+            <StatCard
+              title={t('engineering.dashOps')}
+              value={String(eng.stats.operations_total)}
+              icon={<Wrench className="h-5 w-5" />}
+            />
+            <StatCard
+              title={t('engineering.dashOpsNoParts')}
+              value={String(eng.stats.operations_without_parts)}
+              icon={<AlertTriangle className="h-5 w-5" />}
+              tone="orange"
+            />
+            <StatCard
+              title={t('engineering.dashTsApproved')}
+              value={String(eng.stats.time_studies_approved)}
+              icon={<Clock className="h-5 w-5" />}
+            />
+            <StatCard
+              title={t('engineering.dashOpsNoTime')}
+              value={String(eng.stats.operations_without_standard_time)}
+              icon={<Clock className="h-5 w-5" />}
+              tone="orange"
+            />
           </div>
         </div>
       )}

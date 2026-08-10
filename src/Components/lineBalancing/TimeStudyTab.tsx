@@ -48,8 +48,7 @@ export function TimeStudyTab({ models, canManage, notify }: Props) {
   const [newSeconds, setNewSeconds] = useState('')
   const [busy, setBusy] = useState(false)
 
-  const measuredByName =
-    profile?.full_name?.trim() || profile?.employee_full_name?.trim() || profile?.email || ''
+  const measuredByName = profile?.full_name?.trim() || profile?.employee_full_name?.trim() || profile?.email || ''
 
   async function openEditor(study: TimeStudy) {
     setEditor(study)
@@ -155,9 +154,7 @@ export function TimeStudyTab({ models, canManage, notify }: Props) {
           <h3 className="text-sm font-black text-slate-200">{t('engineering.timeStudy.logTitle')}</h3>
           <p className="mt-0.5 text-xs text-slate-500">{t('engineering.timeStudy.logAllHint')}</p>
         </div>
-        {listError && (
-          <p className="border-b border-red-500/30 bg-red-500/10 p-3 text-sm text-red-200">{listError}</p>
-        )}
+        {listError && <p className="border-b border-red-500/30 bg-red-500/10 p-3 text-sm text-red-200">{listError}</p>}
         {loading ? (
           <p className="p-4 text-slate-400">{t('common.loading')}</p>
         ) : studies.length === 0 ? (
@@ -196,9 +193,7 @@ export function TimeStudyTab({ models, canManage, notify }: Props) {
                     <td className="p-3 text-center">
                       <span
                         className={`rounded-lg px-2 py-0.5 text-xs ${
-                          s.status === 'approved'
-                            ? 'bg-emerald-500/20 text-emerald-200'
-                            : 'bg-slate-800 text-slate-300'
+                          s.status === 'approved' ? 'bg-emerald-500/20 text-emerald-200' : 'bg-slate-800 text-slate-300'
                         }`}
                       >
                         {s.status === 'approved'
@@ -432,9 +427,7 @@ function Metric({ label, value }: { label: string; value: number | null }) {
   return (
     <div className="rounded-xl bg-slate-800/80 p-3">
       <p className="text-xs text-slate-500">{label}</p>
-      <p className="text-lg font-black text-cyan-200">
-        {value != null ? `${value.toFixed(2)}s` : '—'}
-      </p>
+      <p className="text-lg font-black text-cyan-200">{value != null ? `${value.toFixed(2)}s` : '—'}</p>
     </div>
   )
 }

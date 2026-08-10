@@ -12,16 +12,18 @@ import {
   planTargetsMap,
   wipCarryoverMap
 } from '../../services/modelProductionPlanService'
-import { createProductionOrder, deleteProductionOrder, getProductionOrders, updateProductionOrder } from '../../services/productionOrdersService'
+import {
+  createProductionOrder,
+  deleteProductionOrder,
+  getProductionOrders,
+  updateProductionOrder
+} from '../../services/productionOrdersService'
 import { getMonthProductivityDetail } from '../../services/productionPlanWorkDayDailyService'
 import { getExitProductivityYear } from '../../services/exitProductivityService'
 import { getVehicleModels } from '../../services/settingsService'
 import { chassisRangeCount, vinInChassisRange } from '../../Utils/chassisRange'
 import { getProductionPlanWorkDays } from '../../services/productionPlanWorkDaysService'
-import {
-  computeTaktMinutes,
-  formatTaktMinutes
-} from '../../Utils/productionLineRate'
+import { computeTaktMinutes, formatTaktMinutes } from '../../Utils/productionLineRate'
 import {
   buildAchievedByModelIdFromExitRecords,
   buildAnnualSectionsFromMonthlyPlans,
@@ -147,10 +149,7 @@ export function ProductionPlanOrdersTab({ view, planScope = 'both', onBack }: Pr
 
   const ordersCoverageMap = useMemo(() => coverageByKey(ordersCoverage), [ordersCoverage])
 
-  const lineTaktMinutes = useMemo(
-    () => computeTaktMinutes(lineJph > 0 ? lineJph : null),
-    [lineJph]
-  )
+  const lineTaktMinutes = useMemo(() => computeTaktMinutes(lineJph > 0 ? lineJph : null), [lineJph])
 
   function toggleMonthlyFamily(key: string) {
     setExpandedMonthlyFamilies(prev => {
@@ -175,17 +174,16 @@ export function ProductionPlanOrdersTab({ view, planScope = 'both', onBack }: Pr
     setPlanSuccess('')
     try {
       if (view === 'orders') await refreshVehicles()
-      const [orderRows, modelRows, dbTargets, yearMonthlyTargets, yearExitRows, workConfig, productivity] = await Promise.all([
-        getProductionOrders(),
-        getVehicleModels(),
-        getModelPlanTargets(planYear, planMonth).catch(() => []),
-        view === 'plan' ? getYearMonthlyPlanTargets(planYear).catch(() => []) : Promise.resolve([]),
-        view === 'plan' ? getExitProductivityYear(planYear).catch(() => []) : Promise.resolve([]),
-        getProductionPlanWorkDays(planYear, planMonth).catch(() => null),
-        view === 'plan'
-          ? getMonthProductivityDetail(planYear, planMonth).catch(() => null)
-          : Promise.resolve(null)
-      ])
+      const [orderRows, modelRows, dbTargets, yearMonthlyTargets, yearExitRows, workConfig, productivity] =
+        await Promise.all([
+          getProductionOrders(),
+          getVehicleModels(),
+          getModelPlanTargets(planYear, planMonth).catch(() => []),
+          view === 'plan' ? getYearMonthlyPlanTargets(planYear).catch(() => []) : Promise.resolve([]),
+          view === 'plan' ? getExitProductivityYear(planYear).catch(() => []) : Promise.resolve([]),
+          getProductionPlanWorkDays(planYear, planMonth).catch(() => null),
+          view === 'plan' ? getMonthProductivityDetail(planYear, planMonth).catch(() => null) : Promise.resolve(null)
+        ])
       setOrders(orderRows)
       setModels(modelRows)
       setPlanTargets(planTargetsMap(dbTargets))
@@ -400,129 +398,153 @@ export function ProductionPlanOrdersTab({ view, planScope = 'both', onBack }: Pr
             </div>
           )}
           {error && !formOpen && (
-            <div className="mb-3 rounded-xl border border-red-500/30 bg-red-500/10 p-3 text-sm text-red-200">{error}</div>
+            <div className="mb-3 rounded-xl border border-red-500/30 bg-red-500/10 p-3 text-sm text-red-200">
+              {error}
+            </div>
           )}
 
           <div className={`grid grid-cols-1 gap-6 ${showMonthly && showAnnual ? 'xl:grid-cols-2 xl:items-start' : ''}`}>
             {/* Monthly plan column */}
             {showMonthly && (
-            <div className="space-y-4 rounded-2xl border border-violet-500/20 bg-slate-950/20 p-4 sm:p-5">
-              <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                <h4 className="text-base font-black text-violet-200">{t('productionOrders.monthlyPlanSection')}</h4>
-                <div className="flex flex-wrap items-center gap-2">
-                  <input
-                    type="month"
-                    className={`${inputCls()} w-full py-2 text-sm sm:w-auto`}
-                    value={planMonthValue}
-                    onChange={e => {
-                      const [y, m] = e.target.value.split('-').map(Number)
-                      if (y && m) {
-                        setPlanYear(y)
-                        setPlanMonth(m)
-                      }
-                    }}
-                    title={t('productionOrders.planMonth')}
+              <div className="space-y-4 rounded-2xl border border-violet-500/20 bg-slate-950/20 p-4 sm:p-5">
+                <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                  <h4 className="text-base font-black text-violet-200">{t('productionOrders.monthlyPlanSection')}</h4>
+                  <div className="flex flex-wrap items-center gap-2">
+                    <input
+                      type="month"
+                      className={`${inputCls()} w-full py-2 text-sm sm:w-auto`}
+                      value={planMonthValue}
+                      onChange={e => {
+                        const [y, m] = e.target.value.split('-').map(Number)
+                        if (y && m) {
+                          setPlanYear(y)
+                          setPlanMonth(m)
+                        }
+                      }}
+                      title={t('productionOrders.planMonth')}
+                    />
+                    {canManage && (
+                      <button
+                        type="button"
+                        onClick={() => openPlanModal('monthly')}
+                        className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-br from-violet-500 to-violet-600 px-4 py-2.5 text-sm font-black text-slate-950 shadow-lg shadow-violet-500/20 hover:from-violet-400 hover:to-violet-500"
+                      >
+                        <ClipboardList className="h-4 w-4" />
+                        {t('productionOrders.planEntry.openButton')}
+                      </button>
+                    )}
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-2">
+                  <PlanStatCard
+                    label={t('productionOrders.plannedQty')}
+                    value={String(planTotals.planned || '—')}
+                    tone="cyan"
                   />
-                  {canManage && (
-                    <button
-                      type="button"
-                      onClick={() => openPlanModal('monthly')}
-                      className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-br from-violet-500 to-violet-600 px-4 py-2.5 text-sm font-black text-slate-950 shadow-lg shadow-violet-500/20 hover:from-violet-400 hover:to-violet-500"
-                    >
-                      <ClipboardList className="h-4 w-4" />
-                      {t('productionOrders.planEntry.openButton')}
-                    </button>
+                  <PlanStatCard
+                    label={t('productionOrders.achievedQty')}
+                    value={String(planTotals.achieved || '—')}
+                    tone="emerald"
+                  />
+                  <PlanStatCard label={t('productionOrders.progress')} value={`${planProgress}%`} tone="violet" />
+                  <PlanStatCard
+                    label={t('productionOrders.wipCarryoverShort')}
+                    value={String(planTotals.wip || '—')}
+                    tone="rose"
+                  />
+                </div>
+
+                <div className="flex flex-wrap gap-2">
+                  <MetricPill
+                    label={t('productionOrders.workDays.available')}
+                    value={availableDays > 0 ? String(availableDays) : '—'}
+                    tone="violet"
+                  />
+                  <MetricPill
+                    label={t('productionOrders.workDays.availableHours')}
+                    value={availableHours > 0 ? String(availableHours) : '—'}
+                    tone="cyan"
+                  />
+                  <MetricPill
+                    label={t('productionOrders.jph')}
+                    value={lineJph > 0 ? String(lineJph) : '—'}
+                    tone="cyan"
+                  />
+                  <MetricPill
+                    label={t('productionOrders.taktTime')}
+                    value={lineTaktMinutes != null ? formatTaktMinutes(lineTaktMinutes) : '—'}
+                    tone="amber"
+                  />
+                </div>
+
+                <div className="space-y-3">
+                  {planSections.map(section => (
+                    <PlanFamilyCard
+                      key={section.group.key}
+                      group={section.group}
+                      scope="monthly"
+                      isExpanded={expandedMonthlyFamilies.has(section.group.key)}
+                      onToggle={() => toggleMonthlyFamily(section.group.key)}
+                      t={t}
+                    />
+                  ))}
+                  {loading && <p className="py-8 text-center text-slate-400">{t('common.loading')}</p>}
+                  {!loading && planSections.length === 0 && (
+                    <p className="py-6 text-center text-sm text-slate-500">{t('productivity.monthly.noModels')}</p>
                   )}
                 </div>
               </div>
-
-              <div className="grid grid-cols-2 gap-2">
-                <PlanStatCard label={t('productionOrders.plannedQty')} value={String(planTotals.planned || '—')} tone="cyan" />
-                <PlanStatCard label={t('productionOrders.achievedQty')} value={String(planTotals.achieved || '—')} tone="emerald" />
-                <PlanStatCard label={t('productionOrders.progress')} value={`${planProgress}%`} tone="violet" />
-                <PlanStatCard label={t('productionOrders.wipCarryoverShort')} value={String(planTotals.wip || '—')} tone="rose" />
-              </div>
-
-              <div className="flex flex-wrap gap-2">
-                <MetricPill label={t('productionOrders.workDays.available')} value={availableDays > 0 ? String(availableDays) : '—'} tone="violet" />
-                <MetricPill label={t('productionOrders.workDays.availableHours')} value={availableHours > 0 ? String(availableHours) : '—'} tone="cyan" />
-                <MetricPill label={t('productionOrders.jph')} value={lineJph > 0 ? String(lineJph) : '—'} tone="cyan" />
-                <MetricPill
-                  label={t('productionOrders.taktTime')}
-                  value={lineTaktMinutes != null ? formatTaktMinutes(lineTaktMinutes) : '—'}
-                  tone="amber"
-                />
-              </div>
-
-              <div className="space-y-3">
-                {planSections.map(section => (
-                  <PlanFamilyCard
-                    key={section.group.key}
-                    group={section.group}
-                    scope="monthly"
-                    isExpanded={expandedMonthlyFamilies.has(section.group.key)}
-                    onToggle={() => toggleMonthlyFamily(section.group.key)}
-                    t={t}
-                  />
-                ))}
-                {loading && <p className="py-8 text-center text-slate-400">{t('common.loading')}</p>}
-                {!loading && planSections.length === 0 && (
-                  <p className="py-6 text-center text-sm text-slate-500">{t('productivity.monthly.noModels')}</p>
-                )}
-              </div>
-            </div>
             )}
 
             {/* Annual plan column */}
             {showAnnual && (
-            <div className="space-y-4 rounded-2xl border border-cyan-500/20 bg-slate-950/20 p-4 sm:p-5">
-              <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                <h4 className="text-base font-black text-cyan-200">{t('productionOrders.annualPlanSection')}</h4>
-                <div className="flex flex-wrap items-center gap-2">
-                  <span className="rounded-xl border border-cyan-500/30 bg-cyan-500/10 px-4 py-2.5 text-sm font-black text-cyan-200" dir="ltr">
-                    {planYear}
-                  </span>
+              <div className="space-y-4 rounded-2xl border border-cyan-500/20 bg-slate-950/20 p-4 sm:p-5">
+                <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                  <h4 className="text-base font-black text-cyan-200">{t('productionOrders.annualPlanSection')}</h4>
+                  <div className="flex flex-wrap items-center gap-2">
+                    <span
+                      className="rounded-xl border border-cyan-500/30 bg-cyan-500/10 px-4 py-2.5 text-sm font-black text-cyan-200"
+                      dir="ltr"
+                    >
+                      {planYear}
+                    </span>
+                  </div>
+                </div>
+
+                <p className="text-xs text-cyan-200/80">{t('productionOrders.planHub.annualFromMonthlyHint')}</p>
+
+                <PlanStatCard
+                  label={t('productionOrders.annualPlan')}
+                  value={String(planTotals.annual || '—')}
+                  tone="cyan"
+                  wide
+                />
+                <PlanStatCard
+                  label={t('productionOrders.achievedQty')}
+                  value={String(sumPlanSectionsAchieved(annualSections) || '—')}
+                  tone="emerald"
+                  wide
+                />
+                <PlanStatCard label={t('productionOrders.progress')} value={`${annualProgress}%`} tone="violet" wide />
+
+                <div className="space-y-3">
+                  {annualSections.map(section => (
+                    <PlanFamilyCard
+                      key={section.group.key}
+                      group={section.group}
+                      scope="annual"
+                      isExpanded={expandedAnnualFamilies.has(section.group.key)}
+                      onToggle={() => toggleAnnualFamily(section.group.key)}
+                      t={t}
+                    />
+                  ))}
+                  {loading && <p className="py-8 text-center text-slate-400">{t('common.loading')}</p>}
+                  {!loading && annualSections.length === 0 && (
+                    <p className="py-6 text-center text-sm text-slate-500">{t('productivity.monthly.noModels')}</p>
+                  )}
                 </div>
               </div>
-
-              <p className="text-xs text-cyan-200/80">{t('productionOrders.planHub.annualFromMonthlyHint')}</p>
-
-              <PlanStatCard
-                label={t('productionOrders.annualPlan')}
-                value={String(planTotals.annual || '—')}
-                tone="cyan"
-                wide
-              />
-              <PlanStatCard
-                label={t('productionOrders.achievedQty')}
-                value={String(sumPlanSectionsAchieved(annualSections) || '—')}
-                tone="emerald"
-                wide
-              />
-              <PlanStatCard
-                label={t('productionOrders.progress')}
-                value={`${annualProgress}%`}
-                tone="violet"
-                wide
-              />
-
-              <div className="space-y-3">
-                {annualSections.map(section => (
-                  <PlanFamilyCard
-                    key={section.group.key}
-                    group={section.group}
-                    scope="annual"
-                    isExpanded={expandedAnnualFamilies.has(section.group.key)}
-                    onToggle={() => toggleAnnualFamily(section.group.key)}
-                    t={t}
-                  />
-                ))}
-                {loading && <p className="py-8 text-center text-slate-400">{t('common.loading')}</p>}
-                {!loading && annualSections.length === 0 && (
-                  <p className="py-6 text-center text-sm text-slate-500">{t('productivity.monthly.noModels')}</p>
-                )}
-              </div>
-            </div>
             )}
           </div>
 
@@ -576,7 +598,9 @@ export function ProductionPlanOrdersTab({ view, planScope = 'both', onBack }: Pr
           </div>
 
           {error && !formOpen && (
-            <div className="mb-3 rounded-xl border border-red-500/30 bg-red-500/10 p-3 text-sm text-red-200">{error}</div>
+            <div className="mb-3 rounded-xl border border-red-500/30 bg-red-500/10 p-3 text-sm text-red-200">
+              {error}
+            </div>
           )}
 
           {canManage && !formOpen && (
@@ -650,7 +674,9 @@ export function ProductionPlanOrdersTab({ view, planScope = 'both', onBack }: Pr
               </div>
 
               {error && (
-                <div className="rounded-xl border border-red-500/30 bg-red-500/10 p-3 text-sm text-red-200">{error}</div>
+                <div className="rounded-xl border border-red-500/30 bg-red-500/10 p-3 text-sm text-red-200">
+                  {error}
+                </div>
               )}
 
               <div className="flex flex-wrap justify-end gap-2">
@@ -680,12 +706,24 @@ export function ProductionPlanOrdersTab({ view, planScope = 'both', onBack }: Pr
             <table className="w-full min-w-[900px] text-sm">
               <thead className="bg-slate-950/90">
                 <tr>
-                  <th className={`${cell} text-xs font-black uppercase text-slate-400`}>{t('productionOrders.cols.orderNumber')}</th>
-                  <th className={`${cell} text-xs font-black uppercase text-slate-400`}>{t('productionOrders.cols.model')}</th>
-                  <th className={`${cell} text-xs font-black uppercase text-slate-400`}>{t('productionOrders.cols.chassisStart')}</th>
-                  <th className={`${cell} text-xs font-black uppercase text-slate-400`}>{t('productionOrders.cols.chassisEnd')}</th>
-                  <th className={`${cell} text-xs font-black uppercase text-slate-400`}>{t('productionOrders.cols.carCount')}</th>
-                  <th className={`${cell} text-xs font-black uppercase text-slate-400`}>{t('productionOrders.cols.assemblyEntry')}</th>
+                  <th className={`${cell} text-xs font-black uppercase text-slate-400`}>
+                    {t('productionOrders.cols.orderNumber')}
+                  </th>
+                  <th className={`${cell} text-xs font-black uppercase text-slate-400`}>
+                    {t('productionOrders.cols.model')}
+                  </th>
+                  <th className={`${cell} text-xs font-black uppercase text-slate-400`}>
+                    {t('productionOrders.cols.chassisStart')}
+                  </th>
+                  <th className={`${cell} text-xs font-black uppercase text-slate-400`}>
+                    {t('productionOrders.cols.chassisEnd')}
+                  </th>
+                  <th className={`${cell} text-xs font-black uppercase text-slate-400`}>
+                    {t('productionOrders.cols.carCount')}
+                  </th>
+                  <th className={`${cell} text-xs font-black uppercase text-slate-400`}>
+                    {t('productionOrders.cols.assemblyEntry')}
+                  </th>
                   {canManage && (
                     <th className={`${cell} text-xs font-black uppercase text-slate-400`}>{t('common.actions')}</th>
                   )}
@@ -705,9 +743,7 @@ export function ProductionPlanOrdersTab({ view, planScope = 'both', onBack }: Pr
                       {row.chassisEnd || '—'}
                     </td>
                     <td className={`${cell} font-black text-cyan-300`}>{row.plannedQty}</td>
-                    <td className={`${cell} font-black text-emerald-300`}>
-                      {assemblyEntryByOrderId.get(row.id) ?? 0}
-                    </td>
+                    <td className={`${cell} font-black text-emerald-300`}>{assemblyEntryByOrderId.get(row.id) ?? 0}</td>
                     {canManage && (
                       <td className={cell}>
                         <div className="flex justify-center gap-1">
@@ -736,9 +772,7 @@ export function ProductionPlanOrdersTab({ view, planScope = 'both', onBack }: Pr
             </table>
 
             {loading && <p className="p-8 text-center text-slate-400">{t('common.loading')}</p>}
-            {!loading && orders.length === 0 && (
-              <p className="p-8 text-center text-slate-500">{t('common.noData')}</p>
-            )}
+            {!loading && orders.length === 0 && <p className="p-8 text-center text-slate-500">{t('common.noData')}</p>}
             {!loading && error && orders.length === 0 && (
               <p className="p-4 text-center text-sm text-red-300">{error}</p>
             )}

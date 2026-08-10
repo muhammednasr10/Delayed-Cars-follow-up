@@ -138,7 +138,11 @@ export function MissionsMyTab({ onChanged }: Props) {
             ) : null}
           </p>
         </div>
-        <button type="button" onClick={() => void load()} className="rounded-xl bg-slate-800 px-3 py-2 text-slate-200 hover:bg-slate-700">
+        <button
+          type="button"
+          onClick={() => void load()}
+          className="rounded-xl bg-slate-800 px-3 py-2 text-slate-200 hover:bg-slate-700"
+        >
           <RefreshCcw className="h-4 w-4" />
         </button>
       </div>
@@ -152,7 +156,11 @@ export function MissionsMyTab({ onChanged }: Props) {
 
       <div className="card-industrial p-4">
         <Field label={t('missions.filterStatus')}>
-          <select className={inputCls()} value={statusFilter} onChange={e => setStatusFilter(e.target.value as MissionStatus | 'all')}>
+          <select
+            className={inputCls()}
+            value={statusFilter}
+            onChange={e => setStatusFilter(e.target.value as MissionStatus | 'all')}
+          >
             <option value="all">{t('common.all')}</option>
             {MISSION_STATUSES.map(key => (
               <option key={key} value={key}>
@@ -170,8 +178,14 @@ export function MissionsMyTab({ onChanged }: Props) {
         </div>
       )}
 
-      {success && <div className="rounded-xl border border-emerald-500/30 bg-emerald-500/10 p-3 text-sm text-emerald-200">{success}</div>}
-      {error && !setupRequired && <div className="rounded-xl border border-red-500/30 bg-red-500/10 p-3 text-sm text-red-200">{error}</div>}
+      {success && (
+        <div className="rounded-xl border border-emerald-500/30 bg-emerald-500/10 p-3 text-sm text-emerald-200">
+          {success}
+        </div>
+      )}
+      {error && !setupRequired && (
+        <div className="rounded-xl border border-red-500/30 bg-red-500/10 p-3 text-sm text-red-200">{error}</div>
+      )}
 
       <div className="card-industrial overflow-x-auto">
         <table className="w-full text-center text-sm">
@@ -230,7 +244,15 @@ export function MissionsMyTab({ onChanged }: Props) {
   )
 }
 
-function StatPill({ label, value, tone = 'slate' }: { label: string; value: string; tone?: 'slate' | 'amber' | 'blue' | 'emerald' }) {
+function StatPill({
+  label,
+  value,
+  tone = 'slate'
+}: {
+  label: string
+  value: string
+  tone?: 'slate' | 'amber' | 'blue' | 'emerald'
+}) {
   const tones = {
     slate: 'border-slate-600/50 bg-slate-800/50 text-slate-200',
     amber: 'border-amber-500/30 bg-amber-500/10 text-amber-100',

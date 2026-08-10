@@ -29,7 +29,10 @@ function mapToRows(map: Map<string, { vehicles: Set<string>; lines: number }>, c
     .sort((a, b) => b.lines - a.lines || b.vehicles - a.vehicles)
 }
 
-export function buildMissingPartSummary(items: MissingPartDetail[], mode: 'active' | 'archive' = 'active'): MissingPartSummaryStats {
+export function buildMissingPartSummary(
+  items: MissingPartDetail[],
+  mode: 'active' | 'archive' = 'active'
+): MissingPartSummaryStats {
   const rows =
     mode === 'archive'
       ? items.filter(p => !!p.shortageResolvedAt)

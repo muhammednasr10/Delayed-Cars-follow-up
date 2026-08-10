@@ -58,10 +58,7 @@ export function DepartmentHub({ title, subtitle, sections, headerAction }: Props
 
             <div className="grid auto-rows-fr grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
               {section.cards.map(card => (
-                <div
-                  key={card.key}
-                  className={isWideCard(card) ? 'sm:col-span-2 xl:col-span-2 2xl:col-span-2' : ''}
-                >
+                <div key={card.key} className={isWideCard(card) ? 'sm:col-span-2 xl:col-span-2 2xl:col-span-2' : ''}>
                   <HubStatCard card={card} />
                 </div>
               ))}

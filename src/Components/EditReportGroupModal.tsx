@@ -80,10 +80,19 @@ export function EditReportGroupModal({ group, onClose, onSaved }: Props) {
       maxWidthClass="max-w-lg"
       footer={
         <>
-          <button type="button" onClick={onClose} className="rounded-xl bg-slate-800 px-4 py-2 text-sm font-bold text-slate-200">
+          <button
+            type="button"
+            onClick={onClose}
+            className="rounded-xl bg-slate-800 px-4 py-2 text-sm font-bold text-slate-200"
+          >
             {t('common.cancel')}
           </button>
-          <button type="button" disabled={busy} onClick={() => void save()} className="rounded-xl bg-cyan-500 px-4 py-2 text-sm font-black text-slate-950 hover:bg-cyan-400 disabled:opacity-50">
+          <button
+            type="button"
+            disabled={busy}
+            onClick={() => void save()}
+            className="rounded-xl bg-cyan-500 px-4 py-2 text-sm font-black text-slate-950 hover:bg-cyan-400 disabled:opacity-50"
+          >
             {t('common.save')}
           </button>
         </>
@@ -95,12 +104,17 @@ export function EditReportGroupModal({ group, onClose, onSaved }: Props) {
             <span>{group.modelName}</span>
             {group.colorName && (
               <span className="inline-flex items-center gap-1.5">
-                <span className="inline-block h-3 w-3 rounded-full ring-1 ring-slate-500" style={{ backgroundColor: group.colorHex ?? '#fff' }} />
+                <span
+                  className="inline-block h-3 w-3 rounded-full ring-1 ring-slate-500"
+                  style={{ backgroundColor: group.colorHex ?? '#fff' }}
+                />
                 {group.colorName}
               </span>
             )}
           </div>
-          <p className="mt-2 text-xs text-slate-500">{t('mp.f.vehicleCount')}: {vins.length}</p>
+          <p className="mt-2 text-xs text-slate-500">
+            {t('mp.f.vehicleCount')}: {vins.length}
+          </p>
         </div>
 
         <div className="rounded-xl border border-slate-700 bg-slate-950/50 p-3">
@@ -121,17 +135,28 @@ export function EditReportGroupModal({ group, onClose, onSaved }: Props) {
           </div>
           <div>
             <label className="mb-1 block text-xs font-bold text-slate-400">{t('mp.cols.department')}</label>
-            <MpLookupSelect className="input-dark w-full" options={departments} value={department} onChange={setDepartment} />
+            <MpLookupSelect
+              className="input-dark w-full"
+              options={departments}
+              value={department}
+              onChange={setDepartment}
+            />
           </div>
         </div>
 
         <label className="block text-xs font-bold text-slate-400">{t('mp.cols.reason')}</label>
-        <input className="input-dark w-full" value={partDescription} onChange={e => setPartDescription(e.target.value)} />
+        <input
+          className="input-dark w-full"
+          value={partDescription}
+          onChange={e => setPartDescription(e.target.value)}
+        />
 
         <label className="block text-xs font-bold text-slate-400">{t('mp.f.notes')}</label>
         <textarea className="input-dark w-full" rows={2} value={notes} onChange={e => setNotes(e.target.value)} />
 
-        {error && <div className="rounded-xl border border-red-500/30 bg-red-500/10 p-3 text-sm text-red-200">{error}</div>}
+        {error && (
+          <div className="rounded-xl border border-red-500/30 bg-red-500/10 p-3 text-sm text-red-200">{error}</div>
+        )}
       </div>
     </Modal>
   )

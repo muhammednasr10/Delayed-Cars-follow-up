@@ -8,11 +8,7 @@ import {
   masterStationsForBom,
   normalizeBomStationCodeText
 } from '../../Utils/bomStationCode'
-import {
-  familyOptions,
-  syncModelCardsWithFamilies,
-  type ModelCardDraft
-} from '../../Utils/bomModelCards'
+import { familyOptions, syncModelCardsWithFamilies, type ModelCardDraft } from '../../Utils/bomModelCards'
 import { DEFAULT_PART_KIND, DEFAULT_SUPPLY_SOURCE } from '../../Utils/bomDefaults'
 import { partKindPresetOptions, supplySourcePresetOptions } from '../../Utils/bomPresetOptions'
 import { BomPresetSelect } from './BomPresetSelect'
@@ -27,14 +23,7 @@ type Props = {
   onCardsChange: (cards: ModelCardDraft[]) => void
 }
 
-export function BomModelCardsEditor({
-  models,
-  stations,
-  familyIds,
-  cards,
-  onFamilyIdsChange,
-  onCardsChange
-}: Props) {
+export function BomModelCardsEditor({ models, stations, familyIds, cards, onFamilyIdsChange, onCardsChange }: Props) {
   const { t } = useLang()
   const families = useMemo(() => familyOptions(models), [models])
   const masterStations = useMemo(() => masterStationsForBom(stations), [stations])
@@ -165,7 +154,9 @@ export function BomModelCardsEditor({
                             const st = masterStations.find(s => s.id === e.target.value)
                             patchCard(card.modelId, {
                               station_id: e.target.value,
-                              station_code_text: st ? formatStationReferenceCode(st.station_number) : card.station_code_text
+                              station_code_text: st
+                                ? formatStationReferenceCode(st.station_number)
+                                : card.station_code_text
                             })
                           }}
                         >

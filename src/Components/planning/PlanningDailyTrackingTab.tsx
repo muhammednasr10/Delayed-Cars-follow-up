@@ -80,13 +80,7 @@ export function PlanningDailyTrackingTab() {
       setMonthlyPlan(planTotal)
 
       const base = buildMonthWorkDayRows(year, month, savedDays)
-      const tracking = buildDailyTrackingRows(
-        base,
-        planTotal,
-        productivity.entryByDate,
-        productivity.exitByDate,
-        today
-      )
+      const tracking = buildDailyTrackingRows(base, planTotal, productivity.entryByDate, productivity.exitByDate, today)
       setRows(tracking)
     } catch (e) {
       setError(e instanceof Error ? e.message : t('common.error'))
@@ -321,16 +315,14 @@ export function PlanningDailyTrackingTab() {
                     <td className={`${cell} font-black text-cyan-300`}>
                       {row.isWorkingDay ? row.planned || '—' : '—'}
                     </td>
-                    <td className={`${cell} font-black text-emerald-300`}>
-                      {row.entry || '—'}
-                    </td>
-                    <td className={`${cell} font-black text-emerald-300`}>
-                      {row.exit || '—'}
-                    </td>
+                    <td className={`${cell} font-black text-emerald-300`}>{row.entry || '—'}</td>
+                    <td className={`${cell} font-black text-emerald-300`}>{row.exit || '—'}</td>
                     <td className={`${cell} font-black ${isFuture ? 'text-slate-600' : deficitTone(row.dayDeficit)}`}>
                       {row.isWorkingDay && !isFuture ? formatSigned(row.dayDeficit) : '—'}
                     </td>
-                    <td className={`${cell} font-black ${isFuture ? 'text-slate-600' : deficitTone(row.cumulativeDeficit)}`}>
+                    <td
+                      className={`${cell} font-black ${isFuture ? 'text-slate-600' : deficitTone(row.cumulativeDeficit)}`}
+                    >
                       {!isFuture && row.workDate <= today ? formatSigned(row.cumulativeDeficit) : '—'}
                     </td>
                   </tr>

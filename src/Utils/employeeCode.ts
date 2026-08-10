@@ -11,7 +11,5 @@ export function isEmployeeCodeTaken(
 ): boolean {
   const norm = normalizeEmployeeCode(code)
   if (!norm) return false
-  return employees.some(
-    e => normalizeEmployeeCode(e.employeeCode) === norm && e.id !== excludeEmployeeId
-  )
+  return employees.some(e => normalizeEmployeeCode(e.employeeCode) === norm && e.id !== excludeEmployeeId)
 }

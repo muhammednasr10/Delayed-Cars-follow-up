@@ -30,7 +30,13 @@ export function PartDetailsModal({ partId, open, onClose }: Props) {
   }, [open, partId])
 
   return (
-    <Modal open={open} title={t('bom.partDetails')} icon={<Package className="h-5 w-5" />} onClose={onClose} maxWidthClass="max-w-2xl">
+    <Modal
+      open={open}
+      title={t('bom.partDetails')}
+      icon={<Package className="h-5 w-5" />}
+      onClose={onClose}
+      maxWidthClass="max-w-2xl"
+    >
       {loading ? (
         <p className="text-sm text-slate-400">{t('common.loading')}</p>
       ) : part ? (
@@ -64,7 +70,9 @@ export function PartDetailsModal({ partId, open, onClose }: Props) {
                     </span>
                     <span className="text-slate-400">{u.vehicle_model_name || u.model_family || '—'}</span>
                     <CategoryBadge label={u.bom_classification || '—'} />
-                    <span className="text-orange-200">{u.quantity} {t('bom.qty')}</span>
+                    <span className="text-orange-200">
+                      {u.quantity} {t('bom.qty')}
+                    </span>
                   </div>
                   {u.source_sheet && (
                     <p className="mt-1 text-[10px] text-slate-500">

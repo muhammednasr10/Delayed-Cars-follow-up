@@ -79,16 +79,26 @@ export function MyProfileAttendanceTab({ employeeId: employeeIdProp, employeeNam
         <div className="flex items-center gap-2 text-emerald-300">
           <CalendarDays className="h-5 w-5" />
           <div>
-            <h3 className="text-sm font-black uppercase tracking-wide text-slate-400">{t('myProfile.attendanceSection')}</h3>
+            <h3 className="text-sm font-black uppercase tracking-wide text-slate-400">
+              {t('myProfile.attendanceSection')}
+            </h3>
             {employeeName && <p className="text-xs text-slate-500">{employeeName}</p>}
           </div>
         </div>
         <div className="flex items-center gap-2">
-          <button type="button" onClick={() => shiftMonth(-1)} className="rounded-lg bg-slate-800 p-2 hover:bg-slate-700">
+          <button
+            type="button"
+            onClick={() => shiftMonth(-1)}
+            className="rounded-lg bg-slate-800 p-2 hover:bg-slate-700"
+          >
             <ChevronLeft className="h-4 w-4" />
           </button>
           <span className="min-w-[8rem] text-center text-sm font-bold text-white">{monthLabel}</span>
-          <button type="button" onClick={() => shiftMonth(1)} className="rounded-lg bg-slate-800 p-2 hover:bg-slate-700">
+          <button
+            type="button"
+            onClick={() => shiftMonth(1)}
+            className="rounded-lg bg-slate-800 p-2 hover:bg-slate-700"
+          >
             <ChevronRight className="h-4 w-4" />
           </button>
         </div>

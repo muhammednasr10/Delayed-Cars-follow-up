@@ -139,28 +139,42 @@ export function parseClassificationGroups(raw: string, variantCodes: string[]): 
   const upperVariants = variantCodes.map(v => v.toUpperCase())
 
   if (value.includes('__')) {
-    return value.split('__').map(part => {
-      return part
-        .split('-')
-        .map(t => t.toUpperCase())
-        .filter(t => upperVariants.includes(t))
-    }).filter(g => g.length > 0)
+    return value
+      .split('__')
+      .map(part => {
+        return part
+          .split('-')
+          .map(t => t.toUpperCase())
+          .filter(t => upperVariants.includes(t))
+      })
+      .filter(g => g.length > 0)
   }
 
   if (value.endsWith('-only')) {
     const body = value.slice(0, -5)
-    const tokens = body.split('-').map(t => t.toUpperCase()).filter(t => upperVariants.includes(t))
+    const tokens = body
+      .split('-')
+      .map(t => t.toUpperCase())
+      .filter(t => upperVariants.includes(t))
     return tokens.length ? [tokens] : []
   }
 
-  const tokens = value.split('-').map(t => t.toUpperCase()).filter(t => upperVariants.includes(t))
+  const tokens = value
+    .split('-')
+    .map(t => t.toUpperCase())
+    .filter(t => upperVariants.includes(t))
   if (tokens.length) return [tokens]
 
   const fromLabel = [...raw.toUpperCase().matchAll(/\(([^)]+)\)/g)]
   if (fromLabel.length) {
-    return fromLabel.map(m =>
-      m[1].split(/[-–]/).map(t => t.trim().toUpperCase()).filter(t => upperVariants.includes(t))
-    ).filter(g => g.length > 0)
+    return fromLabel
+      .map(m =>
+        m[1]
+          .split(/[-–]/)
+          .map(t => t.trim().toUpperCase())
+          .filter(t => upperVariants.includes(t))
+      )
+      .filter(g => g.length > 0)
   }
 
   const single = raw.match(/^([A-Za-z0-9]+)\s+only$/i)

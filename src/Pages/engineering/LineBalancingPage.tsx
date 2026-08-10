@@ -28,7 +28,9 @@ export function LineBalancingPage() {
   const [errorMsg, setErrorMsg] = useState('')
 
   useEffect(() => {
-    getVehicleModels().then(setModels).catch(() => setModels([]))
+    getVehicleModels()
+      .then(setModels)
+      .catch(() => setModels([]))
   }, [])
 
   function notify(msg: string, isError = false) {
@@ -45,8 +47,14 @@ export function LineBalancingPage() {
   return (
     <section className="space-y-4">
       {!canManage && tab === 'operations' && <p className="text-xs text-amber-300">{t('training.noPerm')}</p>}
-      {success && <div className="rounded-xl border border-emerald-500/30 bg-emerald-500/10 p-3 text-sm text-emerald-200">{success}</div>}
-      {errorMsg && <div className="rounded-xl border border-red-500/30 bg-red-500/10 p-3 text-sm text-red-200">{errorMsg}</div>}
+      {success && (
+        <div className="rounded-xl border border-emerald-500/30 bg-emerald-500/10 p-3 text-sm text-emerald-200">
+          {success}
+        </div>
+      )}
+      {errorMsg && (
+        <div className="rounded-xl border border-red-500/30 bg-red-500/10 p-3 text-sm text-red-200">{errorMsg}</div>
+      )}
 
       {tab === 'operations' && (
         <StationOperationsTab
@@ -63,7 +71,9 @@ export function LineBalancingPage() {
       {tab === 'timeStudy' && <TimeStudyTab models={models} canManage={canManage} notify={notify} />}
       {tab === 'routing' && <ModelRoutingTab models={models} canManage={canManage} notify={notify} />}
       {tab === 'manpower' && <ManpowerAllocationTab models={models} canManage={canManage} notify={notify} />}
-      {tab === 'import' && <ImportTimeStudyTab canManage={canImport} onImported={() => void reload()} notify={notify} />}
+      {tab === 'import' && (
+        <ImportTimeStudyTab canManage={canImport} onImported={() => void reload()} notify={notify} />
+      )}
     </section>
   )
 }

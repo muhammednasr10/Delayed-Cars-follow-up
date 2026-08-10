@@ -62,9 +62,7 @@ export type TimeStudyListFilters = {
 export async function listTimeStudies(filters: TimeStudyListFilters = {}): Promise<TimeStudy[]> {
   let q = client()
     .from('time_studies')
-    .select(
-      '*, station_operations(operation_name_ar), stations(station_name), vehicle_models(name)'
-    )
+    .select('*, station_operations(operation_name_ar), stations(station_name), vehicle_models(name)')
     .order('created_at', { ascending: false })
     .limit(200)
 
@@ -89,9 +87,7 @@ export async function listTimeStudies(filters: TimeStudyListFilters = {}): Promi
 export async function getTimeStudy(id: string): Promise<TimeStudy | null> {
   const { data, error } = await client()
     .from('time_studies')
-    .select(
-      '*, station_operations(operation_name_ar), stations(station_name), vehicle_models(name)'
-    )
+    .select('*, station_operations(operation_name_ar), stations(station_name), vehicle_models(name)')
     .eq('id', id)
     .maybeSingle()
   if (error) throw new Error(error.message)
@@ -194,11 +190,7 @@ export async function getTimeStudyReadings(studyId: string): Promise<TimeStudyRe
   }))
 }
 
-export async function addTimeStudyReading(
-  studyId: string,
-  cycleNo: number,
-  observedSeconds: number
-): Promise<void> {
+export async function addTimeStudyReading(studyId: string, cycleNo: number, observedSeconds: number): Promise<void> {
   if (observedSeconds <= 0) throw new Error('Observed time must be greater than 0')
   const { error } = await client().from('time_study_readings').insert({
     time_study_id: studyId,
@@ -210,10 +202,7 @@ export async function addTimeStudyReading(
 }
 
 export async function setReadingExcluded(id: string, studyId: string, exclude: boolean): Promise<void> {
-  const { error } = await client()
-    .from('time_study_readings')
-    .update({ exclude_from_avg: exclude })
-    .eq('id', id)
+  const { error } = await client().from('time_study_readings').update({ exclude_from_avg: exclude }).eq('id', id)
   if (error) throw new Error(error.message)
   await recalcTimeStudy(studyId)
 }
@@ -243,11 +232,7 @@ export async function createDraftTimeStudyFromImport(params: {
 }): Promise<string | null> {
   if (params.observedSeconds <= 0) return null
 
-  let q = client()
-    .from('time_studies')
-    .select('id')
-    .eq('operation_id', params.operationId)
-    .eq('status', 'draft')
+  let q = client().from('time_studies').select('id').eq('operation_id', params.operationId).eq('status', 'draft')
   if (params.vehicleModelId) q = q.eq('vehicle_model_id', params.vehicleModelId)
   else q = q.is('vehicle_model_id', null)
 

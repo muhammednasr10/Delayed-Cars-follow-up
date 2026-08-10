@@ -114,45 +114,119 @@ export function MissingPartsTable({
       rowCount={loading ? 0 : tableRows.length}
       showExport={canExport}
     >
-    <div className="overflow-x-auto">
-      <table className="w-full text-center">
-        <thead className="bg-slate-950/90">
-          <tr>
-            {cols.map(c => (
-              <th
-                key={c}
-                className={`${c === 'actions' ? actionsCell : cell} font-black uppercase text-slate-400`}
-                style={c === 'actions' ? { insetInlineEnd: 0 } : undefined}
-                {...(c === 'actions' || c === 'select' ? { 'data-export-skip': true } : {})}
-              >
-                {c === 'select' && canBulkSelect ? (
-                  <input
-                    type="checkbox"
-                    checked={allSelectableSelected}
-                    ref={el => {
-                      if (el) el.indeterminate = someSelectableSelected && !allSelectableSelected
-                    }}
-                    onChange={onToggleSelectAll}
-                    disabled={selectableVehicleIds.size === 0 || bulkInstalling}
-                    title={t('mp.bulk.selectAll')}
-                    className="h-4 w-4 cursor-pointer rounded border-slate-600 bg-slate-800 text-cyan-500"
+      <div className="overflow-x-auto">
+        <table className="w-full text-center">
+          <thead className="bg-slate-950/90">
+            <tr>
+              {cols.map(c => (
+                <th
+                  key={c}
+                  className={`${c === 'actions' ? actionsCell : cell} font-black uppercase text-slate-400`}
+                  style={c === 'actions' ? { insetInlineEnd: 0 } : undefined}
+                  {...(c === 'actions' || c === 'select' ? { 'data-export-skip': true } : {})}
+                >
+                  {c === 'select' && canBulkSelect ? (
+                    <input
+                      type="checkbox"
+                      checked={allSelectableSelected}
+                      ref={el => {
+                        if (el) el.indeterminate = someSelectableSelected && !allSelectableSelected
+                      }}
+                      onChange={onToggleSelectAll}
+                      disabled={selectableVehicleIds.size === 0 || bulkInstalling}
+                      title={t('mp.bulk.selectAll')}
+                      className="h-4 w-4 cursor-pointer rounded border-slate-600 bg-slate-800 text-cyan-500"
+                    />
+                  ) : c === 'actions' || c === 'select' ? (
+                    ''
+                  ) : (
+                    t(`mp.cols.${c === 'dateTime' ? 'dateTime' : c}`)
+                  )}
+                </th>
+              ))}
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-slate-800">
+            {tableRows.map(row => {
+              if (row.kind === 'report-group') {
+                return (
+                  <ReportGroupRow
+                    key={row.displayRow.key}
+                    displayRow={row.displayRow}
+                    listTab={listTab}
+                    filtered={filtered}
+                    reasons={reasons}
+                    departments={departments}
+                    orgUnitLabelFor={orgUnitLabelFor}
+                    canBulkSelect={canBulkSelect}
+                    canBulkInstall={canBulkInstall}
+                    canEdit={canEdit}
+                    canDelete={canDelete}
+                    canUpdateStatus={canUpdateStatus}
+                    canNotes={canNotes}
+                    canComplete={canComplete}
+                    bulkInstalling={bulkInstalling}
+                    completingVehicleId={completingVehicleId}
+                    rowChecked={rowChecked(row)}
+                    rowSelectable={rowSelectable(row)}
+                    onToggleRowSelection={() => onToggleRowSelection(row)}
+                    onOpenVinList={onOpenVinList}
+                    onOpenIssuesList={onOpenIssuesList}
+                    onOpenDetail={onOpenDetail}
+                    onOpenNotes={onOpenNotes}
+                    onEdit={onEdit}
+                    onUpdate={onUpdate}
+                    onDeleteParts={onDeleteParts}
+                    deleteTargets={row.displayRow.items}
+                    onComplete={onComplete}
+                    onCompleteAll={onCompleteAll}
                   />
-                ) : c === 'actions' || c === 'select' ? (
-                  ''
-                ) : (
-                  t(`mp.cols.${c === 'dateTime' ? 'dateTime' : c}`)
-                )}
-              </th>
-            ))}
-          </tr>
-        </thead>
-        <tbody className="divide-y divide-slate-800">
-          {tableRows.map(row => {
-            if (row.kind === 'report-group') {
+                )
+              }
+
+              if (row.kind === 'vehicle') {
+                const primary = row.parts[0]
+                const qty = aggregateQty(row.parts)
+                return (
+                  <VehicleRows
+                    key={`v-${row.vehicleId}`}
+                    parts={row.parts}
+                    primary={primary}
+                    qty={qty}
+                    listTab={listTab}
+                    filtered={filtered}
+                    reasons={reasons}
+                    departments={departments}
+                    orgUnitLabelFor={orgUnitLabelFor}
+                    canBulkSelect={canBulkSelect}
+                    canBulkInstall={canBulkInstall}
+                    canEdit={canEdit}
+                    canDelete={canDelete}
+                    canUpdateStatus={canUpdateStatus}
+                    canNotes={canNotes}
+                    canComplete={canComplete}
+                    bulkInstalling={bulkInstalling}
+                    completingVehicleId={completingVehicleId}
+                    rowChecked={rowChecked(row)}
+                    rowSelectable={rowSelectable(row)}
+                    onToggleRowSelection={() => onToggleRowSelection(row)}
+                    onOpenIssuesList={onOpenIssuesList}
+                    onOpenDetail={onOpenDetail}
+                    onOpenNotes={onOpenNotes}
+                    onEdit={onEdit}
+                    onUpdate={onUpdate}
+                    onDeleteParts={onDeleteParts}
+                    deleteTargets={row.parts}
+                    onComplete={onComplete}
+                    onCompleteAll={onCompleteAll}
+                  />
+                )
+              }
+
               return (
-                <ReportGroupRow
-                  key={row.displayRow.key}
-                  displayRow={row.displayRow}
+                <SinglePartRow
+                  key={row.item.id}
+                  item={row.item}
                   listTab={listTab}
                   filtered={filtered}
                   reasons={reasons}
@@ -170,98 +244,26 @@ export function MissingPartsTable({
                   rowChecked={rowChecked(row)}
                   rowSelectable={rowSelectable(row)}
                   onToggleRowSelection={() => onToggleRowSelection(row)}
-                  onOpenVinList={onOpenVinList}
-                  onOpenIssuesList={onOpenIssuesList}
                   onOpenDetail={onOpenDetail}
                   onOpenNotes={onOpenNotes}
                   onEdit={onEdit}
                   onUpdate={onUpdate}
                   onDeleteParts={onDeleteParts}
-                  deleteTargets={row.displayRow.items}
+                  deleteTargets={[row.item]}
                   onComplete={onComplete}
                   onCompleteAll={onCompleteAll}
                 />
               )
-            }
-
-            if (row.kind === 'vehicle') {
-              const primary = row.parts[0]
-              const qty = aggregateQty(row.parts)
-              return (
-                <VehicleRows
-                  key={`v-${row.vehicleId}`}
-                  parts={row.parts}
-                  primary={primary}
-                  qty={qty}
-                  listTab={listTab}
-                  filtered={filtered}
-                  reasons={reasons}
-                  departments={departments}
-                  orgUnitLabelFor={orgUnitLabelFor}
-                  canBulkSelect={canBulkSelect}
-                  canBulkInstall={canBulkInstall}
-                  canEdit={canEdit}
-                  canDelete={canDelete}
-                  canUpdateStatus={canUpdateStatus}
-                  canNotes={canNotes}
-                  canComplete={canComplete}
-                  bulkInstalling={bulkInstalling}
-                  completingVehicleId={completingVehicleId}
-                  rowChecked={rowChecked(row)}
-                  rowSelectable={rowSelectable(row)}
-                  onToggleRowSelection={() => onToggleRowSelection(row)}
-                  onOpenIssuesList={onOpenIssuesList}
-                  onOpenDetail={onOpenDetail}
-                  onOpenNotes={onOpenNotes}
-                  onEdit={onEdit}
-                  onUpdate={onUpdate}
-                  onDeleteParts={onDeleteParts}
-                  deleteTargets={row.parts}
-                  onComplete={onComplete}
-                  onCompleteAll={onCompleteAll}
-                />
-              )
-            }
-
-            return (
-              <SinglePartRow
-                key={row.item.id}
-                item={row.item}
-                listTab={listTab}
-                filtered={filtered}
-                reasons={reasons}
-                departments={departments}
-                orgUnitLabelFor={orgUnitLabelFor}
-                canBulkSelect={canBulkSelect}
-                canBulkInstall={canBulkInstall}
-                canEdit={canEdit}
-                canDelete={canDelete}
-                canUpdateStatus={canUpdateStatus}
-                canNotes={canNotes}
-                canComplete={canComplete}
-                bulkInstalling={bulkInstalling}
-                completingVehicleId={completingVehicleId}
-                rowChecked={rowChecked(row)}
-                rowSelectable={rowSelectable(row)}
-                onToggleRowSelection={() => onToggleRowSelection(row)}
-                onOpenDetail={onOpenDetail}
-                onOpenNotes={onOpenNotes}
-                onEdit={onEdit}
-                onUpdate={onUpdate}
-                onDeleteParts={onDeleteParts}
-                deleteTargets={[row.item]}
-                onComplete={onComplete}
-                onCompleteAll={onCompleteAll}
-              />
-            )
-          })}
-        </tbody>
-      </table>
-      {loading && <div className="p-8 text-center text-slate-400">{t('common.loading')}</div>}
-      {!loading && tableRows.length === 0 && (
-        <div className="p-8 text-center text-slate-400">{listTab === 'history' ? t('mp.history.empty') : t('common.noResults')}</div>
-      )}
-    </div>
+            })}
+          </tbody>
+        </table>
+        {loading && <div className="p-8 text-center text-slate-400">{t('common.loading')}</div>}
+        {!loading && tableRows.length === 0 && (
+          <div className="p-8 text-center text-slate-400">
+            {listTab === 'history' ? t('mp.history.empty') : t('common.noResults')}
+          </div>
+        )}
+      </div>
     </ExportableTable>
   )
 }
@@ -491,7 +493,9 @@ function PartDataRow({
   const completeTarget = completeRep ?? item
 
   return (
-    <tr className={`bg-slate-900/30 hover:bg-slate-800/40 ${rowChecked ? 'ring-1 ring-inset ring-cyan-500/40' : ''} ${rowClassName}`}>
+    <tr
+      className={`bg-slate-900/30 hover:bg-slate-800/40 ${rowChecked ? 'ring-1 ring-inset ring-cyan-500/40' : ''} ${rowClassName}`}
+    >
       {(listTab === 'active' || listTab === 'history') && (
         <td data-export-skip className={cell}>
           {canBulkSelect && (
@@ -510,7 +514,10 @@ function PartDataRow({
       <td className={cell}>
         {item.colorName ? (
           <span className="inline-flex items-center justify-center gap-1.5">
-            <span className="inline-block h-3 w-3 rounded-full ring-1 ring-slate-500" style={{ backgroundColor: item.colorHex ?? '#fff' }} />
+            <span
+              className="inline-block h-3 w-3 rounded-full ring-1 ring-slate-500"
+              style={{ backgroundColor: item.colorHex ?? '#fff' }}
+            />
             {item.colorName}
           </span>
         ) : (

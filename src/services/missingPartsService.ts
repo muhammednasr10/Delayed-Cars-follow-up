@@ -137,10 +137,7 @@ export async function bulkInstallVehiclesToFull(
   const vehicleSet = new Set(vehicleIds)
   const targets = pool.filter(
     p =>
-      vehicleSet.has(p.vehicleId) &&
-      p.status !== 'closed' &&
-      p.status !== 'cancelled' &&
-      p.installedQty < p.requiredQty
+      vehicleSet.has(p.vehicleId) && p.status !== 'closed' && p.status !== 'cancelled' && p.installedQty < p.requiredQty
   )
   for (const p of targets) {
     const delta = p.requiredQty - p.installedQty
@@ -220,20 +217,14 @@ export async function reportMissingPartsBatch(
     p_notes: input.notes || null
   }
 
-  const withOrg = input.factoryOrgUnitId
-    ? { ...baseParams, p_factory_org_unit_id: input.factoryOrgUnitId }
-    : baseParams
+  const withOrg = input.factoryOrgUnitId ? { ...baseParams, p_factory_org_unit_id: input.factoryOrgUnitId } : baseParams
 
   let data: unknown
-  let error: { message: string } | null = null
+  let error: { message: string } | null
 
   ;({ data, error } = await requireClient().rpc('report_missing_parts_batch', withOrg))
 
-  if (
-    error &&
-    error.message.includes('Could not find the function') &&
-    'p_factory_org_unit_id' in withOrg
-  ) {
+  if (error && error.message.includes('Could not find the function') && 'p_factory_org_unit_id' in withOrg) {
     ;({ data, error } = await requireClient().rpc('report_missing_parts_batch', baseParams))
   }
 

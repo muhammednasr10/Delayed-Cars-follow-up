@@ -97,7 +97,11 @@ export function EditVehicleEntryModal({ vehicle, onClose }: Props) {
       maxWidthClass="max-w-2xl"
       footer={
         <div className="flex flex-wrap justify-end gap-2">
-          <button type="button" onClick={onClose} className="rounded-xl bg-slate-800 px-5 py-3 font-bold text-slate-200">
+          <button
+            type="button"
+            onClick={onClose}
+            className="rounded-xl bg-slate-800 px-5 py-3 font-bold text-slate-200"
+          >
             {t('common.cancel')}
           </button>
           <button

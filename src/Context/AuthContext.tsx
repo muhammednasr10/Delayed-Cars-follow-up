@@ -6,6 +6,7 @@ import {
   loginWithEmailPassword,
   registerAuthFailureHandler,
   restoreSessionFromStorage,
+  refreshSessionOnWake,
   withTimeout,
   type AppAuthSession
 } from '../services/authService'
@@ -96,9 +97,7 @@ function mapProfileRow(row: Record<string, unknown>): Profile {
     system_role_name_ar: (row.system_role_name_ar as string | null) ?? null,
     employment_status: (row.employment_status as string | null) ?? null,
     employee_is_active:
-      row.employee_is_active === undefined || row.employee_is_active === null
-        ? null
-        : Boolean(row.employee_is_active)
+      row.employee_is_active === undefined || row.employee_is_active === null ? null : Boolean(row.employee_is_active)
   }
 }
 
@@ -119,78 +118,85 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const profileLoadedUidRef = useRef<string | null>(null)
   const bootGenRef = useRef(0)
 
-  const kickSession = useCallback((message: string, result: Exclude<LoadProfileResult, 'ok' | 'missing' | 'error'>): LoadProfileResult => {
-    profileLoadedUidRef.current = null
-    setAccessDeniedMessage(message)
-    setProfile(null)
-    clearSession()
-    setSession(null)
-    return result
-  }, [])
+  const kickSession = useCallback(
+    (message: string, result: Exclude<LoadProfileResult, 'ok' | 'missing' | 'error'>): LoadProfileResult => {
+      profileLoadedUidRef.current = null
+      setAccessDeniedMessage(message)
+      setProfile(null)
+      clearSession()
+      setSession(null)
+      return result
+    },
+    []
+  )
 
-  const loadProfileInner = useCallback(async (userId: string): Promise<LoadProfileResult> => {
-    if (!supabase) return 'error'
+  const loadProfileInner = useCallback(
+    async (userId: string): Promise<LoadProfileResult> => {
+      if (!supabase) return 'error'
 
-    const { data: rpcData, error: rpcErr } = await supabase.rpc('get_my_profile')
-    if (!rpcErr && rpcData && typeof rpcData === 'object') {
-      const mapped = mapProfileRow(rpcData as Record<string, unknown>)
+      const { data: rpcData, error: rpcErr } = await supabase.rpc('get_my_profile')
+      if (!rpcErr && rpcData && typeof rpcData === 'object') {
+        const mapped = mapProfileRow(rpcData as Record<string, unknown>)
+        if (!profileAccessOk(mapped)) {
+          if (!mapped.is_active || mapped.is_blocked) return kickSession(BLOCKED_MSG_AR, 'blocked')
+          return kickSession(EMPLOYEE_STOPPED_MSG_AR, 'employee_inactive')
+        }
+        setAccessDeniedMessage(null)
+        setProfile(mapped)
+        profileLoadedUidRef.current = userId
+        return 'ok'
+      }
+
+      const { data, error } = await supabase
+        .from('profiles')
+        .select(
+          'id, full_name, email, avatar_url, role, is_active, is_blocked, blocked_reason, employee_id, system_role_id, system_roles(role_code, role_name_ar), employees(employee_code, full_name, employment_status, is_active)'
+        )
+        .eq('id', userId)
+        .maybeSingle()
+
+      if (error) {
+        console.error('Failed to load profile:', error)
+        setProfile(null)
+        return 'error'
+      }
+      if (!data) {
+        setProfile(null)
+        return 'missing'
+      }
+
+      const row = data as Profile & {
+        system_roles?:
+          { role_code: string; role_name_ar: string } | { role_code: string; role_name_ar: string }[] | null
+        employees?:
+          | { employment_status: string; employee_code: string; full_name: string; is_active: boolean }
+          | { employment_status: string; employee_code: string; full_name: string; is_active: boolean }[]
+          | null
+      }
+      const srRow = Array.isArray(row.system_roles) ? row.system_roles[0] : row.system_roles
+      const empRow = Array.isArray(row.employees) ? row.employees[0] : row.employees
+      const mapped: Profile = {
+        ...row,
+        employment_status: empRow?.employment_status ?? null,
+        employee_code: empRow?.employee_code ?? null,
+        employee_full_name: empRow?.full_name ?? null,
+        employee_is_active: empRow ? Boolean(empRow.is_active) : null,
+        system_role_code: srRow?.role_code ?? null,
+        system_role_name_ar: srRow?.role_name_ar ?? null
+      }
+
       if (!profileAccessOk(mapped)) {
         if (!mapped.is_active || mapped.is_blocked) return kickSession(BLOCKED_MSG_AR, 'blocked')
         return kickSession(EMPLOYEE_STOPPED_MSG_AR, 'employee_inactive')
       }
+
       setAccessDeniedMessage(null)
       setProfile(mapped)
       profileLoadedUidRef.current = userId
       return 'ok'
-    }
-
-    const { data, error } = await supabase
-      .from('profiles')
-      .select(
-        'id, full_name, email, avatar_url, role, is_active, is_blocked, blocked_reason, employee_id, system_role_id, system_roles(role_code, role_name_ar), employees(employee_code, full_name, employment_status, is_active)'
-      )
-      .eq('id', userId)
-      .maybeSingle()
-
-    if (error) {
-      console.error('Failed to load profile:', error)
-      setProfile(null)
-      return 'error'
-    }
-    if (!data) {
-      setProfile(null)
-      return 'missing'
-    }
-
-    const row = data as Profile & {
-      system_roles?: { role_code: string; role_name_ar: string } | { role_code: string; role_name_ar: string }[] | null
-      employees?:
-        | { employment_status: string; employee_code: string; full_name: string; is_active: boolean }
-        | { employment_status: string; employee_code: string; full_name: string; is_active: boolean }[]
-        | null
-    }
-    const srRow = Array.isArray(row.system_roles) ? row.system_roles[0] : row.system_roles
-    const empRow = Array.isArray(row.employees) ? row.employees[0] : row.employees
-    const mapped: Profile = {
-      ...row,
-      employment_status: empRow?.employment_status ?? null,
-      employee_code: empRow?.employee_code ?? null,
-      employee_full_name: empRow?.full_name ?? null,
-      employee_is_active: empRow ? Boolean(empRow.is_active) : null,
-      system_role_code: srRow?.role_code ?? null,
-      system_role_name_ar: srRow?.role_name_ar ?? null
-    }
-
-    if (!profileAccessOk(mapped)) {
-      if (!mapped.is_active || mapped.is_blocked) return kickSession(BLOCKED_MSG_AR, 'blocked')
-      return kickSession(EMPLOYEE_STOPPED_MSG_AR, 'employee_inactive')
-    }
-
-    setAccessDeniedMessage(null)
-    setProfile(mapped)
-    profileLoadedUidRef.current = userId
-    return 'ok'
-  }, [kickSession])
+    },
+    [kickSession]
+  )
 
   const loadProfile = useCallback(
     async (userId: string, force = false): Promise<LoadProfileResult> => {
@@ -250,19 +256,28 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     if (!session?.user?.id) return
 
-    const tick = () => {
-      void import('../services/authService').then(({ readRawSession, isAccessTokenExpired, ensureFreshSession }) => {
-        const current = readRawSession()
-        if (!current || !isAccessTokenExpired(current)) return
-        void ensureFreshSession().then(next => {
-          if (next) setSession(next)
-        })
+    const refreshIfNeeded = () => {
+      void refreshSessionOnWake().then(next => {
+        if (next) setSession(next)
       })
     }
 
-    tick()
-    const id = window.setInterval(tick, 60_000)
-    return () => window.clearInterval(id)
+    refreshIfNeeded()
+    const intervalId = window.setInterval(refreshIfNeeded, 60_000)
+
+    const onWake = () => {
+      if (document.visibilityState === 'visible') refreshIfNeeded()
+    }
+    document.addEventListener('visibilitychange', onWake)
+    window.addEventListener('focus', refreshIfNeeded)
+    window.addEventListener('pageshow', refreshIfNeeded)
+
+    return () => {
+      window.clearInterval(intervalId)
+      document.removeEventListener('visibilitychange', onWake)
+      window.removeEventListener('focus', refreshIfNeeded)
+      window.removeEventListener('pageshow', refreshIfNeeded)
+    }
   }, [session?.user?.id])
 
   useEffect(() => {
@@ -347,7 +362,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       },
       isAdmin
     }),
-    [configured, loading, session, profile, role, displayRole, systemRoleCode, accessDeniedMessage, isAdmin, reloadProfile]
+    [
+      configured,
+      loading,
+      session,
+      profile,
+      role,
+      displayRole,
+      systemRoleCode,
+      accessDeniedMessage,
+      isAdmin,
+      reloadProfile
+    ]
   )
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>

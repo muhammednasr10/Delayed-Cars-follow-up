@@ -53,9 +53,7 @@ export function stationToWizardValues(
     is_active: station.is_active === false ? 'false' : 'true',
     station_number: base,
     headcount_workers:
-      station.headcount_workers != null && station.headcount_workers > 0
-        ? String(station.headcount_workers)
-        : '1'
+      station.headcount_workers != null && station.headcount_workers > 0 ? String(station.headcount_workers) : '1'
   }
 }
 
@@ -108,8 +106,6 @@ export function createStationWizardDefaults(stations: Station[], allStationNumbe
     work_area_id: last.work_area_id ?? '',
     is_active: last.is_active === false ? 'false' : 'true',
     headcount_workers:
-      last.headcount_workers != null && last.headcount_workers > 0
-        ? String(last.headcount_workers)
-        : '1'
+      last.headcount_workers != null && last.headcount_workers > 0 ? String(last.headcount_workers) : '1'
   }
 }

@@ -45,7 +45,12 @@ function buildPrintableTableHtml(title: string, data: TableExportData, rtl: bool
   return wrapper
 }
 
-export async function renderTablePdf(data: TableExportData, filename: string, title: string, rtl = true): Promise<void> {
+export async function renderTablePdf(
+  data: TableExportData,
+  filename: string,
+  title: string,
+  rtl = true
+): Promise<void> {
   const [{ jsPDF }, { default: html2canvas }] = await Promise.all([import('jspdf'), import('html2canvas')])
   const wrapper = buildPrintableTableHtml(title, data, rtl)
   document.body.appendChild(wrapper)

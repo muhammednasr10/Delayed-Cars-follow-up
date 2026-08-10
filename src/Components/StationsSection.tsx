@@ -6,7 +6,15 @@ import { StationWizardModal } from './StationWizardModal'
 import { formatStationReferenceCode, composeStationNumber, parseStationNumberParts } from '../Utils/stationHierarchy'
 import { createStationWizardDefaults, parseHeadcountWorkers, stationToWizardValues } from '../Utils/stationFormValues'
 import { dedupeMasterStationsForDisplay } from '../Utils/stationMaster'
-import { createStation, deleteStation, getAllStationNumbers, getStations, getWorkAreas, removeDuplicateMasterStations, updateStation } from '../services/settingsService'
+import {
+  createStation,
+  deleteStation,
+  getAllStationNumbers,
+  getStations,
+  getWorkAreas,
+  removeDuplicateMasterStations,
+  updateStation
+} from '../services/settingsService'
 import type { Station, WorkArea } from '../Types/settings'
 import { supabase } from '../lib/supabase'
 import type { StationType } from '../Types/enums'
@@ -151,13 +159,13 @@ export const StationsSection = forwardRef<StationsSectionHandle, Props>(function
         <div className="rounded-xl border border-red-500/30 bg-red-500/10 p-3 text-sm text-red-200">{localError}</div>
       )}
       {notifyLocally && localSuccess && (
-        <div className="rounded-xl border border-emerald-500/30 bg-emerald-500/10 p-3 text-sm text-emerald-200">{localSuccess}</div>
+        <div className="rounded-xl border border-emerald-500/30 bg-emerald-500/10 p-3 text-sm text-emerald-200">
+          {localSuccess}
+        </div>
       )}
 
       {hint && (
-        <div className="rounded-xl border border-cyan-500/25 bg-cyan-500/10 p-3 text-sm text-cyan-100">
-          {hint}
-        </div>
+        <div className="rounded-xl border border-cyan-500/25 bg-cyan-500/10 p-3 text-sm text-cyan-100">{hint}</div>
       )}
 
       {manage && (
@@ -185,7 +193,11 @@ export const StationsSection = forwardRef<StationsSectionHandle, Props>(function
           { key: 'sort_order', label: t('settings.fields.sortOrder'), defaultValue: '0' },
           { key: 'station_base', label: t('settings.cols.stationName'), required: true, placeholder: 'PBS01' },
           { key: 'station_name', label: t('settings.fields.commonName'), required: true },
-          { key: 'station_type', label: t('settings.fields.stationType'), defaultValue: lockedStationType ?? 'main_line' },
+          {
+            key: 'station_type',
+            label: t('settings.fields.stationType'),
+            defaultValue: lockedStationType ?? 'main_line'
+          },
           { key: 'is_active', label: t('settings.wizard.activeStatus'), defaultValue: 'true' }
         ]}
         columns={[
@@ -204,7 +216,11 @@ export const StationsSection = forwardRef<StationsSectionHandle, Props>(function
             render: s => <span className="font-bold text-slate-100">{s.station_name}</span>
           },
           { header: t('settings.cols.workArea'), className: 'text-center', render: s => s.work_areas?.name || '—' },
-          { header: t('settings.fields.stationType'), className: 'text-center', render: s => stationTypeLabel(t, s.station_type) }
+          {
+            header: t('settings.fields.stationType'),
+            className: 'text-center',
+            render: s => stationTypeLabel(t, s.station_type)
+          }
         ]}
         toValues={stationToWizardValues}
         getCreateValues={items => createStationWizardDefaults(items, allStationNumbers)}

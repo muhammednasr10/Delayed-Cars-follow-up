@@ -119,7 +119,13 @@ export function StationOperationsLineFilter({
         ))}
       </div>
       {lineVariants.length > 0 && (
-        <VariantFilter line={activeLine} variants={lineVariants} activeVariant={activeVariant} onSelect={onSelectVariant} t={t} />
+        <VariantFilter
+          line={activeLine}
+          variants={lineVariants}
+          activeVariant={activeVariant}
+          onSelect={onSelectVariant}
+          t={t}
+        />
       )}
       {lineVariants.length >= 3 && <ClassificationLegend line={activeLine} t={t} />}
     </div>

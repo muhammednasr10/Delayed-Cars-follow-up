@@ -23,10 +23,7 @@ import { useEquipmentListState } from './equipment/useEquipmentListState'
 import { WarehouseEquipmentSectionHeader } from './equipment/WarehouseEquipmentSectionHeader'
 import { WarehouseEquipmentListCard } from './equipment/WarehouseEquipmentListCard'
 import { WarehouseEquipmentRowActions } from './equipment/WarehouseEquipmentRowActions'
-import {
-  WarehouseEquipmentCommonFields,
-  WarehouseEquipmentModalFooter
-} from './equipment/WarehouseEquipmentFormFields'
+import { WarehouseEquipmentCommonFields, WarehouseEquipmentModalFooter } from './equipment/WarehouseEquipmentFormFields'
 
 type Props = {
   warehouses: Warehouse[]
@@ -247,7 +244,11 @@ export function WarehouseFeedingPlanCartsTab({ warehouses, canManage, notify }: 
           />
           <label className="block">
             <span className="mb-1 block text-xs text-slate-500">{t('warehouses.equipment.cols.cartType')}</span>
-            <input className={inputCls()} value={form.cartType} onChange={e => patchForm({ cartType: e.target.value })} />
+            <input
+              className={inputCls()}
+              value={form.cartType}
+              onChange={e => patchForm({ cartType: e.target.value })}
+            />
           </label>
           <label className="block">
             <span className="mb-1 block text-xs text-slate-500">{t('warehouses.feeding.carts.cols.maxLoad')}</span>

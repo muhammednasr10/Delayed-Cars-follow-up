@@ -192,7 +192,11 @@ export function MissionsBoardTab({ onChanged }: Props) {
       <div className="card-industrial flex flex-col gap-3 p-4 sm:flex-row sm:items-center sm:justify-between">
         <p className="text-sm text-slate-400">{t('missions.boardHint')}</p>
         <div className="flex flex-wrap items-center gap-2">
-          <button type="button" onClick={() => void load()} className="rounded-xl bg-slate-800 px-3 py-2 text-slate-200 hover:bg-slate-700">
+          <button
+            type="button"
+            onClick={() => void load()}
+            className="rounded-xl bg-slate-800 px-3 py-2 text-slate-200 hover:bg-slate-700"
+          >
             <RefreshCcw className="h-4 w-4" />
           </button>
           {canAssignMissions && (
@@ -209,11 +213,15 @@ export function MissionsBoardTab({ onChanged }: Props) {
       </div>
 
       {!canAssignMissions && employeeId && (
-        <div className="rounded-xl border border-slate-700 bg-slate-900/50 p-4 text-sm text-slate-400">{t('missions.boardNoSubordinates')}</div>
+        <div className="rounded-xl border border-slate-700 bg-slate-900/50 p-4 text-sm text-slate-400">
+          {t('missions.boardNoSubordinates')}
+        </div>
       )}
 
       {!employeeId && (
-        <div className="rounded-xl border border-amber-500/30 bg-amber-500/10 p-4 text-sm text-amber-100">{t('missions.my.noEmployeeLink')}</div>
+        <div className="rounded-xl border border-amber-500/30 bg-amber-500/10 p-4 text-sm text-amber-100">
+          {t('missions.my.noEmployeeLink')}
+        </div>
       )}
 
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
@@ -225,7 +233,11 @@ export function MissionsBoardTab({ onChanged }: Props) {
 
       <div className="card-industrial p-4">
         <Field label={t('missions.filterStatus')}>
-          <select className={inputCls()} value={statusFilter} onChange={e => setStatusFilter(e.target.value as MissionStatus | 'all')}>
+          <select
+            className={inputCls()}
+            value={statusFilter}
+            onChange={e => setStatusFilter(e.target.value as MissionStatus | 'all')}
+          >
             <option value="all">{t('common.all')}</option>
             {MISSION_STATUSES.map(key => (
               <option key={key} value={key}>
@@ -243,100 +255,118 @@ export function MissionsBoardTab({ onChanged }: Props) {
         </div>
       )}
 
-      {success && <div className="rounded-xl border border-emerald-500/30 bg-emerald-500/10 p-3 text-sm text-emerald-200">{success}</div>}
-      {error && !setupRequired && <div className="rounded-xl border border-red-500/30 bg-red-500/10 p-3 text-sm text-red-200">{error}</div>}
+      {success && (
+        <div className="rounded-xl border border-emerald-500/30 bg-emerald-500/10 p-3 text-sm text-emerald-200">
+          {success}
+        </div>
+      )}
+      {error && !setupRequired && (
+        <div className="rounded-xl border border-red-500/30 bg-red-500/10 p-3 text-sm text-red-200">{error}</div>
+      )}
 
       <div className="card-industrial overflow-hidden">
         <ExportableTable filename="missions" title={t('missions.title')} rowCount={filtered.length}>
-        <div className="overflow-x-auto">
-        <table className="w-full text-center text-sm">
-          <thead className="bg-slate-950/90">
-            <tr>
-              <th className={`${cell} font-black text-slate-400`}>{t('missions.cols.title')}</th>
-              <th className={`${cell} font-black text-slate-400`}>{t('missions.cols.assignee')}</th>
-              <th className={`${cell} font-black text-slate-400`}>{t('missions.cols.priority')}</th>
-              <th className={`${cell} font-black text-slate-400`}>{t('missions.cols.dueDate')}</th>
-              <th className={`${cell} font-black text-slate-400`}>{t('missions.cols.status')}</th>
-              {canAssignMissions && <th data-export-skip className={`${cell} font-black text-slate-400`}>{t('common.actions')}</th>}
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-slate-800">
-            {loading ? (
-              <tr>
-                <td colSpan={canAssignMissions ? 6 : 5} className="px-4 py-12 text-slate-500">
-                  {t('common.loading')}
-                </td>
-              </tr>
-            ) : filtered.length === 0 ? (
-              <tr>
-                <td colSpan={canAssignMissions ? 6 : 5} className="px-4 py-12 text-slate-500">
-                  {t('missions.empty')}
-                </td>
-              </tr>
-            ) : (
-              filtered.map(row => (
-                <tr key={row.id} className="bg-slate-900/30 hover:bg-slate-800/40">
-                  <td className={`${cell} max-w-[14rem] text-start`}>
-                    <p className="font-bold text-white">{row.title}</p>
-                    {row.description && <p className="mt-0.5 truncate text-xs text-slate-500">{row.description}</p>}
-                  </td>
-                  <td className={cell}>
-                    {row.assignees.length > 1 ? (
-                      <div className="space-y-0.5">
-                        {row.assignees.map(a => (
-                          <p key={a.id} className="font-bold text-slate-200">
-                            {a.name}
-                            <span className="ms-1 font-mono text-[10px] text-slate-500" dir="ltr">
-                              {a.code}
-                            </span>
-                          </p>
-                        ))}
-                      </div>
-                    ) : (
-                      <>
-                        <p className="font-bold text-slate-200">{row.assigneeName}</p>
-                        <p className="text-xs text-slate-500">{row.assigneeCode}</p>
-                      </>
-                    )}
-                  </td>
-                  <td className={cell}>{priorityBadge(row.priority)}</td>
-                  <td className={`${cell} text-slate-300`}>{formatDate(row.dueDate)}</td>
-                  <td className={cell}>
-                    {canAssignMissions ? (
-                      <select
-                        className="rounded-lg border border-slate-700 bg-slate-900 px-2 py-1 text-xs font-bold text-slate-200"
-                        value={row.status}
-                        disabled={saving}
-                        onChange={e => void changeStatus(row, e.target.value as MissionStatus)}
-                      >
-                        {MISSION_STATUSES.map(key => (
-                          <option key={key} value={key}>
-                            {t(`missions.status.${key}`)}
-                          </option>
-                        ))}
-                      </select>
-                    ) : (
-                      statusBadge(row.status)
-                    )}
-                  </td>
+          <div className="overflow-x-auto">
+            <table className="w-full text-center text-sm">
+              <thead className="bg-slate-950/90">
+                <tr>
+                  <th className={`${cell} font-black text-slate-400`}>{t('missions.cols.title')}</th>
+                  <th className={`${cell} font-black text-slate-400`}>{t('missions.cols.assignee')}</th>
+                  <th className={`${cell} font-black text-slate-400`}>{t('missions.cols.priority')}</th>
+                  <th className={`${cell} font-black text-slate-400`}>{t('missions.cols.dueDate')}</th>
+                  <th className={`${cell} font-black text-slate-400`}>{t('missions.cols.status')}</th>
                   {canAssignMissions && (
-                    <td data-export-skip className={cell}>
-                      <div className="flex items-center justify-center gap-1">
-                        <button type="button" onClick={() => openEdit(row)} className="rounded-lg bg-slate-800 p-2 text-cyan-300 hover:bg-slate-700">
-                          <Pencil className="h-4 w-4" />
-                        </button>
-                        <button type="button" onClick={() => setDeleteTarget(row)} className="rounded-lg bg-slate-800 p-2 text-red-300 hover:bg-slate-700">
-                          <Trash2 className="h-4 w-4" />
-                        </button>
-                      </div>
-                    </td>
+                    <th data-export-skip className={`${cell} font-black text-slate-400`}>
+                      {t('common.actions')}
+                    </th>
                   )}
                 </tr>
-              ))
-            )}
-          </tbody>
-        </table>
-        </div>
+              </thead>
+              <tbody className="divide-y divide-slate-800">
+                {loading ? (
+                  <tr>
+                    <td colSpan={canAssignMissions ? 6 : 5} className="px-4 py-12 text-slate-500">
+                      {t('common.loading')}
+                    </td>
+                  </tr>
+                ) : filtered.length === 0 ? (
+                  <tr>
+                    <td colSpan={canAssignMissions ? 6 : 5} className="px-4 py-12 text-slate-500">
+                      {t('missions.empty')}
+                    </td>
+                  </tr>
+                ) : (
+                  filtered.map(row => (
+                    <tr key={row.id} className="bg-slate-900/30 hover:bg-slate-800/40">
+                      <td className={`${cell} max-w-[14rem] text-start`}>
+                        <p className="font-bold text-white">{row.title}</p>
+                        {row.description && <p className="mt-0.5 truncate text-xs text-slate-500">{row.description}</p>}
+                      </td>
+                      <td className={cell}>
+                        {row.assignees.length > 1 ? (
+                          <div className="space-y-0.5">
+                            {row.assignees.map(a => (
+                              <p key={a.id} className="font-bold text-slate-200">
+                                {a.name}
+                                <span className="ms-1 font-mono text-[10px] text-slate-500" dir="ltr">
+                                  {a.code}
+                                </span>
+                              </p>
+                            ))}
+                          </div>
+                        ) : (
+                          <>
+                            <p className="font-bold text-slate-200">{row.assigneeName}</p>
+                            <p className="text-xs text-slate-500">{row.assigneeCode}</p>
+                          </>
+                        )}
+                      </td>
+                      <td className={cell}>{priorityBadge(row.priority)}</td>
+                      <td className={`${cell} text-slate-300`}>{formatDate(row.dueDate)}</td>
+                      <td className={cell}>
+                        {canAssignMissions ? (
+                          <select
+                            className="rounded-lg border border-slate-700 bg-slate-900 px-2 py-1 text-xs font-bold text-slate-200"
+                            value={row.status}
+                            disabled={saving}
+                            onChange={e => void changeStatus(row, e.target.value as MissionStatus)}
+                          >
+                            {MISSION_STATUSES.map(key => (
+                              <option key={key} value={key}>
+                                {t(`missions.status.${key}`)}
+                              </option>
+                            ))}
+                          </select>
+                        ) : (
+                          statusBadge(row.status)
+                        )}
+                      </td>
+                      {canAssignMissions && (
+                        <td data-export-skip className={cell}>
+                          <div className="flex items-center justify-center gap-1">
+                            <button
+                              type="button"
+                              onClick={() => openEdit(row)}
+                              className="rounded-lg bg-slate-800 p-2 text-cyan-300 hover:bg-slate-700"
+                            >
+                              <Pencil className="h-4 w-4" />
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => setDeleteTarget(row)}
+                              className="rounded-lg bg-slate-800 p-2 text-red-300 hover:bg-slate-700"
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </button>
+                          </div>
+                        </td>
+                      )}
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
+          </div>
         </ExportableTable>
       </div>
 
@@ -362,7 +392,15 @@ export function MissionsBoardTab({ onChanged }: Props) {
   )
 }
 
-function StatPill({ label, value, tone = 'slate' }: { label: string; value: string; tone?: 'slate' | 'amber' | 'blue' | 'emerald' }) {
+function StatPill({
+  label,
+  value,
+  tone = 'slate'
+}: {
+  label: string
+  value: string
+  tone?: 'slate' | 'amber' | 'blue' | 'emerald'
+}) {
   const tones = {
     slate: 'border-slate-600/50 bg-slate-800/50 text-slate-200',
     amber: 'border-amber-500/30 bg-amber-500/10 text-amber-100',

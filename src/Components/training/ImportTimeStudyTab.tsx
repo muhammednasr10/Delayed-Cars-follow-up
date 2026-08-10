@@ -30,7 +30,9 @@ export function ImportTimeStudyTab({ notify, canManage, onImported }: Props) {
   const [importMode, setImportMode] = useState<'merge' | 'replace_hardware'>('merge')
 
   useEffect(() => {
-    getVehicleModels().then(setModels).catch(() => setModels([]))
+    getVehicleModels()
+      .then(setModels)
+      .catch(() => setModels([]))
     getTiggo8FamilyId().then(async id => {
       if (!id) return
       const members = await getFamilyMembers(id)
@@ -111,7 +113,12 @@ export function ImportTimeStudyTab({ notify, canManage, onImported }: Props) {
         <p className="mt-1 text-sm text-slate-400">{t('import.subtitle')}</p>
         <div className="mt-3 flex flex-wrap gap-2 text-xs font-bold">
           {(['upload', 'families', 'preview', 'diff', 'done'] as Step[]).map(s => (
-            <span key={s} className={`rounded-lg px-3 py-1 ${step === s ? 'bg-cyan-500 text-slate-950' : 'bg-slate-800 text-slate-400'}`}>{t(`import.step.${s}`)}</span>
+            <span
+              key={s}
+              className={`rounded-lg px-3 py-1 ${step === s ? 'bg-cyan-500 text-slate-950' : 'bg-slate-800 text-slate-400'}`}
+            >
+              {t(`import.step.${s}`)}
+            </span>
           ))}
         </div>
       </div>
@@ -122,7 +129,16 @@ export function ImportTimeStudyTab({ notify, canManage, onImported }: Props) {
           <p className="text-sm text-slate-400">{t('import.formats')}</p>
           <label className="cursor-pointer rounded-xl bg-cyan-500 px-6 py-3 text-sm font-black text-slate-950 hover:bg-cyan-400">
             {busy ? t('common.loading') : t('import.chooseFile')}
-            <input type="file" accept=".csv,.xlsx,.xls" className="hidden" disabled={busy} onChange={e => { const f = e.target.files?.[0]; if (f) onFile(f) }} />
+            <input
+              type="file"
+              accept=".csv,.xlsx,.xls"
+              className="hidden"
+              disabled={busy}
+              onChange={e => {
+                const f = e.target.files?.[0]
+                if (f) onFile(f)
+              }}
+            />
           </label>
         </div>
       )}
@@ -134,42 +150,79 @@ export function ImportTimeStudyTab({ notify, canManage, onImported }: Props) {
           <div className="max-h-64 space-y-2 overflow-y-auto">
             {models.map(m => (
               <label key={m.id} className="flex items-center gap-2 rounded-lg bg-slate-900/60 px-3 py-2 text-sm">
-                <input type="checkbox" checked={tiggo8Members.has(m.id)} onChange={e => {
-                  setTiggo8Members(prev => { const n = new Set(prev); if (e.target.checked) n.add(m.id); else n.delete(m.id); return n })
-                }} />
+                <input
+                  type="checkbox"
+                  checked={tiggo8Members.has(m.id)}
+                  onChange={e => {
+                    setTiggo8Members(prev => {
+                      const n = new Set(prev)
+                      if (e.target.checked) n.add(m.id)
+                      else n.delete(m.id)
+                      return n
+                    })
+                  }}
+                />
                 <span className="text-slate-200">{m.name}</span>
               </label>
             ))}
           </div>
-          <button disabled={busy} onClick={saveFamilies} className="mt-4 rounded-xl bg-cyan-500 px-5 py-2 text-sm font-black text-slate-950 disabled:opacity-50">{t('common.next')}</button>
+          <button
+            disabled={busy}
+            onClick={saveFamilies}
+            className="mt-4 rounded-xl bg-cyan-500 px-5 py-2 text-sm font-black text-slate-950 disabled:opacity-50"
+          >
+            {t('common.next')}
+          </button>
         </div>
       )}
 
       {step === 'preview' && parse && (
         <div className="card-industrial overflow-hidden">
           <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-800 p-4">
-            <span className="text-sm text-slate-300">{t('import.previewCount', { stations: parse.stations.length, ops: parse.operations.length })}</span>
-            <button disabled={busy} onClick={loadDiff} className="rounded-xl bg-cyan-500 px-4 py-2 text-sm font-black text-slate-950">{t('import.reviewDiff')}</button>
+            <span className="text-sm text-slate-300">
+              {t('import.previewCount', { stations: parse.stations.length, ops: parse.operations.length })}
+            </span>
+            <button
+              disabled={busy}
+              onClick={loadDiff}
+              className="rounded-xl bg-cyan-500 px-4 py-2 text-sm font-black text-slate-950"
+            >
+              {t('import.reviewDiff')}
+            </button>
           </div>
           {parse.errors.length > 0 && (
             <div className="border-b border-red-500/30 bg-red-500/10 p-3 text-xs text-red-200">
-              {parse.errors.slice(0, 5).map(e => <div key={e.row}>Row {e.row}: {e.message}</div>)}
+              {parse.errors.slice(0, 5).map(e => (
+                <div key={e.row}>
+                  Row {e.row}: {e.message}
+                </div>
+              ))}
             </div>
           )}
           <div className="max-h-96 overflow-auto">
             <table className="w-full min-w-[900px] text-start text-xs">
-              <thead className="bg-slate-950"><tr>
-                <th className="table-cell">#</th><th className="table-cell">{t('import.col.station')}</th><th className="table-cell">{t('import.col.operation')}</th>
-                <th className="table-cell">{t('import.col.type')}</th><th className="table-cell">{t('import.col.time')}</th><th className="table-cell">{t('import.col.hw')}</th>
-              </tr></thead>
+              <thead className="bg-slate-950">
+                <tr>
+                  <th className="table-cell">#</th>
+                  <th className="table-cell">{t('import.col.station')}</th>
+                  <th className="table-cell">{t('import.col.operation')}</th>
+                  <th className="table-cell">{t('import.col.type')}</th>
+                  <th className="table-cell">{t('import.col.time')}</th>
+                  <th className="table-cell">{t('import.col.hw')}</th>
+                </tr>
+              </thead>
               <tbody className="divide-y divide-slate-800">
                 {parse.operations.slice(0, 100).map(op => (
                   <tr key={`${op.stationCode}-${op.operationNameAr}`}>
                     <td className="table-cell text-slate-500">{op.sequenceNo}</td>
-                    <td className="table-cell font-bold text-slate-200" dir="ltr">{op.stationCode}</td>
+                    <td className="table-cell font-bold text-slate-200" dir="ltr">
+                      {op.stationCode}
+                    </td>
                     <td className="table-cell text-slate-100">{op.operationNameAr}</td>
                     <td className="table-cell text-slate-400">{op.operationType}</td>
-                    <td className="table-cell text-slate-400" dir="ltr">{op.standardTimeMinutes?.toFixed(2) ?? '-'}</td>
+                    <td className="table-cell text-slate-400" dir="ltr">
+                      {op.standardTimeMinutes?.toFixed(2) ?? '-'}
+                    </td>
                     <td className="table-cell text-slate-400">{op.hardware.length}</td>
                   </tr>
                 ))}
@@ -184,21 +237,41 @@ export function ImportTimeStudyTab({ notify, canManage, onImported }: Props) {
         <div className="card-industrial p-4">
           <h4 className="mb-2 font-black text-white">{t('import.diffTitle')}</h4>
           <p className="mb-3 text-sm text-slate-400">{t('import.diffHint')}</p>
-          <select className="input-dark mb-4 max-w-xs" value={importMode} onChange={e => setImportMode(e.target.value as typeof importMode)}>
+          <select
+            className="input-dark mb-4 max-w-xs"
+            value={importMode}
+            onChange={e => setImportMode(e.target.value as typeof importMode)}
+          >
             <option value="merge">{t('import.modeMerge')}</option>
             <option value="replace_hardware">{t('import.modeReplaceHw')}</option>
           </select>
           <div className="max-h-64 overflow-y-auto rounded-xl border border-slate-800">
             {diffs.slice(0, 80).map((d, i) => (
               <div key={i} className="flex items-center gap-2 border-b border-slate-800/80 px-3 py-2 text-xs">
-                {d.action === 'create' ? <CheckCircle2 className="h-4 w-4 text-emerald-400" /> : <AlertTriangle className="h-4 w-4 text-amber-400" />}
+                {d.action === 'create' ? (
+                  <CheckCircle2 className="h-4 w-4 text-emerald-400" />
+                ) : (
+                  <AlertTriangle className="h-4 w-4 text-amber-400" />
+                )}
                 <span className="text-slate-300">{d.label}</span>
               </div>
             ))}
           </div>
           <div className="mt-4 flex gap-2">
-            <button disabled={busy} onClick={() => setStep('preview')} className="rounded-xl bg-slate-800 px-4 py-2 font-bold text-slate-200">{t('common.back')}</button>
-            <button disabled={busy} onClick={confirmImport} className="rounded-xl bg-cyan-500 px-5 py-2 font-black text-slate-950 disabled:opacity-50">{busy ? t('common.saving') : t('import.confirm')}</button>
+            <button
+              disabled={busy}
+              onClick={() => setStep('preview')}
+              className="rounded-xl bg-slate-800 px-4 py-2 font-bold text-slate-200"
+            >
+              {t('common.back')}
+            </button>
+            <button
+              disabled={busy}
+              onClick={confirmImport}
+              className="rounded-xl bg-cyan-500 px-5 py-2 font-black text-slate-950 disabled:opacity-50"
+            >
+              {busy ? t('common.saving') : t('import.confirm')}
+            </button>
           </div>
         </div>
       )}

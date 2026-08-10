@@ -141,7 +141,7 @@ export function TimeStudyCreateWizard({ open, models, parentGroups, onClose, onS
   function confirmSelection() {
     if (!selectedParent || !scope) return
 
-    let session: TimeStudyMeasureSession | null = null
+    let session: TimeStudyMeasureSession | null
 
     if (scope === 'station') {
       const anchor = parentOps[0]
@@ -171,9 +171,7 @@ export function TimeStudyCreateWizard({ open, models, parentGroups, onClose, onS
         parentDisplayCode: anchor.parentCode,
         parentStationName: anchor.parentName,
         workerStationId: selectedWorker.stationId,
-        workerDisplayCode: formatStationWorkerDisplayCode(
-          selectedWorker.displayCode || selectedWorker.stationNumber
-        ),
+        workerDisplayCode: formatStationWorkerDisplayCode(selectedWorker.displayCode || selectedWorker.stationNumber),
         operationId: anchor.id,
         operationName: anchor.name,
         stationId: selectedWorker.stationId,
@@ -300,7 +298,11 @@ export function TimeStudyCreateWizard({ open, models, parentGroups, onClose, onS
                 </button>
               ))}
             </div>
-            <button type="button" className="text-xs text-slate-500 hover:text-slate-300" onClick={() => setStep('model')}>
+            <button
+              type="button"
+              className="text-xs text-slate-500 hover:text-slate-300"
+              onClick={() => setStep('model')}
+            >
               ← {t('engineering.timeStudy.changeModel')}
             </button>
           </>
@@ -387,7 +389,11 @@ export function TimeStudyCreateWizard({ open, models, parentGroups, onClose, onS
               </div>
             )}
 
-            <button type="button" className="text-xs text-slate-500 hover:text-slate-300" onClick={() => setStep('scope')}>
+            <button
+              type="button"
+              className="text-xs text-slate-500 hover:text-slate-300"
+              onClick={() => setStep('scope')}
+            >
               ← {t('engineering.timeStudy.changeScope')}
             </button>
           </>
@@ -408,15 +414,7 @@ function ContextBar({ model, scope }: { model: string; scope: string | null }) {
   )
 }
 
-function WizardField({
-  label,
-  required,
-  children
-}: {
-  label: string
-  required?: boolean
-  children: ReactNode
-}) {
+function WizardField({ label, required, children }: { label: string; required?: boolean; children: ReactNode }) {
   return (
     <label className="block space-y-1.5">
       <span className="text-sm font-bold text-slate-300">
@@ -439,11 +437,7 @@ function SelectInput({
 }) {
   return (
     <div className="relative">
-      <select
-        className="input-dark w-full appearance-none pe-9"
-        value={value}
-        onChange={e => onChange(e.target.value)}
-      >
+      <select className="input-dark w-full appearance-none pe-9" value={value} onChange={e => onChange(e.target.value)}>
         {children}
       </select>
       <ChevronDown className="pointer-events-none absolute end-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-500" />

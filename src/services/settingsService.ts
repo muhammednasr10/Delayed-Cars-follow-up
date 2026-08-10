@@ -32,8 +32,16 @@ function handleError(label: string, error: unknown): never {
 // migration is applied they don't exist, so we detect that case and retry
 // without them instead of failing the whole save.
 const STATION_EXTRA_COLUMNS = [
-  'line_name', 'responsible_department', 'responsible_person', 'station_type', 'station_name_en', 'sort_order',
-  'headcount_workers', 'avg_station_time_minutes', 'parent_station_id', 'worker1_operations_summary'
+  'line_name',
+  'responsible_department',
+  'responsible_person',
+  'station_type',
+  'station_name_en',
+  'sort_order',
+  'headcount_workers',
+  'avg_station_time_minutes',
+  'parent_station_id',
+  'worker1_operations_summary'
 ]
 
 function isMissingColumnError(error: { code?: string; message?: string } | null): boolean {
@@ -75,7 +83,7 @@ export async function getVehicleModels(opts?: { includeInactive?: boolean }): Pr
   const rows = (data ?? []) as Record<string, unknown>[]
   const nameById = new Map(rows.map(r => [r.id as string, r.name as string]))
   return rows.map(r =>
-    mapVehicleModel(r, r.parent_model_id ? nameById.get(r.parent_model_id as string) ?? null : null)
+    mapVehicleModel(r, r.parent_model_id ? (nameById.get(r.parent_model_id as string) ?? null) : null)
   )
 }
 
@@ -88,7 +96,7 @@ export async function createVehicleModel(input: {
   const payload = {
     name: input.name.trim().toUpperCase(),
     model_kind: kind,
-    parent_model_id: kind === 'family' ? null : input.parent_model_id ?? null,
+    parent_model_id: kind === 'family' ? null : (input.parent_model_id ?? null),
     is_active: true
   }
   const { data, error } = await requireClient().from('vehicle_models').insert(payload).select('*').single()
@@ -126,7 +134,11 @@ export async function updateVehicleModel(
       .maybeSingle()
     parent_name = p?.name ?? null
   }
-  await syncModelFamilyMembership(id, row.model_kind as VehicleModel['model_kind'], row.parent_model_id as string | null)
+  await syncModelFamilyMembership(
+    id,
+    row.model_kind as VehicleModel['model_kind'],
+    row.parent_model_id as string | null
+  )
   return mapVehicleModel(row, parent_name)
 }
 
@@ -138,7 +150,10 @@ async function syncModelFamilyMembership(
   if (kind !== 'variant' || !parentId) return
   const { data: parent } = await requireClient().from('vehicle_models').select('name').eq('id', parentId).maybeSingle()
   if (!parent?.name) return
-  const code = parent.name.trim().toLowerCase().replace(/[^a-z0-9]+/g, '_')
+  const code = parent.name
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '_')
   const { data: fam } = await requireClient()
     .from('vehicle_model_families')
     .upsert(
@@ -187,7 +202,10 @@ export async function createWorkArea(input: { name: string; description?: string
   return data
 }
 
-export async function updateWorkArea(id: string, input: Partial<Pick<WorkArea, 'name' | 'description' | 'is_active'>>): Promise<WorkArea> {
+export async function updateWorkArea(
+  id: string,
+  input: Partial<Pick<WorkArea, 'name' | 'description' | 'is_active'>>
+): Promise<WorkArea> {
   const { data, error } = await requireClient().from('work_areas').update(input).eq('id', id).select('*').single()
   if (error) handleError('Failed to update work area:', error)
   return data
@@ -262,7 +280,28 @@ export async function createStation(input: {
   return data
 }
 
-export async function updateStation(id: string, input: Partial<Pick<Station, 'station_number' | 'station_name' | 'station_name_en' | 'station_type' | 'sort_order' | 'work_area_id' | 'line_name' | 'responsible_department' | 'responsible_person' | 'headcount_workers' | 'avg_station_time_minutes' | 'worker1_operations_summary' | 'is_active' | 'parent_station_id'>>): Promise<Station> {
+export async function updateStation(
+  id: string,
+  input: Partial<
+    Pick<
+      Station,
+      | 'station_number'
+      | 'station_name'
+      | 'station_name_en'
+      | 'station_type'
+      | 'sort_order'
+      | 'work_area_id'
+      | 'line_name'
+      | 'responsible_department'
+      | 'responsible_person'
+      | 'headcount_workers'
+      | 'avg_station_time_minutes'
+      | 'worker1_operations_summary'
+      | 'is_active'
+      | 'parent_station_id'
+    >
+  >
+): Promise<Station> {
   const payload = { ...input } as Record<string, unknown>
   if (typeof payload.station_number === 'string') {
     payload.station_number = normalizeStationNumberForSave(payload.station_number)
@@ -270,7 +309,12 @@ export async function updateStation(id: string, input: Partial<Pick<Station, 'st
 
   let { data, error } = await requireClient().from('stations').update(payload).eq('id', id).select('*').single()
   if (error && isMissingColumnError(error)) {
-    ;({ data, error } = await requireClient().from('stations').update(stripStationExtras(payload)).eq('id', id).select('*').single())
+    ;({ data, error } = await requireClient()
+      .from('stations')
+      .update(stripStationExtras(payload))
+      .eq('id', id)
+      .select('*')
+      .single())
   }
   if (error) handleError('Failed to update station:', error)
   return data
@@ -319,7 +363,11 @@ function colorCodeFromName(name: string, explicit?: string): string {
   return slug || `c_${Date.now()}`
 }
 
-export async function createVehicleColor(input: { name: string; code?: string; hex_code: string }): Promise<VehicleColor> {
+export async function createVehicleColor(input: {
+  name: string
+  code?: string
+  hex_code: string
+}): Promise<VehicleColor> {
   const { data, error } = await requireClient()
     .from('vehicle_colors')
     .insert({
@@ -373,7 +421,10 @@ export async function createAppUser(input: { name: string; email?: string; role:
   return data
 }
 
-export async function updateAppUser(id: string, input: Partial<Pick<AppUser, 'name' | 'email' | 'role' | 'is_active'>>): Promise<AppUser> {
+export async function updateAppUser(
+  id: string,
+  input: Partial<Pick<AppUser, 'name' | 'email' | 'role' | 'is_active'>>
+): Promise<AppUser> {
   const { data, error } = await requireClient().from('app_users').update(input).eq('id', id).select('*').single()
   if (error) handleError('Failed to update app user:', error)
   return data

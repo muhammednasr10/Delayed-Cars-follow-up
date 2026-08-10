@@ -28,7 +28,7 @@ type Row = {
 
 function relOne<T>(value: T | T[] | null | undefined): T | null {
   if (value == null) return null
-  return Array.isArray(value) ? value[0] ?? null : value
+  return Array.isArray(value) ? (value[0] ?? null) : value
 }
 
 export function scratchImageUrl(path: string | null | undefined): string | null {
@@ -85,11 +85,7 @@ export async function getScratches(): Promise<ScratchRecord[]> {
 }
 
 export async function createScratch(input: ScratchInput): Promise<ScratchRecord> {
-  const { data, error } = await requireClient()
-    .from('scratches')
-    .insert(toPayload(input))
-    .select(SELECT)
-    .single()
+  const { data, error } = await requireClient().from('scratches').insert(toPayload(input)).select(SELECT).single()
   if (error) throw new Error(error.message)
   return mapRow(data as Row)
 }

@@ -52,8 +52,7 @@ export function ProductivityBreakdownHover({ breakdown, kind, children, classNam
       : kind === 'exit'
         ? t('productionOrders.workDaysTab.breakdown.exit')
         : t('productionOrders.workDaysTab.breakdown.repair')
-  const qtyTone =
-    kind === 'entry' ? 'text-cyan-200' : kind === 'exit' ? 'text-emerald-200' : 'text-orange-200'
+  const qtyTone = kind === 'entry' ? 'text-cyan-200' : kind === 'exit' ? 'text-emerald-200' : 'text-orange-200'
 
   return (
     <>

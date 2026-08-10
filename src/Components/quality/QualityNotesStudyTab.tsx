@@ -24,7 +24,15 @@ type Props = {
   onInitialStudyHandled?: () => void
 }
 
-function StatPill({ label, value, tone = 'emerald' }: { label: string; value: string; tone?: 'emerald' | 'sky' | 'violet' | 'slate' | 'amber' | 'red' }) {
+function StatPill({
+  label,
+  value,
+  tone = 'emerald'
+}: {
+  label: string
+  value: string
+  tone?: 'emerald' | 'sky' | 'violet' | 'slate' | 'amber' | 'red'
+}) {
   const tones = {
     emerald: 'border-emerald-500/30 bg-emerald-500/10 text-emerald-100',
     sky: 'border-sky-500/30 bg-sky-500/10 text-sky-100',
@@ -72,9 +80,7 @@ export function QualityNotesStudyTab({
       byStatus[row.status] += 1
       byCategory.set(row.category, (byCategory.get(row.category) ?? 0) + 1)
       bySeverity[row.severity] += 1
-      const station = row.stationCode?.trim()
-        ? formatStationReferenceCode(row.stationCode)
-        : '—'
+      const station = row.stationCode?.trim() ? formatStationReferenceCode(row.stationCode) : '—'
       byStation.set(station, (byStation.get(station) ?? 0) + 1)
     }
 
@@ -119,7 +125,11 @@ export function QualityNotesStudyTab({
         <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-5">
           <StatPill label={t('qualityNotes.summary.total')} value={String(stats.total)} />
           <StatPill label={t('qualityNotes.status.open')} value={String(stats.byStatus.open)} tone="sky" />
-          <StatPill label={t('qualityNotes.status.under_study')} value={String(stats.byStatus.under_study)} tone="violet" />
+          <StatPill
+            label={t('qualityNotes.status.under_study')}
+            value={String(stats.byStatus.under_study)}
+            tone="violet"
+          />
           <StatPill label={t('qualityNotes.status.closed')} value={String(stats.byStatus.closed)} tone="slate" />
           <StatPill label={t('qualityNotes.severity.critical')} value={String(stats.critical)} tone="red" />
         </div>
@@ -234,7 +244,9 @@ export function QualityNotesStudyTab({
                     <td className={`${cell} max-w-[18rem] truncate text-slate-200`} title={row.description}>
                       {row.description}
                     </td>
-                    <td className={`${cell} text-slate-300`}>{mpLookupLabel(categories, row.category, lang) || row.category}</td>
+                    <td className={`${cell} text-slate-300`}>
+                      {mpLookupLabel(categories, row.category, lang) || row.category}
+                    </td>
                     <td className={`${cell} text-slate-300`}>{t(`qualityNotes.severity.${row.severity}`)}</td>
                     <td className={`${cell} text-slate-300`}>{t(`qualityNotes.status.${row.status}`)}</td>
                     <td className={cell}>

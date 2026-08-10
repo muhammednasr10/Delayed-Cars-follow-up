@@ -49,10 +49,25 @@ export function useProductionHubSections(refreshKey = 0) {
     loading || (canViewPage(card) && moduleOk)
   const [reportOpen, setReportOpen] = useState(false)
   const { activeVehicles, archiveVehicles, loading: countsLoading } = useMissingPartsVehicleCounts(refreshKey)
-  const { entryVehicles, exitVehicles, entryEfficiency, exitEfficiency, loading: productivityLoading } = useProductivityMonthCounts(refreshKey)
-  const { totalMinutes, lostVehicles: stopsLostVehicles, loading: stopsLoading } = useProductionStopMonthCounts(refreshKey)
-  const { efficiency, presentTodayCount, workforceCount, statusCounts, loading: attendanceLoading } =
-    useTodayAttendanceEfficiency(refreshKey)
+  const {
+    entryVehicles,
+    exitVehicles,
+    entryEfficiency,
+    exitEfficiency,
+    loading: productivityLoading
+  } = useProductivityMonthCounts(refreshKey)
+  const {
+    totalMinutes,
+    lostVehicles: stopsLostVehicles,
+    loading: stopsLoading
+  } = useProductionStopMonthCounts(refreshKey)
+  const {
+    efficiency,
+    presentTodayCount,
+    workforceCount,
+    statusCounts,
+    loading: attendanceLoading
+  } = useTodayAttendanceEfficiency(refreshKey)
 
   const canManageStops = hasRole('admin', 'production')
 
@@ -74,9 +89,7 @@ export function useProductionHubSections(refreshKey = 0) {
           { label: t('home.missingActiveVehicles'), value: countsLoading ? '…' : activeVehicles },
           { label: t('home.missingArchiveVehicles'), value: countsLoading ? '…' : archiveVehicles }
         ],
-        footerAction: canReport
-          ? { label: t('home.reportMissing'), onClick: () => setReportOpen(true) }
-          : undefined
+        footerAction: canReport ? { label: t('home.reportMissing'), onClick: () => setReportOpen(true) } : undefined
       },
       showHomeCard('production_home__entry', canViewModule('production')) && {
         key: 'productivity',
@@ -95,9 +108,15 @@ export function useProductionHubSections(refreshKey = 0) {
         statsLayout: 'productivity-pairs',
         stats: [
           { label: t('home.entryProductivityVehicles'), value: productivityLoading ? '…' : String(entryVehicles) },
-          { label: t('home.entryProductivityEfficiency'), value: formatEfficiencyPct(entryEfficiency, productivityLoading) },
+          {
+            label: t('home.entryProductivityEfficiency'),
+            value: formatEfficiencyPct(entryEfficiency, productivityLoading)
+          },
           { label: t('home.exitProductivityVehicles'), value: productivityLoading ? '…' : String(exitVehicles) },
-          { label: t('home.exitProductivityEfficiency'), value: formatEfficiencyPct(exitEfficiency, productivityLoading) }
+          {
+            label: t('home.exitProductivityEfficiency'),
+            value: formatEfficiencyPct(exitEfficiency, productivityLoading)
+          }
         ]
       },
       showHomeCard('production_home__stops', canViewModule('production')) && {
@@ -230,46 +249,58 @@ export function useProductionHubSections(refreshKey = 0) {
   const productivityTabs: HubSection = {
     key: 'productivityTabs',
     title: t('hub.sections.tabs', { page: t('nav.productivity') }),
-    cards: (permsLoading || canViewModule('production'))
-      ? (
-          [
-            {
-              key: 'productivity',
-              title: t('productivity.tabs.productivity'),
-              icon: CalendarClock,
-              onClick: () => go({ productionArea: 'assembly', productionPage: 'vehicles', productivityTab: 'productivity' })
-            },
-            {
-              key: 'stops',
-              title: t('productivity.tabs.stops'),
-              icon: AlertOctagon,
-              onClick: () => go({ productionArea: 'assembly', productionPage: 'vehicles', productivityTab: 'stops' })
-            }
-          ] as const
-        ).map((card, i) => ({
-          ...card,
-          tone: 'text-cyan-300 bg-cyan-500/15',
-          accent: productivityTabAccents[i] ?? ('cyan' as const)
-        }))
-      : []
+    cards:
+      permsLoading || canViewModule('production')
+        ? (
+            [
+              {
+                key: 'productivity',
+                title: t('productivity.tabs.productivity'),
+                icon: CalendarClock,
+                onClick: () =>
+                  go({ productionArea: 'assembly', productionPage: 'vehicles', productivityTab: 'productivity' })
+              },
+              {
+                key: 'stops',
+                title: t('productivity.tabs.stops'),
+                icon: AlertOctagon,
+                onClick: () => go({ productionArea: 'assembly', productionPage: 'vehicles', productivityTab: 'stops' })
+              }
+            ] as const
+          ).map((card, i) => ({
+            ...card,
+            tone: 'text-cyan-300 bg-cyan-500/15',
+            accent: productivityTabAccents[i] ?? ('cyan' as const)
+          }))
+        : []
   }
 
   const trainingAccents = ['blue', 'cyan', 'violet', 'amber', 'emerald', 'indigo', 'sky', 'orange'] as const
   const trainingTabs: HubSection = {
     key: 'trainingTabs',
     title: t('hub.sections.tabs', { page: t('nav.training') }),
-    cards: (permsLoading || canViewModule('training_matrix'))
-      ? (['org', 'attendance', 'manpower', 'operations', 'stationSkills', 'matrix', 'qualification', 'expiry'] as const).map(
-          (key, i) => ({
+    cards:
+      permsLoading || canViewModule('training_matrix')
+        ? (
+            [
+              'org',
+              'attendance',
+              'manpower',
+              'operations',
+              'stationSkills',
+              'matrix',
+              'qualification',
+              'expiry'
+            ] as const
+          ).map((key, i) => ({
             key,
             title: t(`training.tabs.${key}`),
             icon: Users,
             tone: 'text-blue-300 bg-blue-500/15',
             accent: trainingAccents[i] ?? ('blue' as const),
             onClick: () => go({ productionArea: 'assembly', productionPage: 'training', trainingTab: key })
-          })
-        )
-      : []
+          }))
+        : []
   }
 
   const settingsTabs: HubSection = {

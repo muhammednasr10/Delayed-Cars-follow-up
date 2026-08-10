@@ -119,7 +119,11 @@ export function EquipmentRegistryTab({ equipmentType }: Props) {
       <div className="card-industrial flex flex-col gap-3 p-4 sm:flex-row sm:items-center sm:justify-between">
         <p className="text-sm text-slate-400">{t(`equipment.hints.${equipmentType}`)}</p>
         <div className="flex flex-wrap items-center gap-2">
-          <button type="button" onClick={() => void load()} className="rounded-xl bg-slate-800 px-3 py-2 text-slate-200 hover:bg-slate-700">
+          <button
+            type="button"
+            onClick={() => void load()}
+            className="rounded-xl bg-slate-800 px-3 py-2 text-slate-200 hover:bg-slate-700"
+          >
             <RefreshCcw className="h-4 w-4" />
           </button>
           {canManage && (
@@ -145,8 +149,14 @@ export function EquipmentRegistryTab({ equipmentType }: Props) {
         </div>
       )}
 
-      {success && <div className="rounded-xl border border-emerald-500/30 bg-emerald-500/10 p-3 text-sm text-emerald-200">{success}</div>}
-      {error && !setupRequired && <div className="rounded-xl border border-red-500/30 bg-red-500/10 p-3 text-sm text-red-200">{error}</div>}
+      {success && (
+        <div className="rounded-xl border border-emerald-500/30 bg-emerald-500/10 p-3 text-sm text-emerald-200">
+          {success}
+        </div>
+      )}
+      {error && !setupRequired && (
+        <div className="rounded-xl border border-red-500/30 bg-red-500/10 p-3 text-sm text-red-200">{error}</div>
+      )}
 
       <div className="card-industrial overflow-x-auto">
         <table className="w-full text-center text-sm">
@@ -196,7 +206,11 @@ export function EquipmentRegistryTab({ equipmentType }: Props) {
                         >
                           <Pencil className="h-4 w-4" />
                         </button>
-                        <button type="button" onClick={() => setDeleteTarget(row)} className="rounded-lg bg-slate-800 p-2 text-red-300 hover:bg-slate-700">
+                        <button
+                          type="button"
+                          onClick={() => setDeleteTarget(row)}
+                          className="rounded-lg bg-slate-800 p-2 text-red-300 hover:bg-slate-700"
+                        >
                           <Trash2 className="h-4 w-4" />
                         </button>
                       </div>

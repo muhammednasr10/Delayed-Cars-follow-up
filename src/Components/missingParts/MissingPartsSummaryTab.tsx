@@ -15,7 +15,15 @@ type Props = {
   variant?: 'active' | 'archive'
 }
 
-function StatPill({ label, value, tone = 'cyan' }: { label: string; value: string; tone?: 'cyan' | 'amber' | 'emerald' | 'rose' | 'slate' }) {
+function StatPill({
+  label,
+  value,
+  tone = 'cyan'
+}: {
+  label: string
+  value: string
+  tone?: 'cyan' | 'amber' | 'emerald' | 'rose' | 'slate'
+}) {
   const tones = {
     cyan: 'border-cyan-500/30 bg-cyan-500/10 text-cyan-100',
     amber: 'border-amber-500/30 bg-amber-500/10 text-amber-100',
@@ -102,7 +110,9 @@ export function MissingPartsSummaryTab({
   return (
     <div className="space-y-4 p-4 sm:p-5">
       <div>
-        <h3 className="text-sm font-black text-cyan-200">{t(isArchive ? 'mp.summary.archiveTitle' : 'mp.summary.title')}</h3>
+        <h3 className="text-sm font-black text-cyan-200">
+          {t(isArchive ? 'mp.summary.archiveTitle' : 'mp.summary.title')}
+        </h3>
         <p className="mt-1 text-sm text-slate-400">{t(isArchive ? 'mp.summary.archiveHint' : 'mp.summary.hint')}</p>
         <p className="mt-2 text-sm font-bold text-cyan-300">
           {hasActiveFilter
@@ -116,9 +126,17 @@ export function MissingPartsSummaryTab({
         <StatPill label={t('mp.summary.lines')} value={String(stats.lineCount)} tone="slate" />
         {!isArchive && (
           <>
-            <StatPill label={t('mp.summary.pendingVehicles')} value={String(stats.pendingInstallVehicles)} tone="amber" />
+            <StatPill
+              label={t('mp.summary.pendingVehicles')}
+              value={String(stats.pendingInstallVehicles)}
+              tone="amber"
+            />
             <StatPill label={t('mp.summary.pendingLines')} value={String(stats.pendingInstallLines)} tone="rose" />
-            <StatPill label={t('mp.summary.readyArchive')} value={String(stats.fullyInstalledVehicles)} tone="emerald" />
+            <StatPill
+              label={t('mp.summary.readyArchive')}
+              value={String(stats.fullyInstalledVehicles)}
+              tone="emerald"
+            />
           </>
         )}
       </div>

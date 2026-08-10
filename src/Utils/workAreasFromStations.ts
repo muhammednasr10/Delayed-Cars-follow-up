@@ -11,9 +11,7 @@ export function workAreasFromStations(
   for (const station of stations) {
     const id = station.work_area_id
     if (!id) continue
-    const name =
-      station.work_areas?.name?.trim() ||
-      fallbackAreas.find(a => a.id === id)?.name?.trim()
+    const name = station.work_areas?.name?.trim() || fallbackAreas.find(a => a.id === id)?.name?.trim()
     if (!name) continue
     byId.set(id, { id, name, is_active: true })
   }

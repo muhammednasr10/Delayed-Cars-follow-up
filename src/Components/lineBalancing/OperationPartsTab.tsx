@@ -47,7 +47,9 @@ export function OperationPartsTab({ canManage, notify }: Props) {
       return
     }
     const tmr = window.setTimeout(() => {
-      searchPartsForLink(partSearch).then(setPartHits).catch(() => setPartHits([]))
+      searchPartsForLink(partSearch)
+        .then(setPartHits)
+        .catch(() => setPartHits([]))
     }, 300)
     return () => window.clearTimeout(tmr)
   }, [partSearch])

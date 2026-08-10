@@ -56,9 +56,7 @@ export function ProductivityDailyStopsSummary({ workDate, stops, compact }: Prop
                   <td className="px-2 py-2 text-center text-slate-300">
                     {stopDurationMinutes(stop.startedAt, stop.endedAt)} {t('productivity.stops.minutesShort')}
                   </td>
-                  {!compact && (
-                    <td className="px-2 py-2 text-center text-slate-300">{stop.lostVehicles}</td>
-                  )}
+                  {!compact && <td className="px-2 py-2 text-center text-slate-300">{stop.lostVehicles}</td>}
                 </tr>
               ))}
             </tbody>

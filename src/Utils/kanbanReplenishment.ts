@@ -17,8 +17,7 @@ export function computeKanbanPart(part: KanbanPartInput, basis: KanbanCalculatio
   const consumptionPerMinute = consumptionPerHour / 60
   const taktMinutes = computeTaktMinutes(jph) ?? 0
 
-  const rackCoverageMinutes =
-    part.rackQty > 0 && consumptionPerMinute > 0 ? part.rackQty / consumptionPerMinute : 0
+  const rackCoverageMinutes = part.rackQty > 0 && consumptionPerMinute > 0 ? part.rackQty / consumptionPerMinute : 0
 
   const replenishmentFreqMinutes = rackCoverageMinutes
 
@@ -66,10 +65,7 @@ export function computeKanbanBoard(parts: KanbanPartInput[], basis: KanbanCalcul
  * تجميع الأجزاء في رحلات تغذية حسب سعة الكرتونة/الراك.
  * كل رحلة = مجموعة أجزاء يُعاد ترتيبها بأقصى حمولة لكل جزء = cartonQty.
  */
-export function splitIntoFeedingTrips(
-  parts: KanbanPartInput[],
-  maxPartsPerTrip = 12
-): KanbanTripGroup[] {
+export function splitIntoFeedingTrips(parts: KanbanPartInput[], maxPartsPerTrip = 12): KanbanTripGroup[] {
   const trips: KanbanTripGroup[] = []
   let tripIndex = 1
   let current: KanbanTripGroup = { tripIndex, parts: [], totalUnits: 0 }

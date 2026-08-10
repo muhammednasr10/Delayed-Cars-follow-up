@@ -116,9 +116,7 @@ function applyBomFilters(q: any, filters: BomListFilters) {
         const hasBlank = values.includes('__BLANK__')
         const rest = values.filter(v => v !== '__BLANK__')
         const matchValues =
-          col === 'station_code'
-            ? [...new Set(rest.flatMap(v => bomStationCodeRawVariants(v)))]
-            : rest
+          col === 'station_code' ? [...new Set(rest.flatMap(v => bomStationCodeRawVariants(v)))] : rest
         if (hasBlank && matchValues.length === 0) {
           q = q.or(`${field}.is.null,${field}.eq.`)
         } else if (hasBlank && matchValues.length > 0) {
@@ -145,7 +143,7 @@ export async function getBomItems(filters: BomListFilters = {}): Promise<BomList
   const from = (page - 1) * pageSize
   const to = from + pageSize - 1
 
-  let q = applyBomFilters(client().from('v_bom_items_detail').select('*', { count: 'exact' }), filters)
+  const q = applyBomFilters(client().from('v_bom_items_detail').select('*', { count: 'exact' }), filters)
 
   const { data, error, count } = await q
     .order('station_sort_order', { ascending: true, nullsFirst: false })
@@ -202,10 +200,7 @@ export async function getBomDistinctValues(
   const excel = { ...filters.excel }
   if (options?.excludeColumn) delete excel[options.excludeColumn]
 
-  let q = applyBomFilters(
-    client().from('v_bom_items_detail').select(field).order(field),
-    { ...filters, excel }
-  )
+  let q = applyBomFilters(client().from('v_bom_items_detail').select(field).order(field), { ...filters, excel })
   if (options?.search?.trim()) {
     const term = options.search.trim().replace(/%/g, '')
     if (column === 'station_code') {
@@ -238,9 +233,7 @@ export async function getBomDistinctValues(
     if (seen.size >= limit) break
   }
 
-  const values = [...seen].sort((a, b) =>
-    a.localeCompare(b, undefined, { numeric: true, sensitivity: 'base' })
-  )
+  const values = [...seen].sort((a, b) => a.localeCompare(b, undefined, { numeric: true, sensitivity: 'base' }))
   if (hasBlank) values.unshift('__BLANK__')
   const truncated = (data?.length ?? 0) >= 2500 && seen.size >= limit
   return { values, truncated }
@@ -283,15 +276,11 @@ export async function updateBomItem(id: string, input: BomItemUpdateInput): Prom
       .from('parts')
       .update({
         ...(input.part_number != null ? { part_number: input.part_number.trim() } : {}),
-        ...(input.part_number != null
-          ? { normalized_part_number: normalizePartNumber(input.part_number) }
-          : {}),
+        ...(input.part_number != null ? { normalized_part_number: normalizePartNumber(input.part_number) } : {}),
         ...(input.part_name_ar != null ? { part_name_ar: input.part_name_ar.trim() || null } : {}),
         ...(input.part_name_en != null ? { part_name_en: input.part_name_en.trim() || null } : {}),
         ...(input.part_number_new != null ? { part_number_new: input.part_number_new.trim() || null } : {}),
-        ...(input.alternative_part_no != null
-          ? { alternative_part_no: input.alternative_part_no.trim() || null }
-          : {}),
+        ...(input.alternative_part_no != null ? { alternative_part_no: input.alternative_part_no.trim() || null } : {}),
         ...(input.part_kind != null ? { part_type: effectivePartKind(input.part_kind) } : {})
       })
       .eq('id', row.part_id)
@@ -329,13 +318,9 @@ export async function updateBomItem(id: string, input: BomItemUpdateInput): Prom
     ...(input.station_id !== undefined ? { station_id: input.station_id } : {}),
     ...(input.station_code_text !== undefined ? { station_code_text: input.station_code_text } : {}),
     ...(input.model_family !== undefined ? { model_family: input.model_family } : {}),
-    ...(input.applicable_models_text !== undefined
-      ? { applicable_models_text: input.applicable_models_text }
-      : {}),
+    ...(input.applicable_models_text !== undefined ? { applicable_models_text: input.applicable_models_text } : {}),
     ...(input.station_category !== undefined ? { station_category: input.station_category } : {}),
-    ...(input.supply_source !== undefined
-      ? { supply_source: effectiveSupplySource(input.supply_source) }
-      : {}),
+    ...(input.supply_source !== undefined ? { supply_source: effectiveSupplySource(input.supply_source) } : {}),
     ...(input.bom_classification !== undefined ? { bom_classification: input.bom_classification } : {}),
     ...(input.qty_by_model_raw !== undefined ? { qty_by_model_raw: input.qty_by_model_raw } : {}),
     ...(input.notes !== undefined ? { notes: input.notes } : {}),
@@ -347,11 +332,7 @@ export async function updateBomItem(id: string, input: BomItemUpdateInput): Prom
 
   if (input.bom_classification != null) {
     const catCode = classificationToCategoryCode(input.bom_classification)
-    const { data: cat } = await client()
-      .from('part_categories')
-      .select('id')
-      .eq('category_code', catCode)
-      .maybeSingle()
+    const { data: cat } = await client().from('part_categories').select('id').eq('category_code', catCode).maybeSingle()
     if (cat?.id) {
       await client().from('parts').update({ category_id: cat.id }).eq('id', row.part_id)
     }
@@ -370,11 +351,7 @@ export async function createBomItem(input: BomItemCreateInput): Promise<string> 
   let categoryId: string | null = null
   if (input.bom_classification) {
     const catCode = classificationToCategoryCode(input.bom_classification)
-    const { data: cat } = await client()
-      .from('part_categories')
-      .select('id')
-      .eq('category_code', catCode)
-      .maybeSingle()
+    const { data: cat } = await client().from('part_categories').select('id').eq('category_code', catCode).maybeSingle()
     categoryId = (cat?.id as string) ?? null
   }
   if (!categoryId) {
@@ -415,8 +392,7 @@ export async function createBomItem(input: BomItemCreateInput): Promise<string> 
   })
 
   const qtyRaw =
-    input.qty_by_model_raw?.trim() ||
-    (modelName ? `${modelName}=${input.quantity}` : String(input.quantity))
+    input.qty_by_model_raw?.trim() || (modelName ? `${modelName}=${input.quantity}` : String(input.quantity))
 
   const payload = {
     part_id: partId,
@@ -441,11 +417,7 @@ export async function createBomItem(input: BomItemCreateInput): Promise<string> 
     ...logisticsPayload(input)
   }
 
-  const { data: existing } = await client()
-    .from('bom_items')
-    .select('id')
-    .eq('import_line_key', lineKey)
-    .maybeSingle()
+  const { data: existing } = await client().from('bom_items').select('id').eq('import_line_key', lineKey).maybeSingle()
 
   if (existing?.id) {
     const { error } = await client().from('bom_items').update(payload).eq('id', existing.id)
@@ -555,17 +527,15 @@ export async function updateBomIplFeedingCard(itemIds: string[], card: BomIplFee
 }
 
 export async function updateIplModelLine(
-  part: Pick<Part, 'id' | 'part_number' | 'normalized_part_number' | 'part_name_ar' | 'part_name_en' | 'common_station'>,
+  part: Pick<
+    Part,
+    'id' | 'part_number' | 'normalized_part_number' | 'part_name_ar' | 'part_name_en' | 'common_station'
+  >,
   modelName: string,
   vehicleModelId: string,
   updates: { part_number?: string; quantity?: number; stationCode?: string; stationId?: string | null }
 ): Promise<string> {
-  const bomId = await ensureBomLineForPart(
-    part,
-    modelName,
-    vehicleModelId,
-    updates.stationCode ?? part.common_station
-  )
+  const bomId = await ensureBomLineForPart(part, modelName, vehicleModelId, updates.stationCode ?? part.common_station)
 
   const bomUpdate: BomItemUpdateInput = {}
   if (updates.stationCode !== undefined) {
@@ -600,7 +570,10 @@ export async function updateIplModelLine(
   return bomId
 }
 
-function bomRowMatchesModel(row: Pick<BomItemDetail, 'vehicle_model_name' | 'applicable_models_text'>, modelName: string): boolean {
+function bomRowMatchesModel(
+  row: Pick<BomItemDetail, 'vehicle_model_name' | 'applicable_models_text'>,
+  modelName: string
+): boolean {
   const target = modelName.trim().toUpperCase()
   if (!target) return false
   if (row.vehicle_model_name?.trim().toUpperCase() === target) return true
@@ -632,7 +605,10 @@ export async function getBomItemsForPartIds(partIds: string[], modelName: string
 }
 
 export async function ensureBomLineForPart(
-  part: Pick<Part, 'id' | 'part_number' | 'normalized_part_number' | 'part_name_ar' | 'part_name_en' | 'common_station'>,
+  part: Pick<
+    Part,
+    'id' | 'part_number' | 'normalized_part_number' | 'part_name_ar' | 'part_name_en' | 'common_station'
+  >,
   modelName: string,
   vehicleModelId: string,
   stationCode?: string | null
@@ -667,7 +643,10 @@ export async function ensureBomLineForPart(
 
   const { data: dup } = await client().from('bom_items').select('id').eq('import_line_key', lineKey).maybeSingle()
   if (dup?.id) {
-    const { error } = await client().from('bom_items').update({ ...payload, is_active: true }).eq('id', dup.id)
+    const { error } = await client()
+      .from('bom_items')
+      .update({ ...payload, is_active: true })
+      .eq('id', dup.id)
     if (error) throw new Error(error.message)
     return dup.id as string
   }
@@ -678,7 +657,10 @@ export async function ensureBomLineForPart(
 }
 
 export async function updateBomItemStationForPart(
-  part: Pick<Part, 'id' | 'part_number' | 'normalized_part_number' | 'part_name_ar' | 'part_name_en' | 'common_station'>,
+  part: Pick<
+    Part,
+    'id' | 'part_number' | 'normalized_part_number' | 'part_name_ar' | 'part_name_en' | 'common_station'
+  >,
   modelName: string,
   vehicleModelId: string,
   stationCode: string,
@@ -780,11 +762,13 @@ export async function getBomDashboardStats(): Promise<BomDashboardStats> {
     .limit(1)
     .maybeSingle()
 
-  const { data: byCat } = await client().from('parts').select('category_id, part_categories(category_name_ar)').eq('is_active', true)
+  const { data: byCat } = await client()
+    .from('parts')
+    .select('category_id, part_categories(category_name_ar)')
+    .eq('is_active', true)
   const catMap = new Map<string, number>()
   ;(byCat ?? []).forEach(p => {
-    const label =
-      (p.part_categories as { category_name_ar?: string } | null)?.category_name_ar ?? 'غير مصنف'
+    const label = (p.part_categories as { category_name_ar?: string } | null)?.category_name_ar ?? 'غير مصنف'
     catMap.set(label, (catMap.get(label) ?? 0) + 1)
   })
 

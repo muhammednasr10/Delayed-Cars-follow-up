@@ -22,13 +22,14 @@ type Row = {
   noted_at: string
   created_at: string
   updated_at: string
-  stations?: { station_number: string; station_name: string } | { station_number: string; station_name: string }[] | null
+  stations?:
+    { station_number: string; station_name: string } | { station_number: string; station_name: string }[] | null
   worker_line?: { station_number: string } | { station_number: string }[] | null
 }
 
 function relOne<T>(value: T | T[] | null | undefined): T | null {
   if (value == null) return null
-  return Array.isArray(value) ? value[0] ?? null : value
+  return Array.isArray(value) ? (value[0] ?? null) : value
 }
 
 const SELECT =

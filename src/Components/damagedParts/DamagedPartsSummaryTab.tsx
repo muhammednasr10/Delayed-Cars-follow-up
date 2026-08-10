@@ -13,7 +13,15 @@ type Props = {
   hasActiveFilter: boolean
 }
 
-function StatPill({ label, value, tone = 'orange' }: { label: string; value: string; tone?: 'orange' | 'amber' | 'cyan' | 'rose' | 'slate' }) {
+function StatPill({
+  label,
+  value,
+  tone = 'orange'
+}: {
+  label: string
+  value: string
+  tone?: 'orange' | 'amber' | 'cyan' | 'rose' | 'slate'
+}) {
   const tones = {
     orange: 'border-orange-500/30 bg-orange-500/10 text-orange-100',
     amber: 'border-amber-500/30 bg-amber-500/10 text-amber-100',
@@ -95,7 +103,9 @@ export function DamagedPartsSummaryTab({ items, filters, reasons, decisions, has
       <div className="card-industrial p-4 sm:p-5">
         <h3 className="text-sm font-black text-orange-200">{t('damagedParts.summary.title')}</h3>
         <p className="mt-1 text-sm text-slate-400">{t('damagedParts.summary.hint')}</p>
-        {hasActiveFilter && <p className="mt-2 text-xs font-bold text-amber-300">{t('damagedParts.summary.filteredNote')}</p>}
+        {hasActiveFilter && (
+          <p className="mt-2 text-xs font-bold text-amber-300">{t('damagedParts.summary.filteredNote')}</p>
+        )}
         <p className="mt-1 text-xs text-slate-500">{t('damagedParts.summary.topNote', { n: topN })}</p>
       </div>
 

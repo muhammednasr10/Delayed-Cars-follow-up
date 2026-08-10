@@ -117,7 +117,9 @@ function SopWorkerPanel({
       {open && (
         <div className="space-y-3 p-3">
           <div>
-            <label className="mb-1 block text-[10px] font-bold uppercase text-slate-500">{t('sop.stationInstructions')}</label>
+            <label className="mb-1 block text-[10px] font-bold uppercase text-slate-500">
+              {t('sop.stationInstructions')}
+            </label>
             <textarea
               className={`${inputCls()} min-h-[5rem] resize-y text-sm`}
               value={stationInstructions}
@@ -199,7 +201,9 @@ function SopParentBlock({
           onClick={() => setOpen(v => !v)}
           className="flex w-full items-start gap-2 rounded-xl p-1 text-start transition hover:bg-violet-500/5"
         >
-          <ChevronDown className={`mt-1 h-5 w-5 shrink-0 text-violet-300 transition-transform ${open ? '' : '-rotate-90'}`} />
+          <ChevronDown
+            className={`mt-1 h-5 w-5 shrink-0 text-violet-300 transition-transform ${open ? '' : '-rotate-90'}`}
+          />
           <div className="grid min-w-0 flex-1 grid-cols-2 gap-3 text-center sm:grid-cols-3 lg:grid-cols-4">
             <HeaderCell label={t('settings.cols.stationName')} value={parent.displayCode || '—'} accent dir="ltr" />
             <HeaderCell label={t('operations.workplace')} value={workplace} />
@@ -350,12 +354,12 @@ export function SopHierarchyTab({ parentGroups, models, loading, loadError, canM
       </p>
 
       {!lineFamilyId && (
-        <div className="card-industrial p-6 text-center text-sm text-amber-200">{t('sop.noFamilyForLine', { line: activeLine })}</div>
+        <div className="card-industrial p-6 text-center text-sm text-amber-200">
+          {t('sop.noFamilyForLine', { line: activeLine })}
+        </div>
       )}
 
-      {lineFamilyId && filteredParents.length === 0 && (
-        <EmptyState title={t('sop.empty')} hint={t('sop.emptyHint')} />
-      )}
+      {lineFamilyId && filteredParents.length === 0 && <EmptyState title={t('sop.empty')} hint={t('sop.emptyHint')} />}
 
       {lineFamilyId &&
         filteredParents.map(parent => (

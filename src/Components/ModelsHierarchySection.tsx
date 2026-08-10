@@ -4,11 +4,7 @@ import { useLang } from '../i18n/LanguageContext'
 import { Modal } from './Modal'
 import { ConfirmDialog } from './ConfirmDialog'
 import { Field, inputCls } from './FormField'
-import {
-  createVehicleModel,
-  deleteVehicleModel,
-  updateVehicleModel
-} from '../services/settingsService'
+import { createVehicleModel, deleteVehicleModel, updateVehicleModel } from '../services/settingsService'
 import type { VehicleModel } from '../Types/settings'
 import {
   buildModelFamilyGroups,
@@ -172,9 +168,7 @@ export function ModelsHierarchySection({ models, busy, onChanged, onError, onSuc
             </ul>
           </div>
         )}
-        {models.length === 0 && !busy && (
-          <p className="p-8 text-center text-slate-500">{t('common.noData')}</p>
-        )}
+        {models.length === 0 && !busy && <p className="p-8 text-center text-slate-500">{t('common.noData')}</p>}
       </div>
 
       <Modal
@@ -189,7 +183,11 @@ export function ModelsHierarchySection({ models, busy, onChanged, onError, onSuc
         onClose={closeForm}
         footer={
           <>
-            <button type="button" onClick={closeForm} className="rounded-xl bg-slate-800 px-4 py-2 font-bold text-slate-200">
+            <button
+              type="button"
+              onClick={closeForm}
+              className="rounded-xl bg-slate-800 px-4 py-2 font-bold text-slate-200"
+            >
               {t('common.cancel')}
             </button>
             <button
@@ -224,9 +222,7 @@ export function ModelsHierarchySection({ models, busy, onChanged, onError, onSuc
               </select>
             </Field>
           )}
-          {formMode === 'family' && (
-            <p className="text-xs text-slate-500">{t('settings.models.familyHint')}</p>
-          )}
+          {formMode === 'family' && <p className="text-xs text-slate-500">{t('settings.models.familyHint')}</p>}
         </div>
       </Modal>
 
@@ -277,10 +273,18 @@ function FamilyBlock({
         >
           <Plus className="mr-0.5 inline h-3 w-3" /> {t('settings.models.addVariant')}
         </button>
-        <button type="button" onClick={() => onEdit(family)} className="rounded-lg p-1.5 text-slate-300 hover:bg-slate-800">
+        <button
+          type="button"
+          onClick={() => onEdit(family)}
+          className="rounded-lg p-1.5 text-slate-300 hover:bg-slate-800"
+        >
           <Pencil className="h-4 w-4" />
         </button>
-        <button type="button" onClick={() => onDelete(family)} className="rounded-lg p-1.5 text-red-300 hover:bg-red-500/20">
+        <button
+          type="button"
+          onClick={() => onDelete(family)}
+          className="rounded-lg p-1.5 text-red-300 hover:bg-red-500/20"
+        >
           <Trash2 className="h-4 w-4" />
         </button>
       </div>
@@ -310,13 +314,23 @@ function VariantRow({
 }) {
   return (
     <li className="flex items-center gap-2 rounded-lg px-2 py-2 hover:bg-slate-800/50">
-      <span className="rounded bg-slate-800 px-1.5 py-0.5 text-[10px] font-bold text-slate-400">{t('settings.models.variant')}</span>
+      <span className="rounded bg-slate-800 px-1.5 py-0.5 text-[10px] font-bold text-slate-400">
+        {t('settings.models.variant')}
+      </span>
       <span className="flex-1 font-bold text-slate-200">{model.name}</span>
       {model.parent_name && <span className="text-xs text-slate-500">← {model.parent_name}</span>}
-      <button type="button" onClick={() => onEdit(model)} className="rounded-lg p-1.5 text-slate-300 hover:bg-slate-800">
+      <button
+        type="button"
+        onClick={() => onEdit(model)}
+        className="rounded-lg p-1.5 text-slate-300 hover:bg-slate-800"
+      >
         <Pencil className="h-4 w-4" />
       </button>
-      <button type="button" onClick={() => onDelete(model)} className="rounded-lg p-1.5 text-red-300 hover:bg-red-500/20">
+      <button
+        type="button"
+        onClick={() => onDelete(model)}
+        className="rounded-lg p-1.5 text-red-300 hover:bg-red-500/20"
+      >
         <Trash2 className="h-4 w-4" />
       </button>
     </li>

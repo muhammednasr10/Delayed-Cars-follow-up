@@ -73,9 +73,7 @@ export function buildModelFamilyGroups(models: VehicleModel[]): {
 
   const groups: ModelFamilyGroup[] = families.map(family => ({
     family,
-    variants: variants
-      .filter(v => v.parent_model_id === family.id)
-      .sort((a, b) => a.name.localeCompare(b.name))
+    variants: variants.filter(v => v.parent_model_id === family.id).sort((a, b) => a.name.localeCompare(b.name))
   }))
 
   const orphanVariants = variants
@@ -87,9 +85,5 @@ export function buildModelFamilyGroups(models: VehicleModel[]): {
 
 export function variantModelsForLine(models: VehicleModel[], linePrefix: string): VehicleModel[] {
   const p = linePrefix.toUpperCase()
-  return models.filter(
-    m =>
-      isAssignableModel(m) &&
-      (m.name.toUpperCase() === p || m.name.toUpperCase().startsWith(p))
-  )
+  return models.filter(m => isAssignableModel(m) && (m.name.toUpperCase() === p || m.name.toUpperCase().startsWith(p)))
 }

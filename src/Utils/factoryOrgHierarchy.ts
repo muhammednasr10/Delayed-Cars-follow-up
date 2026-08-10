@@ -32,10 +32,7 @@ export function buildFactoryOrgTree(units: FactoryOrgUnit[]): FactoryOrgUnitNode
   return build(null)
 }
 
-export function factoryOrgUnitKindLabel(
-  kind: FactoryOrgUnitKind,
-  t: (key: string) => string
-): string {
+export function factoryOrgUnitKindLabel(kind: FactoryOrgUnitKind, t: (key: string) => string): string {
   return t(`settings.administrations.kinds.${kind}`)
 }
 

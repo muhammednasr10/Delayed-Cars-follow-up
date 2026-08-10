@@ -34,7 +34,7 @@ type Row = {
 
 function relOne<T>(value: T | T[] | null | undefined): T | null {
   if (value == null) return null
-  return Array.isArray(value) ? value[0] ?? null : value
+  return Array.isArray(value) ? (value[0] ?? null) : value
 }
 
 export function damagedPartImageUrl(path: string | null | undefined): string | null {
@@ -108,7 +108,12 @@ export async function createDamagedPart(input: DamagedPartInput): Promise<Damage
 }
 
 export async function updateDamagedPart(id: string, input: DamagedPartInput): Promise<DamagedPartRecord> {
-  const { data, error } = await requireClient().from('damaged_parts').update(toPayload(input)).eq('id', id).select(SELECT).single()
+  const { data, error } = await requireClient()
+    .from('damaged_parts')
+    .update(toPayload(input))
+    .eq('id', id)
+    .select(SELECT)
+    .single()
   if (error) throw new Error(error.message)
   return mapRow(data as Row)
 }
@@ -139,7 +144,10 @@ export async function uploadDamagedPartImage(recordId: string, file: File): Prom
   })
   if (error) throw new Error(error.message)
 
-  const { error: updateError } = await requireClient().from('damaged_parts').update({ image_path: path }).eq('id', recordId)
+  const { error: updateError } = await requireClient()
+    .from('damaged_parts')
+    .update({ image_path: path })
+    .eq('id', recordId)
   if (updateError) throw new Error(updateError.message)
 
   return path

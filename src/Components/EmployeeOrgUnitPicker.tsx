@@ -14,13 +14,7 @@ function selectCls() {
   return 'input-dark'
 }
 
-function Field({
-  label,
-  children
-}: {
-  label: string
-  children: ReactNode
-}) {
+function Field({ label, children }: { label: string; children: ReactNode }) {
   return (
     <label className="block space-y-1.5">
       <span className="text-sm font-bold text-slate-300">{label}</span>

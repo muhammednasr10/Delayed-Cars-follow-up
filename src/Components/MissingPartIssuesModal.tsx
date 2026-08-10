@@ -40,10 +40,7 @@ export function MissingPartIssuesModal({ parts, vin, modelName, reasons, departm
 
       <div className="max-h-[min(60vh,420px)] space-y-2 overflow-y-auto pe-1">
         {parts.map((part, i) => (
-          <div
-            key={part.id}
-            className="rounded-xl border border-amber-500/25 bg-amber-500/5 px-4 py-3 text-start"
-          >
+          <div key={part.id} className="rounded-xl border border-amber-500/25 bg-amber-500/5 px-4 py-3 text-start">
             <p className="text-[10px] font-bold uppercase text-slate-500">{i + 1}</p>
             <p className="mt-1 text-sm font-bold text-white">{part.partDescription}</p>
             <div className="mt-2 flex flex-wrap gap-x-3 gap-y-1 text-xs text-slate-400">

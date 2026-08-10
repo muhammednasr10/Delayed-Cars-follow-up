@@ -17,15 +17,7 @@ type Props = {
   onSelect: (station: Station) => void
 }
 
-export function StationPickModal({
-  open,
-  stations,
-  workAreas,
-  excludeCodes = [],
-  busy,
-  onClose,
-  onSelect
-}: Props) {
+export function StationPickModal({ open, stations, workAreas, excludeCodes = [], busy, onClose, onSelect }: Props) {
   const { t } = useLang()
   const [search, setSearch] = useState('')
 

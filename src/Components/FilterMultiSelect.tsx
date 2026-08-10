@@ -15,14 +15,7 @@ type Props = {
   clearLabel: string
 }
 
-export function FilterMultiSelect({
-  options,
-  value,
-  onChange,
-  allLabel,
-  selectedCountLabel,
-  clearLabel
-}: Props) {
+export function FilterMultiSelect({ options, value, onChange, allLabel, selectedCountLabel, clearLabel }: Props) {
   const [open, setOpen] = useState(false)
   const boxRef = useRef<HTMLDivElement>(null)
 
@@ -135,9 +128,7 @@ export function FilterMultiSelect({
               </button>
             )
           })}
-          {options.length === 0 && (
-            <p className="px-3 py-2 text-xs text-slate-500">—</p>
-          )}
+          {options.length === 0 && <p className="px-3 py-2 text-xs text-slate-500">—</p>}
         </div>
       )}
     </div>

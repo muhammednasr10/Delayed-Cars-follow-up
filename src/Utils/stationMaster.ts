@@ -3,9 +3,7 @@ import type { ParentStationOperationsGroup } from '../Types/timeStudy'
 import { normalizeStationReferenceCode, workerIndexFromStationCode } from './stationHierarchy'
 
 /** محطة مرجعية في الإعدادات — كود أساسي بدون لاحقة عامل */
-export function isMasterReferenceStation(
-  s: Pick<Station, 'station_number' | 'parent_station_id'>
-): boolean {
+export function isMasterReferenceStation(s: Pick<Station, 'station_number' | 'parent_station_id'>): boolean {
   if (s.parent_station_id) return false
   return !/-L\d+$/i.test(s.station_number.trim())
 }
@@ -73,9 +71,7 @@ export function resolveMasterStationRecord(
   }
 
   const code = masterStationCode({ station_number: parent.stationNumber }).toUpperCase()
-  const byCode = allStations.find(
-    s => masterStationCode(s).toUpperCase() === code && isMasterReferenceStation(s)
-  )
+  const byCode = allStations.find(s => masterStationCode(s).toUpperCase() === code && isMasterReferenceStation(s))
   if (byCode) return byCode
 
   for (const worker of parent.workers) {

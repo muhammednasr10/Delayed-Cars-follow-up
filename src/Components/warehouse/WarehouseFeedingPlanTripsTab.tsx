@@ -100,7 +100,10 @@ export function WarehouseFeedingPlanTripsTab({ iplRows, variantId, selectedModel
                         <Truck className="h-4 w-4 text-cyan-300" />
                         {t('warehouses.feeding.trips.trip', { n: trip.tripIndex })}
                       </span>
-                      <span className="rounded-full bg-slate-800 px-2 py-0.5 font-mono text-[10px] text-cyan-200" dir="ltr">
+                      <span
+                        className="rounded-full bg-slate-800 px-2 py-0.5 font-mono text-[10px] text-cyan-200"
+                        dir="ltr"
+                      >
                         {trip.cartCode}
                       </span>
                       <span className="text-[10px] text-slate-500">

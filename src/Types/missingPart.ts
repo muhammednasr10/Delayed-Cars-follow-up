@@ -1,10 +1,4 @@
-import type {
-  MissingPartReason,
-  MissingPartStatus,
-  PriorityLevel,
-  ResponsibleDepartment,
-  StopperType
-} from './enums'
+import type { MissingPartReason, MissingPartStatus, PriorityLevel, ResponsibleDepartment, StopperType } from './enums'
 
 // Row shape from the `v_missing_parts_detail` view.
 export type MissingPartDetail = {

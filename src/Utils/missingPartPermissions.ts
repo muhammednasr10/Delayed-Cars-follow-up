@@ -2,12 +2,7 @@ import type { UserRole } from '../Types/enums'
 import type { PermissionMap } from '../Types/permissions'
 import { permissionKey } from '../services/permissionsService'
 
-const PRODUCTION_SYSTEM_ROLES = new Set([
-  'supervisor',
-  'production_manager',
-  'general_manager',
-  'engineer'
-])
+const PRODUCTION_SYSTEM_ROLES = new Set(['supervisor', 'production_manager', 'general_manager', 'engineer'])
 
 export type MissingPartsActionBits = {
   isAdmin: boolean
@@ -46,20 +41,29 @@ function productionLike(bits: AuthBits): boolean {
 
 /** Mirrors DB can_manage_missing_parts + UI expectations. */
 export function canManageMissingParts(bits: AuthBits) {
-  const canEdit = resolveMissingPartAction(bits, 'update', () =>
-    elevated(bits) || productionLike(bits) || bits.hasRole('warehouse', 'purchasing')
+  const canEdit = resolveMissingPartAction(
+    bits,
+    'update',
+    () => elevated(bits) || productionLike(bits) || bits.hasRole('warehouse', 'purchasing')
   )
 
-  const canInstall = resolveMissingPartAction(bits, 'bulk_install', () =>
-    elevated(bits) || bits.hasRole('admin', 'production')
+  const canInstall = resolveMissingPartAction(
+    bits,
+    'bulk_install',
+    () => elevated(bits) || bits.hasRole('admin', 'production')
   )
 
-  const canUpdateStatus = resolveMissingPartAction(bits, 'update_status', () =>
-    elevated(bits) || bits.hasRole('admin', 'production', 'quality') || bits.hasPermission('missing_parts', 'approve')
+  const canUpdateStatus = resolveMissingPartAction(
+    bits,
+    'update_status',
+    () =>
+      elevated(bits) || bits.hasRole('admin', 'production', 'quality') || bits.hasPermission('missing_parts', 'approve')
   )
 
-  const canComplete = resolveMissingPartAction(bits, 'complete', () =>
-    elevated(bits) || productionLike(bits) || bits.hasPermission('missing_parts', 'approve')
+  const canComplete = resolveMissingPartAction(
+    bits,
+    'complete',
+    () => elevated(bits) || productionLike(bits) || bits.hasPermission('missing_parts', 'approve')
   )
 
   const canDelete = resolveMissingPartAction(bits, 'delete', () => elevated(bits) || bits.hasRole('admin'))

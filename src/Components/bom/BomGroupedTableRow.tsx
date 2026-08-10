@@ -39,13 +39,7 @@ type Props = {
   onDeleteRow?: (group: BomDisplayGroup) => void
 }
 
-function partNameCell(
-  expandable: boolean,
-  modelCount: number,
-  expanded: boolean,
-  onToggle: () => void,
-  label: string
-) {
+function partNameCell(expandable: boolean, modelCount: number, expanded: boolean, onToggle: () => void, label: string) {
   if (!expandable) {
     return <span className="leading-snug">{label || '—'}</span>
   }
@@ -250,10 +244,9 @@ export function BomGroupedTableRow({
                       onChange={e => onStationChange(group, normalizeBomStationCodeText(e.target.value))}
                     >
                       <option value="">{t('bom.partListStationOptional')}</option>
-                      {stationSelectValue &&
-                        !stationOptions.some(o => o.code === stationSelectValue) && (
-                          <option value={stationSelectValue}>{stationSelectValue}</option>
-                        )}
+                      {stationSelectValue && !stationOptions.some(o => o.code === stationSelectValue) && (
+                        <option value={stationSelectValue}>{stationSelectValue}</option>
+                      )}
                       {stationOptions.map(opt => (
                         <option key={opt.code} value={opt.code}>
                           {opt.code}
@@ -319,10 +312,7 @@ export function BomGroupedTableRow({
   )
 }
 
-function allVariantsSame(
-  group: BomDisplayGroup,
-  field: 'part_kind' | 'supply_source' | 'station_code'
-): boolean {
+function allVariantsSame(group: BomDisplayGroup, field: 'part_kind' | 'supply_source' | 'station_code'): boolean {
   const vals = group.variants.map(v => v[field]?.trim() ?? '').filter(Boolean)
   if (vals.length <= 1) return true
   return vals.every(v => v === vals[0])

@@ -1,9 +1,6 @@
 import { ChevronDown } from 'lucide-react'
 import { CompletionBar } from '../VehicleBadges'
-import {
-  planProgressPercent,
-  type PlanFamilyGroup
-} from '../../Utils/productionPlanSummary'
+import { planProgressPercent, type PlanFamilyGroup } from '../../Utils/productionPlanSummary'
 
 type Props = {
   group: PlanFamilyGroup
@@ -73,9 +70,7 @@ export function PlanFamilyCard({ group, scope, isExpanded, onToggle, t }: Props)
         : t('productionOrders.planModeFlexible')
 
   const plannedDisplay =
-    !familyIsLeaf && group.entryMode === 'per_variant' && group.planned <= 0
-      ? '—'
-      : displayQty(group.planned)
+    !familyIsLeaf && group.entryMode === 'per_variant' && group.planned <= 0 ? '—' : displayQty(group.planned)
 
   const statsBorder = scope === 'annual' ? 'border-cyan-500/20 bg-cyan-500/5' : 'border-violet-500/20 bg-violet-500/5'
 
@@ -113,7 +108,9 @@ export function PlanFamilyCard({ group, scope, isExpanded, onToggle, t }: Props)
             </div>
           </button>
 
-          <div className={`flex shrink-0 divide-x divide-slate-700/60 overflow-hidden rounded-xl border ${statsBorder}`}>
+          <div
+            className={`flex shrink-0 divide-x divide-slate-700/60 overflow-hidden rounded-xl border ${statsBorder}`}
+          >
             <HeaderStat label={t('productionOrders.plannedQty')} value={plannedDisplay} tone="cyan" />
             <HeaderStat label={t('productionOrders.achievedQty')} value={displayQty(group.achieved)} tone="emerald" />
             <HeaderStat label={t('productionOrders.progress')} value={`${progress}%`} tone="violet" />

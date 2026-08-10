@@ -104,7 +104,12 @@ export function RequestsInboxTab({ onChanged }: Props) {
     }
   }
 
-  async function handleConvert(assigneeIds: string[], priority: 'low' | 'normal' | 'high', dueDate: string | null, notes: string | null) {
+  async function handleConvert(
+    assigneeIds: string[],
+    priority: 'low' | 'normal' | 'high',
+    dueDate: string | null,
+    notes: string | null
+  ) {
     if (!convertTarget) return
     setSaving(true)
     try {
@@ -145,14 +150,22 @@ export function RequestsInboxTab({ onChanged }: Props) {
             <p className="mt-1 text-sm font-bold text-amber-300">{t('requests.pendingCount', { n: pendingCount })}</p>
           )}
         </div>
-        <button type="button" onClick={() => void load()} className="rounded-xl bg-slate-800 px-3 py-2 text-slate-200 hover:bg-slate-700">
+        <button
+          type="button"
+          onClick={() => void load()}
+          className="rounded-xl bg-slate-800 px-3 py-2 text-slate-200 hover:bg-slate-700"
+        >
           <RefreshCcw className="h-4 w-4" />
         </button>
       </div>
 
       <div className="card-industrial p-4">
         <Field label={t('missions.filterStatus')}>
-          <select className={inputCls()} value={statusFilter} onChange={e => setStatusFilter(e.target.value as TeamRequest['status'] | 'all')}>
+          <select
+            className={inputCls()}
+            value={statusFilter}
+            onChange={e => setStatusFilter(e.target.value as TeamRequest['status'] | 'all')}
+          >
             <option value="all">{t('common.all')}</option>
             <option value="pending">{t('requests.status.pending')}</option>
             <option value="accepted">{t('requests.status.accepted')}</option>
@@ -169,8 +182,14 @@ export function RequestsInboxTab({ onChanged }: Props) {
         </div>
       )}
 
-      {success && <div className="rounded-xl border border-emerald-500/30 bg-emerald-500/10 p-3 text-sm text-emerald-200">{success}</div>}
-      {error && !setupRequired && <div className="rounded-xl border border-red-500/30 bg-red-500/10 p-3 text-sm text-red-200">{error}</div>}
+      {success && (
+        <div className="rounded-xl border border-emerald-500/30 bg-emerald-500/10 p-3 text-sm text-emerald-200">
+          {success}
+        </div>
+      )}
+      {error && !setupRequired && (
+        <div className="rounded-xl border border-red-500/30 bg-red-500/10 p-3 text-sm text-red-200">{error}</div>
+      )}
 
       <div className="space-y-3">
         {loading ? (
@@ -200,15 +219,17 @@ export function RequestsInboxTab({ onChanged }: Props) {
                     </p>
                   )}
                 </div>
-                <span className={`shrink-0 rounded-lg border px-2 py-0.5 text-xs font-bold ${
-                  row.status === 'pending'
-                    ? 'border-amber-500/30 bg-amber-500/15 text-amber-200'
-                    : row.status === 'accepted'
-                      ? 'border-emerald-500/30 bg-emerald-500/15 text-emerald-200'
-                      : row.status === 'rejected'
-                        ? 'border-red-500/30 bg-red-500/15 text-red-200'
-                        : 'border-violet-500/30 bg-violet-500/15 text-violet-200'
-                }`}>
+                <span
+                  className={`shrink-0 rounded-lg border px-2 py-0.5 text-xs font-bold ${
+                    row.status === 'pending'
+                      ? 'border-amber-500/30 bg-amber-500/15 text-amber-200'
+                      : row.status === 'accepted'
+                        ? 'border-emerald-500/30 bg-emerald-500/15 text-emerald-200'
+                        : row.status === 'rejected'
+                          ? 'border-red-500/30 bg-red-500/15 text-red-200'
+                          : 'border-violet-500/30 bg-violet-500/15 text-violet-200'
+                  }`}
+                >
                   {t(`requests.status.${row.status}`)}
                 </span>
               </div>

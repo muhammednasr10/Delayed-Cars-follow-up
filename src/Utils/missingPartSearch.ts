@@ -44,11 +44,15 @@ export function findMissingPartSearchSuggestions(
     .map(s => {
       const label = norm(s.label)
       const value = norm(s.value)
-      let score = 0
-      if (label === q || value === q) score = 100
-      else if (label.startsWith(q) || value.startsWith(q)) score = 80
-      else if (label.includes(q) || value.includes(q)) score = 50
-      else return null
+      const score =
+        label === q || value === q
+          ? 100
+          : label.startsWith(q) || value.startsWith(q)
+            ? 80
+            : label.includes(q) || value.includes(q)
+              ? 50
+              : 0
+      if (score === 0) return null
       return { s, score }
     })
     .filter((x): x is { s: MissingPartSearchSuggestion; score: number } => x !== null)

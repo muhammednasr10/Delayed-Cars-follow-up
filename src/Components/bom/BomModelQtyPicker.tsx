@@ -82,10 +82,7 @@ export function BomModelQtyPicker({ models, familyId, lines, onFamilyChange, onL
               const line = lines.find(l => l.modelId === m.id)
               const checked = Boolean(line)
               return (
-                <div
-                  key={m.id}
-                  className="flex flex-wrap items-center gap-3 rounded-lg bg-slate-950/40 px-2 py-1.5"
-                >
+                <div key={m.id} className="flex flex-wrap items-center gap-3 rounded-lg bg-slate-950/40 px-2 py-1.5">
                   <label className="flex min-w-[7rem] cursor-pointer items-center gap-2 text-sm text-slate-200">
                     <input
                       type="checkbox"

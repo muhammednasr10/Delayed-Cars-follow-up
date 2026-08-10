@@ -16,7 +16,16 @@ type ModalProps = {
 // Elegant centered card modal used across the app (add / edit forms, etc.).
 // Rendered through a portal to <body> so ancestor `backdrop-filter` / `transform`
 // containers (e.g. .card-industrial) can't clip the fixed overlay or its footer.
-export function Modal({ open, title, subtitle, icon, onClose, children, footer, maxWidthClass = 'max-w-lg' }: ModalProps) {
+export function Modal({
+  open,
+  title,
+  subtitle,
+  icon,
+  onClose,
+  children,
+  footer,
+  maxWidthClass = 'max-w-lg'
+}: ModalProps) {
   if (!open) return null
 
   const node = (
@@ -36,7 +45,10 @@ export function Modal({ open, title, subtitle, icon, onClose, children, footer, 
               {subtitle && <p className="text-xs text-slate-400 sm:text-sm">{subtitle}</p>}
             </div>
           </div>
-          <button onClick={onClose} className="touch-target shrink-0 rounded-lg bg-slate-800 p-2 text-slate-300 hover:bg-slate-700">
+          <button
+            onClick={onClose}
+            className="touch-target shrink-0 rounded-lg bg-slate-800 p-2 text-slate-300 hover:bg-slate-700"
+          >
             <X className="h-4 w-4" />
           </button>
         </div>

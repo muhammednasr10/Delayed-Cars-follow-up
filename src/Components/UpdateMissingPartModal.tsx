@@ -126,9 +126,7 @@ export function UpdateMissingPartModal({ vehicle, onClose, onChanged }: Props) {
           </div>
         </div>
 
-        {openParts.length === 0 && (
-          <p className="text-center text-sm text-slate-400">{t('mp.act.noOpenIssues')}</p>
-        )}
+        {openParts.length === 0 && <p className="text-center text-sm text-slate-400">{t('mp.act.noOpenIssues')}</p>}
 
         <div className="max-h-[min(50vh,400px)] space-y-3 overflow-y-auto pe-1">
           {lines.map(line => {
@@ -199,7 +197,9 @@ export function UpdateMissingPartModal({ vehicle, onClose, onChanged }: Props) {
         {!canEditQty && <p className="text-center text-xs text-amber-300">{t('mp.act.noInstallPerm')}</p>}
         {canEditQty && <p className="text-center text-xs text-slate-500">{t('mp.act.installOnlyHint')}</p>}
 
-        {error && <div className="rounded-xl border border-red-500/30 bg-red-500/10 p-3 text-sm text-red-200">{error}</div>}
+        {error && (
+          <div className="rounded-xl border border-red-500/30 bg-red-500/10 p-3 text-sm text-red-200">{error}</div>
+        )}
       </div>
     </Modal>
   )

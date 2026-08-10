@@ -30,7 +30,15 @@ function kindLabel(t: (key: string) => string, kind: ProductivityDelayKind): str
   return t('productionOrders.workDaysTab.cols.repairProductivity')
 }
 
-function BreakdownStat({ label, value, tone = 'slate' }: { label: string; value: string; tone?: 'slate' | 'cyan' | 'rose' | 'amber' | 'violet' }) {
+function BreakdownStat({
+  label,
+  value,
+  tone = 'slate'
+}: {
+  label: string
+  value: string
+  tone?: 'slate' | 'cyan' | 'rose' | 'amber' | 'violet'
+}) {
   const valueCls =
     tone === 'cyan'
       ? 'text-cyan-300'
@@ -82,8 +90,16 @@ export function ProductivityLossReasonsModal({
     >
       <div className="space-y-4">
         <div className="grid grid-cols-2 gap-2 sm:grid-cols-5">
-          <BreakdownStat label={t('productivity.lossReasonsTarget')} value={String(DAILY_PRODUCTIVITY_TARGET)} tone="violet" />
-          <BreakdownStat label={t('productivity.lossReasonsAchieved')} value={productivity > 0 ? String(productivity) : '—'} tone="cyan" />
+          <BreakdownStat
+            label={t('productivity.lossReasonsTarget')}
+            value={String(DAILY_PRODUCTIVITY_TARGET)}
+            tone="violet"
+          />
+          <BreakdownStat
+            label={t('productivity.lossReasonsAchieved')}
+            value={productivity > 0 ? String(productivity) : '—'}
+            tone="cyan"
+          />
           <BreakdownStat
             label={t('productivity.lossReasonsTotalLost')}
             value={productivity > 0 ? String(totalLost) : '—'}
@@ -104,7 +120,9 @@ export function ProductivityLossReasonsModal({
               type="button"
               onClick={() => setTab(item.key)}
               className={`flex-1 rounded-lg px-3 py-2 text-xs font-black transition ${
-                tab === item.key ? 'bg-violet-600 text-white shadow' : 'text-slate-400 hover:bg-slate-800/80 hover:text-slate-200'
+                tab === item.key
+                  ? 'bg-violet-600 text-white shadow'
+                  : 'text-slate-400 hover:bg-slate-800/80 hover:text-slate-200'
               }`}
             >
               {item.label}

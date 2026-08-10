@@ -71,12 +71,20 @@ export function UserSupportRequestModal({
       maxWidthClass="max-w-lg"
       footer={
         ok ? (
-          <button type="button" onClick={onClose} className="rounded-xl bg-cyan-500 px-5 py-2 font-black text-slate-950">
+          <button
+            type="button"
+            onClick={onClose}
+            className="rounded-xl bg-cyan-500 px-5 py-2 font-black text-slate-950"
+          >
             {t('common.close')}
           </button>
         ) : (
           <>
-            <button type="button" onClick={onClose} className="rounded-xl bg-slate-800 px-4 py-2 font-bold text-slate-200">
+            <button
+              type="button"
+              onClick={onClose}
+              className="rounded-xl bg-slate-800 px-4 py-2 font-bold text-slate-200"
+            >
               {t('common.cancel')}
             </button>
             <button
@@ -109,7 +117,13 @@ export function UserSupportRequestModal({
               </select>
             </Field>
             <Field label={t('permissions.userEmail')} required>
-              <input className={inputCls()} type="email" dir="ltr" value={email} onChange={e => setEmail(e.target.value)} />
+              <input
+                className={inputCls()}
+                type="email"
+                dir="ltr"
+                value={email}
+                onChange={e => setEmail(e.target.value)}
+              />
             </Field>
             <Field label={t('userRequests.yourName')}>
               <input className={inputCls()} value={name} onChange={e => setName(e.target.value)} />

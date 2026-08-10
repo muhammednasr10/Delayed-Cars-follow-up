@@ -39,7 +39,7 @@ export async function getFactoryOrgUnits(opts?: { includeInactive?: boolean }): 
   if (error) throw new Error(error.message)
   const rows = (data ?? []) as Row[]
   const nameById = new Map(rows.map(r => [r.id, r.name]))
-  return rows.map(r => mapRow(r, r.parent_id ? nameById.get(r.parent_id) ?? null : null))
+  return rows.map(r => mapRow(r, r.parent_id ? (nameById.get(r.parent_id) ?? null) : null))
 }
 
 async function getParentUnit(parentId: string | null | undefined): Promise<FactoryOrgUnit | null> {
@@ -77,7 +77,12 @@ export async function updateFactoryOrgUnit(
   if (input.name != null) payload.name = input.name.trim()
   if (input.sortOrder != null) payload.sort_order = input.sortOrder
   if (input.isActive != null) payload.is_active = input.isActive
-  const { data, error } = await requireClient().from('factory_org_units').update(payload).eq('id', id).select('*').single()
+  const { data, error } = await requireClient()
+    .from('factory_org_units')
+    .update(payload)
+    .eq('id', id)
+    .select('*')
+    .single()
   if (error) throw new Error(error.message)
   return mapRow(data as Row)
 }

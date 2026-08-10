@@ -90,10 +90,7 @@ export async function releaseVehicleForDelivery(vehicleId: string): Promise<void
 }
 
 export async function markVehicleDelivered(vehicleId: string): Promise<void> {
-  const { error } = await requireClient()
-    .from('vehicles')
-    .update({ delivery_status: 'delivered' })
-    .eq('id', vehicleId)
+  const { error } = await requireClient().from('vehicles').update({ delivery_status: 'delivered' }).eq('id', vehicleId)
   if (error) throw new Error(error.message)
 }
 

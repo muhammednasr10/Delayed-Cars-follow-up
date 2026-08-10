@@ -46,7 +46,11 @@ export function getMyManagers(employees: Employee[], employeeId: string): Employ
   return employees.filter(e => ids.has(e.id))
 }
 
-export function filterAssignableEmployees(employees: Employee[], managerId: string | null, isAdmin: boolean): Employee[] {
+export function filterAssignableEmployees(
+  employees: Employee[],
+  managerId: string | null,
+  isAdmin: boolean
+): Employee[] {
   const active = employees.filter(e => e.isActive)
   if (isAdmin || !managerId) return active
   const subIds = collectSubordinateIds(employees, managerId)

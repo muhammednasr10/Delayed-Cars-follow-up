@@ -17,9 +17,7 @@ export async function fetchAppNotificationCounts(
   try {
     const missions = await getTeamMissions()
     out.pendingMissions = missions.filter(
-      m =>
-        missionHasAssignee(m.assigneeIds, employeeId) &&
-        (m.status === 'pending' || m.status === 'in_progress')
+      m => missionHasAssignee(m.assigneeIds, employeeId) && (m.status === 'pending' || m.status === 'in_progress')
     ).length
   } catch {
     /* table may be missing */

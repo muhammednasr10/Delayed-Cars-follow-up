@@ -56,10 +56,25 @@ export function useGlobalHubSections(refreshKey = 0) {
   const loading = permsLoading || pagesLoading
   const [reportOpen, setReportOpen] = useState(false)
   const { activeVehicles, archiveVehicles, loading: countsLoading } = useMissingPartsVehicleCounts(refreshKey)
-  const { entryVehicles, exitVehicles, entryEfficiency, exitEfficiency, loading: productivityLoading } = useProductivityMonthCounts(refreshKey)
-  const { totalMinutes, lostVehicles: stopsLostVehicles, loading: stopsLoading } = useProductionStopMonthCounts(refreshKey)
-  const { efficiency, presentTodayCount, workforceCount, statusCounts, loading: attendanceLoading } =
-    useTodayAttendanceEfficiency(refreshKey)
+  const {
+    entryVehicles,
+    exitVehicles,
+    entryEfficiency,
+    exitEfficiency,
+    loading: productivityLoading
+  } = useProductivityMonthCounts(refreshKey)
+  const {
+    totalMinutes,
+    lostVehicles: stopsLostVehicles,
+    loading: stopsLoading
+  } = useProductionStopMonthCounts(refreshKey)
+  const {
+    efficiency,
+    presentTodayCount,
+    workforceCount,
+    statusCounts,
+    loading: attendanceLoading
+  } = useTodayAttendanceEfficiency(refreshKey)
   const {
     ordersCount,
     damagedQty,
@@ -128,9 +143,15 @@ export function useGlobalHubSections(refreshKey = 0) {
         statsLayout: 'productivity-pairs',
         stats: [
           { label: t('home.entryProductivityVehicles'), value: productivityLoading ? '…' : String(entryVehicles) },
-          { label: t('home.entryProductivityEfficiency'), value: formatEfficiencyPct(entryEfficiency, productivityLoading) },
+          {
+            label: t('home.entryProductivityEfficiency'),
+            value: formatEfficiencyPct(entryEfficiency, productivityLoading)
+          },
           { label: t('home.exitProductivityVehicles'), value: productivityLoading ? '…' : String(exitVehicles) },
-          { label: t('home.exitProductivityEfficiency'), value: formatEfficiencyPct(exitEfficiency, productivityLoading) }
+          {
+            label: t('home.exitProductivityEfficiency'),
+            value: formatEfficiencyPct(exitEfficiency, productivityLoading)
+          }
         ]
       },
       showHomeCard('production_home__stops', canViewModule('production')) && {
@@ -177,9 +198,7 @@ export function useGlobalHubSections(refreshKey = 0) {
           { label: t('home.missingActiveVehicles'), value: countsLoading ? '…' : String(activeVehicles) },
           { label: t('home.missingArchiveVehicles'), value: countsLoading ? '…' : String(archiveVehicles) }
         ],
-        footerAction: canReport
-          ? { label: t('home.reportMissing'), onClick: () => setReportOpen(true) }
-          : undefined
+        footerAction: canReport ? { label: t('home.reportMissing'), onClick: () => setReportOpen(true) } : undefined
       },
       showHomeCard('production_home__damaged') && {
         key: 'damagedParts',
@@ -188,8 +207,7 @@ export function useGlobalHubSections(refreshKey = 0) {
         icon: PackageX,
         tone: 'text-orange-300 bg-orange-500/15',
         accent: 'orange' as const,
-        onClick: () =>
-          go({ department: 'production', productionArea: 'assembly', productionPage: 'damagedParts' }),
+        onClick: () => go({ department: 'production', productionArea: 'assembly', productionPage: 'damagedParts' }),
         stats: [
           { label: t('home.damagedQtyMonth'), value: monthStatsLoading ? '…' : String(damagedQty) },
           { label: t('home.damagedCostMonth'), value: formatCost(damagedCost, monthStatsLoading) }
@@ -202,8 +220,7 @@ export function useGlobalHubSections(refreshKey = 0) {
         icon: ScanLine,
         tone: 'text-rose-300 bg-rose-500/15',
         accent: 'rose' as const,
-        onClick: () =>
-          go({ department: 'production', productionArea: 'assembly', productionPage: 'scratches' }),
+        onClick: () => go({ department: 'production', productionArea: 'assembly', productionPage: 'scratches' }),
         stats: [{ label: t('home.scratchesMonth'), value: monthStatsLoading ? '…' : String(scratchesCount) }]
       },
       showHomeCard('production_home__attendance', canViewModule('training_matrix')) && {
@@ -262,8 +279,7 @@ export function useGlobalHubSections(refreshKey = 0) {
         icon: Wrench,
         tone: 'text-sky-300 bg-sky-500/15',
         accent: 'sky' as const,
-        onClick: () =>
-          go({ department: 'production', productionArea: 'assembly', productionPage: 'equipment' })
+        onClick: () => go({ department: 'production', productionArea: 'assembly', productionPage: 'equipment' })
       },
       showHomeCard('production_home__ipl', canAccessSettings || canViewModule('bom')) && {
         key: 'ipl',
@@ -309,8 +325,7 @@ export function useGlobalHubSections(refreshKey = 0) {
         icon: MessageSquareText,
         tone: 'text-indigo-300 bg-indigo-500/15',
         accent: 'indigo' as const,
-        onClick: () =>
-          go({ department: 'production', productionArea: 'assembly', productionPage: 'feedback' })
+        onClick: () => go({ department: 'production', productionArea: 'assembly', productionPage: 'feedback' })
       }
     ].filter(Boolean) as HubSection['cards']
   }

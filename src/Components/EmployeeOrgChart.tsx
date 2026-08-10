@@ -19,9 +19,7 @@ const JOB_ROLE_RANK = new Map<JobRole, number>(JOB_ROLES.map((role, index) => [r
 
 function shouldStackChildrenVertically(node: Node): boolean {
   if (node.children.length === 0) return false
-  return node.children.every(
-    child => child.children.length === 0 && VERTICAL_STACK_LEAF_ROLES.includes(child.jobRole)
-  )
+  return node.children.every(child => child.children.length === 0 && VERTICAL_STACK_LEAF_ROLES.includes(child.jobRole))
 }
 
 function managerIdsFor(employee: Employee): string[] {
@@ -52,9 +50,7 @@ function buildTree(employees: Employee[]): Node[] {
 
     const parentId = pickTreeParentId(managers, byId)
     nodes.get(parentId)!.children.push(node)
-    node.extraManagerNames = managers
-      .filter(id => id !== parentId)
-      .map(id => byId.get(id)!.fullName)
+    node.extraManagerNames = managers.filter(id => id !== parentId).map(id => byId.get(id)!.fullName)
   })
 
   const roots: Node[] = []
@@ -175,10 +171,7 @@ export function EmployeeOrgChart({ employees }: Props) {
       onPointerUp={endDrag}
       onPointerCancel={endDrag}
     >
-      <div
-        className="org-chart-zoom-controls"
-        onPointerDown={e => e.stopPropagation()}
-      >
+      <div className="org-chart-zoom-controls" onPointerDown={e => e.stopPropagation()}>
         <button type="button" className="org-chart-zoom-btn" onClick={zoomIn} aria-label={t('org.chartZoomIn')}>
           +
         </button>

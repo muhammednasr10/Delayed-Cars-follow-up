@@ -4,10 +4,7 @@ import type { MatrixTreeNode } from '../config/permissionsMatrixTree'
 import { PERMISSIONS_MATRIX_TREE } from '../config/permissionsMatrixTree'
 import { sortActionsForMatrix } from './permissionLabels'
 
-export function permissionsForNode(
-  node: MatrixTreeNode,
-  allPermissions: SystemPermission[]
-): SystemPermission[] {
+export function permissionsForNode(node: MatrixTreeNode, allPermissions: SystemPermission[]): SystemPermission[] {
   const out: SystemPermission[] = []
   const seen = new Set<string>()
 
@@ -23,9 +20,7 @@ export function permissionsForNode(
 
   for (const am of node.actionModules ?? []) {
     const modPerms = allPermissions.filter(p => p.module_key === am.moduleKey)
-    const filtered = am.actions?.length
-      ? modPerms.filter(p => am.actions!.includes(p.permission_key))
-      : modPerms
+    const filtered = am.actions?.length ? modPerms.filter(p => am.actions!.includes(p.permission_key)) : modPerms
     const sorted = sortActionsForMatrix(filtered.map(p => p.permission_key))
     for (const actionKey of sorted) {
       push(filtered.find(p => p.permission_key === actionKey))
@@ -74,11 +69,7 @@ function nodeMatchesSearch(node: MatrixTreeNode, term: string, t: (k: string) =>
   return false
 }
 
-export function filterMatrixTree(
-  nodes: MatrixTreeNode[],
-  term: string,
-  t: (k: string) => string
-): MatrixTreeNode[] {
+export function filterMatrixTree(nodes: MatrixTreeNode[], term: string, t: (k: string) => string): MatrixTreeNode[] {
   const q = term.trim().toLowerCase()
   if (!q) return nodes
 
@@ -112,7 +103,15 @@ export function countUserPermissionBreakdown(
   effective: Map<string, boolean>,
   roleBase: Map<string, boolean>,
   overrideKeys: Set<string>
-): { enabled: number; fromRole: number; overrides: number; overrideAllow: number; overrideDeny: number; denied: number; total: number } {
+): {
+  enabled: number
+  fromRole: number
+  overrides: number
+  overrideAllow: number
+  overrideDeny: number
+  denied: number
+  total: number
+} {
   let enabled = 0
   let fromRole = 0
   let overrides = 0

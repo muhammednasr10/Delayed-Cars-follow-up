@@ -32,11 +32,11 @@ export function applyDamagedPartFilters(items: DamagedPartRecord[], filters: Dam
 export function hasActiveDamagedPartFilters(filters: DamagedPartFilters): boolean {
   return Boolean(
     filters.search.trim() ||
-      filters.modelName ||
-      filters.damageReason ||
-      filters.finalDecision ||
-      filters.causedByEmployeeId ||
-      filters.dateFrom ||
-      filters.dateTo
+    filters.modelName ||
+    filters.damageReason ||
+    filters.finalDecision ||
+    filters.causedByEmployeeId ||
+    filters.dateFrom ||
+    filters.dateTo
   )
 }

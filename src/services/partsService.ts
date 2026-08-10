@@ -302,7 +302,6 @@ export async function upsertPart(input: PartUpsertInput): Promise<{ id: string; 
   return { id: data.id as string, created: true }
 }
 
-
 export async function getT4cIplStationOptions(): Promise<PartListStationOption[]> {
   const { data: stations, error: stErr } = await client()
     .from('stations')
@@ -334,7 +333,10 @@ export async function getT4cIplStationOptions(): Promise<PartListStationOption[]
   if (modelErr) throw new Error(modelErr.message)
 
   const t4c = (models ?? []).find(m => {
-    const name = String(m.name ?? '').trim().toUpperCase().replace(/\s+/g, '')
+    const name = String(m.name ?? '')
+      .trim()
+      .toUpperCase()
+      .replace(/\s+/g, '')
     return name === 'T4C'
   })
 

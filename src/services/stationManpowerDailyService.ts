@@ -40,10 +40,7 @@ function monthBounds(year: number, month: number): { start: string; end: string 
   return { start, end }
 }
 
-function applyModelFilter<T extends { eq: Function; is: Function }>(
-  query: T,
-  vehicleModelId: string | null
-): T {
+function applyModelFilter<T extends { eq: Function; is: Function }>(query: T, vehicleModelId: string | null): T {
   if (vehicleModelId) return query.eq('vehicle_model_id', vehicleModelId) as T
   return query.is('vehicle_model_id', null) as T
 }
@@ -104,7 +101,8 @@ export async function getEmployeeStationManpowerForDate(
 
   return (data ?? []).flatMap(row => {
     const station = relOne(
-      row.stations as { station_number: string; station_name: string } | { station_number: string; station_name: string }[] | null
+      row.stations as
+        { station_number: string; station_name: string } | { station_number: string; station_name: string }[] | null
     )
     if (!station) return []
     const model = relOne(row.vehicle_models as { name: string } | { name: string }[] | null)
@@ -312,7 +310,7 @@ export async function saveModelWorkerOperationLabels(
 
 function relOne<T>(value: T | T[] | null | undefined): T | null {
   if (value == null) return null
-  return Array.isArray(value) ? value[0] ?? null : value
+  return Array.isArray(value) ? (value[0] ?? null) : value
 }
 
 export async function getStationManpowerHistory(year: number, month: number): Promise<StationManpowerHistoryEntry[]> {
@@ -335,18 +333,26 @@ export async function getStationManpowerHistory(year: number, month: number): Pr
   if (error) throw new Error(error.message)
 
   const entries = (data ?? []).flatMap(r => {
-    const station = relOne(r.stations as { station_number: string; station_name: string } | { station_number: string; station_name: string }[] | null)
-    const employee = relOne(r.employees as { employee_code: string; full_name: string } | { employee_code: string; full_name: string }[] | null)
+    const station = relOne(
+      r.stations as
+        { station_number: string; station_name: string } | { station_number: string; station_name: string }[] | null
+    )
+    const employee = relOne(
+      r.employees as
+        { employee_code: string; full_name: string } | { employee_code: string; full_name: string }[] | null
+    )
     if (!station || !employee) return []
-    return [{
-      id: r.id as string,
-      workDate: r.work_date as string,
-      stationNumber: station.station_number,
-      stationName: station.station_name,
-      employeeCode: employee.employee_code,
-      employeeName: employee.full_name,
-      notes: (r.notes as string | null) ?? null
-    }]
+    return [
+      {
+        id: r.id as string,
+        workDate: r.work_date as string,
+        stationNumber: station.station_number,
+        stationName: station.station_name,
+        employeeCode: employee.employee_code,
+        employeeName: employee.full_name,
+        notes: (r.notes as string | null) ?? null
+      }
+    ]
   })
 
   return entries.sort(
@@ -361,7 +367,13 @@ export function buildStationManpowerDayRows(
   stations: Station[],
   saved: StationManpowerDailyRow[],
   operationLabels: Map<string, string> = new Map()
-): { stationId: string; stationNumber: string; stationName: string; operationsSummary: string; employeeIds: string[] }[] {
+): {
+  stationId: string
+  stationNumber: string
+  stationName: string
+  operationsSummary: string
+  employeeIds: string[]
+}[] {
   const byStation = new Map<string, string[]>()
   for (const row of saved) {
     const list = byStation.get(row.stationId) ?? []

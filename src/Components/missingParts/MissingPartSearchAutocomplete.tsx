@@ -97,7 +97,9 @@ export function MissingPartSearchAutocomplete({ items, value, onChange, placehol
                   </p>
                   {s.sublabel && <p className="truncate text-xs text-slate-500">{s.sublabel}</p>}
                 </div>
-                <span className={`shrink-0 text-[10px] font-black uppercase ${kindTone[s.kind]}`}>{kindLabel(s.kind)}</span>
+                <span className={`shrink-0 text-[10px] font-black uppercase ${kindTone[s.kind]}`}>
+                  {kindLabel(s.kind)}
+                </span>
               </button>
             </li>
           ))}

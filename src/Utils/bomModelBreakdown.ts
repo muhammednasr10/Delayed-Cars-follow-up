@@ -32,9 +32,7 @@ export function lineDraftFromBreakdown(line: BomModelBreakdownLine, group: BomDi
     part_number: active ? variant?.part_number?.trim() || group.primary.part_number || '' : '',
     part_kind: effectivePartKind(variant?.part_kind || group.primary.part_type),
     supply_source: defaultSupplySourceValue(variant?.supply_source || group.primary.supply_source),
-    station_code_text: active
-      ? variant?.station_code?.trim() || groupStation
-      : ''
+    station_code_text: active ? variant?.station_code?.trim() || groupStation : ''
   }
 }
 
@@ -95,10 +93,7 @@ export function familyIdsForBomGroup(models: VehicleModel[], group: BomDisplayGr
 }
 
 /** Every vehicle family with variant rows; qty 0 when the part does not use that model. */
-export function bomModelBreakdownFamilies(
-  models: VehicleModel[],
-  group: BomDisplayGroup
-): BomModelBreakdownFamily[] {
+export function bomModelBreakdownFamilies(models: VehicleModel[], group: BomDisplayGroup): BomModelBreakdownFamily[] {
   const variantMap = new Map(group.variants.map(v => [v.modelName, v]))
   const picker = buildModelFamilyGroups(models)
   const families: BomModelBreakdownFamily[] = []
@@ -117,9 +112,7 @@ export function bomModelBreakdownFamilies(
     families.push({
       familyId: '__orphan__',
       familyName: '',
-      lines: picker.orphanVariants
-        .filter(isAssignableModel)
-        .map(m => lineFromModel(m, '', variantMap))
+      lines: picker.orphanVariants.filter(isAssignableModel).map(m => lineFromModel(m, '', variantMap))
     })
   }
 
@@ -141,9 +134,6 @@ export function bomModelBreakdownFamilies(
 }
 
 /** Flat list of all variant lines across every family. */
-export function bomModelBreakdownLines(
-  models: VehicleModel[],
-  group: BomDisplayGroup
-): BomModelBreakdownLine[] {
+export function bomModelBreakdownLines(models: VehicleModel[], group: BomDisplayGroup): BomModelBreakdownLine[] {
   return bomModelBreakdownFamilies(models, group).flatMap(f => f.lines)
 }

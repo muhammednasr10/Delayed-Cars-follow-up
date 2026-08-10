@@ -5,7 +5,11 @@ import { inputCls } from '../../FormField'
 import { formatStationWorkerDisplayCode } from '../../../Utils/stationHierarchy'
 import { updateStationWorker1Summary } from '../../../services/stationOperationsService'
 import type { ModelLine } from '../../../Utils/modelLines'
-import type { ParentStationOperationsGroup, StationOperationDetail, WorkerOperationsGroup } from '../../../Types/timeStudy'
+import type {
+  ParentStationOperationsGroup,
+  StationOperationDetail,
+  WorkerOperationsGroup
+} from '../../../Types/timeStudy'
 import { HeaderCell } from './StationOperationsLineFilter'
 
 function CrudActions({
@@ -30,17 +34,32 @@ function CrudActions({
   return (
     <div className="flex flex-wrap gap-1">
       {onAdd && (
-        <button type="button" title={addTitle} onClick={onAdd} className={`${btn} bg-cyan-500/15 text-cyan-200 hover:bg-cyan-500/25`}>
+        <button
+          type="button"
+          title={addTitle}
+          onClick={onAdd}
+          className={`${btn} bg-cyan-500/15 text-cyan-200 hover:bg-cyan-500/25`}
+        >
           <Plus className="h-4 w-4" />
         </button>
       )}
       {onEdit && (
-        <button type="button" title={editTitle} onClick={onEdit} className={`${btn} bg-orange-500/15 text-orange-200 hover:bg-orange-500/25`}>
+        <button
+          type="button"
+          title={editTitle}
+          onClick={onEdit}
+          className={`${btn} bg-orange-500/15 text-orange-200 hover:bg-orange-500/25`}
+        >
           <Pencil className="h-4 w-4" />
         </button>
       )}
       {onDelete && (
-        <button type="button" title={deleteTitle} onClick={onDelete} className={`${btn} bg-red-500/15 text-red-200 hover:bg-red-500/25`}>
+        <button
+          type="button"
+          title={deleteTitle}
+          onClick={onDelete}
+          className={`${btn} bg-red-500/15 text-red-200 hover:bg-red-500/25`}
+        >
           <Trash2 className="h-4 w-4" />
         </button>
       )}
@@ -48,7 +67,10 @@ function CrudActions({
   )
 }
 
-function formatWorkerLineTime(minutes: number, t: (key: string, vars?: Record<string, string | number>) => string): string {
+function formatWorkerLineTime(
+  minutes: number,
+  t: (key: string, vars?: Record<string, string | number>) => string
+): string {
   if (!Number.isFinite(minutes) || minutes <= 0) return '—'
   const text = Number.isInteger(minutes) ? String(minutes) : minutes.toFixed(1)
   return `${text} ${t('operations.minUnit')}`
@@ -134,7 +156,11 @@ function WorkerOperationsPanel({
             </button>
           )}
           {canManage && (
-            <button type="button" onClick={() => onDeleteWorker(worker)} className="text-xs font-bold text-red-300/80 hover:text-red-200">
+            <button
+              type="button"
+              onClick={() => onDeleteWorker(worker)}
+              className="text-xs font-bold text-red-300/80 hover:text-red-200"
+            >
               {t('operations.deleteWorker')}
             </button>
           )}
@@ -212,11 +238,17 @@ export function ParentStationBlock({
             className="flex min-w-0 flex-1 items-start gap-2 rounded-xl p-1 text-start transition hover:bg-cyan-500/5"
             aria-expanded={open}
           >
-            <ChevronDown className={`mt-1 h-5 w-5 shrink-0 text-cyan-300 transition-transform ${open ? '' : '-rotate-90'}`} />
+            <ChevronDown
+              className={`mt-1 h-5 w-5 shrink-0 text-cyan-300 transition-transform ${open ? '' : '-rotate-90'}`}
+            />
             <div className="grid min-w-0 flex-1 grid-cols-2 gap-3 text-center sm:grid-cols-3 lg:grid-cols-5">
               <HeaderCell label={t('settings.cols.stationName')} value={parent.displayCode || '—'} accent dir="ltr" />
               <HeaderCell label={t('settings.cols.commonName')} value={parent.stationName || '—'} />
-              <HeaderCell label={t('operations.workplace')} value={workplace} icon={<MapPin className="h-3.5 w-3.5 text-slate-500" />} />
+              <HeaderCell
+                label={t('operations.workplace')}
+                value={workplace}
+                icon={<MapPin className="h-3.5 w-3.5 text-slate-500" />}
+              />
               <HeaderCell
                 label={t('operations.avgStationTime')}
                 value={parent.avgStationTimeMinutes != null ? `${avgText} ${t('operations.minUnit')}` : '—'}

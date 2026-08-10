@@ -55,10 +55,9 @@ export function BomIplLogisticsPanel({ group, canUpdate, saving, onSave }: Props
   const [exclusionsOpen, setExclusionsOpen] = useState(false)
   const [racks, setRacks] = useState<WarehouseRack[]>([])
 
-  const itemIds = [
-    group.primary.id,
-    ...group.variants.map(v => v.id).filter((id): id is string => Boolean(id))
-  ].filter((id, i, arr) => arr.indexOf(id) === i)
+  const itemIds = [group.primary.id, ...group.variants.map(v => v.id).filter((id): id is string => Boolean(id))].filter(
+    (id, i, arr) => arr.indexOf(id) === i
+  )
 
   useEffect(() => {
     setDraft(iplFeedingCardFromBomItem(group.primary))
@@ -72,7 +71,10 @@ export function BomIplLogisticsPanel({ group, canUpdate, saving, onSave }: Props
   }, [])
 
   function patch(partial: Partial<BomIplFeedingCard>) {
-    setDraft(prev => ({ ...withComputedVolumes({ ...prev, ...partial }), stopper_type: partial.stopper_type ?? prev.stopper_type }))
+    setDraft(prev => ({
+      ...withComputedVolumes({ ...prev, ...partial }),
+      stopper_type: partial.stopper_type ?? prev.stopper_type
+    }))
   }
 
   const showPartDims = Boolean(draft.packing)
@@ -137,9 +139,7 @@ export function BomIplLogisticsPanel({ group, canUpdate, saving, onSave }: Props
 
       <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
         <div>
-          <label className="mb-0.5 block text-[10px] font-bold text-slate-500">
-            {fieldLabel(t, 'part_direction')}
-          </label>
+          <label className="mb-0.5 block text-[10px] font-bold text-slate-500">{fieldLabel(t, 'part_direction')}</label>
           <select
             className={`${inputCls()} w-full py-1 text-xs`}
             value={draft.part_direction}

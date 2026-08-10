@@ -43,9 +43,14 @@ function PlanScopeCard({
       ? 'border-violet-500/30 bg-gradient-to-br from-violet-950/40 via-slate-900/95 to-slate-950 hover:border-violet-400/50 hover:shadow-violet-500/10'
       : 'border-cyan-500/30 bg-gradient-to-br from-cyan-950/40 via-slate-900/95 to-slate-950 hover:border-cyan-400/50 hover:shadow-cyan-500/10'
   const iconCls =
-    tone === 'violet' ? 'bg-violet-500/15 text-violet-300 ring-violet-400/20' : 'bg-cyan-500/15 text-cyan-300 ring-cyan-400/20'
+    tone === 'violet'
+      ? 'bg-violet-500/15 text-violet-300 ring-violet-400/20'
+      : 'bg-cyan-500/15 text-cyan-300 ring-cyan-400/20'
   const hintCls = tone === 'violet' ? 'text-violet-300/90' : 'text-cyan-300/90'
-  const totalCls = tone === 'violet' ? 'border-violet-500/25 bg-violet-500/10 text-violet-100' : 'border-cyan-500/25 bg-cyan-500/10 text-cyan-100'
+  const totalCls =
+    tone === 'violet'
+      ? 'border-violet-500/25 bg-violet-500/10 text-violet-100'
+      : 'border-cyan-500/25 bg-cyan-500/10 text-cyan-100'
   const rowCls = tone === 'violet' ? 'border-violet-500/15 bg-violet-500/5' : 'border-cyan-500/15 bg-cyan-500/5'
   const progress = planProgressPercent(totalPlanned, totalAchieved)
 
@@ -160,7 +165,9 @@ export function ProductionPlanLandingPage() {
           requiredLabel={t('productionOrders.plannedQty')}
           achievedLabel={t('productionOrders.achievedQty')}
           parentModelsLabel={t('productionOrders.planHub.parentModels')}
-          onClick={() => nav.navigate({ department: 'planning', planningTab: 'plan', planScope: 'monthly', showGlobalHome: false })}
+          onClick={() =>
+            nav.navigate({ department: 'planning', planningTab: 'plan', planScope: 'monthly', showGlobalHome: false })
+          }
           openLabel={t('productionOrders.planHub.openMonthly')}
         />
         <PlanScopeCard
@@ -175,12 +182,16 @@ export function ProductionPlanLandingPage() {
           requiredLabel={t('productionOrders.plannedQty')}
           achievedLabel={t('productionOrders.achievedQty')}
           parentModelsLabel={t('productionOrders.planHub.parentModels')}
-          onClick={() => nav.navigate({ department: 'planning', planningTab: 'plan', planScope: 'annual', showGlobalHome: false })}
+          onClick={() =>
+            nav.navigate({ department: 'planning', planningTab: 'plan', planScope: 'annual', showGlobalHome: false })
+          }
           openLabel={t('productionOrders.planHub.openAnnual')}
         />
       </div>
 
-      <p className="px-1 text-center text-[11px] text-slate-500">{t('productionOrders.planHub.annualFromMonthlyHint')}</p>
+      <p className="px-1 text-center text-[11px] text-slate-500">
+        {t('productionOrders.planHub.annualFromMonthlyHint')}
+      </p>
     </section>
   )
 }

@@ -2,21 +2,14 @@ import { useCallback, useMemo } from 'react'
 import { usePermissions } from '../Context/PermissionsContext'
 import { useCanAccessSettings } from './useCanAccessSettings'
 import { permissionKey } from '../services/permissionsService'
-import {
-  type AppPageDef,
-  type AppPagePermissionKey,
-  pageDefByPermKey
-} from '../config/pageAccess'
+import { type AppPageDef, type AppPagePermissionKey, pageDefByPermKey } from '../config/pageAccess'
 import { resolveTabPagePerm } from '../config/pageTabAccess'
 
 export function useCanViewPage() {
   const { permissions, hasPermission, loading, loadError } = usePermissions()
   const { canAccess: canAccessSettings, loading: settingsLoading } = useCanAccessSettings()
 
-  const pagesConfigured = useMemo(
-    () => Object.keys(permissions).some(k => k.startsWith('pages.')),
-    [permissions]
-  )
+  const pagesConfigured = useMemo(() => Object.keys(permissions).some(k => k.startsWith('pages.')), [permissions])
 
   const canViewPage = useCallback(
     (permKey: AppPagePermissionKey | undefined, options?: { settingsFallback?: boolean }): boolean => {

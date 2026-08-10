@@ -27,7 +27,9 @@ export function WorkerProfileDataTab() {
   }
 
   if (!profile) {
-    return <div className="card-industrial p-6 text-center text-sm text-amber-200">{t('workerProfile.noEmployeeLink')}</div>
+    return (
+      <div className="card-industrial p-6 text-center text-sm text-amber-200">{t('workerProfile.noEmployeeLink')}</div>
+    )
   }
 
   const infoRows = [

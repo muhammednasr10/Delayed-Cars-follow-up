@@ -53,7 +53,11 @@ export function TeamRequestFormModal({ open, managers, onClose, onSave, saving }
       maxWidthClass="max-w-lg"
       footer={
         <div className="flex justify-end gap-2">
-          <button type="button" onClick={onClose} className="rounded-xl bg-slate-800 px-4 py-2 text-sm font-bold text-slate-200 hover:bg-slate-700">
+          <button
+            type="button"
+            onClick={onClose}
+            className="rounded-xl bg-slate-800 px-4 py-2 text-sm font-bold text-slate-200 hover:bg-slate-700"
+          >
             {t('common.cancel')}
           </button>
           <button
@@ -68,9 +72,13 @@ export function TeamRequestFormModal({ open, managers, onClose, onSave, saving }
       }
     >
       <div className="space-y-4 p-5">
-        {error && <div className="rounded-xl border border-red-500/30 bg-red-500/10 p-3 text-sm text-red-200">{error}</div>}
+        {error && (
+          <div className="rounded-xl border border-red-500/30 bg-red-500/10 p-3 text-sm text-red-200">{error}</div>
+        )}
         {managers.length === 0 && (
-          <div className="rounded-xl border border-amber-500/30 bg-amber-500/10 p-3 text-sm text-amber-100">{t('requests.noManagers')}</div>
+          <div className="rounded-xl border border-amber-500/30 bg-amber-500/10 p-3 text-sm text-amber-100">
+            {t('requests.noManagers')}
+          </div>
         )}
         <Field label={t('requests.cols.managers')} required>
           <ManagerMultiSelect managers={managers} value={managerIds} onChange={setManagerIds} />
@@ -79,7 +87,11 @@ export function TeamRequestFormModal({ open, managers, onClose, onSave, saving }
           <input className={inputCls()} value={title} onChange={e => setTitle(e.target.value)} />
         </Field>
         <Field label={t('requests.cols.description')}>
-          <textarea className={`${inputCls()} min-h-[5rem] resize-y`} value={description} onChange={e => setDescription(e.target.value)} />
+          <textarea
+            className={`${inputCls()} min-h-[5rem] resize-y`}
+            value={description}
+            onChange={e => setDescription(e.target.value)}
+          />
         </Field>
       </div>
     </Modal>

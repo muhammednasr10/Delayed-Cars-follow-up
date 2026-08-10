@@ -17,15 +17,7 @@ type Props = {
 
 type DropdownRect = { top: number; left: number; width: number }
 
-export function IplPartAutocomplete({
-  modelId,
-  modelName,
-  partNumber,
-  partName,
-  onPick,
-  onClear,
-  disabled
-}: Props) {
+export function IplPartAutocomplete({ modelId, modelName, partNumber, partName, onPick, onClear, disabled }: Props) {
   const { t } = useLang()
   const [query, setQuery] = useState(partNumber)
   const [hits, setHits] = useState<IplPartHit[]>([])
@@ -98,9 +90,7 @@ export function IplPartAutocomplete({
         onBlur={() => window.setTimeout(() => setOpen(false), 150)}
         onChange={e => handleChange(e.target.value)}
       />
-      {partName && (
-        <p className="mt-1 text-xs text-slate-400">{partName}</p>
-      )}
+      {partName && <p className="mt-1 text-xs text-slate-400">{partName}</p>}
       {showDropdown &&
         rect &&
         createPortal(

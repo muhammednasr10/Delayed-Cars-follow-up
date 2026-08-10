@@ -1,5 +1,10 @@
 import { useCallback, useEffect, useState } from 'react'
-import { getMpDepartmentOptions, getMpReasonOptions, createMpDepartmentOption, createMpReasonOption } from '../services/mpLookupService'
+import {
+  getMpDepartmentOptions,
+  getMpReasonOptions,
+  createMpDepartmentOption,
+  createMpReasonOption
+} from '../services/mpLookupService'
 import type { MpLookupOption } from '../Types/mpLookup'
 
 function sortOptions(list: MpLookupOption[]) {

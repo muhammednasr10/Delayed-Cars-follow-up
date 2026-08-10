@@ -4,10 +4,12 @@ import { useLang } from '../../i18n/LanguageContext'
 export function isWarehouseSchemaMissing(message: string): boolean {
   const m = message.toLowerCase()
   return (
-    m.includes('schema cache') ||
-    m.includes('could not find the table') ||
-    m.includes('does not exist')
-  ) && (m.includes('warehouse_feeding') || m.includes('v_model_part_inventory') || m.includes('warehouse_racks') || m.includes('warehouse_carts'))
+    (m.includes('schema cache') || m.includes('could not find the table') || m.includes('does not exist')) &&
+    (m.includes('warehouse_feeding') ||
+      m.includes('v_model_part_inventory') ||
+      m.includes('warehouse_racks') ||
+      m.includes('warehouse_carts'))
+  )
 }
 
 export function WarehouseDbSetupBanner({ detail }: { detail?: string }) {

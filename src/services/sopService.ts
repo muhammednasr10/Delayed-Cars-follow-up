@@ -37,16 +37,14 @@ export async function upsertWorkerSop(
   modelFamilyId: string,
   stationInstructions: string
 ): Promise<void> {
-  const { error } = await client()
-    .from('sop_worker_instructions')
-    .upsert(
-      {
-        worker_station_id: workerStationId,
-        model_family_id: modelFamilyId,
-        station_instructions: stationInstructions.trim()
-      },
-      { onConflict: 'worker_station_id,model_family_id' }
-    )
+  const { error } = await client().from('sop_worker_instructions').upsert(
+    {
+      worker_station_id: workerStationId,
+      model_family_id: modelFamilyId,
+      station_instructions: stationInstructions.trim()
+    },
+    { onConflict: 'worker_station_id,model_family_id' }
+  )
   if (error) throw new Error(error.message)
 }
 

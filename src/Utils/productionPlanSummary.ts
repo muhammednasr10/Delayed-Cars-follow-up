@@ -58,11 +58,7 @@ function variantRow(
   }
 }
 
-function groupWipCarryover(
-  familyId: string,
-  entryMode: PlanEntryMode,
-  variantRows: PlanVariantRow[]
-): number {
+function groupWipCarryover(familyId: string, entryMode: PlanEntryMode, variantRows: PlanVariantRow[]): number {
   if (entryMode === 'family_aggregate') {
     return variantRows.find(v => v.modelId === familyId)?.wipCarryover ?? 0
   }
@@ -83,8 +79,7 @@ function buildFamilyGroup(
   const variantRows = variants.map(v => variantRow(v, planTargets, achievedByModelId, wipCarryover))
   const familyExit = achievedByModelId.get(familyId) ?? 0
   const familyListedAsVariant = variantRows.some(v => v.modelId === familyId)
-  const achieved =
-    variantRows.reduce((sum, row) => sum + row.achieved, 0) + (familyListedAsVariant ? 0 : familyExit)
+  const achieved = variantRows.reduce((sum, row) => sum + row.achieved, 0) + (familyListedAsVariant ? 0 : familyExit)
   const familyTarget = planTargets.get(familyId) ?? 0
   const variantSum = variantRows.reduce((s, v) => s + (v.modelId === familyId ? 0 : v.planned), 0)
   const planned =
@@ -118,15 +113,14 @@ function buildRawFamilyGroups(
 
   for (const { family, variants } of groups) {
     if (variants.length === 0) continue
-    result.push(buildFamilyGroup(family.id, family.id, family.name, variants, planTargets, achievedByModelId, wipCarryover))
+    result.push(
+      buildFamilyGroup(family.id, family.id, family.name, variants, planTargets, achievedByModelId, wipCarryover)
+    )
   }
 
   const orphanBuckets = new Map<string, VehicleModel[]>()
   for (const variant of orphanVariants) {
-    const bucket =
-      variant.parent_name?.trim() ||
-      inferParentNameFromVariant(variant.name) ||
-      variant.name
+    const bucket = variant.parent_name?.trim() || inferParentNameFromVariant(variant.name) || variant.name
     const list = orphanBuckets.get(bucket) ?? []
     list.push(variant)
     orphanBuckets.set(bucket, list)
@@ -135,7 +129,9 @@ function buildRawFamilyGroups(
   for (const [label, variants] of [...orphanBuckets.entries()].sort((a, b) => a[0].localeCompare(b[0], 'ar'))) {
     const sorted = [...variants].sort((a, b) => a.name.localeCompare(b.name, 'ar'))
     const familyId = sorted.find(v => v.parent_model_id)?.parent_model_id ?? sorted[0].id
-    result.push(buildFamilyGroup(`orphan:${label}`, familyId, label, sorted, planTargets, achievedByModelId, wipCarryover))
+    result.push(
+      buildFamilyGroup(`orphan:${label}`, familyId, label, sorted, planTargets, achievedByModelId, wipCarryover)
+    )
   }
 
   return result

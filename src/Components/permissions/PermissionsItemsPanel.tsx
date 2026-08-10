@@ -156,11 +156,18 @@ function UnifiedPermissionNode({
       const st = permState(item.primaryActions[action], effectivePerms, overrideKeys)
       return st ? { action, ...st } : null
     })
-    .filter(Boolean) as { action: PrimaryControlAction; perm: SystemPermission; allowed: boolean; isOverride: boolean }[]
+    .filter(Boolean) as {
+    action: PrimaryControlAction
+    perm: SystemPermission
+    allowed: boolean
+    isOverride: boolean
+  }[]
 
-  const other = item.otherActions
-    .map(p => permState(p, effectivePerms, overrideKeys))
-    .filter(Boolean) as { perm: SystemPermission; allowed: boolean; isOverride: boolean }[]
+  const other = item.otherActions.map(p => permState(p, effectivePerms, overrideKeys)).filter(Boolean) as {
+    perm: SystemPermission
+    allowed: boolean
+    isOverride: boolean
+  }[]
 
   return (
     <div className={isChild ? 'ms-3 border-s border-slate-700/70 ps-3 sm:ms-5' : ''}>
@@ -229,7 +236,9 @@ function UnifiedPermissionNode({
                 </p>
                 {primary.length > 0 && (
                   <div>
-                    <p className="mb-2 text-[10px] font-bold text-slate-500">{t('permissions.control.sectionButtons')}</p>
+                    <p className="mb-2 text-[10px] font-bold text-slate-500">
+                      {t('permissions.control.sectionButtons')}
+                    </p>
                     <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
                       {primary.map(entry => {
                         const meta = PRIMARY_META[entry.action]
@@ -529,12 +538,14 @@ export function PermissionsItemsPanel({
             <label className="block space-y-1.5 sm:col-span-1">
               <span className="text-xs font-bold text-slate-400">{t('permissions.matrix.selectRole')}</span>
               <select className={inputCls()} value={selectedRoleId} onChange={e => onSelectRole(e.target.value)}>
-                {roles.filter(r => r.is_active).map(r => (
-                  <option key={r.id} value={r.id}>
-                    {r.role_name_ar}
-                    {r.role_code ? ` (${r.role_code})` : ''}
-                  </option>
-                ))}
+                {roles
+                  .filter(r => r.is_active)
+                  .map(r => (
+                    <option key={r.id} value={r.id}>
+                      {r.role_name_ar}
+                      {r.role_code ? ` (${r.role_code})` : ''}
+                    </option>
+                  ))}
               </select>
             </label>
           )}
@@ -602,9 +613,7 @@ export function PermissionsItemsPanel({
               type="button"
               onClick={() => setViewMode('edit')}
               className={`inline-flex items-center gap-2 rounded-xl px-4 py-2.5 text-sm font-black ${
-                viewMode === 'edit'
-                  ? 'bg-violet-500 text-slate-950'
-                  : 'bg-slate-800 text-slate-300 hover:bg-slate-700'
+                viewMode === 'edit' ? 'bg-violet-500 text-slate-950' : 'bg-slate-800 text-slate-300 hover:bg-slate-700'
               }`}
             >
               <Pencil className="h-4 w-4" />
@@ -638,11 +647,7 @@ export function PermissionsItemsPanel({
                 <span className="text-xs font-bold text-slate-400">
                   {isUserMode ? t('permissions.copy.fromUser') : t('permissions.copy.fromRole')}
                 </span>
-                <select
-                  className={inputCls()}
-                  value={copySourceId}
-                  onChange={e => setCopySourceId(e.target.value)}
-                >
+                <select className={inputCls()} value={copySourceId} onChange={e => setCopySourceId(e.target.value)}>
                   <option value="">—</option>
                   {copySources.map(s => (
                     <option key={s.id} value={s.id}>
@@ -686,9 +691,7 @@ export function PermissionsItemsPanel({
           items={visibleItems}
           effectivePerms={effectivePerms}
           subjectLabel={
-            isUserMode
-              ? selectedUser?.full_name || selectedUser?.email || ''
-              : selectedRole?.role_name_ar || ''
+            isUserMode ? selectedUser?.full_name || selectedUser?.email || '' : selectedRole?.role_name_ar || ''
           }
         />
       )}

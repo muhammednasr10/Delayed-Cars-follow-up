@@ -118,7 +118,10 @@ export async function getMonthProductivityTotals(
   }
 }
 
-export async function getMonthProductivityDetail(year: number, month: number): Promise<{
+export async function getMonthProductivityDetail(
+  year: number,
+  month: number
+): Promise<{
   entryRecords: EntryProductivityDay[]
   exitRecords: EntryProductivityDay[]
   repairRecords: EntryProductivityDay[]
