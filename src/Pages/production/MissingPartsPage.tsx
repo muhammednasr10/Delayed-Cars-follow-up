@@ -64,15 +64,15 @@ export function MissingPartsPage() {
     [orgUnits]
   )
   const canBulkInstall = canBulkInstallAndUpdate
-  const canBulkSelectActive = canBulkInstall || canComplete || canDelete
-  const canBulkSelectArchive = canDelete
-  const canBulkSelectForTab =
-    listTab === 'history' ? canBulkSelectArchive : listTab === 'active' ? canBulkSelectActive : false
   const [items, setItems] = useState<MissingPartDetail[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [setupRequired, setSetupRequired] = useState(false)
   const [listTab, setListTab] = useState<ListTab>('active')
+  const canBulkSelectActive = canBulkInstall || canComplete || canDelete
+  const canBulkSelectArchive = canDelete
+  const canBulkSelectForTab =
+    listTab === 'history' ? canBulkSelectArchive : listTab === 'active' ? canBulkSelectActive : false
   const [filters, setFilters] = useState<MissingPartFilters>({
     search: '',
     modelNames: [],
