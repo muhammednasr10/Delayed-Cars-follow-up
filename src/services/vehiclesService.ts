@@ -24,6 +24,7 @@ type VehicleOverviewRow = {
   color_hex?: string | null
   production_order_number: string | null
   factory_org_unit_id?: string | null
+  delivered_at?: string | null
   created_at: string
   updated_at: string
 }
@@ -47,6 +48,7 @@ function mapOverview(row: VehicleOverviewRow): VehicleOverview {
     productionOrderId: row.production_order_id ?? null,
     productionOrderNumber: row.production_order_number ?? '',
     factoryOrgUnitId: row.factory_org_unit_id ?? null,
+    deliveredAt: row.delivered_at ?? null,
     createdAt: row.created_at,
     updatedAt: row.updated_at
   }

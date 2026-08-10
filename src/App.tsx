@@ -1,4 +1,4 @@
-import { useEffect } from 'react'
+import { useEffect, lazy, Suspense, type ReactNode } from 'react'
 import {
   Database,
   Languages,
@@ -19,31 +19,14 @@ import { DepartmentTopBar } from './Components/layout/DepartmentTopBar'
 import { HeaderNotificationsBell } from './Components/layout/HeaderNotificationsBell'
 import { HomePage } from './Pages/production/HomePage'
 import { MissingPartsPage } from './Pages/production/MissingPartsPage'
-import { TrainingMatrixPage } from './Pages/production/TrainingMatrixPage'
-import { SettingsPage } from './Pages/production/SettingsPage'
-import { BomPage } from './Pages/engineering/BomPage'
-import { LineBalancingPage } from './Pages/engineering/LineBalancingPage'
-import { SopPage } from './Pages/engineering/SopPage'
-import { ProductivityPage } from './Pages/production/ProductivityPage'
-import { DamagedPartsPage } from './Pages/production/DamagedPartsPage'
-import { MissionsPage } from './Pages/production/MissionsPage'
-import { RequestsPage } from './Pages/production/RequestsPage'
-import { ScratchesPage } from './Pages/production/ScratchesPage'
-import { EquipmentPage } from './Pages/production/EquipmentPage'
-import { FeedbackPage } from './Pages/production/FeedbackPage'
-import { ProductionAreaPlaceholderPage } from './Pages/production/ProductionAreaPlaceholderPage'
-import { GlobalHomePage } from './Pages/shared/GlobalHomePage'
-import { PlanningPage } from './Pages/planning/PlanningPage'
 import { LoginPage } from './Pages/shared/LoginPage'
 import { MyProfilePage } from './Pages/shared/MyProfilePage'
 import { DepartmentPlaceholderPage } from './Pages/shared/DepartmentPlaceholderPage'
-import { QualityPage } from './Pages/quality/QualityPage'
-import { HrPage } from './Pages/hr/HrPage'
-import { EngineeringHomePage } from './Pages/engineering/EngineeringHomePage'
-import { WarehousesPage } from './Pages/warehouses/WarehousesPage'
+import { GlobalHomePage } from './Pages/shared/GlobalHomePage'
+import { ProductionAreaPlaceholderPage } from './Pages/production/ProductionAreaPlaceholderPage'
 import { useCanAccessSettings } from './hooks/useCanAccessSettings'
 import { useCanViewPage } from './hooks/useCanViewPage'
-import { pagePermForEngineering, pagePermForPlanning, pagePermForProduction } from './config/pageAccess'
+import { pagePermForEngineering, pagePermForPlanning, pagePermForProduction, pagePermForQuality, canViewAnyWarehousesPage } from './config/pageAccess'
 import { SETTINGS_TAB_ORDER } from './Types/navigation'
 import { formatRoleBadge } from './Utils/roleBadge'
 import { PwaInstallPrompt } from './Components/PwaInstallPrompt'
@@ -51,10 +34,37 @@ import { usePresenceHeartbeat } from './hooks/usePresenceHeartbeat'
 
 export type { AppPage as Page, DepartmentId, ProductionPage, EngineeringPage } from './Types/navigation'
 
+const TrainingMatrixPage = lazy(() => import('./Pages/production/TrainingMatrixPage').then(m => ({ default: m.TrainingMatrixPage })))
+const SettingsPage = lazy(() => import('./Pages/production/SettingsPage').then(m => ({ default: m.SettingsPage })))
+const BomPage = lazy(() => import('./Pages/engineering/BomPage').then(m => ({ default: m.BomPage })))
+const LineBalancingPage = lazy(() => import('./Pages/engineering/LineBalancingPage').then(m => ({ default: m.LineBalancingPage })))
+const SopPage = lazy(() => import('./Pages/engineering/SopPage').then(m => ({ default: m.SopPage })))
+const ProductivityPage = lazy(() => import('./Pages/production/ProductivityPage').then(m => ({ default: m.ProductivityPage })))
+const DamagedPartsPage = lazy(() => import('./Pages/production/DamagedPartsPage').then(m => ({ default: m.DamagedPartsPage })))
+const MissionsPage = lazy(() => import('./Pages/production/MissionsPage').then(m => ({ default: m.MissionsPage })))
+const RequestsPage = lazy(() => import('./Pages/production/RequestsPage').then(m => ({ default: m.RequestsPage })))
+const ScratchesPage = lazy(() => import('./Pages/production/ScratchesPage').then(m => ({ default: m.ScratchesPage })))
+const EquipmentPage = lazy(() => import('./Pages/production/EquipmentPage').then(m => ({ default: m.EquipmentPage })))
+const FeedbackPage = lazy(() => import('./Pages/production/FeedbackPage').then(m => ({ default: m.FeedbackPage })))
+const PlanningPage = lazy(() => import('./Pages/planning/PlanningPage').then(m => ({ default: m.PlanningPage })))
+const QualityPage = lazy(() => import('./Pages/quality/QualityPage').then(m => ({ default: m.QualityPage })))
+const HrPage = lazy(() => import('./Pages/hr/HrPage').then(m => ({ default: m.HrPage })))
+const EngineeringHomePage = lazy(() => import('./Pages/engineering/EngineeringHomePage').then(m => ({ default: m.EngineeringHomePage })))
+const WarehousesPage = lazy(() => import('./Pages/warehouses/WarehousesPage').then(m => ({ default: m.WarehousesPage })))
+
+function LazyPage({ children }: { children: ReactNode }) {
+  const { t } = useLang()
+  return (
+    <Suspense fallback={<p className="p-8 text-center text-slate-400">{t('common.loading')}</p>}>
+      {children}
+    </Suspense>
+  )
+}
+
 function Shell() {
   const { configured, loading, session, profile, signOut, displayRole } = useAuth()
   const { canAccess: canAccessSettings } = useCanAccessSettings()
-  const { loading: permsLoading } = usePermissions()
+  const { loading: permsLoading, canViewModule } = usePermissions()
   const { canViewPage, loading: pagesLoading } = useCanViewPage()
   const { t, lang, toggle } = useLang()
   const nav = useNavigation()
@@ -107,6 +117,10 @@ function Shell() {
 
   const navLoading = permsLoading || pagesLoading
   const canShowEngineeringIpl = canAccessSettings || canViewPage(pagePermForEngineering('ipl'))
+  const canViewQuality = navLoading || canViewPage(pagePermForQuality())
+  const canViewWarehouses = navLoading || canViewAnyWarehousesPage(canViewPage)
+  const canViewHr = navLoading || canViewModule('employees')
+  const canViewEngineeringHome = navLoading || canViewPage(pagePermForEngineering('home'))
 
   return (
     <VehiclesProvider>
@@ -217,18 +231,38 @@ function Shell() {
               canViewPage(pagePermForPlanning('plan')) ||
               canViewPage(pagePermForPlanning('workDays')) ||
               canViewPage(pagePermForPlanning('tracking')) ||
-              canViewPage(pagePermForPlanning('orders'))) && <PlanningPage />
+              canViewPage(pagePermForPlanning('orders'))) && (
+            <LazyPage>
+              <PlanningPage />
+            </LazyPage>
+            )
           )}
 
-          {!nav.showProfile && !nav.showGlobalHome && nav.department === 'warehouses' && <WarehousesPage />}
+          {!nav.showProfile && !nav.showGlobalHome && nav.department === 'warehouses' && canViewWarehouses && (
+            <LazyPage>
+              <WarehousesPage />
+            </LazyPage>
+          )}
 
-          {!nav.showProfile && !nav.showGlobalHome && nav.department === 'quality' && <QualityPage />}
+          {!nav.showProfile && !nav.showGlobalHome && nav.department === 'quality' && canViewQuality && (
+            <LazyPage>
+              <QualityPage />
+            </LazyPage>
+          )}
 
-          {!nav.showProfile && !nav.showGlobalHome && nav.department === 'hr' && <HrPage />}
+          {!nav.showProfile && !nav.showGlobalHome && nav.department === 'hr' && canViewHr && (
+            <LazyPage>
+              <HrPage />
+            </LazyPage>
+          )}
 
           {!nav.showProfile && !nav.showGlobalHome && nav.department === 'production' && (
             <>
-              {nav.productionPage === 'settings' && canViewPage(pagePermForProduction('settings')) && <SettingsPage />}
+              {nav.productionPage === 'settings' && canViewPage(pagePermForProduction('settings')) && (
+                <LazyPage>
+                  <SettingsPage />
+                </LazyPage>
+              )}
               {nav.productionArea !== 'assembly' && nav.productionPage !== 'settings' && (
                 <ProductionAreaPlaceholderPage area={nav.productionArea} />
               )}
@@ -236,14 +270,46 @@ function Shell() {
                 <>
                   {nav.productionPage === 'home' && (navLoading || canViewPage(pagePermForProduction('home'))) && <HomePage />}
                   {nav.productionPage === 'missing' && (navLoading || canViewPage(pagePermForProduction('missing'))) && <MissingPartsPage />}
-                  {nav.productionPage === 'vehicles' && (navLoading || canViewPage(pagePermForProduction('vehicles'))) && <ProductivityPage />}
-                  {nav.productionPage === 'training' && (navLoading || canViewPage(pagePermForProduction('training'))) && <TrainingMatrixPage />}
-                  {nav.productionPage === 'damagedParts' && (navLoading || canViewPage(pagePermForProduction('damagedParts'))) && <DamagedPartsPage />}
-                  {nav.productionPage === 'missions' && (navLoading || canViewPage(pagePermForProduction('missions'))) && <MissionsPage />}
-                  {nav.productionPage === 'requests' && (navLoading || canViewPage(pagePermForProduction('requests'))) && <RequestsPage />}
-                  {nav.productionPage === 'scratches' && (navLoading || canViewPage(pagePermForProduction('scratches'))) && <ScratchesPage />}
-                  {nav.productionPage === 'equipment' && (navLoading || canViewPage(pagePermForProduction('equipment'))) && <EquipmentPage />}
-                  {nav.productionPage === 'feedback' && (navLoading || canViewPage(pagePermForProduction('feedback'))) && <FeedbackPage />}
+                  {nav.productionPage === 'vehicles' && (navLoading || canViewPage(pagePermForProduction('vehicles'))) && (
+                    <LazyPage>
+                      <ProductivityPage />
+                    </LazyPage>
+                  )}
+                  {nav.productionPage === 'training' && (navLoading || canViewPage(pagePermForProduction('training'))) && (
+                    <LazyPage>
+                      <TrainingMatrixPage />
+                    </LazyPage>
+                  )}
+                  {nav.productionPage === 'damagedParts' && (navLoading || canViewPage(pagePermForProduction('damagedParts'))) && (
+                    <LazyPage>
+                      <DamagedPartsPage />
+                    </LazyPage>
+                  )}
+                  {nav.productionPage === 'missions' && (navLoading || canViewPage(pagePermForProduction('missions'))) && (
+                    <LazyPage>
+                      <MissionsPage />
+                    </LazyPage>
+                  )}
+                  {nav.productionPage === 'requests' && (navLoading || canViewPage(pagePermForProduction('requests'))) && (
+                    <LazyPage>
+                      <RequestsPage />
+                    </LazyPage>
+                  )}
+                  {nav.productionPage === 'scratches' && (navLoading || canViewPage(pagePermForProduction('scratches'))) && (
+                    <LazyPage>
+                      <ScratchesPage />
+                    </LazyPage>
+                  )}
+                  {nav.productionPage === 'equipment' && (navLoading || canViewPage(pagePermForProduction('equipment'))) && (
+                    <LazyPage>
+                      <EquipmentPage />
+                    </LazyPage>
+                  )}
+                  {nav.productionPage === 'feedback' && (navLoading || canViewPage(pagePermForProduction('feedback'))) && (
+                    <LazyPage>
+                      <FeedbackPage />
+                    </LazyPage>
+                  )}
                 </>
               )}
             </>
@@ -251,10 +317,26 @@ function Shell() {
 
           {!nav.showProfile && !nav.showGlobalHome && nav.department === 'engineering' && (
             <>
-              {nav.engineeringPage === 'home' && <EngineeringHomePage />}
-              {nav.engineeringPage === 'ipl' && canShowEngineeringIpl && <BomPage />}
-              {nav.engineeringPage === 'lineBalancing' && (navLoading || canViewPage(pagePermForEngineering('lineBalancing'))) && <LineBalancingPage />}
-              {nav.engineeringPage === 'sop' && (navLoading || canViewPage(pagePermForEngineering('sop'))) && <SopPage />}
+              {nav.engineeringPage === 'home' && canViewEngineeringHome && (
+                <LazyPage>
+                  <EngineeringHomePage />
+                </LazyPage>
+              )}
+              {nav.engineeringPage === 'ipl' && canShowEngineeringIpl && (
+                <LazyPage>
+                  <BomPage />
+                </LazyPage>
+              )}
+              {nav.engineeringPage === 'lineBalancing' && (navLoading || canViewPage(pagePermForEngineering('lineBalancing'))) && (
+                <LazyPage>
+                  <LineBalancingPage />
+                </LazyPage>
+              )}
+              {nav.engineeringPage === 'sop' && (navLoading || canViewPage(pagePermForEngineering('sop'))) && (
+                <LazyPage>
+                  <SopPage />
+                </LazyPage>
+              )}
               {nav.engineeringPage === 'ipl' && !canShowEngineeringIpl && (
                 <DepartmentPlaceholderPage department="engineering" onOpenProduction={() => nav.selectDepartment('production')} />
               )}

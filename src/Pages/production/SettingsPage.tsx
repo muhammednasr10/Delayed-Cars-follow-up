@@ -21,7 +21,7 @@ export function SettingsPage() {
   const { t } = useLang()
   const { canAccess: canAccessSettings } = useCanAccessSettings()
   const stationsRef = useRef<StationsSectionHandle>(null)
-  const { settingsTab: activeTab, setSettingsTab } = useNavigation()
+  const { settingsTab: activeTab, settingsStationsSubTab, setSettingsTab } = useNavigation()
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const [success, setSuccess] = useState('')
@@ -86,9 +86,14 @@ export function SettingsPage() {
   }
 
   function refreshActiveTab() {
-    if (activeTab === 'stations') void stationsRef.current?.reload()
+    if (activeTab === 'stations' && settingsStationsSubTab === 'assemblyLine') void stationsRef.current?.reload()
     else void loadAll()
   }
+
+  const activeTabLabel =
+    activeTab === 'stations'
+      ? `${t('settings.tabs.stations')} — ${t(`settings.stationsSubTabs.${settingsStationsSubTab}`)}`
+      : t(`settings.tabs.${activeTab}`)
 
   if (!canAccessSettings) {
     return (
@@ -118,7 +123,7 @@ export function SettingsPage() {
             <div>
               <h2 className="text-lg font-black text-white">{t('settings.title')}</h2>
               <p className="text-sm text-slate-400">
-                {t(`settings.tabs.${activeTab}`)} — {t('settings.subtitle')}
+                {activeTabLabel} — {t('settings.subtitle')}
               </p>
             </div>
           </div>
@@ -147,8 +152,15 @@ export function SettingsPage() {
       {activeTab === 'models' && (
         <ModelsHierarchySection models={models} busy={loading} onChanged={loadAll} onError={setError} onSuccess={showSuccess} />
       )}
-      {activeTab === 'stations' && (
-        <StationsSection ref={stationsRef} canManage sectionTitle={t('settings.tabs.stations')} onError={setError} onSuccess={showSuccess} />
+      {activeTab === 'stations' && settingsStationsSubTab === 'assemblyLine' && (
+        <StationsSection
+          ref={stationsRef}
+          canManage
+          stationTypes={['main_line']}
+          sectionTitle={t('settings.stationsSubTabs.assemblyLine')}
+          onError={setError}
+          onSuccess={showSuccess}
+        />
       )}
       {activeTab === 'colors' && <SettingsColorsTab colors={colors} busy={loading} runAction={runAction} />}
       {activeTab === 'users' && (

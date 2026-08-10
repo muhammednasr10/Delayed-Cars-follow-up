@@ -7,6 +7,14 @@ import { ANNUAL_PLAN_MONTH, saveModelPlanTargets } from '../../services/modelPro
 import { getProductionPlanWorkDays, saveProductionPlanWorkDays } from '../../services/productionPlanWorkDaysService'
 import { computeTaktMinutes, formatTaktMinutes } from '../../Utils/productionLineRate'
 import { buildPlanSections, type PlanFamilyGroup, type PlanSection } from '../../Utils/productionPlanSummary'
+import {
+  cloneTargetMap,
+  collectTargetRows,
+  setFamilyTarget,
+  setFamilyWip,
+  setVariantTarget,
+  setVariantWip
+} from '../../Utils/planTargetDraft'
 
 export type PlanEntryMode = 'annual' | 'monthly'
 
@@ -29,30 +37,7 @@ type Props = {
 }
 
 function cloneMap(map: Map<string, number>): Map<string, number> {
-  return new Map(map)
-}
-
-function collectTargetRows(
-  sections: PlanSection[],
-  targets: Map<string, number>,
-  wip: Map<string, number>,
-  includeWip: boolean
-) {
-  const seen = new Set<string>()
-  const rows: { modelId: string; targetQty: number; wipCarryover: number }[] = []
-  for (const section of sections) {
-    const group = section.group
-    for (const id of [group.familyId, ...group.variants.map(v => v.modelId)]) {
-      if (seen.has(id)) continue
-      seen.add(id)
-      rows.push({
-        modelId: id,
-        targetQty: Math.max(0, targets.get(id) ?? 0),
-        wipCarryover: includeWip ? Math.max(0, wip.get(id) ?? 0) : 0
-      })
-    }
-  }
-  return rows
+  return cloneTargetMap(map)
 }
 
 export function ProductionPlanEntryModal({
@@ -124,46 +109,20 @@ export function ProductionPlanEntryModal({
     })
   }
 
-  function setFamilyTarget(familyId: string, variantIds: string[], quantity: number) {
-    const qty = Math.max(0, quantity)
-    const childIds = variantIds.filter(id => id !== familyId)
-    setDraftTargets(prev => {
-      const next = new Map(prev)
-      next.set(familyId, qty)
-      for (const id of childIds) next.set(id, 0)
-      return next
-    })
+  function applyFamilyTarget(familyId: string, variantIds: string[], quantity: number) {
+    setDraftTargets(prev => setFamilyTarget(prev, familyId, variantIds, quantity))
   }
 
-  function setVariantTarget(familyId: string, variantId: string, quantity: number) {
-    const qty = Math.max(0, quantity)
-    setDraftTargets(prev => {
-      const next = new Map(prev)
-      if (familyId !== variantId) next.set(familyId, 0)
-      next.set(variantId, qty)
-      return next
-    })
+  function applyVariantTarget(familyId: string, variantId: string, quantity: number) {
+    setDraftTargets(prev => setVariantTarget(prev, familyId, variantId, quantity))
   }
 
-  function setFamilyWip(familyId: string, variantIds: string[], quantity: number) {
-    const qty = Math.max(0, quantity)
-    const childIds = variantIds.filter(id => id !== familyId)
-    setDraftWip(prev => {
-      const next = new Map(prev)
-      next.set(familyId, qty)
-      for (const id of childIds) next.delete(id)
-      return next
-    })
+  function applyFamilyWip(familyId: string, variantIds: string[], quantity: number) {
+    setDraftWip(prev => setFamilyWip(prev, familyId, variantIds, quantity))
   }
 
-  function setVariantWip(familyId: string, variantId: string, quantity: number) {
-    const qty = Math.max(0, quantity)
-    setDraftWip(prev => {
-      const next = new Map(prev)
-      if (familyId !== variantId) next.delete(familyId)
-      next.set(variantId, qty)
-      return next
-    })
+  function applyVariantWip(familyId: string, variantId: string, quantity: number) {
+    setDraftWip(prev => setVariantWip(prev, familyId, variantId, quantity))
   }
 
   async function handleSave() {
@@ -335,10 +294,10 @@ export function ProductionPlanEntryModal({
                 isExpanded={expanded.has(section.group.key)}
                 showWip={!isAnnual}
                 onToggle={() => toggleFamily(section.group.key)}
-                onSetFamily={setFamilyTarget}
-                onSetVariant={setVariantTarget}
-                onSetFamilyWip={setFamilyWip}
-                onSetVariantWip={setVariantWip}
+                onSetFamily={applyFamilyTarget}
+                onSetVariant={applyVariantTarget}
+                onSetFamilyWip={applyFamilyWip}
+                onSetVariantWip={applyVariantWip}
                 t={t}
               />
             ))}

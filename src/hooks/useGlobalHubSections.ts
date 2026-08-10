@@ -29,6 +29,7 @@ import { useProductivityMonthCounts } from './useProductivityMonthCounts'
 import { formatStopHoursForCard, useProductionStopMonthCounts } from './useProductionStopMonthCounts'
 import { useTodayAttendanceEfficiency } from './useTodayAttendanceEfficiency'
 import { useHomeCardMonthStats } from './useHomeCardMonthStats'
+import { useProductionPlanHubStats } from './useProductionPlanHubStats'
 import { useLang } from '../i18n/LanguageContext'
 import { buildAttendanceHubStats } from '../Utils/attendanceHubStats'
 
@@ -60,14 +61,13 @@ export function useGlobalHubSections(refreshKey = 0) {
   const { efficiency, presentTodayCount, workforceCount, statusCounts, loading: attendanceLoading } =
     useTodayAttendanceEfficiency(refreshKey)
   const {
-    plannedVehicles,
-    workHours,
     ordersCount,
     damagedQty,
     damagedCost,
     scratchesCount,
     loading: monthStatsLoading
   } = useHomeCardMonthStats(refreshKey)
+  const planHubStats = useProductionPlanHubStats(refreshKey)
 
   const canManageStops = hasRole('admin', 'production')
   const go = nav.navigate
@@ -87,10 +87,17 @@ export function useGlobalHubSections(refreshKey = 0) {
         icon: LayoutGrid,
         tone: 'text-violet-300 bg-violet-500/15',
         accent: 'violet' as const,
-        onClick: () => go({ department: 'planning', planningTab: 'plan' }),
+        onClick: () => go({ department: 'planning', planningTab: 'plan', planScope: 'hub', showGlobalHome: false }),
+        statsLayout: 'stack',
         stats: [
-          { label: t('home.planMonthVehicles'), value: monthStatsLoading ? '…' : String(plannedVehicles) },
-          { label: t('home.planMonthHours'), value: monthStatsLoading ? '…' : String(workHours) }
+          {
+            label: t('home.planMonthVehicles'),
+            value: planHubStats.loading ? '…' : String(planHubStats.planned || '—')
+          },
+          {
+            label: t('home.planAchievementPct'),
+            value: planHubStats.loading ? '…' : `${planHubStats.progress}%`
+          }
         ]
       },
       showHomeCard('production_home__orders', canViewModule('production')) && {
@@ -118,6 +125,7 @@ export function useGlobalHubSections(refreshKey = 0) {
             productionPage: 'vehicles',
             productivityTab: 'productivity'
           }),
+        statsLayout: 'productivity-pairs',
         stats: [
           { label: t('home.entryProductivityVehicles'), value: productivityLoading ? '…' : String(entryVehicles) },
           { label: t('home.entryProductivityEfficiency'), value: formatEfficiencyPct(entryEfficiency, productivityLoading) },
@@ -310,6 +318,7 @@ export function useGlobalHubSections(refreshKey = 0) {
   return {
     sections: [home],
     reportOpen,
-    setReportOpen
+    setReportOpen,
+    planHubStats
   }
 }

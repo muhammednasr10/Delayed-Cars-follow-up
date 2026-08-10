@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { LogIn } from 'lucide-react'
+import { Eye, EyeOff, LogIn } from 'lucide-react'
 import { useAuth } from '../../Context/AuthContext'
 import { useLang } from '../../i18n/LanguageContext'
 import { AppLogo } from '../../Components/AppLogo'
@@ -11,6 +11,7 @@ export function LoginPage() {
   const { t, lang, toggle } = useLang()
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
+  const [showPassword, setShowPassword] = useState(false)
   const [error, setError] = useState('')
   const [submitting, setSubmitting] = useState(false)
   const [helpOpen, setHelpOpen] = useState(false)
@@ -63,14 +64,24 @@ export function LoginPage() {
 
           <label className="block space-y-2">
             <span className="text-sm font-bold text-slate-300">{t('login.password')}</span>
-            <input
-              className="input-dark"
-              type="password"
-              autoComplete="current-password"
-              value={password}
-              onChange={event => setPassword(event.target.value)}
-              placeholder="••••••••"
-            />
+            <div className="relative">
+              <input
+                className="input-dark pe-10"
+                type={showPassword ? 'text' : 'password'}
+                autoComplete="current-password"
+                value={password}
+                onChange={event => setPassword(event.target.value)}
+                placeholder="••••••••"
+              />
+              <button
+                type="button"
+                onClick={() => setShowPassword(prev => !prev)}
+                className="absolute inset-y-0 end-0 flex touch-target items-center justify-center px-3 text-slate-400 transition hover:text-slate-200"
+                aria-label={showPassword ? t('login.hidePassword') : t('login.showPassword')}
+              >
+                {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+              </button>
+            </div>
           </label>
 
           {error && (

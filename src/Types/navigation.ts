@@ -78,6 +78,10 @@ export const SETTINGS_TAB_ORDER = ['administrations', 'models', 'stations', 'col
 
 export type SettingsTab = (typeof SETTINGS_TAB_ORDER)[number]
 
+export const SETTINGS_STATIONS_SUB_TAB_ORDER = ['assemblyLine'] as const
+
+export type SettingsStationsSubTab = (typeof SETTINGS_STATIONS_SUB_TAB_ORDER)[number]
+
 export type ProductivityTab = 'productivity' | 'stops'
 
 export type ProductivitySubTab = 'daily' | 'monthly'
@@ -88,6 +92,11 @@ export type AttendanceSubTab = 'monthly' | 'yearly' | 'today'
 export const PLANNING_TAB_ORDER = ['plan', 'workDays', 'tracking', 'orders'] as const
 
 export type PlanningTab = (typeof PLANNING_TAB_ORDER)[number]
+
+/** مستوى عرض خطة الإنتاج داخل تبويب plan */
+export const PLAN_SCOPE_ORDER = ['hub', 'monthly', 'annual'] as const
+
+export type PlanScope = (typeof PLAN_SCOPE_ORDER)[number]
 
 export type WarehousesTab = 'home' | 'currentStock' | 'feeding' | 'equipment'
 

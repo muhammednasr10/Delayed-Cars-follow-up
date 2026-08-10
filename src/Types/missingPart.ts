@@ -111,8 +111,8 @@ export type ReportMissingPartsBatchInput = {
   factoryOrgUnitId?: string | null
   reason: MissingPartReason
   department: ResponsibleDepartment
-  priority: PriorityLevel
-  stopperType: StopperType
+  priority?: PriorityLevel
+  stopperType?: StopperType
   notes?: string
 }
 
@@ -124,7 +124,6 @@ export type ReportMissingPartsBatchResult = {
 
 export type MissingPartFilters = {
   search: string
-  stationNumbers: string[]
   modelNames: string[]
   departments: string[]
 }

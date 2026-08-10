@@ -8,6 +8,7 @@ import { permissionKey } from '../services/permissionsService'
 
 const TAB_PAGE_KEYS: Record<ListTab, string> = {
   active: 'active',
+  byFamily: 'active',
   summary: 'summary',
   history: 'history',
   historySummary: 'historySummary'
@@ -34,7 +35,7 @@ export function useMissingPartsUiPermissions() {
   )
 
   const visibleTabs = useMemo(() => {
-    const all: ListTab[] = ['active', 'summary', 'history', 'historySummary']
+    const all: ListTab[] = ['active', 'byFamily', 'summary', 'history', 'historySummary']
     if (permsLoading || pagesLoading) return all
     const allowed = all.filter(canViewListTab)
     return allowed.length > 0 ? allowed : all

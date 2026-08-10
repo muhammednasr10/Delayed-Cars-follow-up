@@ -1,20 +1,13 @@
 import { useEffect, useState } from 'react'
 import { Pencil } from 'lucide-react'
 import { useLang } from '../i18n/LanguageContext'
-import { useAuth } from '../Context/AuthContext'
 import { Modal } from './Modal'
-import { StationAutocomplete } from './StationAutocomplete'
-import { setVehicleStation, updateMissingPartRecord } from '../services/missingPartsService'
-import { getStations } from '../services/stationService'
-import type { Station } from '../Types/settings'
+import { updateMissingPartRecord } from '../services/missingPartsService'
 import type { VehicleIssuesContext } from '../Types/missingPart'
 import type { MissingPartDetail } from '../Types/missingPart'
-import type { PriorityLevel, StopperType } from '../Types/enums'
 import { useMpLookups } from '../hooks/useMpLookups'
 import { useFormatError } from '../hooks/useFormatError'
 import { MpLookupSelect } from './MpLookupSelect'
-const PRIORITIES: PriorityLevel[] = ['low', 'normal', 'high', 'critical']
-const STOPPER_TYPES: StopperType[] = ['line_stopper', 'car_stopper']
 
 type Props = {
   vehicle: VehicleIssuesContext | null
@@ -24,19 +17,11 @@ type Props = {
 
 type LineDraft = {
   part: MissingPartDetail
-  station: Station | null
   partDescription: string
   requiredQty: number
   reason: string
   department: string
-  priority: PriorityLevel
-  stopperType: StopperType
   notes: string
-}
-
-function stationChanged(d: LineDraft): boolean {
-  if (d.station == null) return false
-  return (d.station.id ?? null) !== (d.part.stationId ?? null)
 }
 
 function lineChanged(d: LineDraft): boolean {
@@ -46,10 +31,7 @@ function lineChanged(d: LineDraft): boolean {
     d.requiredQty !== p.requiredQty ||
     d.reason !== p.reason ||
     d.department !== p.department ||
-    d.priority !== p.priority ||
-    d.stopperType !== p.stopperType ||
-    (d.notes.trim() || '') !== (p.notes ?? '') ||
-    stationChanged(d)
+    (d.notes.trim() || '') !== (p.notes ?? '')
   )
 }
 
@@ -57,8 +39,6 @@ export function EditMissingPartModal({ vehicle, onClose, onSaved }: Props) {
   const { t } = useLang()
   const { reasons, departments } = useMpLookups()
   const formatError = useFormatError()
-  const { hasRole } = useAuth()
-  const canCreateStation = hasRole('admin', 'production', 'warehouse')
   const [lines, setLines] = useState<LineDraft[]>([])
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
@@ -71,23 +51,16 @@ export function EditMissingPartModal({ vehicle, onClose, onSaved }: Props) {
       setLines([])
       return
     }
-    getStations()
-      .then(list => {
-        setLines(
-          openParts.map(p => ({
-            part: p,
-            station: p.stationId ? list.find(s => s.id === p.stationId) ?? null : null,
-            partDescription: p.partDescription,
-            requiredQty: p.requiredQty,
-            reason: p.reason,
-            department: p.department,
-            priority: p.priority,
-            stopperType: p.stopperType,
-            notes: p.notes ?? ''
-          }))
-        )
-      })
-      .catch(() => setLines(openParts.map(p => ({ part: p, station: null, partDescription: p.partDescription, requiredQty: p.requiredQty, reason: p.reason, department: p.department, priority: p.priority, stopperType: p.stopperType, notes: p.notes ?? '' }))))
+    setLines(
+      openParts.map(p => ({
+        part: p,
+        partDescription: p.partDescription,
+        requiredQty: p.requiredQty,
+        reason: p.reason,
+        department: p.department,
+        notes: p.notes ?? ''
+      }))
+    )
     setError('')
   }, [vehicle, openParts])
 
@@ -119,23 +92,15 @@ export function EditMissingPartModal({ vehicle, onClose, onSaved }: Props) {
     setError('')
     try {
       for (const line of changed) {
-        const stationDirty = stationChanged(line)
-        if (!vehicle?.allowArchived && stationDirty && !line.station?.id) {
-          setError(t('station.notFound'))
-          return
-        }
         await updateMissingPartRecord(line.part.id, {
           partDescription: line.partDescription.trim(),
           requiredQty: Math.max(1, line.requiredQty),
           reason: line.reason,
           department: line.department,
-          priority: line.priority,
-          stopperType: line.stopperType,
+          priority: line.part.priority,
+          stopperType: line.part.stopperType,
           notes: line.notes
         })
-        if (stationDirty && line.station?.id) {
-          await setVehicleStation(line.part.vehicleId, line.station.id)
-        }
       }
       onSaved()
       onClose()
@@ -197,18 +162,6 @@ export function EditMissingPartModal({ vehicle, onClose, onSaved }: Props) {
               <p className="text-[10px] font-black uppercase text-cyan-400/90">
                 {t('mp.issueN', { n: idx + 1 })}
               </p>
-              <label className="block text-xs font-bold text-slate-400">{t('mp.f.station')}</label>
-              <StationAutocomplete
-                value={line.station}
-                onSelect={s => patchLine(line.part.id, { station: s })}
-                canCreate={canCreateStation}
-              />
-              <label className="block text-xs font-bold text-slate-400">{t('mp.cols.reason')}</label>
-              <input
-                className="input-dark w-full"
-                value={line.partDescription}
-                onChange={e => patchLine(line.part.id, { partDescription: e.target.value })}
-              />
               <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
                 <div>
                   <label className="mb-1 block text-xs font-bold text-slate-400">{t('mp.cols.reasonClass')}</label>
@@ -229,6 +182,12 @@ export function EditMissingPartModal({ vehicle, onClose, onSaved }: Props) {
                   />
                 </div>
               </div>
+              <label className="block text-xs font-bold text-slate-400">{t('mp.cols.reason')}</label>
+              <input
+                className="input-dark w-full"
+                value={line.partDescription}
+                onChange={e => patchLine(line.part.id, { partDescription: e.target.value })}
+              />
               <label className="block text-xs font-bold text-slate-400">{t('mp.cols.qty')}</label>
               <input
                 type="number"
@@ -237,36 +196,6 @@ export function EditMissingPartModal({ vehicle, onClose, onSaved }: Props) {
                 value={line.requiredQty}
                 onChange={e => patchLine(line.part.id, { requiredQty: Number(e.target.value) })}
               />
-              <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
-                <div>
-                  <label className="mb-1 block text-xs font-bold text-slate-400">{t('mp.f.priority')}</label>
-                  <select
-                    className="input-dark w-full"
-                    value={line.priority}
-                    onChange={e => patchLine(line.part.id, { priority: e.target.value as PriorityLevel })}
-                  >
-                    {PRIORITIES.map(p => (
-                      <option key={p} value={p}>
-                        {t(`priority.${p}`)}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-                <div>
-                  <label className="mb-1 block text-xs font-bold text-slate-400">{t('mp.f.stopper')}</label>
-                  <select
-                    className="input-dark w-full"
-                    value={line.stopperType}
-                    onChange={e => patchLine(line.part.id, { stopperType: e.target.value as StopperType })}
-                  >
-                    {STOPPER_TYPES.map(s => (
-                      <option key={s} value={s}>
-                        {t(`stopper.${s}`)}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-              </div>
               <label className="block text-xs font-bold text-slate-400">{t('mp.f.notes')}</label>
               <textarea
                 className="input-dark w-full"

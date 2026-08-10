@@ -4,29 +4,28 @@ import { useLang } from '../i18n/LanguageContext'
 import { useEmployees } from '../hooks/useEmployees'
 import { useFactoryOrgScope } from '../hooks/useFactoryOrgScope'
 import { Modal } from './Modal'
-import { StationSelect } from './StationSelect'
-import { FactoryOrgUnitPicker } from './FactoryOrgUnitPicker'
 import { VehicleModelFamilyPicker, resolveFamilyIdForVariant } from './VehicleModelFamilyPicker'
 import { reportMissingPartsBatch } from '../services/missingPartsService'
-import { getFactoryOrgUnits } from '../services/factoryOrgService'
-import { getStations, getVehicleColors, getVehicleModels } from '../services/settingsService'
-import type { MissingPartLineInput } from '../Types/missingPart'
-import type { PriorityLevel, StopperType } from '../Types/enums'
-import type { Station, VehicleColor, VehicleModel } from '../Types/settings'
-import type { FactoryOrgUnit } from '../Types/factoryOrg'
-import { orgPathLeaf } from '../Utils/employeeOrgPicker'
+import { getVehicleColors, getVehicleModels } from '../services/settingsService'
+import type { MissingPartBatchLineInput } from '../Types/missingPart'
+import type { VehicleColor, VehicleModel } from '../Types/settings'
 import { useFormatError } from '../hooks/useFormatError'
 import { useMpLookups } from '../hooks/useMpLookups'
 import { MpLookupCreatableSelect } from './MpLookupCreatableSelect'
-import { defaultDepartmentCode, defaultReasonCode } from '../Utils/mpLookupLabel'
+import { defaultDepartmentCode, defaultReasonCode, isStockShortageReason } from '../Utils/mpLookupLabel'
 import { isValidVinLength, normalizeChassisVin } from '../Utils/vinValidation'
 
-const PRIORITIES: PriorityLevel[] = ['low', 'normal', 'high', 'critical']
-const STOPPER_TYPES: StopperType[] = ['line_stopper', 'car_stopper']
-
-type IssueLineDraft = Omit<MissingPartLineInput, 'vins'> & {
+type IssueLineDraft = Omit<MissingPartBatchLineInput, 'partDescription'> & {
   key: string
-  station: Station | null
+  partItems: string[]
+}
+
+function issuePartDescriptions(line: IssueLineDraft): string[] {
+  if (isStockShortageReason(line.reason)) {
+    return line.partItems.map(s => s.trim()).filter(Boolean)
+  }
+  const single = line.partItems[0]?.trim()
+  return single ? [single] : []
 }
 
 function resizeVins(count: number, prev: string[]): string[] {
@@ -39,12 +38,11 @@ function resizeVins(count: number, prev: string[]): string[] {
 function newIssueLine(): IssueLineDraft {
   return {
     key: crypto.randomUUID(),
-    partDescription: '',
+    partItems: [''],
     requiredQty: 1,
     reason: '',
     department: '',
-    stationId: null,
-    station: null
+    stationId: null
   }
 }
 
@@ -52,9 +50,6 @@ type VehicleForm = {
   familyId: string
   modelId: string
   colorId: string | null
-  orgPath: string[]
-  priority: PriorityLevel
-  stopperType: StopperType
   notes: string
   vehicleCount: number
   vins: string[]
@@ -64,9 +59,6 @@ const emptyVehicle: VehicleForm = {
   familyId: '',
   modelId: '',
   colorId: null,
-  orgPath: [],
-  priority: 'normal',
-  stopperType: 'car_stopper',
   notes: '',
   vehicleCount: 1,
   vins: ['']
@@ -82,12 +74,10 @@ export function ReportMissingPartModal({ open, onClose, onReported }: Props) {
   const { t } = useLang()
   const formatError = useFormatError()
   const { employees } = useEmployees()
-  const { defaultOrgPath } = useFactoryOrgScope(employees)
+  const { scopeRootId, scopeLabel } = useFactoryOrgScope(employees)
   const { reasons, departments, addReason, addDepartment } = useMpLookups()
   const [models, setModels] = useState<VehicleModel[]>([])
   const [colors, setColors] = useState<VehicleColor[]>([])
-  const [stations, setStations] = useState<Station[]>([])
-  const [orgUnits, setOrgUnits] = useState<FactoryOrgUnit[]>([])
   const [listsLoading, setListsLoading] = useState(false)
   const [issues, setIssues] = useState(() => [newIssueLine()])
   const [vehicle, setVehicle] = useState<VehicleForm>(emptyVehicle)
@@ -114,26 +104,62 @@ export function ReportMissingPartModal({ open, onClose, onReported }: Props) {
         department: defaultDepartmentCode(departments)
       }
     ])
-    setVehicle({ ...emptyVehicle, orgPath: [...defaultOrgPath] })
+    setVehicle(emptyVehicle)
     setFormError('')
     setListsLoading(true)
-    Promise.all([getVehicleModels(), getVehicleColors(), getStations(), getFactoryOrgUnits()])
-      .then(([m, c, st, org]) => {
+    Promise.all([getVehicleModels(), getVehicleColors()])
+      .then(([m, c]) => {
         setModels(m)
         setColors(c)
-        setStations(st)
-        setOrgUnits(org)
       })
       .catch(err => setFormError(formatError(err)))
       .finally(() => setListsLoading(false))
-  }, [open, t, defaultOrgPath])
+  }, [open, formatError, reasons, departments])
 
   function patchIssue(key: string, patch: Partial<IssueLineDraft>) {
     setIssues(prev => prev.map(l => (l.key === key ? { ...l, ...patch } : l)))
   }
 
-  function setLineStation(key: string, station: Station | null) {
-    patchIssue(key, { station, stationId: station?.id ?? null })
+  function patchIssueReason(key: string, code: string) {
+    setIssues(prev =>
+      prev.map(line => {
+        if (line.key !== key) return line
+        if (isStockShortageReason(code) && !isStockShortageReason(line.reason)) {
+          const first = line.partItems.map(s => s.trim()).find(Boolean) ?? ''
+          return { ...line, reason: code, partItems: first ? [first] : [''] }
+        }
+        if (!isStockShortageReason(code) && isStockShortageReason(line.reason)) {
+          const first = issuePartDescriptions({ ...line, reason: code }).find(Boolean) ?? ''
+          return { ...line, reason: code, partItems: [first] }
+        }
+        return { ...line, reason: code }
+      })
+    )
+  }
+
+  function updatePartItem(key: string, index: number, value: string) {
+    setIssues(prev =>
+      prev.map(line =>
+        line.key === key
+          ? { ...line, partItems: line.partItems.map((item, i) => (i === index ? value : item)) }
+          : line
+      )
+    )
+  }
+
+  function addPartItem(key: string) {
+    setIssues(prev =>
+      prev.map(line => (line.key === key ? { ...line, partItems: [...line.partItems, ''] } : line))
+    )
+  }
+
+  function removePartItem(key: string, index: number) {
+    setIssues(prev =>
+      prev.map(line => {
+        if (line.key !== key || line.partItems.length <= 1) return line
+        return { ...line, partItems: line.partItems.filter((_, i) => i !== index) }
+      })
+    )
   }
 
   function setVehicleCount(n: number) {
@@ -163,11 +189,19 @@ export function ReportMissingPartModal({ open, onClose, onReported }: Props) {
   async function submit() {
     const missing: string[] = []
 
+    if (!scopeRootId) missing.push(t('mp.errNoOrgUnit'))
     if (!vehicle.modelId) missing.push(t('mp.f.model'))
-    if (!orgPathLeaf(vehicle.orgPath)) missing.push(t('scratches.errArea'))
 
-    const validIssues = issues.filter(l => l.partDescription.trim())
-    if (validIssues.length === 0) missing.push(t('mp.errOneIssue'))
+    const expandedParts = issues.flatMap(line =>
+      issuePartDescriptions(line).map(partDescription => ({
+        partDescription,
+        requiredQty: 1,
+        reason: line.reason,
+        department: line.department,
+        stationId: null as string | null
+      }))
+    )
+    if (expandedParts.length === 0) missing.push(t('mp.errOneIssue'))
 
     const vinList = vehicle.vins.map(v => normalizeChassisVin(v)).filter(Boolean)
     if (vinList.length !== vehicle.vehicleCount) missing.push(t('mp.errAllVins'))
@@ -176,11 +210,6 @@ export function ReportMissingPartModal({ open, onClose, onReported }: Props) {
     }
     const uniqueVins = new Set(vinList)
     if (uniqueVins.size !== vinList.length) missing.push(t('mp.errDuplicateVin'))
-
-    for (let li = 0; li < validIssues.length; li++) {
-      const line = validIssues[li]
-      if (!line.stationId) missing.push(t('mp.errIssueStation', { n: li + 1 }))
-    }
 
     if (missing.length > 0) {
       setFormError(missing.join(' · '))
@@ -194,21 +223,12 @@ export function ReportMissingPartModal({ open, onClose, onReported }: Props) {
       const result = await reportMissingPartsBatch({
         vins: normalizedVins,
         modelId: vehicle.modelId,
-        parts: validIssues.map(line => ({
-          partDescription: line.partDescription.trim(),
-          requiredQty: 1,
-          reason: line.reason,
-          department: line.department,
-          stationId: line.stationId
-        })),
+        parts: expandedParts,
         colorId: vehicle.colorId,
-        stationId: validIssues[0]?.stationId ?? null,
-        reason: validIssues[0]?.reason,
-        department: validIssues[0]?.department,
-        priority: vehicle.priority,
-        stopperType: vehicle.stopperType,
+        reason: expandedParts[0]?.reason ?? issues[0]?.reason,
+        department: expandedParts[0]?.department ?? issues[0]?.department,
         notes: vehicle.notes || undefined,
-        factoryOrgUnitId: orgPathLeaf(vehicle.orgPath)
+        factoryOrgUnitId: scopeRootId
       })
       onReported?.(t('mp.batchSuccess', { cars: result.vehicle_count, parts: result.missing_part_count }))
       onClose()
@@ -219,7 +239,8 @@ export function ReportMissingPartModal({ open, onClose, onReported }: Props) {
     }
   }
 
-  const totalRecords = issues.filter(l => l.partDescription.trim()).length * vehicle.vehicleCount
+  const totalRecords =
+    issues.reduce((sum, line) => sum + issuePartDescriptions(line).length, 0) * vehicle.vehicleCount
 
   return (
     <Modal
@@ -250,6 +271,16 @@ export function ReportMissingPartModal({ open, onClose, onReported }: Props) {
       }
     >
       <div className="space-y-5">
+        <section className="space-y-2 rounded-xl border border-slate-800 bg-slate-950/40 p-4">
+          <h3 className="text-xs font-black uppercase tracking-wider text-cyan-300">{t('mp.sectionOrg')}</h3>
+          <p className="text-xs text-slate-500">{t('mp.orgAutoHint')}</p>
+          {scopeLabel ? (
+            <p className="text-sm font-bold text-white">{scopeLabel}</p>
+          ) : (
+            <p className="rounded-xl border border-amber-500/30 bg-amber-500/10 p-2 text-xs text-amber-200">{t('mp.errNoOrgUnit')}</p>
+          )}
+        </section>
+
         <section className="space-y-3">
           <h3 className="text-xs font-black uppercase tracking-wider text-cyan-300">{t('mp.sectionVehicle')}</h3>
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
@@ -291,15 +322,6 @@ export function ReportMissingPartModal({ open, onClose, onReported }: Props) {
                 </select>
               )}
             </Field>
-            <div className="sm:col-span-2 space-y-2">
-              <p className="text-sm font-bold text-slate-300">{t('mp.cols.orgUnit')} *</p>
-              <p className="text-xs text-slate-500">{t('org.f.orgUnitsHint')}</p>
-              <FactoryOrgUnitPicker
-                units={orgUnits}
-                path={vehicle.orgPath}
-                onChange={orgPath => setVehicle(p => ({ ...p, orgPath }))}
-              />
-            </div>
             <Field label={t('mp.f.vehicleCount')} required>
               <input
                 type="number"
@@ -360,35 +382,17 @@ export function ReportMissingPartModal({ open, onClose, onReported }: Props) {
                   </button>
                 </div>
 
-                <Field label={t('mp.f.station')} required>
-                  <StationSelect
-                    stations={stations}
-                    value={line.station}
-                    loading={listsLoading}
-                    onSelect={s => setLineStation(line.key, s)}
-                  />
-                </Field>
-
-                <Field label={t('mp.cols.reason')} required>
-                  <input
-                    className="input-dark"
-                    value={line.partDescription}
-                    onChange={e => patchIssue(line.key, { partDescription: e.target.value })}
-                    placeholder={t('mp.issueReasonPlaceholder')}
-                  />
-                </Field>
-
                 <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-                  <Field label={t('mp.cols.reasonClass')}>
+                  <Field label={t('mp.cols.reasonClass')} required>
                     <MpLookupCreatableSelect
                       options={reasons}
                       value={line.reason}
-                      onChange={code => patchIssue(line.key, { reason: code })}
+                      onChange={code => patchIssueReason(line.key, code)}
                       onCreate={addReason}
                       addLabel={t('mp.addReasonOption')}
                     />
                   </Field>
-                  <Field label={t('mp.cols.department')}>
+                  <Field label={t('mp.cols.department')} required>
                     <MpLookupCreatableSelect
                       options={departments}
                       value={line.department}
@@ -398,6 +402,51 @@ export function ReportMissingPartModal({ open, onClose, onReported }: Props) {
                     />
                   </Field>
                 </div>
+
+                <Field label={t('mp.cols.reason')} required>
+                  {isStockShortageReason(line.reason) ? (
+                    <div className="space-y-2">
+                      {line.partItems.map((item, pi) => (
+                        <div key={pi} className="flex gap-2">
+                          <input
+                            className="input-dark min-w-0 flex-1"
+                            value={item}
+                            onChange={e => updatePartItem(line.key, pi, e.target.value)}
+                            placeholder={t('mp.stockItemPlaceholder')}
+                          />
+                          {line.partItems.length > 1 && (
+                            <button
+                              type="button"
+                              onClick={() => removePartItem(line.key, pi)}
+                              className="shrink-0 rounded-xl border border-red-500/30 bg-red-500/10 px-3 py-2 text-red-200 hover:bg-red-500/20"
+                              title={t('common.delete')}
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </button>
+                          )}
+                          {pi === line.partItems.length - 1 && (
+                            <button
+                              type="button"
+                              onClick={() => addPartItem(line.key)}
+                              className="shrink-0 rounded-xl border border-cyan-500/40 bg-cyan-500/10 px-3 py-2 text-cyan-200 hover:bg-cyan-500/20"
+                              title={t('mp.addStockItem')}
+                            >
+                              <Plus className="h-4 w-4" />
+                            </button>
+                          )}
+                        </div>
+                      ))}
+                      <p className="text-[10px] text-slate-500">{t('mp.stockItemsHint')}</p>
+                    </div>
+                  ) : (
+                    <input
+                      className="input-dark"
+                      value={line.partItems[0] ?? ''}
+                      onChange={e => updatePartItem(line.key, 0, e.target.value)}
+                      placeholder={t('mp.issueReasonPlaceholder')}
+                    />
+                  )}
+                </Field>
               </div>
             ))}
           </div>
@@ -407,44 +456,11 @@ export function ReportMissingPartModal({ open, onClose, onReported }: Props) {
           )}
         </section>
 
-        <section className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-          <Field label={t('mp.f.priority')}>
-            <select className="input-dark" value={vehicle.priority} onChange={e => setVehicle(p => ({ ...p, priority: e.target.value as PriorityLevel }))}>
-              {PRIORITIES.map(pr => (
-                <option key={pr} value={pr}>
-                  {t(`priority.${pr}`)}
-                </option>
-              ))}
-            </select>
+        <section>
+          <Field label={t('mp.f.notes')}>
+            <textarea className="input-dark min-h-16" value={vehicle.notes} onChange={e => setVehicle(p => ({ ...p, notes: e.target.value }))} />
           </Field>
-          <div className="sm:col-span-2">
-            <Field label={t('mp.f.stopper')} required>
-              <div className="grid grid-cols-2 gap-2">
-                {STOPPER_TYPES.map(s => {
-                  const active = vehicle.stopperType === s
-                  const tone =
-                    s === 'line_stopper' ? 'border-red-500 bg-red-500/15 text-red-100' : 'border-amber-500 bg-amber-500/15 text-amber-100'
-                  return (
-                    <button
-                      key={s}
-                      type="button"
-                      onClick={() => setVehicle(p => ({ ...p, stopperType: s }))}
-                      className={`rounded-xl border px-4 py-3 text-sm font-bold transition ${active ? tone : 'border-slate-700 bg-slate-800 text-slate-300 hover:bg-slate-700'}`}
-                    >
-                      {t(`stopper.${s}`)}
-                    </button>
-                  )
-                })}
-              </div>
-            </Field>
-          </div>
-          <div className="sm:col-span-2">
-            <Field label={t('mp.f.notes')}>
-              <textarea className="input-dark min-h-16" value={vehicle.notes} onChange={e => setVehicle(p => ({ ...p, notes: e.target.value }))} />
-            </Field>
-          </div>
         </section>
-
       </div>
     </Modal>
   )

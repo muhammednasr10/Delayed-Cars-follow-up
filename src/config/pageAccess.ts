@@ -193,6 +193,21 @@ export function pagePermForPlanning(tab: string): AppPagePermissionKey | undefin
   return PAGE_BY_PLANNING[tab]
 }
 
+export function pagePermForQuality(_tab?: string): AppPagePermissionKey {
+  return 'quality_notes'
+}
+
+export function canViewAnyWarehousesPage(
+  canViewPage: (key: AppPagePermissionKey | undefined) => boolean
+): boolean {
+  return (
+    canViewPage(pagePermForWarehouses('home')) ||
+    canViewPage(pagePermForWarehouses('currentStock')) ||
+    canViewPage(pagePermForWarehouses('feeding')) ||
+    canViewPage(pagePermForWarehouses('equipment'))
+  )
+}
+
 export function pageDefByPermKey(key: AppPagePermissionKey): AppPageDef | undefined {
   return APP_PAGE_DEFINITIONS.find(p => p.permKey === key)
 }

@@ -24,6 +24,7 @@ export type VehicleOverview = {
   productionOrderId?: string | null
   productionOrderNumber: string
   factoryOrgUnitId?: string | null
+  deliveredAt?: string | null
   createdAt: string
   updatedAt: string
 }

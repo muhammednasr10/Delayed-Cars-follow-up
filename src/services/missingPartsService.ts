@@ -215,8 +215,8 @@ export async function reportMissingPartsBatch(
     p_station_id: input.stationId || null,
     p_reason: input.reason,
     p_department: input.department,
-    p_priority: input.priority,
-    p_stopper_type: input.stopperType,
+    p_priority: input.priority ?? 'normal',
+    p_stopper_type: input.stopperType ?? 'car_stopper',
     p_notes: input.notes || null
   }
 

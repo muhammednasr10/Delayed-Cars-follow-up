@@ -1,13 +1,14 @@
 import { useMemo } from 'react'
-import { AlertTriangle, Archive, BarChart3, PlusCircle } from 'lucide-react'
+import { AlertTriangle, Archive, BarChart3, LayoutGrid, PlusCircle } from 'lucide-react'
 import { useLang } from '../../i18n/LanguageContext'
 import { mpLookupLabel } from '../../Utils/mpLookupLabel'
 import type { MpLookupOption } from '../../Types/mpLookup'
 import type { MissingPartDetail, MissingPartFilters } from '../../Types/missingPart'
 import { FilterMultiSelect } from '../FilterMultiSelect'
 import { MissingPartSearchAutocomplete } from './MissingPartSearchAutocomplete'
+import { MissingPartsModelSummaryTable } from './MissingPartsModelSummaryTable'
 
-export type ListTab = 'active' | 'summary' | 'history' | 'historySummary'
+export type ListTab = 'active' | 'byFamily' | 'summary' | 'history' | 'historySummary'
 
 type Props = {
   listTab: ListTab
@@ -19,13 +20,13 @@ type Props = {
   searchPool: MissingPartDetail[]
   filters: MissingPartFilters
   onFiltersChange: (patch: Partial<MissingPartFilters>) => void
-  stationOptions: string[]
   modelOptions: string[]
   departmentFilterCodes: string[]
   departments: MpLookupOption[]
   canReport: boolean
   role: string
   onReport: () => void
+  summaryItems?: MissingPartDetail[] | null
 }
 
 export function MissingPartsToolbar({
@@ -38,20 +39,16 @@ export function MissingPartsToolbar({
   searchPool,
   filters,
   onFiltersChange,
-  stationOptions,
   modelOptions,
   departmentFilterCodes,
   departments,
   canReport,
   role,
-  onReport
+  onReport,
+  summaryItems = null
 }: Props) {
   const { t, lang } = useLang()
 
-  const stationSelectOptions = useMemo(
-    () => stationOptions.map(s => ({ value: s, label: s })),
-    [stationOptions]
-  )
   const modelSelectOptions = useMemo(
     () => modelOptions.map(m => ({ value: m, label: m })),
     [modelOptions]
@@ -65,6 +62,11 @@ export function MissingPartsToolbar({
     {
       key: 'active',
       className: active => (active ? 'bg-cyan-500 text-slate-950' : 'bg-slate-800 text-slate-300 hover:bg-slate-700')
+    },
+    {
+      key: 'byFamily',
+      className: active => (active ? 'bg-indigo-600 text-white' : 'bg-slate-800 text-slate-300 hover:bg-slate-700'),
+      icon: LayoutGrid
     },
     {
       key: 'summary',
@@ -117,7 +119,11 @@ export function MissingPartsToolbar({
             const active = listTab === item.key
             const Icon = item.icon
             const count =
-              item.key === 'active' ? activeCount : item.key === 'history' ? historyCount : null
+              item.key === 'active' || item.key === 'byFamily'
+                ? activeCount
+                : item.key === 'history'
+                  ? historyCount
+                  : null
             return (
               <button
                 key={item.key}
@@ -139,20 +145,16 @@ export function MissingPartsToolbar({
         </div>
       )}
 
-      {canUseFilters && (
-        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
+      {summaryItems && summaryItems.length > 0 && listTab === 'active' && (
+        <MissingPartsModelSummaryTable items={summaryItems} />
+      )}
+
+      {canUseFilters && (listTab === 'active' || listTab === 'byFamily' || listTab === 'history') && (
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
           <MissingPartSearchAutocomplete
             items={searchPool}
             value={filters.search}
             onChange={search => onFiltersChange({ search })}
-          />
-          <FilterMultiSelect
-            options={stationSelectOptions}
-            value={filters.stationNumbers}
-            onChange={stationNumbers => onFiltersChange({ stationNumbers })}
-            allLabel={t('mp.filterStation')}
-            selectedCountLabel={n => t('mp.filterSelectedCount', { n })}
-            clearLabel={t('mp.filterClear')}
           />
           <FilterMultiSelect
             options={modelSelectOptions}

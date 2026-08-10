@@ -12,6 +12,7 @@ import { UpdateMissingPartModal, type UpdateVehicleContext } from '../../Compone
 import { EditMissingPartModal } from '../../Components/EditMissingPartModal'
 import { EditReportGroupModal } from '../../Components/EditReportGroupModal'
 import { VinListModal } from '../../Components/VinListModal'
+import { MissingPartIssuesModal } from '../../Components/MissingPartIssuesModal'
 import type { ReportGroupContext, VehicleIssuesContext } from '../../Types/missingPart'
 import {
   buildMissingPartTableRows,
@@ -35,6 +36,7 @@ import type { MissingPartDetail, MissingPartFilters } from '../../Types/missingP
 import { MissingPartsToolbar, type ListTab } from '../../Components/missingParts/MissingPartsToolbar'
 import { MissingPartsTable } from '../../Components/missingParts/MissingPartsTable'
 import { MissingPartsSummaryTab } from '../../Components/missingParts/MissingPartsSummaryTab'
+import { MissingPartsFamilyCardsTab } from '../../Components/missingParts/MissingPartsFamilyCardsTab'
 import { applyFilters, isSchemaMissing, openVehicleShortageLines, remainingInstallLineCount, uniqueVehicleReps } from '../../Utils/missingPartPageUtils'
 import { scratchAreaLabel } from '../../Utils/scratchAreaOptions'
 import { ConfirmDialog } from '../../Components/ConfirmDialog'
@@ -70,7 +72,6 @@ export function MissingPartsPage() {
   const [listTab, setListTab] = useState<ListTab>('active')
   const [filters, setFilters] = useState<MissingPartFilters>({
     search: '',
-    stationNumbers: [],
     modelNames: [],
     departments: []
   })
@@ -79,6 +80,7 @@ export function MissingPartsPage() {
   const [editVehicle, setEditVehicle] = useState<VehicleIssuesContext | null>(null)
   const [editGroup, setEditGroup] = useState<ReportGroupContext | null>(null)
   const [vinList, setVinList] = useState<{ vins: string[]; modelName: string; colorName: string | null } | null>(null)
+  const [issuesList, setIssuesList] = useState<{ parts: MissingPartDetail[]; vin?: string; modelName?: string } | null>(null)
   const [detailTarget, setDetailTarget] = useState<MissingPartDetail | null>(null)
   const [notesTarget, setNotesTarget] = useState<VehicleNoteTarget | null>(null)
   const [success, setSuccess] = useState('')
@@ -170,10 +172,6 @@ export function MissingPartsPage() {
     setSelectedVehicleIds(new Set())
   }, [listTab, filters])
 
-  const stationOptions = useMemo(
-    () => Array.from(new Set(items.map(i => i.stationNumber).filter(Boolean))).sort() as string[],
-    [items]
-  )
   const modelOptions = useMemo(() => Array.from(new Set(items.map(i => i.modelName).filter(Boolean))).sort(), [items])
   const departmentFilterCodes = useMemo(() => {
     const codes = new Set<string>()
@@ -197,7 +195,6 @@ export function MissingPartsPage() {
   const filteredVehicleCount = useMemo(() => new Set(filtered.map(i => i.vehicleId)).size, [filtered])
   const hasActiveFilter = Boolean(
     filters.search.trim() ||
-      filters.stationNumbers.length > 0 ||
       filters.modelNames.length > 0 ||
       filters.departments.length > 0
   )
@@ -352,13 +349,13 @@ export function MissingPartsPage() {
           searchPool={tabSource}
           filters={filters}
           onFiltersChange={patch => setFilters(p => ({ ...p, ...patch }))}
-          stationOptions={stationOptions}
           modelOptions={modelOptions}
           departmentFilterCodes={departmentFilterCodes}
           departments={departments}
           canReport={canReport}
           role={role}
           onReport={() => setShowReport(true)}
+          summaryItems={listTab === 'active' ? filtered : null}
         />
 
         {success && <div className="m-4 rounded-xl border border-emerald-500/30 bg-emerald-500/10 p-3 text-sm text-emerald-200">{success}</div>}
@@ -392,7 +389,34 @@ export function MissingPartsPage() {
           </div>
         )}
 
-        {listTab === 'summary' || listTab === 'historySummary' ? (
+        {listTab === 'byFamily' ? (
+          <MissingPartsFamilyCardsTab
+            items={filtered}
+            reasons={reasons}
+            departments={departments}
+            loading={loading}
+            canUpdateStatus={canUpdateStatus}
+            canNotes={canNotes}
+            canEdit={canEdit}
+            canDelete={canDelete}
+            canComplete={canComplete}
+            completingVehicleId={completingVehicleId}
+            onOpenNotes={row =>
+              setNotesTarget({
+                vehicleId: row.vehicleId,
+                vin: row.vin,
+                modelName: row.modelName,
+                colorName: row.colorName,
+                colorHex: row.colorHex
+              })
+            }
+            onOpenDetail={setDetailTarget}
+            onEdit={openEdit}
+            onUpdate={openUpdate}
+            onDeleteParts={parts => void removeParts(parts)}
+            onComplete={requestCompleteVehicle}
+          />
+        ) : listTab === 'summary' || listTab === 'historySummary' ? (
           <MissingPartsSummaryTab
             items={filtered}
             reasons={reasons}
@@ -426,6 +450,7 @@ export function MissingPartsPage() {
             onToggleSelectAll={toggleSelectAllVisible}
             onToggleRowSelection={toggleRowSelection}
             onOpenVinList={(vins, modelName, colorName) => setVinList({ vins, modelName, colorName })}
+            onOpenIssuesList={(parts, vin, modelName) => setIssuesList({ parts, vin, modelName })}
             onOpenDetail={setDetailTarget}
             onOpenNotes={row =>
               setNotesTarget({
@@ -450,6 +475,14 @@ export function MissingPartsPage() {
       <EditMissingPartModal vehicle={editVehicle} onClose={() => setEditVehicle(null)} onSaved={load} />
       <EditReportGroupModal group={editGroup} onClose={() => setEditGroup(null)} onSaved={load} />
       <VinListModal vins={vinList?.vins ?? null} modelName={vinList?.modelName} colorName={vinList?.colorName} onClose={() => setVinList(null)} />
+      <MissingPartIssuesModal
+        parts={issuesList?.parts ?? null}
+        vin={issuesList?.vin}
+        modelName={issuesList?.modelName}
+        reasons={reasons}
+        departments={departments}
+        onClose={() => setIssuesList(null)}
+      />
       <MissingPartDetailModal part={detailTarget} onClose={() => setDetailTarget(null)} />
       <VehicleNotesModal target={notesTarget} onClose={() => setNotesTarget(null)} />
 

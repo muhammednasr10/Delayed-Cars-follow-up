@@ -13,6 +13,8 @@ export type HubCard = {
   accent?: HubCardAccent
   /** كارت عريض (مثل حضور اليوم بعدة أرقام) */
   wide?: boolean
+  /** stack: صف كامل لكل إحصائية | productivity-pairs: عمود دخول + عمود خروج */
+  statsLayout?: 'default' | 'stack' | 'productivity-pairs'
   stats?: { label: string; value: string | number }[]
   footerAction?: { label: string; onClick: () => void }
 }

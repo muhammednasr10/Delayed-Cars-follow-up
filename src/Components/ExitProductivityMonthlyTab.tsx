@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { CalendarDays } from 'lucide-react'
-import { useAuth } from '../Context/AuthContext'
+import { useCanManageProduction } from '../hooks/useCanManageProduction'
 import { useVehicles } from '../Context/VehiclesContext'
 import { useLang } from '../i18n/LanguageContext'
 import { inputCls } from '../Components/FormField'
@@ -35,9 +35,8 @@ function columnKey(col: ModelColumn): string {
 
 export function ExitProductivityMonthlyTab() {
   const { t } = useLang()
-  const { hasRole } = useAuth()
+  const canManage = useCanManageProduction()
   const { vehicles } = useVehicles()
-  const canManage = hasRole('admin', 'production')
 
   const init = currentYm()
   const [year, setYear] = useState(init.year)

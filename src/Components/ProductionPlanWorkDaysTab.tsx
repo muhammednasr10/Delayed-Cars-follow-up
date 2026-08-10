@@ -1,13 +1,13 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import { CalendarDays } from 'lucide-react'
-import { useAuth } from '../Context/AuthContext'
+import { useCanManageProduction } from '../hooks/useCanManageProduction'
 import { useLang } from '../i18n/LanguageContext'
 import { inputCls } from '../Components/FormField'
 import { PLAN_DAY_TYPES, type PlanDayType, type ProductionPlanWorkDayEdit, type ProductionPlanWorkDayRow } from '../Types/productionPlanWorkDayDaily'
 import {
   availableDaysFromRows,
   buildMonthWorkDayRows,
-  computeProductivityDeficit,
+  computeProductivityLostCars,
   dayTypeBadgeClass,
   defaultPlannedHoursForDayType,
   isVacationOrFactoryHoliday,
@@ -22,7 +22,6 @@ import {
   getMonthProductivityDetail,
   getProductionPlanWorkDaysMonth
 } from '../services/productionPlanWorkDayDailyService'
-import { getProductionPlanWorkDays } from '../services/productionPlanWorkDaysService'
 import { formatAuthApiError } from '../services/authService'
 import { getProductionLineStops, aggregateStopsByDate } from '../services/productionStopService'
 import { computeDailyAttendanceEfficiency, getAttendanceDaysForMonth } from '../services/attendanceService'
@@ -38,6 +37,7 @@ import { buildWorkDaysExportRows } from '../Utils/planningExport'
 import type { TableExportColumn } from '../Utils/tableExport'
 import type { EntryProductivityDay } from '../Types/entryProductivity'
 import type { VehicleModel } from '../Types/settings'
+import type { ProductionLineStop } from '../Types/productionStop'
 
 const cell = 'table-cell text-center align-middle'
 const dateStickyHeader = `${cell} sticky start-0 z-10 bg-slate-950/90`
@@ -68,9 +68,9 @@ function formatEfficiency(value: number | null): string {
   return value == null ? '—' : `${value}%`
 }
 
-function formatDeficit(actualHours: number, lineJph: number, productivity: number): string {
-  if (lineJph <= 0 && actualHours <= 0 && productivity <= 0) return '—'
-  return String(computeProductivityDeficit(actualHours, lineJph, productivity))
+function formatLostCars(productivity: number): string {
+  if (productivity <= 0) return '—'
+  return String(computeProductivityLostCars(productivity))
 }
 
 function delayReasonKey(workDate: string, kind: ProductivityDelayKind): string {
@@ -80,9 +80,8 @@ function delayReasonKey(workDate: string, kind: ProductivityDelayKind): string {
 export function ProductionPlanWorkDaysTab({ onAvailableDaysChange, variant = 'summary' }: Props) {
   const isWorkDaysOnly = variant === 'workDays'
   const { t, lang } = useLang()
-  const { hasRole } = useAuth()
-  const canManage = hasRole('admin', 'production')
-  const canEditRows = canManage && isWorkDaysOnly
+  const canManageProduction = useCanManageProduction()
+  const canEditRows = canManageProduction && isWorkDaysOnly
 
   const init = currentYm()
   const [year, setYear] = useState(init.year)
@@ -96,9 +95,11 @@ export function ProductionPlanWorkDaysTab({ onAvailableDaysChange, variant = 'su
     workDate: string
     kind: ProductivityDelayKind
     deficit: number
+    productivity: number
+    stopLostVehicles: number
   } | null>(null)
+  const [monthStops, setMonthStops] = useState<ProductionLineStop[]>([])
   const [productivityModels, setProductivityModels] = useState<VehicleModel[]>([])
-  const [lineJph, setLineJph] = useState(0)
   const [loading, setLoading] = useState(false)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
@@ -113,13 +114,12 @@ export function ProductionPlanWorkDaysTab({ onAvailableDaysChange, variant = 'su
     setError('')
     setSuccess('')
     try {
-      const [saved, productivity, stops, employees, attendanceDays, workConfig] = await Promise.all([
+      const [saved, productivity, stops, employees, attendanceDays] = await Promise.all([
         getProductionPlanWorkDaysMonth(year, month),
         getMonthProductivityDetail(year, month),
         getProductionLineStops(year, month).catch(() => []),
         getEmployees().catch(() => []),
-        getAttendanceDaysForMonth(year, month).catch(() => []),
-        getProductionPlanWorkDays(year, month).catch(() => null)
+        getAttendanceDaysForMonth(year, month).catch(() => [])
       ])
       const activeEmployeeIds = employees.filter(e => e.isActive).map(e => e.id)
       const attendanceEfficiencyByDate = computeDailyAttendanceEfficiency(
@@ -151,8 +151,8 @@ export function ProductionPlanWorkDaysTab({ onAvailableDaysChange, variant = 'su
         reasonsMap.set(delayReasonKey(record.workDate, record.kind), record.reasons)
       }
       setDelayReasonsByKey(reasonsMap)
+      setMonthStops(stops)
       setProductivityModels(productivity.models)
-      setLineJph(workConfig?.lineJph ?? 0)
       setRows(merged)
       onAvailableDaysChange?.(availableDaysFromRows(merged))
     } catch (e) {
@@ -263,11 +263,10 @@ export function ProductionPlanWorkDaysTab({ onAvailableDaysChange, variant = 'su
     () =>
       rows.map(row => ({
         ...row,
-        entryDeficit: computeProductivityDeficit(row.actualHours, lineJph, row.entryProductivity),
-        exitDeficit: computeProductivityDeficit(row.actualHours, lineJph, row.exitProductivity),
-        repairDeficit: computeProductivityDeficit(row.actualHours, lineJph, row.repairProductivity)
+        entryDeficit: computeProductivityLostCars(row.entryProductivity),
+        exitDeficit: computeProductivityLostCars(row.exitProductivity)
       })),
-    [rows, lineJph]
+    [rows]
   )
 
   const totals = useMemo(() => {
@@ -288,8 +287,7 @@ export function ProductionPlanWorkDaysTab({ onAvailableDaysChange, variant = 'su
       stopLostVehicles: displayRows.reduce((sum, row) => sum + row.stopLostVehicles, 0),
       exitProductivity: displayRows.reduce((sum, row) => sum + row.exitProductivity, 0),
       exitDeficit: displayRows.reduce((sum, row) => sum + row.exitDeficit, 0),
-      repairProductivity: displayRows.reduce((sum, row) => sum + row.repairProductivity, 0),
-      repairDeficit: displayRows.reduce((sum, row) => sum + row.repairDeficit, 0)
+      repairProductivity: displayRows.reduce((sum, row) => sum + row.repairProductivity, 0)
     }
   }, [displayRows])
 
@@ -477,7 +475,7 @@ export function ProductionPlanWorkDaysTab({ onAvailableDaysChange, variant = 'su
               <th colSpan={2} className={`${cell} text-xs font-black uppercase text-emerald-300`}>
                 {t('productionOrders.workDaysTab.cols.exitProductivity')}
               </th>
-              <th colSpan={2} className={`${cell} text-xs font-black uppercase text-orange-300`}>
+              <th className={`${cell} text-xs font-black uppercase text-orange-300`}>
                 {t('productionOrders.workDaysTab.cols.repairProductivity')}
               </th>
             </tr>
@@ -502,9 +500,6 @@ export function ProductionPlanWorkDaysTab({ onAvailableDaysChange, variant = 'su
               </th>
               <th className={`${cell} text-[10px] font-black uppercase text-orange-200`}>
                 {t('productionOrders.workDaysTab.cols.productivityQty')}
-              </th>
-              <th className={`${cell} text-[10px] font-black uppercase text-rose-300`}>
-                {t('productionOrders.workDaysTab.cols.deficitShort')}
               </th>
             </tr>
               </>
@@ -610,10 +605,18 @@ export function ProductionPlanWorkDaysTab({ onAvailableDaysChange, variant = 'su
                 <td className={`${cell} border-e border-slate-800 font-black text-rose-300`}>
                   <ProductivityDeficitCell
                     deficit={row.entryDeficit}
-                    display={formatDeficit(row.actualHours, lineJph, row.entryProductivity)}
+                    display={formatLostCars(row.entryProductivity)}
                     workDate={row.workDate}
                     kind="entry"
-                    onShowReasons={(date, kind, deficit) => setLossReasonsModal({ workDate: date, kind, deficit })}
+                    onShowReasons={(date, kind, deficit) =>
+                      setLossReasonsModal({
+                        workDate: date,
+                        kind,
+                        deficit,
+                        productivity: row.entryProductivity,
+                        stopLostVehicles: row.stopLostVehicles
+                      })
+                    }
                   />
                 </td>
                 <td className={`${cell} font-black text-emerald-300`}>
@@ -628,10 +631,18 @@ export function ProductionPlanWorkDaysTab({ onAvailableDaysChange, variant = 'su
                 <td className={`${cell} border-e border-slate-800 font-black text-rose-300`}>
                   <ProductivityDeficitCell
                     deficit={row.exitDeficit}
-                    display={formatDeficit(row.actualHours, lineJph, row.exitProductivity)}
+                    display={formatLostCars(row.exitProductivity)}
                     workDate={row.workDate}
                     kind="exit"
-                    onShowReasons={(date, kind, deficit) => setLossReasonsModal({ workDate: date, kind, deficit })}
+                    onShowReasons={(date, kind, deficit) =>
+                      setLossReasonsModal({
+                        workDate: date,
+                        kind,
+                        deficit,
+                        productivity: row.exitProductivity,
+                        stopLostVehicles: row.stopLostVehicles
+                      })
+                    }
                   />
                 </td>
                 <td className={`${cell} font-black text-orange-300`}>
@@ -642,15 +653,6 @@ export function ProductionPlanWorkDaysTab({ onAvailableDaysChange, variant = 'su
                   ) : (
                     '—'
                   )}
-                </td>
-                <td className={`${cell} font-black text-rose-300`}>
-                  <ProductivityDeficitCell
-                    deficit={row.repairDeficit}
-                    display={formatDeficit(row.actualHours, lineJph, row.repairProductivity)}
-                    workDate={row.workDate}
-                    kind="repair"
-                    onShowReasons={(date, kind, deficit) => setLossReasonsModal({ workDate: date, kind, deficit })}
-                  />
                 </td>
                   </>
                 )}
@@ -684,7 +686,7 @@ export function ProductionPlanWorkDaysTab({ onAvailableDaysChange, variant = 'su
                   )}
                 </td>
                 <td className={`${cell} border-e border-slate-800 text-rose-300`}>
-                  {lineJph > 0 || totals.actualHours || totals.entryProductivity ? (
+                  {totals.entryProductivity ? (
                     totals.entryDeficit > 0 ? (
                       <span className="font-black text-red-400">{totals.entryDeficit}</span>
                     ) : (
@@ -704,7 +706,7 @@ export function ProductionPlanWorkDaysTab({ onAvailableDaysChange, variant = 'su
                   )}
                 </td>
                 <td className={`${cell} border-e border-slate-800 text-rose-300`}>
-                  {lineJph > 0 || totals.actualHours || totals.exitProductivity ? (
+                  {totals.exitProductivity ? (
                     totals.exitDeficit > 0 ? (
                       <span className="font-black text-red-400">{totals.exitDeficit}</span>
                     ) : (
@@ -719,17 +721,6 @@ export function ProductionPlanWorkDaysTab({ onAvailableDaysChange, variant = 'su
                     <ProductivityBreakdownHover breakdown={monthBreakdown} kind="repair" className="text-orange-300">
                       {totals.repairProductivity}
                     </ProductivityBreakdownHover>
-                  ) : (
-                    '—'
-                  )}
-                </td>
-                <td className={`${cell} text-rose-300`}>
-                  {lineJph > 0 || totals.actualHours || totals.repairProductivity ? (
-                    totals.repairDeficit > 0 ? (
-                      <span className="font-black text-red-400">{totals.repairDeficit}</span>
-                    ) : (
-                      totals.repairDeficit
-                    )
                   ) : (
                     '—'
                   )}
@@ -751,7 +742,9 @@ export function ProductionPlanWorkDaysTab({ onAvailableDaysChange, variant = 'su
           open
           workDate={lossReasonsModal.workDate}
           kind={lossReasonsModal.kind}
-          deficit={lossReasonsModal.deficit}
+          productivity={lossReasonsModal.productivity}
+          stopLostVehicles={lossReasonsModal.stopLostVehicles}
+          stops={monthStops}
           reasons={delayReasonsByKey.get(delayReasonKey(lossReasonsModal.workDate, lossReasonsModal.kind)) ?? ''}
           onClose={() => setLossReasonsModal(null)}
         />
@@ -809,9 +802,9 @@ function SummaryPill({
               : 'text-white'
 
   return (
-    <div className={`min-w-0 rounded-xl border px-3 py-2 ${borderCls}`}>
+    <div className={`min-w-0 rounded-xl border px-3 py-2 text-center ${borderCls}`}>
       <p className={`truncate text-xs font-bold ${labelCls}`}>{label}</p>
-      <p className={`text-lg font-black ${valueCls}`}>{value}</p>
+      <p className={`text-lg font-black tabular-nums ${valueCls}`}>{value}</p>
       {hint && <p className="mt-0.5 text-[10px] text-slate-500">{hint}</p>}
     </div>
   )

@@ -217,7 +217,14 @@ export function useDepartmentNavPages() {
         key,
         label: t(`settings.tabs.${key}`),
         visible: canAccessSettings,
-        onClick: () => navTo({ department: 'production', productionArea: 'assembly', productionPage: 'settings', settingsTab: key })
+        onClick: () =>
+          navTo({
+            department: 'production',
+            productionArea: 'assembly',
+            productionPage: 'settings',
+            settingsTab: key,
+            ...(key === 'stations' ? { settingsStationsSubTab: 'assemblyLine' as const } : {})
+          })
       })).filter(c => c.visible !== false)
     }),
     [canAccessSettings, navTo, t]
@@ -292,7 +299,7 @@ export function useDepartmentNavPages() {
         label: t('productionOrders.title'),
         icon: ClipboardList,
         visible: navLoading || canViewPage(pagePermForPlanning('plan')),
-        onNavigate: () => navTo({ department: 'planning', planningTab: 'plan' })
+        onNavigate: () => navTo({ department: 'planning', planningTab: 'plan', planScope: 'hub' })
       },
       {
         key: 'workDays',

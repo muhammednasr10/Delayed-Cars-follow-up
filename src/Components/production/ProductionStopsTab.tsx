@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { AlertOctagon, Pencil, Plus, Trash2 } from 'lucide-react'
-import { useAuth } from '../../Context/AuthContext'
+import { useCanManageProduction } from '../../hooks/useCanManageProduction'
 import { useNavigation } from '../../Context/NavigationContext'
 import { useLang } from '../../i18n/LanguageContext'
 import { useMpLookups } from '../../hooks/useMpLookups'
@@ -61,10 +61,9 @@ function isSchemaMissing(message: string): boolean {
 
 export function ProductionStopsTab() {
   const { t, lang } = useLang()
-  const { hasRole } = useAuth()
   const { productivityStopFormOpen, setProductivityStopFormOpen } = useNavigation()
   const { departments, addDepartment } = useMpLookups()
-  const canManage = hasRole('admin', 'production')
+  const canManage = useCanManageProduction()
 
   const init = currentYm()
   const [year, setYear] = useState(init.year)

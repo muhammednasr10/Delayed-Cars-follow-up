@@ -9,6 +9,7 @@ import {
   withTimeout,
   type AppAuthSession
 } from '../services/authService'
+import { clearSentryUser, setSentryUser } from '../lib/sentry'
 
 export type Profile = {
   id: string
@@ -238,6 +239,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     registerAuthFailureHandler(() => {
       profileLoadedUidRef.current = null
+      clearSentryUser()
       setSession(null)
       setProfile(null)
       setAccessDeniedMessage(SESSION_EXPIRED_MSG_AR)
@@ -268,11 +270,24 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (!uid) {
       profileLoadedUidRef.current = null
       setProfile(null)
+      clearSentryUser()
       return
     }
     if (profileLoadedUidRef.current === uid) return
     void loadProfile(uid)
   }, [session?.user?.id, loadProfile])
+
+  useEffect(() => {
+    if (!session?.user?.id || !profile) {
+      if (!session?.user?.id) clearSentryUser()
+      return
+    }
+    setSentryUser({
+      id: session.user.id,
+      email: profile.email ?? session.user.email,
+      username: profile.full_name ?? profile.employee_full_name
+    })
+  }, [session?.user?.id, session?.user?.email, profile])
 
   async function signIn(email: string, password: string) {
     if (!supabase) return { ok: false, message: 'Supabase غير مهيأ.' }
@@ -291,6 +306,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   async function signOut() {
     profileLoadedUidRef.current = null
     clearSession()
+    clearSentryUser()
     setSession(null)
     setProfile(null)
     setAccessDeniedMessage(null)
@@ -320,7 +336,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       signIn,
       signOut,
       reloadProfile,
-      hasRole: (...roles: UserRole[]) => roles.includes(role),
+      hasRole: (...roles: UserRole[]) => {
+        if (roles.includes(role)) return true
+        if (roles.includes('admin') && profileIsAdmin(profile)) return true
+        if (roles.includes('production')) {
+          const code = profile?.system_role_code
+          return code === 'production_manager' || code === 'supervisor' || code === 'data_entry'
+        }
+        return false
+      },
       isAdmin
     }),
     [configured, loading, session, profile, role, displayRole, systemRoleCode, accessDeniedMessage, isAdmin, reloadProfile]

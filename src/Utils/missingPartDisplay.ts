@@ -112,7 +112,7 @@ export function buildMissingPartTableRows(filtered: MissingPartDetail[]): Missin
     }
   }
 
-  return rows
+  return sortMissingPartTableRows(rows)
 }
 
 export function partsFromTableRow(row: MissingPartTableRow): MissingPartDetail[] {
@@ -123,4 +123,27 @@ export function partsFromTableRow(row: MissingPartTableRow): MissingPartDetail[]
 
 export function vehicleIdsFromTableRow(row: MissingPartTableRow): string[] {
   return [...new Set(partsFromTableRow(row).map(p => p.vehicleId))]
+}
+
+function modelNameForTableRow(row: MissingPartTableRow): string {
+  if (row.kind === 'report-group') return row.displayRow.items[0]?.modelName ?? ''
+  if (row.kind === 'vehicle') return row.parts[0]?.modelName ?? ''
+  return row.item.modelName
+}
+
+function primaryVinForTableRow(row: MissingPartTableRow): string {
+  if (row.kind === 'report-group') {
+    const vins = [...new Set(row.displayRow.items.map(i => i.vin))].sort((a, b) => a.localeCompare(b))
+    return vins[0] ?? ''
+  }
+  if (row.kind === 'vehicle') return row.parts[0]?.vin ?? ''
+  return row.item.vin
+}
+
+function sortMissingPartTableRows(rows: MissingPartTableRow[]): MissingPartTableRow[] {
+  return [...rows].sort((a, b) => {
+    const modelCmp = modelNameForTableRow(a).localeCompare(modelNameForTableRow(b), 'ar', { sensitivity: 'base' })
+    if (modelCmp !== 0) return modelCmp
+    return primaryVinForTableRow(a).localeCompare(primaryVinForTableRow(b), undefined, { numeric: true })
+  })
 }

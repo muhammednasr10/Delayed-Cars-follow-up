@@ -1,20 +1,12 @@
 import { useEffect, useState } from 'react'
 import { Pencil } from 'lucide-react'
 import { useLang } from '../i18n/LanguageContext'
-import { useAuth } from '../Context/AuthContext'
 import { Modal } from './Modal'
-import { StationAutocomplete } from './StationAutocomplete'
-import { setVehicleStation, updateMissingPartRecord } from '../services/missingPartsService'
-import { getStations } from '../services/stationService'
+import { updateMissingPartRecord } from '../services/missingPartsService'
 import type { ReportGroupContext } from '../Types/missingPart'
-import type { PriorityLevel, StopperType } from '../Types/enums'
-import type { Station } from '../Types/settings'
 import { useMpLookups } from '../hooks/useMpLookups'
 import { useFormatError } from '../hooks/useFormatError'
 import { MpLookupSelect } from './MpLookupSelect'
-
-const PRIORITIES: PriorityLevel[] = ['low', 'normal', 'high', 'critical']
-const STOPPER_TYPES: StopperType[] = ['line_stopper', 'car_stopper']
 
 type Props = {
   group: ReportGroupContext | null
@@ -26,14 +18,9 @@ export function EditReportGroupModal({ group, onClose, onSaved }: Props) {
   const { t } = useLang()
   const { reasons, departments } = useMpLookups()
   const formatError = useFormatError()
-  const { hasRole } = useAuth()
-  const canCreateStation = hasRole('admin', 'production', 'warehouse')
-  const [station, setStation] = useState<Station | null>(null)
   const [partDescription, setPartDescription] = useState('')
   const [reason, setReason] = useState('')
   const [department, setDepartment] = useState('')
-  const [priority, setPriority] = useState<PriorityLevel>('normal')
-  const [stopperType, setStopperType] = useState<StopperType>('car_stopper')
   const [notes, setNotes] = useState('')
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
@@ -45,16 +32,8 @@ export function EditReportGroupModal({ group, onClose, onSaved }: Props) {
     setPartDescription(sample.partDescription)
     setReason(sample.reason)
     setDepartment(sample.department)
-    setPriority(sample.priority)
-    setStopperType(sample.stopperType)
     setNotes(sample.notes ?? '')
     setError('')
-    getStations()
-      .then(list => {
-        const sid = sample.stationId
-        setStation(sid ? list.find(s => s.id === sid) ?? null : null)
-      })
-      .catch(() => setStation(null))
   }, [group, sample])
 
   if (!group || !sample) return null
@@ -68,13 +47,6 @@ export function EditReportGroupModal({ group, onClose, onSaved }: Props) {
       return
     }
 
-    const stationDirty = station != null && (station.id ?? null) !== (sample.stationId ?? null)
-    const effectiveStationId = station?.id ?? sample.stationId ?? null
-    if (!group.allowArchived && stationDirty && !effectiveStationId) {
-      setError(t('station.notFound'))
-      return
-    }
-
     setBusy(true)
     setError('')
     try {
@@ -84,13 +56,10 @@ export function EditReportGroupModal({ group, onClose, onSaved }: Props) {
           requiredQty: part.requiredQty,
           reason,
           department,
-          priority,
-          stopperType,
+          priority: part.priority,
+          stopperType: part.stopperType,
           notes
         })
-        if (stationDirty && effectiveStationId && part.stationId !== effectiveStationId) {
-          await setVehicleStation(part.vehicleId, effectiveStationId)
-        }
       }
       onSaved()
       onClose()
@@ -145,12 +114,6 @@ export function EditReportGroupModal({ group, onClose, onSaved }: Props) {
           </ul>
         </div>
 
-        <label className="block text-xs font-bold text-slate-400">{t('mp.f.station')}</label>
-        <StationAutocomplete value={station} onSelect={setStation} canCreate={canCreateStation} />
-
-        <label className="block text-xs font-bold text-slate-400">{t('mp.cols.reason')}</label>
-        <input className="input-dark w-full" value={partDescription} onChange={e => setPartDescription(e.target.value)} />
-
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
           <div>
             <label className="mb-1 block text-xs font-bold text-slate-400">{t('mp.cols.reasonClass')}</label>
@@ -162,28 +125,8 @@ export function EditReportGroupModal({ group, onClose, onSaved }: Props) {
           </div>
         </div>
 
-        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-          <div>
-            <label className="mb-1 block text-xs font-bold text-slate-400">{t('mp.f.priority')}</label>
-            <select className="input-dark w-full" value={priority} onChange={e => setPriority(e.target.value as PriorityLevel)}>
-              {PRIORITIES.map(p => (
-                <option key={p} value={p}>
-                  {t(`priority.${p}`)}
-                </option>
-              ))}
-            </select>
-          </div>
-          <div>
-            <label className="mb-1 block text-xs font-bold text-slate-400">{t('mp.f.stopper')}</label>
-            <select className="input-dark w-full" value={stopperType} onChange={e => setStopperType(e.target.value as StopperType)}>
-              {STOPPER_TYPES.map(s => (
-                <option key={s} value={s}>
-                  {t(`stopper.${s}`)}
-                </option>
-              ))}
-            </select>
-          </div>
-        </div>
+        <label className="block text-xs font-bold text-slate-400">{t('mp.cols.reason')}</label>
+        <input className="input-dark w-full" value={partDescription} onChange={e => setPartDescription(e.target.value)} />
 
         <label className="block text-xs font-bold text-slate-400">{t('mp.f.notes')}</label>
         <textarea className="input-dark w-full" rows={2} value={notes} onChange={e => setNotes(e.target.value)} />

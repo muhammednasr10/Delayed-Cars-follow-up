@@ -92,6 +92,7 @@ export function useProductionHubSections(refreshKey = 0) {
             productionPage: 'vehicles',
             productivityTab: 'productivity'
           }),
+        statsLayout: 'productivity-pairs',
         stats: [
           { label: t('home.entryProductivityVehicles'), value: productivityLoading ? '…' : String(entryVehicles) },
           { label: t('home.entryProductivityEfficiency'), value: formatEfficiencyPct(entryEfficiency, productivityLoading) },

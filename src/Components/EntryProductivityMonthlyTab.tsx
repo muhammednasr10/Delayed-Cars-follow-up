@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { CalendarDays } from 'lucide-react'
-import { useAuth } from '../Context/AuthContext'
+import { useCanManageProduction } from '../hooks/useCanManageProduction'
 import { useVehicles } from '../Context/VehiclesContext'
 import { useLang } from '../i18n/LanguageContext'
 import { useEmployees } from '../hooks/useEmployees'
@@ -37,11 +37,10 @@ function columnKey(col: ModelColumn): string {
 
 export function EntryProductivityMonthlyTab() {
   const { t } = useLang()
-  const { hasRole } = useAuth()
   const { vehicles } = useVehicles()
   const { employees } = useEmployees()
   const { filterRecords, isScopedView, scopeLabel } = useFactoryOrgScope(employees)
-  const canManage = hasRole('admin', 'production')
+  const canManage = useCanManageProduction()
   const scopedVehicles = useMemo(() => filterRecords(vehicles), [vehicles, filterRecords])
 
   const init = currentYm()

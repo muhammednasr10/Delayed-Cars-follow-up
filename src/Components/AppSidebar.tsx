@@ -22,7 +22,9 @@ import {
   pagePermForEngineering,
   pagePermForPlanning,
   pagePermForProduction,
-  pagePermForWarehouses
+  pagePermForQuality,
+  pagePermForWarehouses,
+  canViewAnyWarehousesPage
 } from '../config/pageAccess'
 import { useNavigation } from '../Context/NavigationContext'
 import { DEPARTMENTS, departmentAccentClass } from '../config/departments'
@@ -43,7 +45,7 @@ type SidebarPage = {
 
 export function AppSidebar() {
   const { t } = useLang()
-  const { loading: permsLoading } = usePermissions()
+  const { loading: permsLoading, canViewModule } = usePermissions()
   const { canAccess: canAccessSettings } = useCanAccessSettings()
   const { canViewPage, loading: pagesLoading } = useCanViewPage()
   const { profile } = useAuth()
@@ -72,6 +74,9 @@ export function AppSidebar() {
   const canShowEngineeringIpl = canAccessSettings || canViewPage(pagePermForEngineering('ipl'))
   const canShowLineBalancing = navLoading || canViewPage(pagePermForEngineering('lineBalancing'))
   const canShowSop = navLoading || canViewPage(pagePermForEngineering('sop'))
+  const canViewQuality = navLoading || canViewPage(pagePermForQuality())
+  const canViewWarehouses = navLoading || canViewAnyWarehousesPage(canViewPage)
+  const canViewHr = navLoading || canViewModule('employees')
 
   const go = nav.navigate
 
@@ -315,7 +320,7 @@ export function AppSidebar() {
     {
       key: 'employees',
       label: t('training.tabs.org'),
-      visible: navLoading || canViewPage(pagePermForProduction('training')),
+      visible: canViewHr,
       onNavigate: () => sidebarNav({ department: 'hr' })
     }
   ]
@@ -324,7 +329,7 @@ export function AppSidebar() {
     {
       key: 'notes',
       label: t('qualityNotes.title'),
-      visible: true,
+      visible: canViewQuality,
       onNavigate: () => sidebarNav({ department: 'quality', qualityTab: 'record' }),
       children: (['record', 'study'] as const).map(key => ({
         key,
@@ -492,7 +497,12 @@ export function AppSidebar() {
             {t('myProfile.title')}
           </button>
 
-          {DEPARTMENTS.map(dept => {
+          {DEPARTMENTS.filter(dept => {
+            if (dept.id === 'quality') return canViewQuality
+            if (dept.id === 'hr') return canViewHr
+            if (dept.id === 'warehouses') return canViewWarehouses
+            return true
+          }).map(dept => {
             const Icon = dept.icon
             const deptSelected =
               !nav.showProfile &&

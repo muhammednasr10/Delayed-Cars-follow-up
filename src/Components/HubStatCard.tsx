@@ -1,4 +1,4 @@
-import { Plus } from 'lucide-react'
+import { LogIn, LogOut, Plus } from 'lucide-react'
 import type { HubCard } from './DepartmentHub'
 import { useLang } from '../i18n/LanguageContext'
 
@@ -156,6 +156,102 @@ type Props = {
   card: HubCard
 }
 
+function StackStats({
+  stats,
+  theme
+}: {
+  stats: { label: string; value: string | number }[]
+  theme: (typeof themes)[HubCardAccent]
+}) {
+  const [primary, secondary] = stats
+
+  return (
+    <div className="mt-5 flex flex-1 flex-col gap-2.5">
+      {primary && (
+        <div className={`rounded-xl border px-4 py-4 text-center ${theme.statBox}`}>
+          <p className={`text-[10px] font-bold uppercase tracking-wider ${theme.statLabel}`}>{primary.label}</p>
+          <p className={`mt-2 font-black tabular-nums leading-none tracking-tight ${theme.statValue} text-4xl`}>
+            {primary.value}
+          </p>
+        </div>
+      )}
+      {secondary && (
+        <div className={`rounded-xl border px-4 py-3 text-center ${theme.statBox}`}>
+          <p className={`text-[10px] font-bold uppercase tracking-wider ${theme.statLabel}`}>{secondary.label}</p>
+          <p className={`mt-1.5 font-black tabular-nums leading-none tracking-tight ${theme.statValue} text-2xl`}>
+            {secondary.value}
+          </p>
+        </div>
+      )}
+    </div>
+  )
+}
+
+function ProductivityPairStats({
+  stats,
+  theme,
+  t
+}: {
+  stats: { label: string; value: string | number }[]
+  theme: (typeof themes)[HubCardAccent]
+  t: (key: string) => string
+}) {
+  const [entryVehicles, entryEfficiency, exitVehicles, exitEfficiency] = stats
+
+  const columns = [
+    {
+      key: 'entry',
+      title: t('home.entryProductivityShort'),
+      icon: LogIn,
+      iconTone: 'text-emerald-300',
+      vehicles: entryVehicles,
+      efficiency: entryEfficiency
+    },
+    {
+      key: 'exit',
+      title: t('home.exitProductivityShort'),
+      icon: LogOut,
+      iconTone: 'text-cyan-300',
+      vehicles: exitVehicles,
+      efficiency: exitEfficiency
+    }
+  ]
+
+  return (
+    <div className="mt-5 grid flex-1 grid-cols-2 gap-2.5">
+      {columns.map(col => {
+        const Icon = col.icon
+        return (
+          <div key={col.key} className={`flex flex-col rounded-xl border ${theme.statBox} overflow-hidden`}>
+            <div className="flex items-center gap-1.5 border-b border-white/5 px-3 py-2">
+              <Icon className={`h-3.5 w-3.5 shrink-0 ${col.iconTone}`} strokeWidth={2.5} />
+              <p className={`truncate text-[10px] font-black ${theme.statLabel}`}>{col.title}</p>
+            </div>
+            <div className="flex flex-1 flex-col divide-y divide-white/5">
+              <div className="px-3 py-3 text-center">
+                <p className={`text-[9px] font-bold uppercase tracking-wider ${theme.statLabel}`}>
+                  {t('home.productivityVehiclesShort')}
+                </p>
+                <p className={`mt-1 font-black tabular-nums leading-none ${theme.statValue} text-2xl sm:text-3xl`}>
+                  {col.vehicles?.value ?? '—'}
+                </p>
+              </div>
+              <div className="px-3 py-2.5 text-center">
+                <p className={`text-[9px] font-bold uppercase tracking-wider ${theme.statLabel}`}>
+                  {t('home.productivityEfficiencyShort')}
+                </p>
+                <p className={`mt-1 font-black tabular-nums leading-none ${theme.statValue} text-xl`}>
+                  {col.efficiency?.value ?? '—'}
+                </p>
+              </div>
+            </div>
+          </div>
+        )
+      })}
+    </div>
+  )
+}
+
 export function HubStatCard({ card }: Props) {
   const { t, dir } = useLang()
   const accent = card.accent && card.accent in themes ? card.accent : 'cyan'
@@ -193,6 +289,11 @@ export function HubStatCard({ card }: Props) {
         </div>
 
         {stats.length > 0 ? (
+          card.statsLayout === 'stack' ? (
+            <StackStats stats={stats} theme={theme} />
+          ) : card.statsLayout === 'productivity-pairs' ? (
+            <ProductivityPairStats stats={stats} theme={theme} t={t} />
+          ) : (
           <div
             className={`mt-5 grid flex-1 content-start gap-2.5 ${
               compactStats
@@ -215,6 +316,7 @@ export function HubStatCard({ card }: Props) {
               </div>
             ))}
           </div>
+          )
         ) : card.description ? (
           <div className={`mt-5 flex flex-1 items-center rounded-xl border px-4 py-4 ${theme.statBox}`}>
             <p className={`text-sm font-bold leading-relaxed ${theme.statLabel}`}>{card.description}</p>

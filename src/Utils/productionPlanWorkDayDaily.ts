@@ -82,6 +82,19 @@ export function mergeProductivityIntoRows(
   }))
 }
 
+/** الهدف اليومي لإنتاجية الدخول/الخروج — السيارات الضائعة = الهدف − الإنتاجية */
+export const DAILY_PRODUCTIVITY_TARGET = 75
+
+export function computeProductivityLostCars(productivity: number): number {
+  if (productivity <= 0) return 0
+  return Math.max(0, DAILY_PRODUCTIVITY_TARGET - productivity)
+}
+
+/** الباقي من الضائع بعد خصم سيارات التوقفات */
+export function computeProductivityLossRemainder(productivity: number, stopLostVehicles: number): number {
+  return Math.max(0, computeProductivityLostCars(productivity) - stopLostVehicles)
+}
+
 export function computeProductivityDeficit(
   actualHours: number,
   lineJph: number,

@@ -1,4 +1,5 @@
 import type { VehicleModel } from '../Types/settings'
+import type { ModelPlanTarget } from '../Types/modelProductionPlan'
 import {
   buildModelFamilyGroups,
   inferParentNameFromVariant,
@@ -80,7 +81,10 @@ function buildFamilyGroup(
   const variantIds = variants.map(v => v.id)
   const entryMode = resolvePlanEntryMode(familyId, variantIds, planTargets)
   const variantRows = variants.map(v => variantRow(v, planTargets, achievedByModelId, wipCarryover))
-  const achieved = variantRows.reduce((s, v) => s + v.achieved, 0)
+  const familyExit = achievedByModelId.get(familyId) ?? 0
+  const familyListedAsVariant = variantRows.some(v => v.modelId === familyId)
+  const achieved =
+    variantRows.reduce((sum, row) => sum + row.achieved, 0) + (familyListedAsVariant ? 0 : familyExit)
   const familyTarget = planTargets.get(familyId) ?? 0
   const variantSum = variantRows.reduce((s, v) => s + (v.modelId === familyId ? 0 : v.planned), 0)
   const planned =
@@ -206,6 +210,87 @@ export function buildPlanSummaryRows(
 export function planProgressPercent(planned: number, achieved: number): number {
   if (planned <= 0) return achieved > 0 ? 100 : 0
   return Math.min(100, Math.round((achieved / planned) * 100))
+}
+
+/** إنتاجية الخروج اليومية مجمّعة حسب model_id */
+export function buildAchievedByModelIdFromExitRecords(
+  exitRecords: { modelId: string; quantity: number }[]
+): Map<string, number> {
+  const map = new Map<string, number>()
+  for (const row of exitRecords) {
+    map.set(row.modelId, (map.get(row.modelId) ?? 0) + (row.quantity || 0))
+  }
+  return map
+}
+
+function mergeFamilyGroup(existing: PlanFamilyGroup, group: PlanFamilyGroup): void {
+  existing.planned += group.planned
+  existing.achieved += group.achieved
+  existing.wipCarryover += group.wipCarryover
+  for (const variant of group.variants) {
+    const row = existing.variants.find(v => v.modelId === variant.modelId)
+    if (row) {
+      row.planned += variant.planned
+      row.achieved += variant.achieved
+      row.wipCarryover += variant.wipCarryover
+    } else {
+      existing.variants.push({ ...variant })
+    }
+  }
+}
+
+/** الخطة السنوية = مجموع خطط الأشهر 1–12 + إنتاجية الخروج لكل شهر */
+export function buildAnnualSectionsFromMonthlyPlans(
+  allModels: VehicleModel[],
+  yearMonthlyTargets: ModelPlanTarget[],
+  yearExitRecords: { modelId: string; workDate: string; quantity: number }[] = []
+): PlanSection[] {
+  const byMonth = new Map<number, ModelPlanTarget[]>()
+  for (const target of yearMonthlyTargets) {
+    const list = byMonth.get(target.planMonth) ?? []
+    list.push(target)
+    byMonth.set(target.planMonth, list)
+  }
+
+  const exitByMonth = new Map<number, { modelId: string; workDate: string; quantity: number }[]>()
+  for (const record of yearExitRecords) {
+    const month = Number(record.workDate.slice(5, 7))
+    if (!Number.isFinite(month) || month < 1 || month > 12) continue
+    const list = exitByMonth.get(month) ?? []
+    list.push(record)
+    exitByMonth.set(month, list)
+  }
+
+  const merged = new Map<string, PlanFamilyGroup>()
+
+  for (let month = 1; month <= 12; month++) {
+    const planTargets = new Map<string, number>()
+    for (const target of byMonth.get(month) ?? []) {
+      planTargets.set(target.modelId, target.targetQty)
+    }
+
+    const achievedByModelId = buildAchievedByModelIdFromExitRecords(exitByMonth.get(month) ?? [])
+    const sections = buildPlanSections(allModels, planTargets, achievedByModelId)
+    for (const { group } of sections) {
+      if (group.planned <= 0 && group.achieved <= 0) continue
+
+      const existing = merged.get(group.key)
+      if (!existing) {
+        merged.set(group.key, {
+          ...group,
+          wipCarryover: 0,
+          variants: group.variants.map(v => ({ ...v, wipCarryover: 0 }))
+        })
+        continue
+      }
+
+      mergeFamilyGroup(existing, group)
+    }
+  }
+
+  return [...merged.values()]
+    .sort((a, b) => a.label.localeCompare(b.label, 'ar'))
+    .map(group => ({ kind: 'family' as const, group }))
 }
 
 export function tallyAchievedByModel(vehicles: { modelId?: string | null }[]): Map<string, number> {
