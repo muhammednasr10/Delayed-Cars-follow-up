@@ -1611,6 +1611,13 @@ export const translations = {
         variantsSubtitle: '{n} سيارة',
         openVariants: 'عرض موديلات الفرع'
       },
+      modelReasonMatrix: {
+        title: 'تصنيف أسباب النقص لكل موديل',
+        hint: 'عدد السيارات لكل موديل حسب تصنيف السبب، وتحته عدد سجلات النقص (مع احترام الفلاتر).',
+        total: 'الإجمالي',
+        cellHint: '{vehicles} سيارة · {lines} سجل نقص',
+        linesShort: '{n} سجل'
+      },
       familyCards: {
         hint: 'اضغط على كارت الموديل الأب لعرض الفروع، ثم اضغط على الفرع لعرض تفاصيل السيارات. من كل سيارة يمكنك التحديث أو التعديل أو الأرشفة أو الملاحظات.',
         vehicles: 'سيارة',
@@ -1693,17 +1700,30 @@ export const translations = {
       summary: {
         title: 'ملخص النواقص الحالية',
         hint: 'نظرة عامة على السيارات المفتوحة والأسباب والأقسام والمحطات — مع احترام الفلاتر أعلاه.',
+        hintDetailed:
+          'جداول تفصيلية: الإجمالي، الموديل × تصنيف السبب، ثم تفصيل حسب الموديل والسبب والوصف والقسم والمبلّغ — مع احترام الفلاتر.',
         archiveTitle: 'ملخص الأرشيف',
         archiveHint: 'نظرة عامة على السيارات المنتهية والأسباب والأقسام والمحطات — مع احترام الفلاتر أعلاه.',
+        archiveHintDetailed:
+          'جداول تفصيلية للأرشيف حسب الموديل وتصنيف السبب ووصف النقص والقسم والمبلّغ — مع احترام الفلاتر.',
+        overview: 'الإجماليات',
+        tableHint: 'مرتّب تنازلياً حسب عدد سجلات النقص.',
         vehicles: 'سيارات',
         lines: 'سجلات النقص',
+        remainingQty: 'كمية متبقية',
         pendingVehicles: 'سيارات بكميات متبقية',
         pendingLines: 'سجلات بكميات متبقية',
         readyArchive: 'جاهزة للأرشفة',
+        share: 'النسبة %',
         byModel: 'حسب الموديل',
         byDepartment: 'حسب القسم المسؤول',
         byReason: 'حسب تصنيف السبب',
-        byStation: 'أكثر المحطات'
+        byPart: 'حسب وصف السبب',
+        byReporter: 'حسب المبلّغ',
+        byStation: 'حسب المحطة',
+        total: 'الإجمالي',
+        partByModelHint: 'الكميات المطلوبة لكل موديل حسب وصف السبب، مع عمود الإجمالي.',
+        dimByModelHint: 'الكميات المطلوبة لكل موديل، مع عمود الإجمالي.'
       },
       actionsHint:
         'حدّد سيارات من عمود التحديد أو «تحديد الكل»، ثم نفّذ إجراءً جماعياً. بجانب الشاسيه: «انتهاء من السيارة» · عمود «إجراءات»: تعديل · تحديث · حذف.',
@@ -1774,7 +1794,7 @@ export const translations = {
         status: 'الحالة',
         dr: 'DR',
         stopper: 'نوع الإيقاف',
-        createdBy: 'أدخلها',
+        createdBy: 'المبلّغ',
         createdAt: 'التاريخ',
         actions: '',
         resolvedAt: 'تاريخ الإنهاء'
@@ -4824,6 +4844,13 @@ export const translations = {
         variantsSubtitle: '{n} vehicles',
         openVariants: 'Show variant models'
       },
+      modelReasonMatrix: {
+        title: 'Shortage reason classes by model',
+        hint: 'Vehicle counts per model and reason class, with shortage lines underneath (respects filters).',
+        total: 'Total',
+        cellHint: '{vehicles} vehicles · {lines} shortage lines',
+        linesShort: '{n} lines'
+      },
       familyCards: {
         hint: 'Tap a parent model card to see variants, then tap a variant for vehicle details. Use the action icons on each vehicle to update, edit, archive, or add notes.',
         vehicles: 'vehicles',
@@ -4907,17 +4934,30 @@ export const translations = {
       summary: {
         title: 'Current shortages overview',
         hint: 'Open vehicles, reasons, departments and stations — respects the filters above.',
+        hintDetailed:
+          'Detailed tables: totals, model × reason class, then breakdowns by model, reason, description, department and reporter — respects filters.',
         archiveTitle: 'Archive overview',
         archiveHint: 'Completed vehicles, reasons, departments and stations — respects the filters above.',
+        archiveHintDetailed:
+          'Detailed archive tables by model, reason class, description, department and reporter — respects filters.',
+        overview: 'Totals',
+        tableHint: 'Sorted by shortage line count (descending).',
         vehicles: 'Vehicles',
         lines: 'Shortage lines',
+        remainingQty: 'Remaining qty',
         pendingVehicles: 'Vehicles with remaining qty',
         pendingLines: 'Lines with remaining qty',
         readyArchive: 'Ready to archive',
+        share: 'Share %',
         byModel: 'By model',
         byDepartment: 'By department',
         byReason: 'By reason class',
-        byStation: 'Top stations'
+        byPart: 'By reason description',
+        byReporter: 'By reporter',
+        byStation: 'By station',
+        total: 'Total',
+        partByModelHint: 'Required quantities per model for each reason description, with a total column.',
+        dimByModelHint: 'Required quantities per model, with a total column.'
       },
       actionsHint:
         'Next to VIN: «Complete vehicle». In «Actions»: Edit · Update · Delete. Use the Active tab, not Archive.',
@@ -4988,7 +5028,7 @@ export const translations = {
         status: 'Status',
         dr: 'DR',
         stopper: 'Stopper',
-        createdBy: 'Entered by',
+        createdBy: 'Reporter',
         createdAt: 'Date',
         actions: '',
         resolvedAt: 'Completed at'

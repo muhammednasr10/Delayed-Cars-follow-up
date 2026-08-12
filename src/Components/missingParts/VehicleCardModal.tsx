@@ -41,7 +41,7 @@ export function VehicleCardModal({
 
   if (!parts?.length) return null
   const rep = parts[0]
-  const archived = parts.some(p => !!p.shortageResolvedAt)
+  const transferred = parts.some(p => !!p.transferredAt)
 
   return (
     <Modal
@@ -59,7 +59,7 @@ export function VehicleCardModal({
             <span className="font-mono text-lg font-black text-cyan-100" dir="ltr">
               {rep.vin}
             </span>
-            {archived && (
+            {transferred && (
               <span className="rounded-full bg-emerald-500/15 px-2 py-0.5 text-[11px] font-black text-emerald-200">
                 {t('mp.vehicleCard.archiveBadge')}
               </span>
@@ -134,7 +134,7 @@ export function VehicleCardModal({
                           {transferringPartId === p.id ? '...' : t('mp.vehicleCard.transferIssue')}
                         </button>
                       )}
-                      {!issueOpen && (
+                      {!!p.transferredAt && (
                         <span className="rounded-full bg-emerald-500/15 px-2 py-0.5 text-[10px] font-black text-emerald-200">
                           {t('mp.vehicleCard.archiveBadge')}
                         </span>

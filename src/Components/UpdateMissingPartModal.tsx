@@ -98,8 +98,7 @@ export function UpdateMissingPartModal({ vehicle, onClose, onChanged, onNotify }
       const openOnVehicle = openParts.filter(p => p.vehicleId === part.vehicleId).length
       const result = await transferMissingPartIssue(part.id, {
         vehicleId: part.vehicleId,
-        remainingOpenOnVehicle: openOnVehicle,
-        installDelta: Math.max(0, part.requiredQty - part.installedQty)
+        remainingOpenOnVehicle: openOnVehicle
       })
       if (result.vehicle_archived) {
         onNotify?.(t('mp.vehicleCard.transferIssueArchived', { vin: part.vin }))

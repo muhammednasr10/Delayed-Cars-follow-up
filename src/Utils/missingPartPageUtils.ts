@@ -7,7 +7,7 @@ export const ACTIVE_COLS = [
   'vin',
   'model',
   'color',
-  'orgUnit',
+  'createdBy',
   'qty',
   'reason',
   'reasonClass',
@@ -20,7 +20,7 @@ export const HISTORY_COLS = [
   'vin',
   'model',
   'color',
-  'orgUnit',
+  'createdBy',
   'qty',
   'reason',
   'reasonClass',
@@ -65,6 +65,13 @@ export function applyFilters(items: MissingPartDetail[], filters: MissingPartFil
 export function canCompleteVehicle(vehicleId: string, parts: MissingPartDetail[]): boolean {
   const lines = parts.filter(p => p.vehicleId === vehicleId)
   return lines.some(p => !p.shortageResolvedAt && p.status !== 'closed' && p.status !== 'cancelled')
+}
+
+export function reporterNames(parts: MissingPartDetail[]): string {
+  const names = [
+    ...new Set(parts.map(p => p.createdByName?.trim()).filter((n): n is string => Boolean(n)))
+  ]
+  return names.length > 0 ? names.join(' · ') : '—'
 }
 
 export function uniqueVehicleReps(parts: MissingPartDetail[]): MissingPartDetail[] {

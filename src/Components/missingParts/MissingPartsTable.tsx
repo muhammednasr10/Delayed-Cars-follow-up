@@ -17,6 +17,7 @@ import {
   cell,
   formatDateTime,
   isMissingPartRowOpen,
+  reporterNames,
   uniqueVehicleReps,
   uniqueIssueReps
 } from '../../Utils/missingPartPageUtils'
@@ -32,7 +33,6 @@ type Props = {
   loading: boolean
   reasons: MpLookupOption[]
   departments: MpLookupOption[]
-  orgUnitLabelFor?: (id: string | null | undefined) => string
   canBulkSelect: boolean
   canBulkInstall: boolean
   canExport: boolean
@@ -67,7 +67,6 @@ export function MissingPartsTable({
   loading,
   reasons,
   departments,
-  orgUnitLabelFor = () => '—',
   canBulkSelect,
   canBulkInstall,
   canExport,
@@ -159,7 +158,6 @@ export function MissingPartsTable({
                     filtered={filtered}
                     reasons={reasons}
                     departments={departments}
-                    orgUnitLabelFor={orgUnitLabelFor}
                     canBulkSelect={canBulkSelect}
                     canBulkInstall={canBulkInstall}
                     canEdit={canEdit}
@@ -200,7 +198,6 @@ export function MissingPartsTable({
                     filtered={filtered}
                     reasons={reasons}
                     departments={departments}
-                    orgUnitLabelFor={orgUnitLabelFor}
                     canBulkSelect={canBulkSelect}
                     canBulkInstall={canBulkInstall}
                     canEdit={canEdit}
@@ -235,7 +232,6 @@ export function MissingPartsTable({
                   filtered={filtered}
                   reasons={reasons}
                   departments={departments}
-                  orgUnitLabelFor={orgUnitLabelFor}
                   canBulkSelect={canBulkSelect}
                   canBulkInstall={canBulkInstall}
                   canEdit={canEdit}
@@ -278,7 +274,6 @@ type RowProps = {
   filtered: MissingPartDetail[]
   reasons: MpLookupOption[]
   departments: MpLookupOption[]
-  orgUnitLabelFor: (id: string | null | undefined) => string
   canBulkSelect: boolean
   canBulkInstall: boolean
   canEdit: boolean
@@ -359,7 +354,7 @@ function ReportGroupRow({
         )
       }
       qty={qty}
-      orgUnitLabel={props.orgUnitLabelFor(i.factoryOrgUnitId)}
+      reporterLabel={reporterNames(displayRow.items)}
       reasonCell={
         multiIssues
           ? multiReasonButton(t, uniqueIssues.length, () =>
@@ -402,7 +397,7 @@ function VehicleRows({
       isGroup={false}
       vinCell={<span dir="ltr">{primary.vin}</span>}
       qty={qty}
-      orgUnitLabel={props.orgUnitLabelFor(primary.factoryOrgUnitId)}
+      reporterLabel={reporterNames(parts)}
       reasonCell={
         multi
           ? multiReasonButton(t, parts.length, () => onOpenIssuesList(parts, primary.vin, primary.modelName))
@@ -421,7 +416,6 @@ function VehicleRows({
 
 function SinglePartRow({ item, ...props }: RowProps & { item: MissingPartDetail }) {
   const { lang } = useLang()
-  const orgUnitLabel = props.orgUnitLabelFor(item.factoryOrgUnitId)
 
   return (
     <PartDataRow
@@ -431,7 +425,7 @@ function SinglePartRow({ item, ...props }: RowProps & { item: MissingPartDetail 
       isGroup={false}
       vinCell={<span dir="ltr">{item.vin}</span>}
       qty={{ installed: item.installedQty, required: item.requiredQty }}
-      orgUnitLabel={orgUnitLabel}
+      reporterLabel={reporterNames([item])}
       deleteTargets={[item]}
       reasons={props.reasons}
       departments={props.departments}
@@ -449,7 +443,7 @@ function PartDataRow({
   isGroup,
   vinCell,
   qty,
-  orgUnitLabel,
+  reporterLabel,
   reasonCell,
   reasonClassSummary,
   reasons,
@@ -485,7 +479,7 @@ function PartDataRow({
   isGroup: boolean
   vinCell: ReactNode
   qty: { installed: number; required: number }
-  orgUnitLabel: string
+  reporterLabel: string
   reasonCell?: ReactNode
   reasonClassSummary?: string
   lang: string
@@ -526,7 +520,7 @@ function PartDataRow({
       <td className={`${cell} font-bold text-white`}>
         <span className="inline-flex items-center justify-center gap-2">
           {vinCell}
-          {rowScope.some(p => !!p.shortageResolvedAt) && (
+          {rowScope.some(p => !!p.transferredAt) && (
             <span className="rounded-full bg-emerald-500/15 px-2 py-0.5 text-[11px] font-black text-emerald-200">
               {t('mp.vehicleCard.archiveBadge')}
             </span>
@@ -547,8 +541,8 @@ function PartDataRow({
           '—'
         )}
       </td>
-      <td className={cell} title={orgUnitLabel}>
-        <span className="mx-auto block max-w-[10rem] truncate text-slate-300">{orgUnitLabel}</span>
+      <td className={cell} title={reporterLabel}>
+        <span className="mx-auto block max-w-[10rem] truncate text-slate-300">{reporterLabel}</span>
       </td>
       <td className={cell}>
         <span className="font-mono tabular-nums">

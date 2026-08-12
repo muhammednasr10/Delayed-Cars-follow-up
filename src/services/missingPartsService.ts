@@ -44,6 +44,7 @@ type DetailRow = {
   created_at: string
   updated_at: string
   shortage_resolved_at: string | null
+  transferred_at?: string | null
   report_group_id: string | null
   station_id: string | null
   factory_org_unit_id: string | null
@@ -81,6 +82,7 @@ function mapDetail(row: DetailRow): MissingPartDetail {
     createdAt: row.created_at,
     updatedAt: row.updated_at,
     shortageResolvedAt: row.shortage_resolved_at,
+    transferredAt: row.transferred_at ?? null,
     reportGroupId: row.report_group_id,
     stationId: row.station_id,
     factoryOrgUnitId: row.factory_org_unit_id
@@ -121,10 +123,10 @@ export async function completeVehicleShortage(vehicleId: string): Promise<void> 
   if (error) throw new Error(error.message)
 }
 
-/** ترحيل سبب نقص واحد: يكتمل التركيب ويُغلق السطر؛ إن لم يبقَ مفتوح يُرحَّل السيارة للأرشيف. */
+/** ترحيل سبب نقص واحد: يُغلق السطر ويُعلَّم transferred_at دون تركيب فعلي؛ إن لم يبقَ مفتوح تُأرشف السيارة. */
 export async function transferMissingPartIssue(
   missingPartId: string,
-  options?: { vehicleId?: string; remainingOpenOnVehicle?: number; installDelta?: number }
+  options?: { vehicleId?: string; remainingOpenOnVehicle?: number }
 ): Promise<{ vehicle_id: string; vehicle_archived: boolean }> {
   const { data, error } = await requireClient().rpc('transfer_missing_part_issue', {
     p_missing_part_id: missingPartId
@@ -145,28 +147,29 @@ export async function transferMissingPartIssue(
   const vehicleId = options?.vehicleId
   if (!vehicleId) {
     throw new Error(
-      'دالة ترحيل السبب غير مفعّلة على Supabase. نفّذ migration 0144_transfer_missing_part_issue.sql'
+      'دالة ترحيل السبب غير مفعّلة على Supabase. نفّذ supabase/scripts/apply_missing_part_transferred_at.sql'
     )
   }
 
-  const delta = Math.max(0, options?.installDelta ?? 0)
-  if (delta > 0) await installMissingPart(missingPartId, delta)
-
   const remainingOpen = options?.remainingOpenOnVehicle ?? 1
-  if (remainingOpen <= 1) {
-    await completeVehicleShortage(vehicleId)
-    return { vehicle_id: vehicleId, vehicle_archived: true }
-  }
-
   const { error: closeErr } = await requireClient()
     .from('missing_parts')
-    .update({ status: 'closed', qc_approved: true })
+    .update({
+      status: 'closed',
+      qc_approved: true,
+      transferred_at: new Date().toISOString()
+    })
     .eq('id', missingPartId)
 
   if (closeErr) {
     throw new Error(
-      'دالة ترحيل السبب غير مفعّلة على Supabase. نفّذ migration 0144_transfer_missing_part_issue.sql'
+      'دالة ترحيل السبب غير مفعّلة على Supabase. نفّذ supabase/scripts/apply_missing_part_transferred_at.sql'
     )
+  }
+
+  if (remainingOpen <= 1) {
+    await completeVehicleShortage(vehicleId)
+    return { vehicle_id: vehicleId, vehicle_archived: true }
   }
 
   return { vehicle_id: vehicleId, vehicle_archived: false }

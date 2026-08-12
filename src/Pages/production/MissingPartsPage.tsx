@@ -254,9 +254,8 @@ export function MissingPartsPage() {
     const ids = new Set<string>()
     for (const row of tableRows) {
       const parts = partsFromTableRow(row).filter(p => {
-        if (p.status === 'closed' || p.status === 'cancelled') return false
         if (listTab === 'history') return !!p.shortageResolvedAt
-        return !p.shortageResolvedAt
+        return p.status !== 'closed' && p.status !== 'cancelled' && !p.shortageResolvedAt
       })
       if (parts.length === 0) continue
       for (const id of vehicleIdsFromTableRow(row)) ids.add(id)
@@ -327,7 +326,11 @@ export function MissingPartsPage() {
   async function bulkDeleteSelected() {
     if (!canDelete || selectedVehicleIds.size === 0) return
     const ids = [...selectedVehicleIds]
-    const targets = filtered.filter(p => ids.includes(p.vehicleId) && p.status !== 'closed' && p.status !== 'cancelled')
+    const targets = filtered.filter(p => {
+      if (!ids.includes(p.vehicleId)) return false
+      if (listTab === 'history') return !!p.shortageResolvedAt
+      return p.status !== 'closed' && p.status !== 'cancelled' && !p.shortageResolvedAt
+    })
     if (targets.length === 0) {
       setError(t('mp.bulk.nothingToDelete'))
       return
@@ -401,8 +404,7 @@ export function MissingPartsPage() {
       ).length
       const result = await transferMissingPartIssue(part.id, {
         vehicleId: part.vehicleId,
-        remainingOpenOnVehicle: openOnVehicle,
-        installDelta: Math.max(0, part.requiredQty - part.installedQty)
+        remainingOpenOnVehicle: openOnVehicle
       })
       showSuccess(
         result.vehicle_archived
@@ -597,7 +599,6 @@ export function MissingPartsPage() {
             loading={loading}
             reasons={reasons}
             departments={departments}
-            orgUnitLabelFor={orgUnitLabelFor}
             canBulkSelect={canBulkSelectForTab}
             canBulkInstall={canBulkInstall}
             canExport={canExport}

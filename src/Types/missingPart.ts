@@ -32,6 +32,8 @@ export type MissingPartDetail = {
   createdAt: string
   updatedAt: string
   shortageResolvedAt: string | null
+  /** Set when closed via «ترحيل» (workflow done, shortage not physically resolved). */
+  transferredAt: string | null
   reportGroupId: string | null
   stationId: string | null
   factoryOrgUnitId: string | null

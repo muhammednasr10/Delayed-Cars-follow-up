@@ -1,4 +1,5 @@
--- Per-issue "ترحيل": fully install + close one shortage line; archive vehicle when none remain open.
+-- Per-issue "ترحيل": close one shortage line without pretending it was installed;
+-- stamp transferred_at; archive vehicle when none remain open.
 
 create or replace function transfer_missing_part_issue(p_missing_part_id uuid)
 returns jsonb
@@ -25,10 +26,10 @@ begin
   end if;
 
   update missing_parts
-  set installed_qty = required_qty,
-      qc_approved   = true,
-      status        = 'closed'::missing_part_status,
-      closed_at     = coalesce(closed_at, now())
+  set qc_approved    = true,
+      status         = 'closed'::missing_part_status,
+      closed_at      = coalesce(closed_at, now()),
+      transferred_at = coalesce(transferred_at, now())
   where id = p_missing_part_id;
 
   select count(*)::int into v_open
