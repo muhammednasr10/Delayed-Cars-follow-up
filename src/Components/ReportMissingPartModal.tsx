@@ -84,6 +84,7 @@ export function ReportMissingPartModal({ open, onClose, onReported }: Props) {
   const [listsLoading, setListsLoading] = useState(false)
   const [issues, setIssues] = useState(() => [newIssueLine()])
   const [vehicle, setVehicle] = useState<VehicleForm>(emptyVehicle)
+  const [vehicleCountDraft, setVehicleCountDraft] = useState('1')
   const [formError, setFormError] = useState('')
   const [submitting, setSubmitting] = useState(false)
   const [duplicatePrompt, setDuplicatePrompt] = useState<DuplicatePrompt | null>(null)
@@ -113,6 +114,7 @@ export function ReportMissingPartModal({ open, onClose, onReported }: Props) {
       }
     ])
     setVehicle(emptyVehicle)
+    setVehicleCountDraft('1')
     setFormError('')
     setDuplicatePrompt(null)
     setConfirmedExistingVins(new Set())
@@ -168,6 +170,28 @@ export function ReportMissingPartModal({ open, onClose, onReported }: Props) {
   function setVehicleCount(n: number) {
     const count = Math.max(1, Math.min(20, n))
     setVehicle(prev => ({ ...prev, vehicleCount: count, vins: resizeVins(count, prev.vins) }))
+    setVehicleCountDraft(String(count))
+  }
+
+  function onVehicleCountChange(raw: string) {
+    // Allow clearing while typing — don't force 1 until blur/commit.
+    if (raw.trim() === '') {
+      setVehicleCountDraft('')
+      return
+    }
+    const n = Number(raw)
+    if (!Number.isFinite(n) || n < 0) return
+    const clamped = Math.min(20, Math.floor(n))
+    if (clamped < 1) {
+      setVehicleCountDraft(raw.replace(/[^\d]/g, '').slice(0, 2))
+      return
+    }
+    setVehicleCount(clamped)
+  }
+
+  function onVehicleCountBlur() {
+    const n = Math.max(1, Math.min(20, Number(vehicleCountDraft) || 1))
+    setVehicleCount(n)
   }
 
   function updateVehicleVin(index: number, value: string) {
@@ -410,8 +434,9 @@ export function ReportMissingPartModal({ open, onClose, onReported }: Props) {
                 min={1}
                 max={20}
                 className="input-dark"
-                value={vehicle.vehicleCount}
-                onChange={e => setVehicleCount(Number(e.target.value) || 1)}
+                value={vehicleCountDraft}
+                onChange={e => onVehicleCountChange(e.target.value)}
+                onBlur={onVehicleCountBlur}
               />
             </Field>
           </div>
