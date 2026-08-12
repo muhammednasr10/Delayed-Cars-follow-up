@@ -5,6 +5,7 @@ import { Modal } from '../Modal'
 import { getPartById, getPartBomUsage } from '../../services/partsService'
 import type { BomItemDetail, Part } from '../../Types/bom'
 import { CategoryBadge } from './CategoryBadge'
+import { joinDistinctPartLabels } from '../../Utils/partDisplayNames'
 
 type Props = {
   partId: string | null
@@ -57,7 +58,9 @@ export function PartDetailsModal({ partId, open, onClose }: Props) {
           </div>
           <div>
             <p className="text-[10px] font-bold uppercase text-slate-500">{t('bom.partName')}</p>
-            <p className="text-white">{part.part_name_ar || part.part_name_en || '—'}</p>
+            <p className="text-white">
+              {joinDistinctPartLabels(part.part_name_ar, part.part_name_en, part.common_name) || '—'}
+            </p>
           </div>
           <div>
             <p className="mb-2 text-[10px] font-bold uppercase text-slate-500">{t('bom.usageTitle')}</p>

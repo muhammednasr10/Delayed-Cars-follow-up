@@ -4,6 +4,8 @@ export type VehicleModel = {
   model_kind: 'family' | 'variant'
   parent_model_id: string | null
   parent_name?: string | null
+  parent_company: string | null
+  agency: string | null
   is_active: boolean
   created_at?: string
   updated_at?: string

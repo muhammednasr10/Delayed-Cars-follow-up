@@ -2,10 +2,13 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useRef, use
 import { supabase } from '../lib/supabase'
 import type { UserRole } from '../Types/enums'
 import {
+  applySession,
   clearSession,
+  ensureFreshSession,
+  isRefreshTokenExpired,
   loginWithEmailPassword,
+  readRawSession,
   registerAuthFailureHandler,
-  restoreSessionFromStorage,
   refreshSessionOnWake,
   withTimeout,
   type AppAuthSession
@@ -221,21 +224,36 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     const gen = ++bootGenRef.current
     setLoading(true)
-    const BOOT_TIMEOUT_MS = 6_000
+    const REFRESH_BOOT_TIMEOUT_MS = 25_000
 
     void (async () => {
       try {
-        const stored = await withTimeout(restoreSessionFromStorage(), BOOT_TIMEOUT_MS, null)
-        if (bootGenRef.current !== gen) return
-        setSession(stored)
-        if (stored?.user?.id) {
-          void loadProfile(stored.user.id)
+        const raw = readRawSession()
+        if (!raw) return
+
+        if (isRefreshTokenExpired(raw)) {
+          clearSession()
+          return
         }
+
+        // Enter the app immediately; refresh tokens in the background.
+        applySession(raw)
+        if (bootGenRef.current !== gen) return
+        setSession(raw)
+        setAccessDeniedMessage(null)
+
+        const profileTask = loadProfile(raw.user.id)
+        const refreshed = await withTimeout(ensureFreshSession(), REFRESH_BOOT_TIMEOUT_MS, null)
+        if (bootGenRef.current !== gen) return
+        if (refreshed) setSession(refreshed)
+        await profileTask
       } catch (err) {
         console.error('Auth boot failed:', err)
-        if (bootGenRef.current === gen) {
-          setSession(null)
-          setProfile(null)
+        const raw = readRawSession()
+        if (raw && !isRefreshTokenExpired(raw) && bootGenRef.current === gen) {
+          applySession(raw)
+          setSession(raw)
+          void loadProfile(raw.user.id)
         }
       } finally {
         if (bootGenRef.current === gen) setLoading(false)

@@ -125,25 +125,39 @@ function WorkerOperationsPanel({
   return (
     <div className="overflow-hidden rounded-xl border border-slate-800 bg-slate-950/40">
       <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-800 bg-slate-900/60 px-3 py-2">
-        <button
-          type="button"
-          onClick={() => setOpen(v => !v)}
-          className="flex min-w-0 flex-1 items-center gap-2 rounded-lg px-1 py-0.5 text-start transition hover:bg-slate-800/60"
-          aria-expanded={open}
-        >
-          <ChevronDown className={`h-4 w-4 shrink-0 text-slate-400 transition-transform ${open ? '' : '-rotate-90'}`} />
-          <Users className="h-4 w-4 shrink-0 text-cyan-400" />
-          <span className="font-mono text-sm font-black text-cyan-200" dir="ltr">
-            {workerCode}
-          </span>
-          <span className="text-xs text-slate-500">
-            {worker.operations.length} {t('operations.opsCount')}
-          </span>
-          <span className="hidden text-xs text-slate-600 sm:inline">·</span>
-          <span className="text-xs font-bold text-orange-300" dir="ltr">
+        <div className="flex min-w-0 flex-1 flex-wrap items-center gap-x-3 gap-y-2">
+          <button
+            type="button"
+            onClick={() => setOpen(v => !v)}
+            className="flex shrink-0 items-center gap-2 rounded-lg px-1 py-0.5 text-start transition hover:bg-slate-800/60"
+            aria-expanded={open}
+          >
+            <ChevronDown className={`h-4 w-4 shrink-0 text-slate-400 transition-transform ${open ? '' : '-rotate-90'}`} />
+            <Users className="h-4 w-4 shrink-0 text-cyan-400" />
+            <span className="font-mono text-sm font-black text-cyan-200" dir="ltr">
+              {workerCode}
+            </span>
+            <span className="text-xs text-slate-500">
+              {worker.operations.length} {t('operations.opsCount')}
+            </span>
+          </button>
+          <span className="shrink-0 text-xs font-bold text-orange-300" dir="ltr">
             {t('operations.workerLineTime')}: {formatWorkerLineTime(workerTimeMin, t)}
           </span>
-        </button>
+          <label className="flex min-w-[12rem] flex-1 basis-[14rem] items-center gap-2">
+            <span className="shrink-0 text-[10px] font-bold uppercase text-slate-500">
+              {t('manpower.daily.cols.operationsName')}
+            </span>
+            <input
+              className={`${inputCls()} min-w-0 flex-1 py-1.5 text-sm`}
+              value={summary}
+              disabled={!canManage || savingSummary}
+              placeholder={t('manpower.daily.operationsNamePh')}
+              onChange={e => setSummary(e.target.value)}
+              onBlur={() => void saveSummary()}
+            />
+          </label>
+        </div>
         <div className="flex flex-wrap items-center gap-2">
           {canManage && (
             <button
@@ -165,21 +179,6 @@ function WorkerOperationsPanel({
             </button>
           )}
         </div>
-      </div>
-      <div className="border-b border-slate-800 bg-slate-950/50 px-3 py-2">
-        <label className="block text-center">
-          <span className="mb-1 block text-[10px] font-bold uppercase text-slate-500">
-            {t('manpower.daily.cols.operationsName')}
-          </span>
-          <input
-            className={`${inputCls()} mx-auto max-w-lg py-1.5 text-center text-sm`}
-            value={summary}
-            disabled={!canManage || savingSummary}
-            placeholder={t('manpower.daily.operationsNamePh')}
-            onChange={e => setSummary(e.target.value)}
-            onBlur={() => void saveSummary()}
-          />
-        </label>
       </div>
       {open && (
         <OperationsDataTable

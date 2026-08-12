@@ -129,6 +129,8 @@ describe('model and family counts', () => {
         name: 'Family X',
         model_kind: 'family',
         parent_model_id: null,
+        parent_company: null,
+        agency: null,
         is_active: true
       },
       {
@@ -136,6 +138,8 @@ describe('model and family counts', () => {
         name: 'Variant 1',
         model_kind: 'variant',
         parent_model_id: 'fam-1',
+        parent_company: null,
+        agency: null,
         is_active: true
       }
     ]

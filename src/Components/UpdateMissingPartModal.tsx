@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
-import { Minus, Plus, Settings2 } from 'lucide-react'
+import { CheckCircle2, Minus, Plus, Settings2 } from 'lucide-react'
 import { useLang } from '../i18n/LanguageContext'
 import { useMpLookups } from '../hooks/useMpLookups'
 import { mpLookupLabel } from '../Utils/mpLookupLabel'
@@ -7,7 +7,7 @@ import { useFormatError } from '../hooks/useFormatError'
 import { useCanManageMissingPart } from '../hooks/useCanManageMissingPart'
 import { Modal } from './Modal'
 import { MissingStatusChip } from './StatusChips'
-import { installMissingPart } from '../services/missingPartsService'
+import { installMissingPart, transferMissingPartIssue } from '../services/missingPartsService'
 import type { MissingPartDetail, VehicleIssuesContext } from '../Types/missingPart'
 
 export type UpdateVehicleContext = VehicleIssuesContext
@@ -16,6 +16,7 @@ type Props = {
   vehicle: UpdateVehicleContext | null
   onClose: () => void
   onChanged: () => void
+  onNotify?: (message: string) => void
 }
 
 type LineDraft = {
@@ -23,12 +24,13 @@ type LineDraft = {
   target: number
 }
 
-export function UpdateMissingPartModal({ vehicle, onClose, onChanged }: Props) {
+export function UpdateMissingPartModal({ vehicle, onClose, onChanged, onNotify }: Props) {
   const { t, lang } = useLang()
   const { reasons, departments } = useMpLookups()
-  const { canInstall, canUpdateStatus } = useCanManageMissingPart()
+  const { canInstall, canUpdateStatus, canComplete } = useCanManageMissingPart()
   const formatError = useFormatError()
   const [busy, setBusy] = useState(false)
+  const [transferringId, setTransferringId] = useState<string | null>(null)
   const [error, setError] = useState('')
   const [lines, setLines] = useState<LineDraft[]>([])
 
@@ -88,6 +90,32 @@ export function UpdateMissingPartModal({ vehicle, onClose, onChanged }: Props) {
     }
   }
 
+  async function transferIssue(part: MissingPartDetail) {
+    if (!canComplete || transferringId) return
+    setTransferringId(part.id)
+    setError('')
+    try {
+      const openOnVehicle = openParts.filter(p => p.vehicleId === part.vehicleId).length
+      const result = await transferMissingPartIssue(part.id, {
+        vehicleId: part.vehicleId,
+        remainingOpenOnVehicle: openOnVehicle,
+        installDelta: Math.max(0, part.requiredQty - part.installedQty)
+      })
+      if (result.vehicle_archived) {
+        onNotify?.(t('mp.vehicleCard.transferIssueArchived', { vin: part.vin }))
+        onChanged()
+        onClose()
+        return
+      }
+      onNotify?.(t('mp.vehicleCard.transferIssueSuccess'))
+      onChanged()
+    } catch (err) {
+      setError(formatError(err))
+    } finally {
+      setTransferringId(null)
+    }
+  }
+
   return (
     <Modal
       open={Boolean(vehicle)}
@@ -100,7 +128,7 @@ export function UpdateMissingPartModal({ vehicle, onClose, onChanged }: Props) {
         canEditQty && pendingSaves.length > 0 ? (
           <button
             type="button"
-            disabled={busy}
+            disabled={busy || Boolean(transferringId)}
             onClick={() => void saveAll()}
             className="rounded-xl bg-cyan-500 px-5 py-2.5 text-sm font-black text-slate-950 hover:bg-cyan-400 disabled:opacity-50"
           >
@@ -135,8 +163,8 @@ export function UpdateMissingPartModal({ vehicle, onClose, onChanged }: Props) {
             const required = part.requiredQty
             const pct = required > 0 ? Math.min(100, (target / required) * 100) : 0
             const hasIncrease = target > saved
-
             const multiVin = openParts.length > 1 && new Set(openParts.map(p => p.vin)).size > 1
+            const transferring = transferringId === part.id
 
             return (
               <div key={part.id} className="rounded-xl border border-slate-700 bg-slate-950/50 p-3">
@@ -152,7 +180,21 @@ export function UpdateMissingPartModal({ vehicle, onClose, onChanged }: Props) {
                       {mpLookupLabel(reasons, part.reason, lang)} · {mpLookupLabel(departments, part.department, lang)}
                     </p>
                   </div>
-                  <MissingStatusChip status={part.status} />
+                  <div className="flex shrink-0 flex-col items-end gap-2">
+                    <MissingStatusChip status={part.status} />
+                    {canComplete && (
+                      <button
+                        type="button"
+                        disabled={busy || Boolean(transferringId)}
+                        onClick={() => void transferIssue(part)}
+                        className="inline-flex items-center gap-1.5 rounded-lg border border-emerald-500/40 bg-emerald-500/15 px-2.5 py-1 text-xs font-black text-emerald-200 hover:bg-emerald-500/25 disabled:cursor-not-allowed disabled:opacity-40"
+                        title={t('mp.vehicleCard.transferIssue')}
+                      >
+                        <CheckCircle2 className="h-3.5 w-3.5" />
+                        {transferring ? '...' : t('mp.vehicleCard.transferIssue')}
+                      </button>
+                    )}
+                  </div>
                 </div>
 
                 <p className="mb-2 text-center text-[10px] font-bold uppercase text-slate-500">
@@ -161,7 +203,7 @@ export function UpdateMissingPartModal({ vehicle, onClose, onChanged }: Props) {
                 <div className="flex items-center justify-center gap-3">
                   <button
                     type="button"
-                    disabled={busy || !canEditQty || target <= saved}
+                    disabled={busy || !canEditQty || target <= saved || Boolean(transferringId)}
                     onClick={() => setTarget(part.id, target - 1)}
                     className="rounded-lg bg-slate-800 p-2 text-slate-200 hover:bg-slate-700 disabled:opacity-40"
                   >
@@ -174,7 +216,7 @@ export function UpdateMissingPartModal({ vehicle, onClose, onChanged }: Props) {
                   </span>
                   <button
                     type="button"
-                    disabled={busy || !canEditQty || target >= required}
+                    disabled={busy || !canEditQty || target >= required || Boolean(transferringId)}
                     onClick={() => setTarget(part.id, target + 1)}
                     className="rounded-lg bg-slate-800 p-2 text-slate-200 hover:bg-slate-700 disabled:opacity-40"
                   >

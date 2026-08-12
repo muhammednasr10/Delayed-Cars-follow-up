@@ -80,6 +80,30 @@ describe('missingPartDisplay', () => {
     expect(tableRows.filter(r => r.kind === 'single')).toHaveLength(1)
   })
 
+  it('sorts active shortages oldest first and archive newest resolved first', () => {
+    const older = part({ id: '1', vehicleId: 'v1', vin: '1001', createdAt: '2026-01-01T08:00:00Z' })
+    const newer = part({ id: '2', vehicleId: 'v2', vin: '1002', createdAt: '2026-01-03T08:00:00Z' })
+    const active = buildMissingPartTableRows([newer, older], 'created-asc')
+    expect(active.map(r => (r.kind === 'single' ? r.item.id : ''))).toEqual(['1', '2'])
+
+    const finishedOld = part({
+      id: '3',
+      vehicleId: 'v3',
+      vin: '1003',
+      createdAt: '2026-01-01T08:00:00Z',
+      shortageResolvedAt: '2026-02-01T10:00:00Z'
+    })
+    const finishedNew = part({
+      id: '4',
+      vehicleId: 'v4',
+      vin: '1004',
+      createdAt: '2026-01-02T08:00:00Z',
+      shortageResolvedAt: '2026-03-01T10:00:00Z'
+    })
+    const archive = buildMissingPartTableRows([finishedOld, finishedNew], 'resolved-desc')
+    expect(archive.map(r => (r.kind === 'single' ? r.item.id : ''))).toEqual(['4', '3'])
+  })
+
   it('aggregates install quantities and pending state', () => {
     const items = [
       part({ id: '1', vehicleId: 'v1', vin: 'VIN001', requiredQty: 2, installedQty: 2 }),

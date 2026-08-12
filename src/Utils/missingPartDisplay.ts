@@ -43,9 +43,9 @@ export function toDisplayRows(items: MissingPartDetail[]): MissingPartDisplayRow
   ]
 
   rows.sort((a, b) => {
-    const ta = a.kind === 'group' ? a.items[0].createdAt : a.item.createdAt
-    const tb = b.kind === 'group' ? b.items[0].createdAt : b.item.createdAt
-    return tb.localeCompare(ta)
+    const ta = a.kind === 'group' ? earliestCreatedAt(a.items) : a.item.createdAt
+    const tb = b.kind === 'group' ? earliestCreatedAt(b.items) : b.item.createdAt
+    return ta.localeCompare(tb)
   })
 
   return rows
@@ -82,8 +82,13 @@ export type MissingPartTableRow =
   | { kind: 'vehicle'; vehicleId: string; parts: MissingPartDetail[] }
   | { kind: 'single'; item: MissingPartDetail }
 
+export type MissingPartTableSort = 'created-asc' | 'resolved-desc'
+
 /** One row per vehicle (multi-reason collapsible) or per VIN report-group. */
-export function buildMissingPartTableRows(filtered: MissingPartDetail[]): MissingPartTableRow[] {
+export function buildMissingPartTableRows(
+  filtered: MissingPartDetail[],
+  sort: MissingPartTableSort = 'created-asc'
+): MissingPartTableRow[] {
   const displayRows = toDisplayRows(filtered)
   const seenVehicles = new Set<string>()
   const rows: MissingPartTableRow[] = []
@@ -98,7 +103,13 @@ export function buildMissingPartTableRows(filtered: MissingPartDetail[]): Missin
     if (seenVehicles.has(vehicleId)) continue
     seenVehicles.add(vehicleId)
 
-    const parts = filtered.filter(p => p.vehicleId === vehicleId).sort((a, b) => b.createdAt.localeCompare(a.createdAt))
+    const parts = filtered
+      .filter(p => p.vehicleId === vehicleId)
+      .sort((a, b) =>
+        sort === 'resolved-desc'
+          ? (b.shortageResolvedAt ?? '').localeCompare(a.shortageResolvedAt ?? '') || b.createdAt.localeCompare(a.createdAt)
+          : a.createdAt.localeCompare(b.createdAt)
+      )
 
     if (parts.length > 1) {
       rows.push({ kind: 'vehicle', vehicleId, parts })
@@ -107,7 +118,7 @@ export function buildMissingPartTableRows(filtered: MissingPartDetail[]): Missin
     }
   }
 
-  return sortMissingPartTableRows(rows)
+  return sortMissingPartTableRows(rows, sort)
 }
 
 export function partsFromTableRow(row: MissingPartTableRow): MissingPartDetail[] {
@@ -120,12 +131,6 @@ export function vehicleIdsFromTableRow(row: MissingPartTableRow): string[] {
   return [...new Set(partsFromTableRow(row).map(p => p.vehicleId))]
 }
 
-function modelNameForTableRow(row: MissingPartTableRow): string {
-  if (row.kind === 'report-group') return row.displayRow.items[0]?.modelName ?? ''
-  if (row.kind === 'vehicle') return row.parts[0]?.modelName ?? ''
-  return row.item.modelName
-}
-
 function primaryVinForTableRow(row: MissingPartTableRow): string {
   if (row.kind === 'report-group') {
     const vins = [...new Set(row.displayRow.items.map(i => i.vin))].sort((a, b) => a.localeCompare(b))
@@ -135,10 +140,28 @@ function primaryVinForTableRow(row: MissingPartTableRow): string {
   return row.item.vin
 }
 
-function sortMissingPartTableRows(rows: MissingPartTableRow[]): MissingPartTableRow[] {
+function earliestCreatedAt(parts: MissingPartDetail[]): string {
+  return parts.reduce((min, p) => (p.createdAt < min ? p.createdAt : min), parts[0]?.createdAt ?? '')
+}
+
+function latestResolvedAt(parts: MissingPartDetail[]): string {
+  return parts.reduce((max, p) => {
+    const t = p.shortageResolvedAt ?? ''
+    return t > max ? t : max
+  }, '')
+}
+
+function sortMissingPartTableRows(rows: MissingPartTableRow[], sort: MissingPartTableSort): MissingPartTableRow[] {
   return [...rows].sort((a, b) => {
-    const modelCmp = modelNameForTableRow(a).localeCompare(modelNameForTableRow(b), 'ar', { sensitivity: 'base' })
-    if (modelCmp !== 0) return modelCmp
+    const aParts = partsFromTableRow(a)
+    const bParts = partsFromTableRow(b)
+    if (sort === 'resolved-desc') {
+      const resolvedCmp = latestResolvedAt(bParts).localeCompare(latestResolvedAt(aParts))
+      if (resolvedCmp !== 0) return resolvedCmp
+      return earliestCreatedAt(bParts).localeCompare(earliestCreatedAt(aParts))
+    }
+    const createdCmp = earliestCreatedAt(aParts).localeCompare(earliestCreatedAt(bParts))
+    if (createdCmp !== 0) return createdCmp
     return primaryVinForTableRow(a).localeCompare(primaryVinForTableRow(b), undefined, { numeric: true })
   })
 }

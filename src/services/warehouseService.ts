@@ -176,6 +176,7 @@ export async function getIplFeedingParts(
   for (const part of partsRes.items) {
     const bom = bomMap.get(part.id)
     const item = mergePartToBomItem(part, bom, modelName)
+    if (!(Number(item.quantity) > 0) || !item.part_number?.trim()) continue
     const warehouseType = feedingWarehouseTypeFromBomItem(item)
     if (options.warehouseType && warehouseType !== options.warehouseType) continue
 

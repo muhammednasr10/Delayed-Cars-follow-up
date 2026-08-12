@@ -53,7 +53,7 @@ export function SettingsPage() {
     setError('')
     try {
       const [modelsData, orgUnitsData, colorsData, reasonsData, departmentsData] = await Promise.all([
-        getVehicleModels(),
+        getVehicleModels({ includeInactive: true }),
         getFactoryOrgUnits({ includeInactive: true }),
         getAllVehicleColors(),
         getMpReasonOptions(false),

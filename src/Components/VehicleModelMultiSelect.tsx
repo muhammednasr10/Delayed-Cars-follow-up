@@ -13,7 +13,7 @@ type Props = {
 
 export function VehicleModelMultiSelect({ models, value, onChange, placeholder }: Props) {
   const { t } = useLang()
-  const variants = useMemo(() => models.filter(m => m.model_kind === 'variant'), [models])
+  const variants = useMemo(() => models.filter(m => m.model_kind === 'variant' && m.is_active), [models])
   const selected = useMemo(() => variants.filter(m => value.includes(m.id)), [variants, value])
   const [query, setQuery] = useState('')
 

@@ -1,4 +1,5 @@
 import { supabase } from '../lib/supabase'
+import { normalizeChassisVin } from '../Utils/vinValidation'
 import type {
   MissingPartDetail,
   ReportMissingPartInput,
@@ -108,6 +109,73 @@ export async function deleteMissingPartRecord(id: string): Promise<void> {
 export async function completeVehicleShortage(vehicleId: string): Promise<void> {
   const { error } = await requireClient().rpc('complete_vehicle_shortage', { p_vehicle_id: vehicleId })
   if (error) throw new Error(error.message)
+}
+
+/** ترحيل سبب نقص واحد: يكتمل التركيب ويُغلق السطر؛ إن لم يبقَ مفتوح يُرحَّل السيارة للأرشيف. */
+export async function transferMissingPartIssue(
+  missingPartId: string,
+  options?: { vehicleId?: string; remainingOpenOnVehicle?: number; installDelta?: number }
+): Promise<{ vehicle_id: string; vehicle_archived: boolean }> {
+  const { data, error } = await requireClient().rpc('transfer_missing_part_issue', {
+    p_missing_part_id: missingPartId
+  })
+
+  if (!error) {
+    const row = (data ?? {}) as { vehicle_id?: string; vehicle_archived?: boolean }
+    return {
+      vehicle_id: row.vehicle_id ?? options?.vehicleId ?? '',
+      vehicle_archived: Boolean(row.vehicle_archived)
+    }
+  }
+
+  const missingFn =
+    error.message.includes('Could not find the function') || error.message.includes('schema cache')
+  if (!missingFn) throw new Error(error.message)
+
+  const vehicleId = options?.vehicleId
+  if (!vehicleId) {
+    throw new Error(
+      'دالة ترحيل السبب غير مفعّلة على Supabase. نفّذ migration 0144_transfer_missing_part_issue.sql'
+    )
+  }
+
+  const delta = Math.max(0, options?.installDelta ?? 0)
+  if (delta > 0) await installMissingPart(missingPartId, delta)
+
+  const remainingOpen = options?.remainingOpenOnVehicle ?? 1
+  if (remainingOpen <= 1) {
+    await completeVehicleShortage(vehicleId)
+    return { vehicle_id: vehicleId, vehicle_archived: true }
+  }
+
+  const { error: closeErr } = await requireClient()
+    .from('missing_parts')
+    .update({ status: 'closed', qc_approved: true })
+    .eq('id', missingPartId)
+
+  if (closeErr) {
+    throw new Error(
+      'دالة ترحيل السبب غير مفعّلة على Supabase. نفّذ migration 0144_transfer_missing_part_issue.sql'
+    )
+  }
+
+  return { vehicle_id: vehicleId, vehicle_archived: false }
+}
+
+/** VINs already registered on this model (vehicles table). */
+export async function findExistingVehicleVins(vins: string[], modelId: string): Promise<string[]> {
+  const normalized = [...new Set(vins.map(v => normalizeChassisVin(v).toUpperCase()).filter(v => /^\d{4}$/.test(v)))]
+  if (!normalized.length || !modelId) return []
+
+  const { data, error } = await requireClient()
+    .from('vehicles')
+    .select('vin')
+    .eq('model_id', modelId)
+    .eq('is_deleted', false)
+    .in('vin', normalized)
+
+  if (error) throw new Error(error.message)
+  return (data ?? []).map(row => String((row as { vin: string }).vin))
 }
 
 export async function getMissingParts(): Promise<MissingPartDetail[]> {

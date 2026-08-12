@@ -1,11 +1,12 @@
-import { useEffect, useState, type ReactNode } from 'react'
+import { useEffect, useRef, useState, type ReactNode } from 'react'
 import { AlertTriangle, Plus, Trash2 } from 'lucide-react'
 import { useLang } from '../i18n/LanguageContext'
 import { useEmployees } from '../hooks/useEmployees'
 import { useFactoryOrgScope } from '../hooks/useFactoryOrgScope'
 import { Modal } from './Modal'
+import { ConfirmDialog } from './ConfirmDialog'
 import { VehicleModelFamilyPicker, resolveFamilyIdForVariant } from './VehicleModelFamilyPicker'
-import { reportMissingPartsBatch } from '../services/missingPartsService'
+import { findExistingVehicleVins, reportMissingPartsBatch } from '../services/missingPartsService'
 import { getVehicleColors, getVehicleModels } from '../services/settingsService'
 import type { MissingPartBatchLineInput } from '../Types/missingPart'
 import type { VehicleColor, VehicleModel } from '../Types/settings'
@@ -66,6 +67,12 @@ type Props = {
   onReported?: (summary?: string) => void
 }
 
+type DuplicatePrompt = {
+  vins: string[]
+  vinIndex?: number
+  pendingSubmit?: boolean
+}
+
 export function ReportMissingPartModal({ open, onClose, onReported }: Props) {
   const { t } = useLang()
   const formatError = useFormatError()
@@ -79,6 +86,11 @@ export function ReportMissingPartModal({ open, onClose, onReported }: Props) {
   const [vehicle, setVehicle] = useState<VehicleForm>(emptyVehicle)
   const [formError, setFormError] = useState('')
   const [submitting, setSubmitting] = useState(false)
+  const [duplicatePrompt, setDuplicatePrompt] = useState<DuplicatePrompt | null>(null)
+  const [confirmedExistingVins, setConfirmedExistingVins] = useState<Set<string>>(() => new Set())
+  const issuesSectionRef = useRef<HTMLElement>(null)
+
+  const selectedModelName = models.find(m => m.id === vehicle.modelId)?.name ?? ''
 
   useEffect(() => {
     if (!open || reasons.length === 0 || departments.length === 0) return
@@ -102,6 +114,8 @@ export function ReportMissingPartModal({ open, onClose, onReported }: Props) {
     ])
     setVehicle(emptyVehicle)
     setFormError('')
+    setDuplicatePrompt(null)
+    setConfirmedExistingVins(new Set())
     setListsLoading(true)
     Promise.all([getVehicleModels(), getVehicleColors()])
       .then(([m, c]) => {
@@ -157,7 +171,16 @@ export function ReportMissingPartModal({ open, onClose, onReported }: Props) {
   }
 
   function updateVehicleVin(index: number, value: string) {
-    setVehicle(prev => ({ ...prev, vins: prev.vins.map((v, i) => (i === index ? value : v)) }))
+    const normalized = value.replace(/\D/g, '').slice(0, 4)
+    const oldVin = vehicle.vins[index]?.toUpperCase()
+    if (oldVin && oldVin !== normalized) {
+      setConfirmedExistingVins(prev => {
+        const next = new Set(prev)
+        next.delete(oldVin)
+        return next
+      })
+    }
+    setVehicle(prev => ({ ...prev, vins: prev.vins.map((v, i) => (i === index ? normalized : v)) }))
   }
 
   function addIssue() {
@@ -175,7 +198,51 @@ export function ReportMissingPartModal({ open, onClose, onReported }: Props) {
     setIssues(prev => (prev.length <= 1 ? prev : prev.filter(l => l.key !== key)))
   }
 
-  async function submit() {
+  async function checkVinDuplicate(index: number) {
+    const vin = normalizeChassisVin(vehicle.vins[index]).toUpperCase()
+    if (!vehicle.modelId || !isValidVinLength(vin) || confirmedExistingVins.has(vin)) return
+
+    try {
+      const existing = await findExistingVehicleVins([vin], vehicle.modelId)
+      if (existing.length === 0) return
+      setDuplicatePrompt({ vins: existing, vinIndex: index })
+    } catch (err) {
+      setFormError(formatError(err))
+    }
+  }
+
+  function focusIssuesSection() {
+    issuesSectionRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+  }
+
+  function confirmAddToExisting() {
+    if (!duplicatePrompt) return
+    const normalized = duplicatePrompt.vins.map(v => v.toUpperCase())
+    setConfirmedExistingVins(prev => new Set([...prev, ...normalized]))
+    const pendingSubmit = duplicatePrompt.pendingSubmit
+    setDuplicatePrompt(null)
+    if (pendingSubmit) {
+      void submit(true)
+    } else {
+      focusIssuesSection()
+    }
+  }
+
+  function cancelAddToExisting() {
+    if (duplicatePrompt?.vinIndex !== undefined && !duplicatePrompt.pendingSubmit) {
+      updateVehicleVin(duplicatePrompt.vinIndex, '')
+    }
+    setDuplicatePrompt(null)
+  }
+
+  function duplicateMessage(prompt: DuplicatePrompt) {
+    if (prompt.vins.length === 1) {
+      return t('mp.duplicateVehicleMessage', { vin: prompt.vins[0], model: selectedModelName })
+    }
+    return t('mp.duplicateVehicleMessageMulti', { vins: prompt.vins.join('، '), model: selectedModelName })
+  }
+
+  async function submit(skipDuplicateCheck = false) {
     const missing: string[] = []
 
     if (!scopeRootId) missing.push(t('mp.errNoOrgUnit'))
@@ -192,7 +259,7 @@ export function ReportMissingPartModal({ open, onClose, onReported }: Props) {
     )
     if (expandedParts.length === 0) missing.push(t('mp.errOneIssue'))
 
-    const vinList = vehicle.vins.map(v => normalizeChassisVin(v)).filter(Boolean)
+    const vinList = vehicle.vins.map(v => normalizeChassisVin(v).toUpperCase()).filter(Boolean)
     if (vinList.length !== vehicle.vehicleCount) missing.push(t('mp.errAllVins'))
     for (let vi = 0; vi < vinList.length; vi++) {
       if (!isValidVinLength(vinList[vi])) missing.push(t('mp.errVinIndex', { n: vi + 1 }))
@@ -205,10 +272,26 @@ export function ReportMissingPartModal({ open, onClose, onReported }: Props) {
       return
     }
 
+    if (!skipDuplicateCheck && vehicle.modelId) {
+      const unconfirmed = vinList.filter(v => !confirmedExistingVins.has(v))
+      if (unconfirmed.length > 0) {
+        try {
+          const existing = await findExistingVehicleVins(unconfirmed, vehicle.modelId)
+          if (existing.length > 0) {
+            setDuplicatePrompt({ vins: existing, pendingSubmit: true })
+            return
+          }
+        } catch (err) {
+          setFormError(formatError(err))
+          return
+        }
+      }
+    }
+
     setSubmitting(true)
     setFormError('')
     try {
-      const normalizedVins = vehicle.vins.map(v => normalizeChassisVin(v))
+      const normalizedVins = vehicle.vins.map(v => normalizeChassisVin(v).toUpperCase())
       const result = await reportMissingPartsBatch({
         vins: normalizedVins,
         modelId: vehicle.modelId,
@@ -229,8 +312,10 @@ export function ReportMissingPartModal({ open, onClose, onReported }: Props) {
   }
 
   const totalRecords = issues.reduce((sum, line) => sum + issuePartDescriptions(line).length, 0) * vehicle.vehicleCount
+  const hasConfirmedExisting = confirmedExistingVins.size > 0
 
   return (
+    <>
     <Modal
       open={open}
       title={t('mp.reportTitle')}
@@ -287,13 +372,14 @@ export function ReportMissingPartModal({ open, onClose, onReported }: Props) {
                 variantId={vehicle.modelId}
                 loading={listsLoading}
                 onFamilyChange={familyId => setVehicle(p => ({ ...p, familyId, modelId: '' }))}
-                onVariantChange={modelId =>
+                onVariantChange={modelId => {
+                  setConfirmedExistingVins(new Set())
                   setVehicle(p => ({
                     ...p,
                     modelId,
                     familyId: resolveFamilyIdForVariant(models, modelId) || p.familyId
                   }))
-                }
+                }}
               />
             </div>
             <Field label={t('mp.f.color')}>
@@ -333,6 +419,7 @@ export function ReportMissingPartModal({ open, onClose, onReported }: Props) {
             <p className="text-[10px] font-bold uppercase text-slate-500">
               {vehicle.vehicleCount === 1 ? t('mp.singleVinTitle') : t('mp.vinListTitle')}
             </p>
+            <p className="text-[10px] text-slate-500">{t('mp.vinHint')}</p>
             <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
               {vehicle.vins.map((vin, vi) => (
                 <Field
@@ -344,18 +431,27 @@ export function ReportMissingPartModal({ open, onClose, onReported }: Props) {
                     className="input-dark font-mono"
                     dir="ltr"
                     inputMode="numeric"
+                    pattern="\d{4}"
                     maxLength={4}
+                    minLength={4}
+                    required
                     value={vin}
-                    onChange={e => updateVehicleVin(vi, e.target.value.replace(/\D/g, '').slice(0, 4))}
+                    onChange={e => updateVehicleVin(vi, e.target.value)}
+                    onBlur={() => void checkVinDuplicate(vi)}
                     placeholder="0000"
                   />
                 </Field>
               ))}
             </div>
+            {hasConfirmedExisting && (
+              <p className="rounded-lg border border-cyan-500/30 bg-cyan-500/10 px-3 py-2 text-xs text-cyan-100">
+                {t('mp.addingToExistingHint')}
+              </p>
+            )}
           </div>
         </section>
 
-        <section className="space-y-3">
+        <section ref={issuesSectionRef} className="space-y-3">
           <div className="flex items-center justify-between gap-2">
             <div>
               <h3 className="text-xs font-black uppercase tracking-wider text-cyan-300">{t('mp.sectionIssues')}</h3>
@@ -434,6 +530,19 @@ export function ReportMissingPartModal({ open, onClose, onReported }: Props) {
         </section>
       </div>
     </Modal>
+
+    <ConfirmDialog
+      open={Boolean(duplicatePrompt)}
+      title={t('mp.duplicateVehicleTitle')}
+      message={duplicatePrompt ? duplicateMessage(duplicatePrompt) : ''}
+      confirmLabel={t('mp.duplicateVehicleYes')}
+      cancelLabel={t('mp.duplicateVehicleNo')}
+      tone="default"
+      busy={submitting}
+      onConfirm={confirmAddToExisting}
+      onCancel={cancelAddToExisting}
+    />
+    </>
   )
 }
 

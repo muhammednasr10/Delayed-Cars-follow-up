@@ -1,4 +1,4 @@
-import { type ReactNode } from 'react'
+import { type MouseEvent, type ReactNode } from 'react'
 import { useLang } from '../../i18n/LanguageContext'
 import { mpLookupLabel } from '../../Utils/mpLookupLabel'
 import {
@@ -52,6 +52,7 @@ type Props = {
   onOpenVinList: (vins: string[], modelName: string, colorName: string | null) => void
   onOpenIssuesList: (parts: MissingPartDetail[], vin?: string, modelName?: string) => void
   onOpenDetail: (part: MissingPartDetail) => void
+  onRowClick: (parts: MissingPartDetail[]) => void
   onOpenNotes: (part: MissingPartDetail) => void
   onEdit: (part: MissingPartDetail) => void
   onUpdate: (part: MissingPartDetail) => void
@@ -86,6 +87,7 @@ export function MissingPartsTable({
   onOpenVinList,
   onOpenIssuesList,
   onOpenDetail,
+  onRowClick,
   onOpenNotes,
   onEdit,
   onUpdate,
@@ -95,7 +97,7 @@ export function MissingPartsTable({
 }: Props) {
   const { t, lang } = useLang()
   const cols = listTab === 'history' ? HISTORY_COLS : ACTIVE_COLS
-  const tableRows = buildMissingPartTableRows(filtered)
+  const tableRows = buildMissingPartTableRows(filtered, listTab === 'history' ? 'resolved-desc' : 'created-asc')
 
   function rowSelectable(row: MissingPartTableRow) {
     if (!canBulkSelect) return false
@@ -173,6 +175,7 @@ export function MissingPartsTable({
                     onOpenVinList={onOpenVinList}
                     onOpenIssuesList={onOpenIssuesList}
                     onOpenDetail={onOpenDetail}
+                    onRowClick={onRowClick}
                     onOpenNotes={onOpenNotes}
                     onEdit={onEdit}
                     onUpdate={onUpdate}
@@ -212,6 +215,7 @@ export function MissingPartsTable({
                     onToggleRowSelection={() => onToggleRowSelection(row)}
                     onOpenIssuesList={onOpenIssuesList}
                     onOpenDetail={onOpenDetail}
+                    onRowClick={onRowClick}
                     onOpenNotes={onOpenNotes}
                     onEdit={onEdit}
                     onUpdate={onUpdate}
@@ -245,6 +249,7 @@ export function MissingPartsTable({
                   rowSelectable={rowSelectable(row)}
                   onToggleRowSelection={() => onToggleRowSelection(row)}
                   onOpenDetail={onOpenDetail}
+                  onRowClick={onRowClick}
                   onOpenNotes={onOpenNotes}
                   onEdit={onEdit}
                   onUpdate={onUpdate}
@@ -287,6 +292,7 @@ type RowProps = {
   rowSelectable: boolean
   onToggleRowSelection: () => void
   onOpenDetail: (part: MissingPartDetail) => void
+  onRowClick: (parts: MissingPartDetail[]) => void
   onOpenNotes: (part: MissingPartDetail) => void
   onEdit: (part: MissingPartDetail) => void
   onUpdate: (part: MissingPartDetail) => void
@@ -461,6 +467,7 @@ function PartDataRow({
   rowSelectable,
   onToggleRowSelection,
   onOpenDetail,
+  onRowClick,
   onOpenNotes,
   onEdit,
   onUpdate,
@@ -492,9 +499,16 @@ function PartDataRow({
   const rowOpen = isMissingPartRowOpen(rowScope)
   const completeTarget = completeRep ?? item
 
+  function handleRowClick(e: MouseEvent) {
+    const target = e.target as HTMLElement
+    if (target.closest('button,a,input,select,textarea,[data-export-skip]')) return
+    onRowClick(relatedParts ?? [item])
+  }
+
   return (
     <tr
-      className={`bg-slate-900/30 hover:bg-slate-800/40 ${rowChecked ? 'ring-1 ring-inset ring-cyan-500/40' : ''} ${rowClassName}`}
+      className={`cursor-pointer bg-slate-900/30 hover:bg-slate-800/40 ${rowChecked ? 'ring-1 ring-inset ring-cyan-500/40' : ''} ${rowClassName}`}
+      onClick={handleRowClick}
     >
       {(listTab === 'active' || listTab === 'history') && (
         <td data-export-skip className={cell}>
@@ -509,7 +523,16 @@ function PartDataRow({
           )}
         </td>
       )}
-      <td className={`${cell} font-bold text-white`}>{vinCell}</td>
+      <td className={`${cell} font-bold text-white`}>
+        <span className="inline-flex items-center justify-center gap-2">
+          {vinCell}
+          {rowScope.some(p => !!p.shortageResolvedAt) && (
+            <span className="rounded-full bg-emerald-500/15 px-2 py-0.5 text-[11px] font-black text-emerald-200">
+              {t('mp.vehicleCard.archiveBadge')}
+            </span>
+          )}
+        </span>
+      </td>
       <td className={cell}>{item.modelName}</td>
       <td className={cell}>
         {item.colorName ? (

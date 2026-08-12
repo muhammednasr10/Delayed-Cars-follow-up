@@ -20,14 +20,16 @@ export type Part = {
   applicable_models_text: string | null
   category_id: string | null
   part_type: string | null
+  common_supply_source: string | null
   unit: string | null
   notes: string | null
   is_active: boolean
 }
 
-/** Part master row with models derived from active BOM lines */
+/** Part master row in قائمة الأجزاء */
 export type PartListRow = Part & {
-  model_names: string[]
+  /** Active IPL models with qty > 0 for this part */
+  model_count?: number
 }
 
 export type BomItemDetail = {
@@ -94,6 +96,8 @@ export type BomItemDetail = {
 }
 
 export type BomItemCreateInput = {
+  /** Link to existing parts-list master instead of upserting by part number */
+  part_id?: string
   part_number: string
   part_name_ar?: string
   part_name_en?: string

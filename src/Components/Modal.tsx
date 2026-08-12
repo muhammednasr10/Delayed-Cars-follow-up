@@ -1,4 +1,4 @@
-import { type ReactNode } from 'react'
+import { type ReactNode, useRef } from 'react'
 import { createPortal } from 'react-dom'
 import { X } from 'lucide-react'
 
@@ -26,12 +26,26 @@ export function Modal({
   footer,
   maxWidthClass = 'max-w-lg'
 }: ModalProps) {
+  const backdropMouseDown = useRef(false)
+
   if (!open) return null
+
+  function handleBackdropMouseDown(event: React.MouseEvent<HTMLDivElement>) {
+    backdropMouseDown.current = event.target === event.currentTarget
+  }
+
+  function handleBackdropClick(event: React.MouseEvent<HTMLDivElement>) {
+    if (event.target === event.currentTarget && backdropMouseDown.current) {
+      onClose()
+    }
+    backdropMouseDown.current = false
+  }
 
   const node = (
     <div
       className="fixed inset-0 z-[100] flex items-end justify-center overflow-hidden bg-black/70 p-2 backdrop-blur-sm sm:items-center sm:p-4"
-      onClick={onClose}
+      onMouseDown={handleBackdropMouseDown}
+      onClick={handleBackdropClick}
     >
       <div
         className={`flex max-h-[92dvh] w-full ${maxWidthClass} animate-[fadeIn_0.15s_ease-out] flex-col rounded-t-2xl border border-slate-700/70 bg-slate-900/95 shadow-2xl shadow-black/40 sm:my-auto sm:max-h-[90vh] sm:rounded-2xl`}

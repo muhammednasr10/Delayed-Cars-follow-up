@@ -4,6 +4,7 @@ import { effectivePartKind, effectiveSupplySource } from './bomDefaults'
 import { resolvePartNameEn } from './partNameEn'
 import { effectiveBomStopperType } from './bomStopper'
 import { displayBomStationCode } from './bomStationCode'
+import { iplDisplayPartNumber } from './iplModelParts'
 import type { BomPartsDisplayColumn } from './bomPartsColumns'
 
 export function formatQtyForDisplay(qty: number): string {
@@ -15,7 +16,7 @@ export function formatQtyForDisplay(qty: number): string {
 export function bomPartsCellValue(row: BomItemDetail, col: BomPartsDisplayColumn): string {
   switch (col) {
     case 'part_number':
-      return row.part_number
+      return iplDisplayPartNumber(row.part_number)
     case 'part_name_ar':
       return row.part_name_ar ?? row.part_name ?? ''
     case 'part_name_en':

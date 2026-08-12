@@ -5,6 +5,7 @@ import {
   clearSession,
   ensureFreshSession,
   formatAuthApiError,
+  hasRestorableSession,
   isAccessTokenExpired,
   isJwtExpiredMessage,
   isRefreshTokenExpired,
@@ -82,10 +83,12 @@ describe('authService session helpers', () => {
     const session = makeSession({ accessExp: Math.floor(Date.now() / 1000) + 3600 })
     saveSession(session)
     expect(readRawSession()?.user.id).toBe('user-1')
+    expect(hasRestorableSession()).toBe(true)
     applySession(session)
     clearSession()
     expect(localStorage.getItem(SESSION_KEY)).toBeNull()
     expect(readRawSession()).toBeNull()
+    expect(hasRestorableSession()).toBe(false)
   })
 
   it('maps jwt expiry messages to Arabic session text', () => {

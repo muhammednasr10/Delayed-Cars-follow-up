@@ -23,13 +23,15 @@ import {
   type MissingPartTableRow
 } from '../../Utils/missingPartDisplay'
 import { MissingPartDetailModal } from '../../Components/MissingPartDetailModal'
+import { VehicleCardModal } from '../../Components/missingParts/VehicleCardModal'
 import { VehicleNotesModal } from '../../Components/VehicleNotesModal'
 import type { VehicleNoteTarget } from '../../Types/vehicleNote'
 import {
   bulkInstallVehiclesToFull,
   completeVehicleShortage,
   deleteMissingPartRecord,
-  getMissingParts
+  getMissingParts,
+  transferMissingPartIssue
 } from '../../services/missingPartsService'
 import type { MissingPartDetail, MissingPartFilters } from '../../Types/missingPart'
 import { MissingPartsToolbar, type ListTab } from '../../Components/missingParts/MissingPartsToolbar'
@@ -91,6 +93,7 @@ export function MissingPartsPage() {
     null
   )
   const [detailTarget, setDetailTarget] = useState<MissingPartDetail | null>(null)
+  const [vehicleCardParts, setVehicleCardParts] = useState<MissingPartDetail[] | null>(null)
   const [notesTarget, setNotesTarget] = useState<VehicleNoteTarget | null>(null)
   const [success, setSuccess] = useState('')
   const [completingVehicleId, setCompletingVehicleId] = useState<string | null>(null)
@@ -98,6 +101,7 @@ export function MissingPartsPage() {
   const [bulkActionBusy, setBulkActionBusy] = useState(false)
   const [completeTarget, setCompleteTarget] = useState<MissingPartDetail | null>(null)
   const [completeAllTargets, setCompleteAllTargets] = useState<MissingPartDetail[] | null>(null)
+  const [transferringPartId, setTransferringPartId] = useState<string | null>(null)
 
   const canBulkSelectForTab = useMemo(() => {
     if (listTab === 'history') return canBulkSelectArchive
@@ -206,12 +210,44 @@ export function MissingPartsPage() {
     return activeItems
   }, [listTab, historyItems, activeItems])
   const filtered = useMemo(() => applyFilters(tabSource, filters), [tabSource, filters])
-  const tableRows = useMemo(() => buildMissingPartTableRows(filtered), [filtered])
+  const tableRows = useMemo(
+    () => buildMissingPartTableRows(filtered, listTab === 'history' ? 'resolved-desc' : 'created-asc'),
+    [filtered, listTab]
+  )
   const tabVehicleCount = useMemo(() => new Set(tabSource.map(i => i.vehicleId)).size, [tabSource])
   const filteredVehicleCount = useMemo(() => new Set(filtered.map(i => i.vehicleId)).size, [filtered])
   const hasActiveFilter = Boolean(
     filters.search.trim() || filters.modelNames.length > 0 || filters.departments.length > 0
   )
+
+  // Keep the vehicle card in sync after actions like "ترحيل".
+  useEffect(() => {
+    if (!vehicleCardParts?.length) return
+    const vid = vehicleCardParts[0].vehicleId
+    const next = items.filter(p => p.vehicleId === vid)
+    setVehicleCardParts(next.length ? next : null)
+  }, [items])
+
+  // Keep update-install modal parts in sync after per-issue transfer.
+  useEffect(() => {
+    if (!updateVehicle) return
+    const vehicleIds = new Set(updateVehicle.parts.map(p => p.vehicleId))
+    const nextParts = items.filter(
+      p =>
+        vehicleIds.has(p.vehicleId) &&
+        p.status !== 'closed' &&
+        p.status !== 'cancelled' &&
+        !p.shortageResolvedAt
+    )
+    if (nextParts.length === 0) {
+      setUpdateVehicle(null)
+      return
+    }
+    const prevIds = updateVehicle.parts.map(p => p.id).join(',')
+    const nextIds = nextParts.map(p => p.id).join(',')
+    if (prevIds === nextIds) return
+    setUpdateVehicle(prev => (prev ? { ...prev, parts: nextParts } : null))
+  }, [items, updateVehicle])
 
   const selectableVehicleIds = useMemo(() => {
     if (!canBulkSelectForTab || (listTab !== 'active' && listTab !== 'history')) return new Set<string>()
@@ -349,6 +385,36 @@ export function MissingPartsPage() {
   function requestCompleteVehicle(row: MissingPartDetail) {
     setCompleteAllTargets(null)
     setCompleteTarget(row)
+  }
+
+  async function transferIssueFromCard(part: MissingPartDetail) {
+    if (!canComplete || transferringPartId) return
+    setTransferringPartId(part.id)
+    setError('')
+    try {
+      const openOnVehicle = (vehicleCardParts ?? items).filter(
+        p =>
+          p.vehicleId === part.vehicleId &&
+          p.status !== 'closed' &&
+          p.status !== 'cancelled' &&
+          !p.shortageResolvedAt
+      ).length
+      const result = await transferMissingPartIssue(part.id, {
+        vehicleId: part.vehicleId,
+        remainingOpenOnVehicle: openOnVehicle,
+        installDelta: Math.max(0, part.requiredQty - part.installedQty)
+      })
+      showSuccess(
+        result.vehicle_archived
+          ? t('mp.vehicleCard.transferIssueArchived', { vin: part.vin })
+          : t('mp.vehicleCard.transferIssueSuccess')
+      )
+      void load()
+    } catch (err) {
+      setError(formatError(err))
+    } finally {
+      setTransferringPartId(null)
+    }
   }
 
   function requestCompleteAll(parts: MissingPartDetail[]) {
@@ -551,6 +617,7 @@ export function MissingPartsPage() {
             onOpenVinList={(vins, modelName, colorName) => setVinList({ vins, modelName, colorName })}
             onOpenIssuesList={(parts, vin, modelName) => setIssuesList({ parts, vin, modelName })}
             onOpenDetail={setDetailTarget}
+            onRowClick={setVehicleCardParts}
             onOpenNotes={row =>
               setNotesTarget({
                 vehicleId: row.vehicleId,
@@ -570,7 +637,12 @@ export function MissingPartsPage() {
       </div>
 
       <ReportMissingPartModal open={showReport} onClose={() => setShowReport(false)} onReported={onReported} />
-      <UpdateMissingPartModal vehicle={updateVehicle} onClose={() => setUpdateVehicle(null)} onChanged={load} />
+      <UpdateMissingPartModal
+        vehicle={updateVehicle}
+        onClose={() => setUpdateVehicle(null)}
+        onChanged={load}
+        onNotify={showSuccess}
+      />
       <EditMissingPartModal vehicle={editVehicle} onClose={() => setEditVehicle(null)} onSaved={load} />
       <EditReportGroupModal group={editGroup} onClose={() => setEditGroup(null)} onSaved={load} />
       <VinListModal
@@ -588,6 +660,15 @@ export function MissingPartsPage() {
         onClose={() => setIssuesList(null)}
       />
       <MissingPartDetailModal part={detailTarget} onClose={() => setDetailTarget(null)} />
+      <VehicleCardModal
+        parts={vehicleCardParts}
+        orgUnitLabel={vehicleCardParts?.[0] ? orgUnitLabelFor(vehicleCardParts[0].factoryOrgUnitId) : undefined}
+        completingVehicleId={completingVehicleId}
+        transferringPartId={transferringPartId}
+        canTransferIssue={canComplete}
+        onTransferIssue={part => void transferIssueFromCard(part)}
+        onClose={() => setVehicleCardParts(null)}
+      />
       <VehicleNotesModal target={notesTarget} onClose={() => setNotesTarget(null)} />
 
       <ConfirmDialog

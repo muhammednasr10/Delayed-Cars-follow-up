@@ -69,6 +69,8 @@ function mapVehicleModel(row: Record<string, unknown>, parentName?: string | nul
     model_kind: (row.model_kind as VehicleModel['model_kind']) ?? 'variant',
     parent_model_id: (row.parent_model_id as string | null) ?? null,
     parent_name: parentName ?? null,
+    parent_company: (row.parent_company as string | null) ?? null,
+    agency: (row.agency as string | null) ?? null,
     is_active: Boolean(row.is_active),
     created_at: row.created_at as string | undefined,
     updated_at: row.updated_at as string | undefined
@@ -91,13 +93,18 @@ export async function createVehicleModel(input: {
   name: string
   model_kind?: VehicleModel['model_kind']
   parent_model_id?: string | null
+  parent_company?: string | null
+  agency?: string | null
+  is_active?: boolean
 }): Promise<VehicleModel> {
   const kind = input.model_kind ?? 'variant'
   const payload = {
     name: input.name.trim().toUpperCase(),
     model_kind: kind,
     parent_model_id: kind === 'family' ? null : (input.parent_model_id ?? null),
-    is_active: true
+    parent_company: input.parent_company?.trim() || null,
+    agency: input.agency?.trim() || null,
+    is_active: input.is_active ?? true
   }
   const { data, error } = await requireClient().from('vehicle_models').insert(payload).select('*').single()
   if (error) handleError('Failed to create vehicle model:', error)
@@ -117,10 +124,12 @@ export async function createVehicleModel(input: {
 
 export async function updateVehicleModel(
   id: string,
-  input: Partial<Pick<VehicleModel, 'name' | 'is_active' | 'model_kind' | 'parent_model_id'>>
+  input: Partial<Pick<VehicleModel, 'name' | 'is_active' | 'model_kind' | 'parent_model_id' | 'parent_company' | 'agency'>>
 ): Promise<VehicleModel> {
   const patch: Record<string, unknown> = { ...input }
   if (typeof patch.name === 'string') patch.name = patch.name.trim().toUpperCase()
+  if (typeof patch.parent_company === 'string') patch.parent_company = patch.parent_company.trim() || null
+  if (typeof patch.agency === 'string') patch.agency = patch.agency.trim() || null
   if (patch.model_kind === 'family') patch.parent_model_id = null
   const { data, error } = await requireClient().from('vehicle_models').update(patch).eq('id', id).select('*').single()
   if (error) handleError('Failed to update vehicle model:', error)
@@ -139,6 +148,9 @@ export async function updateVehicleModel(
     row.model_kind as VehicleModel['model_kind'],
     row.parent_model_id as string | null
   )
+  if (input.is_active === false && row.model_kind === 'family') {
+    await requireClient().from('vehicle_models').update({ is_active: false }).eq('parent_model_id', id)
+  }
   return mapVehicleModel(row, parent_name)
 }
 
@@ -169,8 +181,15 @@ async function syncModelFamilyMembership(
 }
 
 export async function deactivateVehicleModel(id: string): Promise<void> {
-  const { error } = await requireClient().from('vehicle_models').update({ is_active: false }).eq('id', id)
+  const client = requireClient()
+  const { error } = await client.from('vehicle_models').update({ is_active: false }).eq('id', id)
   if (error) handleError('Failed to deactivate vehicle model:', error)
+  await client.from('vehicle_models').update({ is_active: false }).eq('parent_model_id', id)
+}
+
+export async function reactivateVehicleModel(id: string): Promise<void> {
+  const { error } = await requireClient().from('vehicle_models').update({ is_active: true }).eq('id', id)
+  if (error) handleError('Failed to reactivate vehicle model:', error)
 }
 
 export async function deleteVehicleModel(id: string): Promise<void> {

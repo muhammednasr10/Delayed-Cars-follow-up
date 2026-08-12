@@ -19,19 +19,51 @@ type Props = {
   stations: Station[]
   familyIds: string[]
   cards: ModelCardDraft[]
+  masterSeed?: Partial<ModelCardDraft>
   onFamilyIdsChange: (ids: string[]) => void
   onCardsChange: (cards: ModelCardDraft[]) => void
 }
 
-export function BomModelCardsEditor({ models, stations, familyIds, cards, onFamilyIdsChange, onCardsChange }: Props) {
+function seedCardFromMaster(partial: Partial<ModelCardDraft>): ModelCardDraft {
+  return {
+    modelId: '__seed__',
+    modelName: '',
+    part_number: '',
+    part_number_new: partial.part_number_new ?? '',
+    alternative_part_no: partial.alternative_part_no ?? '',
+    qty: '0',
+    part_kind: partial.part_kind ?? DEFAULT_PART_KIND,
+    supply_source: partial.supply_source ?? DEFAULT_SUPPLY_SOURCE,
+    station_id: partial.station_id ?? '',
+    station_code_text: partial.station_code_text ?? '',
+    bom_classification: partial.bom_classification ?? '',
+    station_category: partial.station_category ?? ''
+  }
+}
+
+export function BomModelCardsEditor({
+  models,
+  stations,
+  familyIds,
+  cards,
+  masterSeed,
+  onFamilyIdsChange,
+  onCardsChange
+}: Props) {
   const { t } = useLang()
   const families = useMemo(() => familyOptions(models), [models])
   const masterStations = useMemo(() => masterStationsForBom(stations), [stations])
 
+  function cardsForSync(): ModelCardDraft[] {
+    if (cards.length > 0) return cards
+    if (masterSeed) return [seedCardFromMaster(masterSeed)]
+    return []
+  }
+
   function toggleFamily(id: string, on: boolean) {
     const nextFamilies = on ? [...familyIds, id] : familyIds.filter(x => x !== id)
     onFamilyIdsChange(nextFamilies)
-    onCardsChange(syncModelCardsWithFamilies(models, nextFamilies, cards))
+    onCardsChange(syncModelCardsWithFamilies(models, nextFamilies, cardsForSync()))
   }
 
   function patchCard(modelId: string, patch: Partial<ModelCardDraft>) {
@@ -50,8 +82,6 @@ export function BomModelCardsEditor({ models, stations, familyIds, cards, onFami
       station_id: matched?.id ?? ''
     })
   }
-
-  const sharedPartNumber = cards[0]?.part_number ?? ''
 
   return (
     <div className="space-y-4">
@@ -87,23 +117,15 @@ export function BomModelCardsEditor({ models, stations, familyIds, cards, onFami
         <div className="space-y-3">
           <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
             <span className="block text-sm font-bold text-slate-300">{t('bom.modelCards')}</span>
-            <p className="text-xs text-slate-500">{t('bom.modelCardsQtyHint')}</p>
+            <p className="text-xs text-slate-500">{t('bom.modelCardsPerModelHint')}</p>
           </div>
 
-          <Field label={t('bom.col.part_number')} required>
-            <input
-              className={inputCls()}
-              dir="ltr"
-              value={sharedPartNumber}
-              onChange={e => patchAllCards({ part_number: e.target.value })}
-            />
-          </Field>
-
           <div className="overflow-x-auto rounded-xl border border-violet-500/25">
-            <table className="w-full min-w-[640px] text-sm">
+            <table className="w-full min-w-[760px] text-sm">
               <thead className="bg-slate-900/80">
                 <tr className="border-b border-slate-800 text-[10px] font-black uppercase text-slate-500">
                   <th className="px-3 py-2 text-start">{t('bom.model')}</th>
+                  <th className="px-3 py-2 text-start">{t('bom.col.part_number')}</th>
                   <th className="px-3 py-2 text-center">{t('bom.qtyPerCar')}</th>
                   <th className="px-3 py-2 text-start">{t('bom.col.part_kind')}</th>
                   <th className="px-3 py-2 text-start">{t('bom.col.supply_source')}</th>
@@ -119,6 +141,16 @@ export function BomModelCardsEditor({ models, stations, familyIds, cards, onFami
                       className={`border-b border-slate-800/60 last:border-0 ${inactive ? 'bg-slate-950/40 opacity-70' : 'bg-slate-900/40'}`}
                     >
                       <td className="px-3 py-2 font-bold text-violet-200">{card.modelName}</td>
+                      <td className="px-3 py-2">
+                        <input
+                          className={`${inputCls()} min-w-[7rem] py-1 font-mono text-sm`}
+                          dir="ltr"
+                          value={card.part_number}
+                          disabled={inactive}
+                          placeholder={inactive ? '—' : t('bom.partNumberPh')}
+                          onChange={e => patchCard(card.modelId, { part_number: e.target.value })}
+                        />
+                      </td>
                       <td className="px-3 py-2 text-center">
                         <input
                           type="number"

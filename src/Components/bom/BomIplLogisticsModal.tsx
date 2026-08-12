@@ -4,6 +4,7 @@ import { Modal } from '../Modal'
 import { BomIplLogisticsPanel } from './BomIplLogisticsPanel'
 import type { BomDisplayGroup } from '../../Utils/bomRowGroups'
 import type { BomIplFeedingCard } from '../../Utils/iplBomLogistics'
+import { joinDistinctPartLabels } from '../../Utils/partDisplayNames'
 
 type Props = {
   open: boolean
@@ -18,7 +19,9 @@ export function BomIplLogisticsModal({ open, group, canUpdate, saving, onClose, 
   const { t } = useLang()
   if (!group) return null
 
-  const subtitle = [group.summary.part_name_ar, group.summary.part_name_en].filter(Boolean).join(' · ')
+  const subtitle =
+    joinDistinctPartLabels(group.summary.part_name_ar, group.summary.part_name_en) ||
+    group.summary.part_number
 
   return (
     <Modal

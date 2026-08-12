@@ -88,6 +88,12 @@ export function readRawSession(): AppAuthSession | null {
   }
 }
 
+/** True when a stored session can still be renewed (user should skip login). */
+export function hasRestorableSession(): boolean {
+  const raw = readRawSession()
+  return raw != null && !isRefreshTokenExpired(raw)
+}
+
 export function saveSession(session: AppAuthSession): void {
   localStorage.setItem(SESSION_KEY, JSON.stringify(session))
 }

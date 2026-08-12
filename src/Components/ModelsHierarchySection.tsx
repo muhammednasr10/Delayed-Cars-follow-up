@@ -1,10 +1,15 @@
 import { useMemo, useState } from 'react'
-import { Car, ChevronDown, ChevronLeft, Pencil, Plus, Trash2 } from 'lucide-react'
+import { Car, ChevronDown, ChevronLeft, Pencil, Plus, Power, PowerOff } from 'lucide-react'
 import { useLang } from '../i18n/LanguageContext'
 import { Modal } from './Modal'
 import { ConfirmDialog } from './ConfirmDialog'
 import { Field, inputCls } from './FormField'
-import { createVehicleModel, deleteVehicleModel, updateVehicleModel } from '../services/settingsService'
+import {
+  createVehicleModel,
+  deactivateVehicleModel,
+  reactivateVehicleModel,
+  updateVehicleModel
+} from '../services/settingsService'
 import type { VehicleModel } from '../Types/settings'
 import {
   buildModelFamilyGroups,
@@ -22,35 +27,58 @@ type Props = {
 
 type FormMode = 'family' | 'variant' | null
 
+type ToggleTarget = { model: VehicleModel; action: 'deactivate' | 'reactivate' }
+
 export function ModelsHierarchySection({ models, busy, onChanged, onError, onSuccess }: Props) {
   const { t } = useLang()
   const [expanded, setExpanded] = useState<Record<string, boolean>>({})
+  const [showInactive, setShowInactive] = useState(true)
   const [formMode, setFormMode] = useState<FormMode>(null)
   const [editing, setEditing] = useState<VehicleModel | null>(null)
   const [name, setName] = useState('')
   const [parentId, setParentId] = useState('')
+  const [parentCompany, setParentCompany] = useState('')
+  const [agency, setAgency] = useState('')
+  const [isActive, setIsActive] = useState(true)
   const [saving, setSaving] = useState(false)
-  const [deleteTarget, setDeleteTarget] = useState<VehicleModel | null>(null)
+  const [toggleTarget, setToggleTarget] = useState<ToggleTarget | null>(null)
 
-  const families = useMemo(() => models.filter(m => m.model_kind === 'family'), [models])
-  const { groups, orphanVariants } = useMemo(() => buildModelFamilyGroups(models), [models])
+  const visibleModels = useMemo(
+    () => (showInactive ? models : models.filter(m => m.is_active)),
+    [models, showInactive]
+  )
+  const families = useMemo(() => visibleModels.filter(m => m.model_kind === 'family'), [visibleModels])
+  const { groups, orphanVariants } = useMemo(() => buildModelFamilyGroups(visibleModels), [visibleModels])
+  const inactiveCount = useMemo(() => models.filter(m => !m.is_active).length, [models])
 
   function toggleExpand(id: string) {
     setExpanded(p => ({ ...p, [id]: !p[id] }))
   }
 
+  function resetFormFields() {
+    setName('')
+    setParentId('')
+    setParentCompany('')
+    setAgency('')
+    setIsActive(true)
+  }
+
   function openAddFamily() {
     setEditing(null)
     setFormMode('family')
-    setName('')
-    setParentId('')
+    resetFormFields()
   }
 
   function openAddVariant(parentModelId: string) {
     setEditing(null)
     setFormMode('variant')
-    setName('')
+    resetFormFields()
     setParentId(parentModelId)
+    const parent = models.find(m => m.id === parentModelId)
+    if (parent) {
+      setParentCompany(parent.parent_company ?? '')
+      setAgency(parent.agency ?? '')
+    }
   }
 
   function openEdit(m: VehicleModel) {
@@ -58,6 +86,9 @@ export function ModelsHierarchySection({ models, busy, onChanged, onError, onSuc
     setFormMode(m.model_kind)
     setName(m.name)
     setParentId(m.parent_model_id ?? '')
+    setParentCompany(m.parent_company ?? '')
+    setAgency(m.agency ?? '')
+    setIsActive(m.is_active)
   }
 
   function closeForm() {
@@ -78,16 +109,27 @@ export function ModelsHierarchySection({ models, busy, onChanged, onError, onSuc
     setSaving(true)
     onError('')
     try {
+      const meta = {
+        parent_company: parentCompany.trim() || null,
+        agency: agency.trim() || null,
+        is_active: isActive
+      }
       if (editing) {
         await updateVehicleModel(editing.id, {
           name: trimmed,
           model_kind: formMode ?? editing.model_kind,
-          parent_model_id: formMode === 'family' ? null : parentId || null
+          parent_model_id: formMode === 'family' ? null : parentId || null,
+          ...meta
         })
       } else if (formMode === 'family') {
-        await createVehicleModel({ name: trimmed, model_kind: 'family' })
+        await createVehicleModel({ name: trimmed, model_kind: 'family', ...meta })
       } else {
-        await createVehicleModel({ name: trimmed, model_kind: 'variant', parent_model_id: parentId })
+        await createVehicleModel({
+          name: trimmed,
+          model_kind: 'variant',
+          parent_model_id: parentId,
+          ...meta
+        })
       }
       await onChanged()
       onSuccess(editing ? t('settings.updated') : t('settings.added'))
@@ -99,17 +141,22 @@ export function ModelsHierarchySection({ models, busy, onChanged, onError, onSuc
     }
   }
 
-  async function confirmDelete() {
-    if (!deleteTarget) return
+  async function confirmToggleActive() {
+    if (!toggleTarget) return
     setSaving(true)
     try {
-      await deleteVehicleModel(deleteTarget.id)
+      if (toggleTarget.action === 'deactivate') {
+        await deactivateVehicleModel(toggleTarget.model.id)
+      } else {
+        await reactivateVehicleModel(toggleTarget.model.id)
+      }
       await onChanged()
-      onSuccess(t('settings.deleted'))
-      setDeleteTarget(null)
+      onSuccess(
+        toggleTarget.action === 'deactivate' ? t('settings.models.deactivated') : t('settings.models.reactivated')
+      )
+      setToggleTarget(null)
     } catch (err) {
-      const msg = err instanceof Error ? err.message : ''
-      onError(msg === 'MODEL_HAS_CHILDREN' ? t('settings.models.hasChildren') : msg || t('common.error'))
+      onError(err instanceof Error ? err.message : t('common.error'))
     } finally {
       setSaving(false)
     }
@@ -121,7 +168,11 @@ export function ModelsHierarchySection({ models, busy, onChanged, onError, onSuc
       const inferred = inferParentNameFromVariant(v)
       if (inferred) {
         const parent = families.find(f => f.name.toUpperCase() === inferred)
-        if (parent) setParentId(parent.id)
+        if (parent) {
+          setParentId(parent.id)
+          setParentCompany(parent.parent_company ?? '')
+          setAgency(parent.agency ?? '')
+        }
       }
     }
   }
@@ -132,15 +183,31 @@ export function ModelsHierarchySection({ models, busy, onChanged, onError, onSuc
         <div className="flex items-center gap-2">
           <Car className="h-5 w-5 text-cyan-300" />
           <h3 className="font-black text-white">{t('settings.tabs.models')}</h3>
-          <span className="text-xs text-slate-500">{t('common.items', { n: models.length })}</span>
+          <span className="text-xs text-slate-500">{t('common.items', { n: visibleModels.length })}</span>
+          {inactiveCount > 0 && (
+            <span className="rounded-md bg-slate-800 px-2 py-0.5 text-[10px] font-bold text-slate-400">
+              {t('settings.models.inactiveCount', { n: inactiveCount })}
+            </span>
+          )}
         </div>
-        <button
-          type="button"
-          onClick={openAddFamily}
-          className="inline-flex items-center gap-1 rounded-xl bg-cyan-500 px-4 py-2 text-sm font-black text-slate-950 hover:bg-cyan-400"
-        >
-          <Plus className="h-4 w-4" /> {t('settings.models.addFamily')}
-        </button>
+        <div className="flex flex-wrap items-center gap-2">
+          <label className="flex cursor-pointer items-center gap-2 text-xs text-slate-400">
+            <input
+              type="checkbox"
+              className="rounded border-slate-600"
+              checked={showInactive}
+              onChange={e => setShowInactive(e.target.checked)}
+            />
+            {t('settings.models.showInactive')}
+          </label>
+          <button
+            type="button"
+            onClick={openAddFamily}
+            className="inline-flex items-center gap-1 rounded-xl bg-cyan-500 px-4 py-2 text-sm font-black text-slate-950 hover:bg-cyan-400"
+          >
+            <Plus className="h-4 w-4" /> {t('settings.models.addFamily')}
+          </button>
+        </div>
       </div>
 
       <p className="border-b border-slate-800 px-4 py-2 text-xs text-slate-500">{t('settings.models.hint')}</p>
@@ -154,7 +221,7 @@ export function ModelsHierarchySection({ models, busy, onChanged, onError, onSuc
             onToggle={() => toggleExpand(g.family.id)}
             onAddVariant={() => openAddVariant(g.family.id)}
             onEdit={openEdit}
-            onDelete={setDeleteTarget}
+            onToggleActive={setToggleTarget}
             t={t}
           />
         ))}
@@ -163,12 +230,12 @@ export function ModelsHierarchySection({ models, busy, onChanged, onError, onSuc
             <p className="mb-2 text-xs font-bold uppercase text-slate-500">{t('settings.models.orphans')}</p>
             <ul className="space-y-1">
               {orphanVariants.map(v => (
-                <VariantRow key={v.id} model={v} onEdit={openEdit} onDelete={setDeleteTarget} t={t} />
+                <VariantRow key={v.id} model={v} onEdit={openEdit} onToggleActive={setToggleTarget} t={t} />
               ))}
             </ul>
           </div>
         )}
-        {models.length === 0 && !busy && <p className="p-8 text-center text-slate-500">{t('common.noData')}</p>}
+        {visibleModels.length === 0 && !busy && <p className="p-8 text-center text-slate-500">{t('common.noData')}</p>}
       </div>
 
       <Modal
@@ -212,7 +279,18 @@ export function ModelsHierarchySection({ models, busy, onChanged, onError, onSuc
           </Field>
           {formMode === 'variant' && (
             <Field label={t('settings.models.parent')} required>
-              <select className={inputCls()} value={parentId} onChange={e => setParentId(e.target.value)}>
+              <select
+                className={inputCls()}
+                value={parentId}
+                onChange={e => {
+                  setParentId(e.target.value)
+                  const parent = models.find(m => m.id === e.target.value)
+                  if (parent && !editing) {
+                    if (!parentCompany.trim()) setParentCompany(parent.parent_company ?? '')
+                    if (!agency.trim()) setAgency(parent.agency ?? '')
+                  }
+                }}
+              >
                 <option value="">{t('settings.models.selectParent')}</option>
                 {families.map(f => (
                   <option key={f.id} value={f.id}>
@@ -222,17 +300,88 @@ export function ModelsHierarchySection({ models, busy, onChanged, onError, onSuc
               </select>
             </Field>
           )}
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+            <Field label={t('settings.models.parentCompany')}>
+              <input
+                className={inputCls()}
+                value={parentCompany}
+                onChange={e => setParentCompany(e.target.value)}
+                placeholder={t('settings.models.parentCompanyPh')}
+              />
+            </Field>
+            <Field label={t('settings.models.agency')}>
+              <input
+                className={inputCls()}
+                value={agency}
+                onChange={e => setAgency(e.target.value)}
+                placeholder={t('settings.models.agencyPh')}
+              />
+            </Field>
+          </div>
+          <label className="flex cursor-pointer items-center gap-2 rounded-xl border border-slate-800 bg-slate-950/50 px-3 py-2.5">
+            <input
+              type="checkbox"
+              className="rounded border-slate-600"
+              checked={isActive}
+              onChange={e => setIsActive(e.target.checked)}
+            />
+            <span className="text-sm font-bold text-slate-200">{t('settings.models.isActive')}</span>
+          </label>
           {formMode === 'family' && <p className="text-xs text-slate-500">{t('settings.models.familyHint')}</p>}
+          {!isActive && <p className="text-xs text-amber-400/90">{t('settings.models.inactiveHint')}</p>}
         </div>
       </Modal>
 
       <ConfirmDialog
-        open={Boolean(deleteTarget)}
-        title={t('settings.deleteTitle')}
-        message={t('settings.deleteMsg', { name: deleteTarget?.name ?? '' })}
-        onConfirm={() => void confirmDelete()}
-        onCancel={() => setDeleteTarget(null)}
+        open={Boolean(toggleTarget)}
+        title={
+          toggleTarget?.action === 'deactivate'
+            ? t('settings.models.deactivateTitle')
+            : t('settings.models.reactivateTitle')
+        }
+        message={
+          toggleTarget?.action === 'deactivate'
+            ? t('settings.models.deactivateMsg', { name: toggleTarget.model.name })
+            : t('settings.models.reactivateMsg', { name: toggleTarget?.model.name ?? '' })
+        }
+        confirmLabel={
+          toggleTarget?.action === 'deactivate' ? t('settings.models.deactivate') : t('settings.models.reactivate')
+        }
+        cancelLabel={t('common.cancel')}
+        busy={saving}
+        onConfirm={() => void confirmToggleActive()}
+        onCancel={() => setToggleTarget(null)}
       />
+    </div>
+  )
+}
+
+function ModelMetaBadges({
+  model,
+  t
+}: {
+  model: VehicleModel
+  t: (key: string, vars?: Record<string, string | number>) => string
+}) {
+  return (
+    <div className="flex flex-wrap items-center gap-1.5">
+      {!model.is_active && (
+        <span className="rounded-md border border-slate-600 bg-slate-800/80 px-2 py-0.5 text-[10px] font-black uppercase text-slate-400">
+          {t('settings.models.inactive')}
+        </span>
+      )}
+      {model.parent_company && (
+        <span className="inline-flex items-center gap-1 text-[10px] text-slate-400">
+          <span className="font-bold text-slate-500">{t('settings.models.parentCompanyShort')}:</span>
+          {model.parent_company}
+        </span>
+      )}
+      {model.agency && (
+        <span className="inline-flex items-center gap-1 text-[10px] text-slate-400">
+          <span className="font-bold text-slate-500">{t('settings.models.agencyShort')}:</span>
+          {model.agency}
+        </span>
+      )}
     </div>
   )
 }
@@ -243,7 +392,7 @@ function FamilyBlock({
   onToggle,
   onAddVariant,
   onEdit,
-  onDelete,
+  onToggleActive,
   t
 }: {
   group: ModelFamilyGroup
@@ -251,12 +400,12 @@ function FamilyBlock({
   onToggle: () => void
   onAddVariant: () => void
   onEdit: (m: VehicleModel) => void
-  onDelete: (m: VehicleModel) => void
+  onToggleActive: (target: ToggleTarget) => void
   t: (key: string, vars?: Record<string, string | number>) => string
 }) {
   const { family, variants } = group
   return (
-    <div>
+    <div className={!family.is_active ? 'opacity-60' : undefined}>
       <div className="flex flex-wrap items-center gap-2 bg-slate-900/50 px-4 py-3">
         <button type="button" onClick={onToggle} className="text-slate-400 hover:text-white">
           {expanded ? <ChevronDown className="h-5 w-5" /> : <ChevronLeft className="h-5 w-5" />}
@@ -264,12 +413,16 @@ function FamilyBlock({
         <span className="rounded-lg bg-cyan-500/20 px-2 py-0.5 text-[10px] font-black uppercase text-cyan-300">
           {t('settings.models.family')}
         </span>
-        <span className="flex-1 font-black text-white">{family.name}</span>
+        <div className="min-w-0 flex-1">
+          <span className="font-black text-white">{family.name}</span>
+          <ModelMetaBadges model={family} t={t} />
+        </div>
         <span className="text-xs text-slate-500">{t('settings.models.variantCount', { n: variants.length })}</span>
         <button
           type="button"
           onClick={onAddVariant}
-          className="rounded-lg bg-slate-800 px-2 py-1 text-xs font-bold text-cyan-300 hover:bg-slate-700"
+          disabled={!family.is_active}
+          className="rounded-lg bg-slate-800 px-2 py-1 text-xs font-bold text-cyan-300 hover:bg-slate-700 disabled:opacity-40"
         >
           <Plus className="mr-0.5 inline h-3 w-3" /> {t('settings.models.addVariant')}
         </button>
@@ -282,10 +435,18 @@ function FamilyBlock({
         </button>
         <button
           type="button"
-          onClick={() => onDelete(family)}
-          className="rounded-lg p-1.5 text-red-300 hover:bg-red-500/20"
+          onClick={() =>
+            onToggleActive({
+              model: family,
+              action: family.is_active ? 'deactivate' : 'reactivate'
+            })
+          }
+          className={`rounded-lg p-1.5 ${
+            family.is_active ? 'text-amber-300 hover:bg-amber-500/20' : 'text-emerald-300 hover:bg-emerald-500/20'
+          }`}
+          title={family.is_active ? t('settings.models.deactivate') : t('settings.models.reactivate')}
         >
-          <Trash2 className="h-4 w-4" />
+          {family.is_active ? <PowerOff className="h-4 w-4" /> : <Power className="h-4 w-4" />}
         </button>
       </div>
       {expanded && (
@@ -293,7 +454,9 @@ function FamilyBlock({
           {variants.length === 0 ? (
             <li className="py-2 text-sm text-slate-500">{t('settings.models.noVariants')}</li>
           ) : (
-            variants.map(v => <VariantRow key={v.id} model={v} onEdit={onEdit} onDelete={onDelete} t={t} />)
+            variants.map(v => (
+              <VariantRow key={v.id} model={v} onEdit={onEdit} onToggleActive={onToggleActive} t={t} />
+            ))
           )}
         </ul>
       )}
@@ -304,21 +467,26 @@ function FamilyBlock({
 function VariantRow({
   model,
   onEdit,
-  onDelete,
+  onToggleActive,
   t
 }: {
   model: VehicleModel
   onEdit: (m: VehicleModel) => void
-  onDelete: (m: VehicleModel) => void
-  t: (key: string) => string
+  onToggleActive: (target: ToggleTarget) => void
+  t: (key: string, vars?: Record<string, string | number>) => string
 }) {
   return (
-    <li className="flex items-center gap-2 rounded-lg px-2 py-2 hover:bg-slate-800/50">
+    <li
+      className={`flex flex-wrap items-center gap-2 rounded-lg px-2 py-2 hover:bg-slate-800/50 ${!model.is_active ? 'opacity-60' : ''}`}
+    >
       <span className="rounded bg-slate-800 px-1.5 py-0.5 text-[10px] font-bold text-slate-400">
         {t('settings.models.variant')}
       </span>
-      <span className="flex-1 font-bold text-slate-200">{model.name}</span>
-      {model.parent_name && <span className="text-xs text-slate-500">← {model.parent_name}</span>}
+      <div className="min-w-0 flex-1">
+        <span className="font-bold text-slate-200">{model.name}</span>
+        {model.parent_name && <span className="ms-2 text-xs text-slate-500">← {model.parent_name}</span>}
+        <ModelMetaBadges model={model} t={t} />
+      </div>
       <button
         type="button"
         onClick={() => onEdit(model)}
@@ -328,10 +496,18 @@ function VariantRow({
       </button>
       <button
         type="button"
-        onClick={() => onDelete(model)}
-        className="rounded-lg p-1.5 text-red-300 hover:bg-red-500/20"
+        onClick={() =>
+          onToggleActive({
+            model,
+            action: model.is_active ? 'deactivate' : 'reactivate'
+          })
+        }
+        className={`rounded-lg p-1.5 ${
+          model.is_active ? 'text-amber-300 hover:bg-amber-500/20' : 'text-emerald-300 hover:bg-emerald-500/20'
+        }`}
+        title={model.is_active ? t('settings.models.deactivate') : t('settings.models.reactivate')}
       >
-        <Trash2 className="h-4 w-4" />
+        {model.is_active ? <PowerOff className="h-4 w-4" /> : <Power className="h-4 w-4" />}
       </button>
     </li>
   )

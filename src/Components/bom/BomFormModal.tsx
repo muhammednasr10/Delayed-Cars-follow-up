@@ -3,7 +3,7 @@ import { Pencil, Plus } from 'lucide-react'
 import { useLang } from '../../i18n/LanguageContext'
 import { Modal } from '../Modal'
 import { Field, inputCls } from '../FormField'
-import { getBomItemById, saveBomFromModelCards } from '../../services/bomService'
+import { getBomItemById, saveBomFromModelCards, fetchBomCardsForPartMaster } from '../../services/bomService'
 import {
   loadStopperExclusionEntries,
   saveStopperExclusions,
@@ -18,10 +18,13 @@ import {
   syncModelCardsWithFamilies,
   type ModelCardDraft
 } from '../../Utils/bomModelCards'
-import { DEFAULT_PART_KIND, DEFAULT_SUPPLY_SOURCE } from '../../Utils/bomDefaults'
+import { DEFAULT_PART_KIND, DEFAULT_SUPPLY_SOURCE, effectivePartKind, effectiveSupplySource } from '../../Utils/bomDefaults'
 import { effectiveBomStopperType } from '../../Utils/bomStopper'
+import { findMasterStationByCode, normalizeBomStationCodeText } from '../../Utils/bomStationCode'
 import type { BomStopperType } from '../../Types/engineering'
 import type { Station, VehicleModel } from '../../Types/settings'
+import { PartListAutocomplete } from './PartListAutocomplete'
+import type { PartMasterHit } from '../../services/partsService'
 
 type Props = {
   mode: 'create' | 'edit'
@@ -48,6 +51,8 @@ export function BomFormModal({ mode, itemId, editItemIds, open, defaultVehicleMo
   const [exclusions, setExclusions] = useState<StopperExclusionEntry[]>([])
   const [familyIds, setFamilyIds] = useState<string[]>([])
   const [cards, setCards] = useState<ModelCardDraft[]>([])
+  const [cardMasterSeed, setCardMasterSeed] = useState<Partial<ModelCardDraft> | null>(null)
+  const [masterPartId, setMasterPartId] = useState<string | null>(null)
 
   useEffect(() => {
     if (!open) return
@@ -64,6 +69,8 @@ export function BomFormModal({ mode, itemId, editItemIds, open, defaultVehicleMo
           setNotes('')
           setStopperType('non_stopper')
           setExclusions([])
+          setCardMasterSeed(null)
+          setMasterPartId(null)
           if (defaultVehicleModelId) {
             const m = vm.find(x => x.id === defaultVehicleModelId)
             if (m) {
@@ -114,6 +121,8 @@ export function BomFormModal({ mode, itemId, editItemIds, open, defaultVehicleMo
           const parsed = valid.length > 1 ? cardsFromBomRows(vm, valid) : cardsFromBomRow(vm, row)
           setFamilyIds(parsed.familyIds)
           setCards(parsed.cards)
+          setCardMasterSeed(null)
+          setMasterPartId(row.part_id ?? null)
           try {
             const entries = await loadStopperExclusionEntries(row.id)
             setExclusions(entries)
@@ -126,6 +135,37 @@ export function BomFormModal({ mode, itemId, editItemIds, open, defaultVehicleMo
       .finally(() => setLoading(false))
   }, [open, itemId, editItemIds, isCreate, defaultVehicleModelId, t])
 
+  function applyPartMasterHit(hit: PartMasterHit) {
+    void (async () => {
+      setMasterPartId(hit.id)
+      setPartNameAr(hit.part_name_ar?.trim() || hit.common_name?.trim() || '')
+      setPartNameEn(hit.part_name_en?.trim() || '')
+      const stationCode = normalizeBomStationCodeText(hit.common_station ?? '')
+      const matched = findMasterStationByCode(stations, stationCode)
+      const cardPatch: Partial<ModelCardDraft> = {
+        part_kind: effectivePartKind(hit.part_type),
+        supply_source: effectiveSupplySource(hit.common_supply_source),
+        station_code_text: stationCode,
+        station_id: matched?.id ?? ''
+      }
+
+      try {
+        const loaded = await fetchBomCardsForPartMaster(hit.id, models)
+        if (loaded.cards.length > 0) {
+          setFamilyIds(loaded.familyIds)
+          setCards(loaded.cards)
+          setCardMasterSeed(null)
+          return
+        }
+      } catch {
+        /* fall through to defaults from master */
+      }
+
+      setCardMasterSeed(cardPatch)
+      setCards(prev => (prev.length ? prev.map(c => ({ ...c, ...cardPatch })) : prev))
+    })()
+  }
+
   async function save() {
     if (!partNameAr.trim() && !partNameEn.trim()) {
       setError(t('bom.partNameRequired'))
@@ -136,8 +176,8 @@ export function BomFormModal({ mode, itemId, editItemIds, open, defaultVehicleMo
       setError(t('bom.modelRequired'))
       return
     }
-    if (!activeCards[0]?.part_number.trim()) {
-      setError(t('bom.partNumberRequired'))
+    if (activeCards.some(c => !c.part_number.trim())) {
+      setError(t('bom.partNumberRequiredPerModel'))
       return
     }
     setSaving(true)
@@ -148,7 +188,8 @@ export function BomFormModal({ mode, itemId, editItemIds, open, defaultVehicleMo
         familyIds,
         cards,
         { part_name_ar: partNameAr, part_name_en: partNameEn, notes, stopper_type: stopperType },
-        models
+        models,
+        { masterPartId: masterPartId ?? undefined }
       )
       const partIds = stopperType === 'non_stopper' ? [] : exclusions.map(e => e.part_id)
       await saveStopperExclusions(savedId, partIds)
@@ -192,10 +233,16 @@ export function BomFormModal({ mode, itemId, editItemIds, open, defaultVehicleMo
 
           <div className="grid gap-3 sm:grid-cols-2">
             <Field label={t('bom.col.part_name_ar')}>
-              <input className={inputCls()} value={partNameAr} onChange={e => setPartNameAr(e.target.value)} />
+              <PartListAutocomplete
+                value={partNameAr}
+                onChange={setPartNameAr}
+                onPick={applyPartMasterHit}
+                disabled={loading}
+              />
+              <p className="mt-1 text-[10px] text-slate-600">{t('bom.partListAutocompleteHint')}</p>
             </Field>
             <Field label={t('bom.col.part_name_en')}>
-              <input className={inputCls()} value={partNameEn} onChange={e => setPartNameEn(e.target.value)} />
+              <input className={inputCls()} value={partNameEn} onChange={e => setPartNameEn(e.target.value)} dir="ltr" />
             </Field>
           </div>
 
@@ -222,6 +269,7 @@ export function BomFormModal({ mode, itemId, editItemIds, open, defaultVehicleMo
             stations={stations}
             familyIds={familyIds}
             cards={cards}
+            masterSeed={cardMasterSeed ?? undefined}
             onFamilyIdsChange={setFamilyIds}
             onCardsChange={setCards}
           />

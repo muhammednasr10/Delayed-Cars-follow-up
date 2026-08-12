@@ -111,10 +111,9 @@ export function syncModelCardsWithFamilies(
   const variants = variantsForFamilies(models, familyIds)
   if (variants.length === 0) return []
 
-  const seed = existing.find(c => c.part_number.trim()) ?? existing[0]
+  const seed = existing.find(c => c.part_kind || c.supply_source || c.station_code_text) ?? existing[0]
   const seedFields: Partial<ModelCardDraft> | undefined = seed
     ? {
-        part_number: seed.part_number,
         part_number_new: seed.part_number_new,
         alternative_part_no: seed.alternative_part_no,
         part_kind: seed.part_kind,
@@ -321,4 +320,45 @@ export function variantsForFamilies(models: VehicleModel[], familyIds: string[])
 export function familyOptions(models: VehicleModel[]) {
   const picker = buildModelFamilyGroups(models)
   return picker.groups.map(g => g.family)
+}
+
+/** Rebuild model-card editor state from all BOM lines of a parts-list master. */
+export function bomRowsToModelCards(
+  models: VehicleModel[],
+  rows: BomItemDetail[]
+): { familyIds: string[]; cards: ModelCardDraft[] } {
+  const familyIds: string[] = []
+  const cards: ModelCardDraft[] = []
+  const seenModel = new Set<string>()
+
+  for (const row of rows) {
+    let qtyEntries = modelQtyFromBomRow(row)
+    if (qtyEntries.length === 0 && row.vehicle_model_name?.trim()) {
+      qtyEntries = [{ modelName: row.vehicle_model_name.trim(), qty: Number(row.quantity) || 1 }]
+    }
+
+    for (const { modelName, qty } of qtyEntries) {
+      if (!modelName || seenModel.has(modelName)) continue
+      const m = models.find(x => x.name === modelName)
+      if (!m) continue
+      seenModel.add(modelName)
+      if (m.parent_model_id && !familyIds.includes(m.parent_model_id)) familyIds.push(m.parent_model_id)
+      cards.push(
+        emptyCard(m, {
+          part_number: row.part_number,
+          part_number_new: row.part_number_new ?? '',
+          alternative_part_no: row.alternative_part_no ?? '',
+          qty: String(qty),
+          part_kind: effectivePartKind(row.part_type),
+          supply_source: effectiveSupplySource(row.supply_source ?? resolveSupplySource(row)),
+          station_id: row.station_id ?? '',
+          station_code_text: row.station_code_text ? normalizeBomStationCodeText(row.station_code_text) : '',
+          bom_classification: row.bom_classification ?? '',
+          station_category: row.station_category ?? ''
+        })
+      )
+    }
+  }
+
+  return { familyIds, cards: syncModelCardsWithFamilies(models, familyIds, cards) }
 }

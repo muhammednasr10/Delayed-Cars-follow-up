@@ -17,8 +17,7 @@ export function LoginPage() {
   const [restoring, setRestoring] = useState(false)
   const [helpOpen, setHelpOpen] = useState(false)
 
-  const sessionExpired =
-    Boolean(accessDeniedMessage) && accessDeniedMessage.includes('انتهت الجلسة')
+  const sessionExpired = accessDeniedMessage?.includes('انتهت الجلسة') ?? false
 
   async function handleRestoreSession() {
     setError('')

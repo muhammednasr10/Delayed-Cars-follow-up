@@ -14,6 +14,7 @@ import { BomModelBreakdownPanel } from './BomModelBreakdownPanel'
 import { BomIplLogisticsPanel } from './BomIplLogisticsPanel'
 import type { BomIplFeedingCard } from '../../Utils/iplBomLogistics'
 import { effectiveBomStopperType } from '../../Utils/bomStopper'
+import { iplDisplayPartNumber } from '../../Utils/iplModelParts'
 import type { StopperType } from '../../Types/enums'
 
 type Props = {
@@ -109,17 +110,18 @@ export function BomGroupedTableRow({
   const stationName = stationNameFromOptions(stationSelectValue, stationOptions)
   const stopper = effectiveBomStopperType(row)
 
-  const [partNumberDraft, setPartNumberDraft] = useState(row.part_number ?? '')
-  const [qtyDraft, setQtyDraft] = useState(bomPartsCellValue(row, 'qty_by_model') || '1')
+  const displayPn = iplDisplayPartNumber(row.part_number)
+  const [partNumberDraft, setPartNumberDraft] = useState(displayPn)
+  const [qtyDraft, setQtyDraft] = useState(bomPartsCellValue(row, 'qty_by_model'))
 
   useEffect(() => {
-    setPartNumberDraft(row.part_number ?? '')
-    setQtyDraft(bomPartsCellValue(row, 'qty_by_model') || '1')
+    setPartNumberDraft(iplDisplayPartNumber(row.part_number))
+    setQtyDraft(bomPartsCellValue(row, 'qty_by_model'))
   }, [group.key, row.part_number, row.quantity])
 
   async function savePartNumber() {
     const trimmed = partNumberDraft.trim()
-    if (!trimmed || trimmed === (row.part_number ?? '').trim()) return
+    if (!trimmed || trimmed === displayPn) return
     if (!onIplFieldSave) return
     await onIplFieldSave(group, 'part_number', trimmed)
   }
@@ -127,11 +129,11 @@ export function BomGroupedTableRow({
   async function saveQty() {
     const n = Number(qtyDraft)
     if (!Number.isFinite(n) || n <= 0) {
-      setQtyDraft(bomPartsCellValue(row, 'qty_by_model') || '1')
+      setQtyDraft(bomPartsCellValue(row, 'qty_by_model'))
       return
     }
     const current = bomPartsCellValue(row, 'qty_by_model')
-    if (String(n) === current || (current === '' && n === 1)) return
+    if (String(n) === current) return
     if (!onIplFieldSave) return
     await onIplFieldSave(group, 'qty', String(n))
   }
@@ -206,14 +208,19 @@ export function BomGroupedTableRow({
                     className={`${inputCls()} w-full py-1 text-xs font-mono`}
                     value={partNumberDraft}
                     dir="ltr"
+                    placeholder={t('bom.iplPartNumberMissing')}
                     onChange={e => setPartNumberDraft(e.target.value)}
                     onBlur={() => void savePartNumber()}
                     onKeyDown={e => {
                       if (e.key === 'Enter') (e.target as HTMLInputElement).blur()
                     }}
                   />
+                ) : displayPn ? (
+                  <span className="font-mono text-xs">{displayPn}</span>
                 ) : (
-                  <span className="font-mono text-xs">{row.part_number || '—'}</span>
+                  <span className="inline-block rounded-md border border-amber-500/40 bg-amber-500/10 px-2 py-0.5 text-[10px] font-black text-amber-200">
+                    {t('bom.iplPartNumberMissing')}
+                  </span>
                 )
               ) : c === 'qty_by_model' && iplModelMode ? (
                 canUpdate && onIplFieldSave ? (
@@ -222,6 +229,7 @@ export function BomGroupedTableRow({
                     value={qtyDraft}
                     dir="ltr"
                     inputMode="decimal"
+                    placeholder="—"
                     onChange={e => setQtyDraft(e.target.value)}
                     onBlur={() => void saveQty()}
                     onKeyDown={e => {
