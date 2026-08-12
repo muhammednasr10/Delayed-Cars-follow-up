@@ -108,6 +108,8 @@ export type ReportMissingPartsBatchInput = {
   priority?: PriorityLevel
   stopperType?: StopperType
   notes?: string
+  /** Attach new lines to an existing multi-chassis report group. */
+  reportGroupId?: string | null
 }
 
 export type ReportMissingPartsBatchResult = {

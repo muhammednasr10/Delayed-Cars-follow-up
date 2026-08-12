@@ -106,6 +106,16 @@ export async function deleteMissingPartRecord(id: string): Promise<void> {
   if (error) throw new Error(error.message)
 }
 
+/** Stamp open lines onto a shared report group (e.g. before adding more chassis). */
+export async function attachMissingPartsToReportGroup(ids: string[], reportGroupId: string): Promise<void> {
+  if (ids.length === 0) return
+  const { error } = await requireClient()
+    .from('missing_parts')
+    .update({ report_group_id: reportGroupId })
+    .in('id', ids)
+  if (error) throw new Error(error.message)
+}
+
 export async function completeVehicleShortage(vehicleId: string): Promise<void> {
   const { error } = await requireClient().rpc('complete_vehicle_shortage', { p_vehicle_id: vehicleId })
   if (error) throw new Error(error.message)
@@ -285,12 +295,21 @@ export async function reportMissingPartsBatch(
     p_notes: input.notes || null
   }
 
-  const withOrg = input.factoryOrgUnitId ? { ...baseParams, p_factory_org_unit_id: input.factoryOrgUnitId } : baseParams
+  const withOrg = input.factoryOrgUnitId
+    ? { ...baseParams, p_factory_org_unit_id: input.factoryOrgUnitId }
+    : baseParams
+  const withGroup = input.reportGroupId
+    ? { ...withOrg, p_report_group_id: input.reportGroupId }
+    : withOrg
 
   let data: unknown
   let error: { message: string } | null
 
-  ;({ data, error } = await requireClient().rpc('report_missing_parts_batch', withOrg))
+  ;({ data, error } = await requireClient().rpc('report_missing_parts_batch', withGroup))
+
+  if (error && error.message.includes('Could not find the function') && 'p_report_group_id' in withGroup) {
+    ;({ data, error } = await requireClient().rpc('report_missing_parts_batch', withOrg))
+  }
 
   if (error && error.message.includes('Could not find the function') && 'p_factory_org_unit_id' in withOrg) {
     ;({ data, error } = await requireClient().rpc('report_missing_parts_batch', baseParams))
@@ -299,7 +318,7 @@ export async function reportMissingPartsBatch(
   if (error) {
     if (error.message.includes('Could not find the function')) {
       throw new Error(
-        'دالة تبليغ النواقص غير محدّثة على Supabase. نفّذ الملف supabase/scripts/apply_report_missing_parts_batch.sql من SQL Editor.'
+        'دالة تبليغ النواقص غير محدّثة على Supabase. نفّذ الملف supabase/migrations/0145_report_batch_attach_group.sql من SQL Editor.'
       )
     }
     throw new Error(error.message)

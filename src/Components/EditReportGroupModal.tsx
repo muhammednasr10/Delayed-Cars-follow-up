@@ -5,6 +5,7 @@ import { Modal } from './Modal'
 import { EditableVinList } from './EditableVinList'
 import { VinConflictDialog } from './VinConflictDialog'
 import { reportMissingPartsBatch, updateMissingPartRecord, deleteMissingPartRecord } from '../services/missingPartsService'
+import { updateVehicle } from '../services/vehiclesService'
 import { getVehicleColors, getVehicleModels } from '../services/settingsService'
 import type { MissingPartDetail, ReportGroupContext } from '../Types/missingPart'
 import type { VehicleColor, VehicleModel } from '../Types/settings'
@@ -14,7 +15,7 @@ import { useVinListConflict } from '../hooks/useVinListConflict'
 import { MpLookupCreatableSelect } from './MpLookupCreatableSelect'
 import { defaultDepartmentCode, defaultReasonCode } from '../Utils/mpLookupLabel'
 import { isValidVinLength } from '../Utils/vinValidation'
-import { normalizeVinKey } from '../Utils/vinListConflict'
+import { normalizeVinKey, vinInActiveList } from '../Utils/vinListConflict'
 import { uniqueIssueReps } from '../Utils/missingPartPageUtils'
 
 type Props = {
@@ -33,6 +34,31 @@ type IssueDraft = {
   isNew?: boolean
 }
 
+type VinRow = {
+  key: string
+  vin: string
+  /** VIN this row started as; null = newly added in this edit session. */
+  originalVin: string | null
+  vehicleId: string | null
+}
+
+function buildVinRows(parts: MissingPartDetail[]): VinRow[] {
+  const seen = new Set<string>()
+  const rows: VinRow[] = []
+  for (const p of [...parts].sort((a, b) => a.vin.localeCompare(b.vin))) {
+    const key = normalizeVinKey(p.vin)
+    if (!key || seen.has(key)) continue
+    seen.add(key)
+    rows.push({
+      key: p.vehicleId || key,
+      vin: p.vin,
+      originalVin: p.vin,
+      vehicleId: p.vehicleId
+    })
+  }
+  return rows
+}
+
 export function EditReportGroupModal({ group, activeListParts = [], onClose, onSaved }: Props) {
   const { t } = useLang()
   const { reasons, departments, addReason, addDepartment } = useMpLookups()
@@ -42,7 +68,7 @@ export function EditReportGroupModal({ group, activeListParts = [], onClose, onS
   const [modelId, setModelId] = useState('')
   const [colorId, setColorId] = useState<string | null>(null)
   const [issues, setIssues] = useState<IssueDraft[]>([])
-  const [vins, setVins] = useState<string[]>([])
+  const [vinRows, setVinRows] = useState<VinRow[]>([])
   const [notes, setNotes] = useState('')
   const [removedIds, setRemovedIds] = useState<string[]>([])
   const [busy, setBusy] = useState(false)
@@ -52,10 +78,15 @@ export function EditReportGroupModal({ group, activeListParts = [], onClose, onS
     () => group?.parts.filter(p => group.allowArchived || (p.status !== 'closed' && p.status !== 'cancelled')) ?? [],
     [group]
   )
-  const ownedPartIds = useMemo(() => new Set(editableParts.map(p => p.id)), [editableParts])
+
+  const removedIdSet = useMemo(() => new Set(removedIds), [removedIds])
+  const ownedPartIds = useMemo(
+    () => new Set(editableParts.filter(p => !removedIdSet.has(p.id)).map(p => p.id)),
+    [editableParts, removedIdSet]
+  )
   const ownedVins = useMemo(
-    () => new Set(editableParts.map(p => normalizeVinKey(p.vin))),
-    [editableParts]
+    () => new Set(editableParts.filter(p => !removedIdSet.has(p.id)).map(p => normalizeVinKey(p.vin))),
+    [editableParts, removedIdSet]
   )
   const {
     conflictVin,
@@ -86,7 +117,7 @@ export function EditReportGroupModal({ group, activeListParts = [], onClose, onS
         department: rep.department
       }))
     )
-    setVins([...new Set(editableParts.map(p => p.vin))].sort((a, b) => a.localeCompare(b)))
+    setVinRows(buildVinRows(editableParts))
     setNotes(editableParts[0]?.notes ?? '')
     setRemovedIds([])
     resetVinConflicts()
@@ -106,10 +137,20 @@ export function EditReportGroupModal({ group, activeListParts = [], onClose, onS
 
   if (!group) return null
 
-  const originalVins = [...new Set(editableParts.map(p => p.vin))]
-  const originalVinSet = new Set(originalVins.map(v => normalizeVinKey(v)))
-  const normalizedVins = vins.map(v => normalizeVinKey(v)).filter(Boolean)
-  const newVins = normalizedVins.filter(v => !originalVinSet.has(v))
+  const vins = vinRows.map(r => r.vin)
+  const normalizedVins = vinRows.map(r => normalizeVinKey(r.vin)).filter(Boolean)
+  const keptOriginalKeys = new Set(
+    vinRows.filter(r => r.originalVin).map(r => normalizeVinKey(r.originalVin!))
+  )
+  const renamedRows = vinRows.filter(
+    r => r.originalVin && r.vehicleId && normalizeVinKey(r.vin) !== normalizeVinKey(r.originalVin)
+  )
+  const addedRows = vinRows.filter(r => !r.originalVin)
+  const newVins = addedRows.map(r => normalizeVinKey(r.vin)).filter(isValidVinLength)
+  const remainingOriginalVins = vinRows
+    .filter(r => r.originalVin)
+    .map(r => normalizeVinKey(r.vin))
+    .filter(isValidVinLength)
   const existingIssues = issues.filter(i => !i.isNew)
   const newIssues = issues.filter(i => i.isNew && i.partDescription.trim())
 
@@ -123,9 +164,38 @@ export function EditReportGroupModal({ group, activeListParts = [], onClose, onS
     setIssues(prev => prev.filter(i => i.key !== issue.key))
   }
 
+  function removeVinAt(index: number) {
+    const row = vinRows[index]
+    if (!row) return
+    if (vinRows.length <= 1) {
+      setError(t('mp.edit.needOneVin'))
+      return
+    }
+    if (row.originalVin) {
+      const label = normalizeVinKey(row.originalVin) || row.originalVin
+      if (!window.confirm(t('mp.edit.removeVinConfirm', { vin: label }))) return
+      const partIds = editableParts
+        .filter(p => normalizeVinKey(p.vin) === normalizeVinKey(row.originalVin!))
+        .map(p => p.id)
+      setRemovedIds(prev => [...prev, ...partIds.filter(id => !prev.includes(id))])
+      setIssues(prev =>
+        prev.map(i => ({
+          ...i,
+          ids: i.ids.filter(id => !partIds.includes(id))
+        }))
+      )
+    }
+    forgetDecision(normalizeVinKey(row.vin))
+    setVinRows(prev => prev.filter((_, i) => i !== index))
+  }
+
   async function save() {
     if (!modelId) {
       setError(t('mp.f.model'))
+      return
+    }
+    if (vinRows.length === 0) {
+      setError(t('mp.edit.needOneVin'))
       return
     }
     for (let i = 0; i < normalizedVins.length; i++) {
@@ -145,7 +215,8 @@ export function EditReportGroupModal({ group, activeListParts = [], onClose, onS
       }
     }
 
-    if (requireResolved(newVins, vins)) {
+    const conflictCandidates = normalizedVins.filter(v => vinInActiveList(v, activeListParts, ownedPartIds))
+    if (requireResolved(conflictCandidates, vins)) {
       setError(t('mp.edit.vinConflictTitle'))
       return
     }
@@ -156,14 +227,26 @@ export function EditReportGroupModal({ group, activeListParts = [], onClose, onS
       for (const id of removedIds) {
         await deleteMissingPartRecord(id)
       }
-      for (const id of clearPartIds(newVins)) {
+      for (const id of clearPartIds(conflictCandidates)) {
+        if (removedIdSet.has(id) || ownedPartIds.has(id)) continue
         await deleteMissingPartRecord(id)
+      }
+
+      for (const row of renamedRows) {
+        await updateVehicle(row.vehicleId!, {
+          vin: normalizeVinKey(row.vin),
+          modelId,
+          vehicleColorId: colorId
+        })
       }
 
       for (const issue of existingIssues) {
         for (const id of issue.ids) {
+          if (removedIdSet.has(id)) continue
           const part = editableParts.find(p => p.id === id)
           if (!part) continue
+          // Skip parts belonging to deleted original VINs
+          if (part.vin && !keptOriginalKeys.has(normalizeVinKey(part.vin))) continue
           await updateMissingPartRecord(id, {
             partDescription: issue.partDescription.trim(),
             requiredQty: part.requiredQty,
@@ -184,16 +267,17 @@ export function EditReportGroupModal({ group, activeListParts = [], onClose, onS
         stationId: null as string | null
       }))
 
-      if (newPartLines.length > 0 && originalVins.length > 0) {
+      if (newPartLines.length > 0 && remainingOriginalVins.length > 0) {
         await reportMissingPartsBatch({
-          vins: originalVins,
+          vins: remainingOriginalVins,
           modelId,
           parts: newPartLines,
           colorId,
           reason: newPartLines[0].reason,
           department: newPartLines[0].department,
           notes: notes || undefined,
-          factoryOrgUnitId: editableParts[0]?.factoryOrgUnitId ?? undefined
+          factoryOrgUnitId: editableParts[0]?.factoryOrgUnitId ?? undefined,
+          reportGroupId: group.reportGroupId
         })
       }
 
@@ -221,7 +305,8 @@ export function EditReportGroupModal({ group, activeListParts = [], onClose, onS
           reason: partsForNew[0].reason,
           department: partsForNew[0].department,
           notes: notes || undefined,
-          factoryOrgUnitId: editableParts[0]?.factoryOrgUnitId ?? undefined
+          factoryOrgUnitId: editableParts[0]?.factoryOrgUnitId ?? undefined,
+          reportGroupId: group.reportGroupId
         })
       }
 
@@ -295,12 +380,18 @@ export function EditReportGroupModal({ group, activeListParts = [], onClose, onS
 
           <EditableVinList
             vins={vins}
-            isLocked={vin => originalVins.includes(vin)}
             title={t('mp.vinListTitle')}
             hint={t('mp.edit.addVinsHint')}
-            onAdd={() => setVins(prev => [...prev, ''])}
-            onChange={(i, next) => setVins(prev => prev.map((x, idx) => (idx === i ? next : x)))}
-            onRemove={i => setVins(prev => prev.filter((_, idx) => idx !== i))}
+            onAdd={() =>
+              setVinRows(prev => [
+                ...prev,
+                { key: crypto.randomUUID(), vin: '', originalVin: null, vehicleId: null }
+              ])
+            }
+            onChange={(i, next) =>
+              setVinRows(prev => prev.map((row, idx) => (idx === i ? { ...row, vin: next } : row)))
+            }
+            onRemove={removeVinAt}
             onVinReady={promptIfNeeded}
             onVinDiscarded={forgetDecision}
           />
@@ -398,7 +489,19 @@ export function EditReportGroupModal({ group, activeListParts = [], onClose, onS
 
       <VinConflictDialog
         vin={conflictVin}
-        onChoose={choice => chooseVinConflict(choice, i => setVins(prev => prev.filter((_, idx) => idx !== i)))}
+        onChoose={choice =>
+          chooseVinConflict(choice, i => {
+            const row = vinRows[i]
+            if (row?.originalVin) {
+              // Skip on an existing row: revert to original VIN instead of deleting the row.
+              setVinRows(prev =>
+                prev.map((r, idx) => (idx === i ? { ...r, vin: r.originalVin ?? '' } : r))
+              )
+              return
+            }
+            setVinRows(prev => prev.filter((_, idx) => idx !== i))
+          })
+        }
       />
     </>
   )

@@ -4,7 +4,7 @@ import { useLang } from '../i18n/LanguageContext'
 import { Modal } from './Modal'
 import { EditableVinList } from './EditableVinList'
 import { VinConflictDialog } from './VinConflictDialog'
-import { reportMissingPartsBatch, updateMissingPartRecord, deleteMissingPartRecord } from '../services/missingPartsService'
+import { reportMissingPartsBatch, updateMissingPartRecord, deleteMissingPartRecord, attachMissingPartsToReportGroup } from '../services/missingPartsService'
 import { updateVehicle } from '../services/vehiclesService'
 import { getVehicleColors, getVehicleModels } from '../services/settingsService'
 import type { VehicleIssuesContext } from '../Types/missingPart'
@@ -276,6 +276,15 @@ export function EditMissingPartModal({ vehicle, activeListParts = [], onClose, o
         stationId: null as string | null
       }))
 
+      let reportGroupId = openParts.map(p => p.reportGroupId).find(Boolean) ?? null
+      if (allNewVins.length > 0 && !reportGroupId) {
+        reportGroupId = crypto.randomUUID()
+        await attachMissingPartsToReportGroup(
+          lines.map(l => l.part.id),
+          reportGroupId
+        )
+      }
+
       if (newPartLines.length > 0) {
         await reportMissingPartsBatch({
           vins: [nextVin],
@@ -285,7 +294,8 @@ export function EditMissingPartModal({ vehicle, activeListParts = [], onClose, o
           reason: newPartLines[0].reason,
           department: newPartLines[0].department,
           notes: sharedNotes || undefined,
-          factoryOrgUnitId: ctx.parts[0]?.factoryOrgUnitId ?? undefined
+          factoryOrgUnitId: ctx.parts[0]?.factoryOrgUnitId ?? undefined,
+          reportGroupId: reportGroupId ?? undefined
         })
       }
 
@@ -313,7 +323,8 @@ export function EditMissingPartModal({ vehicle, activeListParts = [], onClose, o
           reason: partsForNewVins[0].reason,
           department: partsForNewVins[0].department,
           notes: sharedNotes || undefined,
-          factoryOrgUnitId: ctx.parts[0]?.factoryOrgUnitId ?? undefined
+          factoryOrgUnitId: ctx.parts[0]?.factoryOrgUnitId ?? undefined,
+          reportGroupId: reportGroupId ?? undefined
         })
       }
 
