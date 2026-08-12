@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState, type ReactNode } from 'react'
 import { Pencil, Plus, Trash2 } from 'lucide-react'
 import { useLang } from '../i18n/LanguageContext'
 import { Modal } from './Modal'
-import { reportMissingPartsBatch, updateMissingPartRecord } from '../services/missingPartsService'
+import { reportMissingPartsBatch, updateMissingPartRecord, deleteMissingPartRecord } from '../services/missingPartsService'
 import { getVehicleColors, getVehicleModels } from '../services/settingsService'
 import type { ReportGroupContext } from '../Types/missingPart'
 import type { VehicleColor, VehicleModel } from '../Types/settings'
@@ -39,6 +39,7 @@ export function EditReportGroupModal({ group, onClose, onSaved }: Props) {
   const [issues, setIssues] = useState<IssueDraft[]>([])
   const [vins, setVins] = useState<string[]>([])
   const [notes, setNotes] = useState('')
+  const [removedIds, setRemovedIds] = useState<string[]>([])
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
 
@@ -68,6 +69,7 @@ export function EditReportGroupModal({ group, onClose, onSaved }: Props) {
     )
     setVins([...new Set(editableParts.map(p => p.vin))].sort((a, b) => a.localeCompare(b)))
     setNotes(editableParts[0]?.notes ?? '')
+    setRemovedIds([])
     setError('')
     Promise.all([getVehicleModels(), getVehicleColors()])
       .then(([m, c]) => {
@@ -92,6 +94,12 @@ export function EditReportGroupModal({ group, onClose, onSaved }: Props) {
 
   function patchIssue(key: string, patch: Partial<IssueDraft>) {
     setIssues(prev => prev.map(i => (i.key === key ? { ...i, ...patch } : i)))
+  }
+
+  function removeIssue(issue: IssueDraft) {
+    if (!window.confirm(t('mp.deleteConfirm', { part: issue.partDescription || '—' }))) return
+    if (issue.ids.length > 0) setRemovedIds(prev => [...prev, ...issue.ids])
+    setIssues(prev => prev.filter(i => i.key !== issue.key))
   }
 
   async function save() {
@@ -119,6 +127,10 @@ export function EditReportGroupModal({ group, onClose, onSaved }: Props) {
     setBusy(true)
     setError('')
     try {
+      for (const id of removedIds) {
+        await deleteMissingPartRecord(id)
+      }
+
       for (const issue of existingIssues) {
         for (const id of issue.ids) {
           const part = editableParts.find(p => p.id === id)
@@ -332,15 +344,14 @@ export function EditReportGroupModal({ group, onClose, onSaved }: Props) {
                   <p className="text-[10px] font-black uppercase text-cyan-400/90">
                     {issue.isNew ? t('mp.edit.newIssue') : t('mp.issueN', { n: idx + 1 })}
                   </p>
-                  {issue.isNew && (
-                    <button
-                      type="button"
-                      onClick={() => setIssues(prev => prev.filter(x => x.key !== issue.key))}
-                      className="rounded-lg bg-red-500/15 p-1.5 text-red-200"
-                    >
-                      <Trash2 className="h-3.5 w-3.5" />
-                    </button>
-                  )}
+                  <button
+                    type="button"
+                    onClick={() => removeIssue(issue)}
+                    className="rounded-lg bg-red-500/15 p-1.5 text-red-200 hover:bg-red-500/25"
+                    title={t('common.delete')}
+                  >
+                    <Trash2 className="h-3.5 w-3.5" />
+                  </button>
                 </div>
                 <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
                   <Field label={t('mp.cols.reasonClass')} required>

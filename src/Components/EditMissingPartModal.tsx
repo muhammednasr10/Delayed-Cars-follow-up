@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState, type ReactNode } from 'react'
 import { Pencil, Plus, Trash2 } from 'lucide-react'
 import { useLang } from '../i18n/LanguageContext'
 import { Modal } from './Modal'
-import { reportMissingPartsBatch, updateMissingPartRecord } from '../services/missingPartsService'
+import { reportMissingPartsBatch, updateMissingPartRecord, deleteMissingPartRecord } from '../services/missingPartsService'
 import { updateVehicle } from '../services/vehiclesService'
 import { getVehicleColors, getVehicleModels } from '../services/settingsService'
 import type { VehicleIssuesContext } from '../Types/missingPart'
@@ -67,6 +67,7 @@ export function EditMissingPartModal({ vehicle, onClose, onSaved }: Props) {
   const [lines, setLines] = useState<ExistingLine[]>([])
   const [newIssues, setNewIssues] = useState<NewIssue[]>([])
   const [extraVins, setExtraVins] = useState<string[]>([])
+  const [removedIds, setRemovedIds] = useState<string[]>([])
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
 
@@ -97,6 +98,7 @@ export function EditMissingPartModal({ vehicle, onClose, onSaved }: Props) {
     )
     setNewIssues([])
     setExtraVins([])
+    setRemovedIds([])
     setError('')
     setListsLoading(true)
     Promise.all([getVehicleModels(), getVehicleColors()])
@@ -130,6 +132,7 @@ export function EditMissingPartModal({ vehicle, onClose, onSaved }: Props) {
     changedLines.length > 0 ||
     filledNewIssues.length > 0 ||
     filledExtraVins.length > 0 ||
+    removedIds.length > 0 ||
     vinChanged ||
     colorChanged ||
     modelChanged ||
@@ -137,6 +140,12 @@ export function EditMissingPartModal({ vehicle, onClose, onSaved }: Props) {
 
   function patchLine(partId: string, patch: Partial<ExistingLine>) {
     setLines(prev => prev.map(l => (l.part.id === partId ? { ...l, ...patch } : l)))
+  }
+
+  function removeExistingLine(line: ExistingLine) {
+    if (!window.confirm(t('mp.deleteConfirm', { part: line.partDescription || line.part.partDescription }))) return
+    setRemovedIds(prev => [...prev, line.part.id])
+    setLines(prev => prev.filter(l => l.part.id !== line.part.id))
   }
 
   function addExistingStyleIssue() {
@@ -189,6 +198,11 @@ export function EditMissingPartModal({ vehicle, onClose, onSaved }: Props) {
     setError('')
     try {
       const sharedNotes = notes.trim()
+
+      for (const id of removedIds) {
+        await deleteMissingPartRecord(id)
+      }
+
       if (vinChanged || modelChanged || colorChanged) {
         await updateVehicle(ctx.vehicleId, {
           vin: nextVin,
@@ -363,6 +377,45 @@ export function EditMissingPartModal({ vehicle, onClose, onSaved }: Props) {
           </div>
         </section>
 
+        <section className="space-y-2 rounded-xl border border-slate-800 bg-slate-950/40 p-3">
+          <div className="flex items-center justify-between gap-2">
+            <div>
+              <p className="text-[10px] font-bold uppercase text-slate-500">{t('mp.edit.addVins')}</p>
+              <p className="text-[10px] text-slate-500">{t('mp.edit.addVinsHint')}</p>
+            </div>
+            <button
+              type="button"
+              onClick={() => setExtraVins(prev => [...prev, ''])}
+              className="inline-flex items-center gap-1 rounded-lg bg-slate-800 px-3 py-1.5 text-xs font-bold text-cyan-300 hover:bg-slate-700"
+            >
+              <Plus className="h-3.5 w-3.5" /> {t('mp.edit.addVin')}
+            </button>
+          </div>
+          {extraVins.map((v, i) => (
+            <div key={i} className="flex gap-2">
+              <input
+                className="input-dark min-w-0 flex-1 font-mono"
+                dir="ltr"
+                inputMode="numeric"
+                maxLength={4}
+                value={v}
+                onChange={e => {
+                  const next = e.target.value.replace(/\D/g, '').slice(0, 4)
+                  setExtraVins(prev => prev.map((x, idx) => (idx === i ? next : x)))
+                }}
+                placeholder="0000"
+              />
+              <button
+                type="button"
+                onClick={() => setExtraVins(prev => prev.filter((_, idx) => idx !== i))}
+                className="rounded-xl border border-red-500/30 bg-red-500/10 px-3 text-red-200"
+              >
+                <Trash2 className="h-4 w-4" />
+              </button>
+            </div>
+          ))}
+        </section>
+
         <section className="space-y-3">
           <div className="flex items-center justify-between gap-2">
             <h3 className="text-xs font-black uppercase tracking-wider text-cyan-300">{t('mp.sectionIssues')}</h3>
@@ -378,7 +431,17 @@ export function EditMissingPartModal({ vehicle, onClose, onSaved }: Props) {
           <div className="max-h-[min(40vh,360px)] space-y-3 overflow-y-auto pe-1">
             {lines.map((line, idx) => (
               <div key={line.part.id} className="space-y-2 rounded-xl border border-slate-700 bg-slate-950/50 p-3">
-                <p className="text-[10px] font-black uppercase text-cyan-400/90">{t('mp.issueN', { n: idx + 1 })}</p>
+                <div className="flex items-center justify-between gap-2">
+                  <p className="text-[10px] font-black uppercase text-cyan-400/90">{t('mp.issueN', { n: idx + 1 })}</p>
+                  <button
+                    type="button"
+                    onClick={() => removeExistingLine(line)}
+                    className="rounded-lg bg-red-500/15 p-1.5 text-red-200 hover:bg-red-500/25"
+                    title={t('common.delete')}
+                  >
+                    <Trash2 className="h-3.5 w-3.5" />
+                  </button>
+                </div>
                 <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
                   <Field label={t('mp.cols.reasonClass')} required>
                     <MpLookupCreatableSelect
@@ -471,45 +534,6 @@ export function EditMissingPartModal({ vehicle, onClose, onSaved }: Props) {
               </div>
             ))}
           </div>
-        </section>
-
-        <section className="space-y-2 rounded-xl border border-slate-800 bg-slate-950/40 p-3">
-          <div className="flex items-center justify-between gap-2">
-            <div>
-              <p className="text-[10px] font-bold uppercase text-slate-500">{t('mp.edit.addVins')}</p>
-              <p className="text-[10px] text-slate-500">{t('mp.edit.addVinsHint')}</p>
-            </div>
-            <button
-              type="button"
-              onClick={() => setExtraVins(prev => [...prev, ''])}
-              className="inline-flex items-center gap-1 rounded-lg bg-slate-800 px-3 py-1.5 text-xs font-bold text-cyan-300 hover:bg-slate-700"
-            >
-              <Plus className="h-3.5 w-3.5" /> {t('mp.edit.addVin')}
-            </button>
-          </div>
-          {extraVins.map((v, i) => (
-            <div key={i} className="flex gap-2">
-              <input
-                className="input-dark min-w-0 flex-1 font-mono"
-                dir="ltr"
-                inputMode="numeric"
-                maxLength={4}
-                value={v}
-                onChange={e => {
-                  const next = e.target.value.replace(/\D/g, '').slice(0, 4)
-                  setExtraVins(prev => prev.map((x, idx) => (idx === i ? next : x)))
-                }}
-                placeholder="0000"
-              />
-              <button
-                type="button"
-                onClick={() => setExtraVins(prev => prev.filter((_, idx) => idx !== i))}
-                className="rounded-xl border border-red-500/30 bg-red-500/10 px-3 text-red-200"
-              >
-                <Trash2 className="h-4 w-4" />
-              </button>
-            </div>
-          ))}
         </section>
 
         <Field label={t('mp.f.notes')}>
