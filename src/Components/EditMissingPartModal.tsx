@@ -147,6 +147,8 @@ export function EditMissingPartModal({ vehicle, onClose, onSaved }: Props) {
   }
 
   async function saveAll() {
+    if (!vehicle) return
+    const ctx = vehicle
     const nextVin = normalizeChassisVin(vin).toUpperCase()
     if (!isValidVinLength(nextVin)) {
       setError(t('mp.errVinIndex', { n: 1 }))
@@ -188,7 +190,7 @@ export function EditMissingPartModal({ vehicle, onClose, onSaved }: Props) {
     try {
       const sharedNotes = notes.trim()
       if (vinChanged || modelChanged || colorChanged) {
-        await updateVehicle(vehicle.vehicleId, {
+        await updateVehicle(ctx.vehicleId, {
           vin: nextVin,
           modelId,
           vehicleColorId: colorId
@@ -240,7 +242,7 @@ export function EditMissingPartModal({ vehicle, onClose, onSaved }: Props) {
           reason: newPartLines[0].reason,
           department: newPartLines[0].department,
           notes: sharedNotes || undefined,
-          factoryOrgUnitId: vehicle.parts[0]?.factoryOrgUnitId ?? undefined
+          factoryOrgUnitId: ctx.parts[0]?.factoryOrgUnitId ?? undefined
         })
       }
 
@@ -268,7 +270,7 @@ export function EditMissingPartModal({ vehicle, onClose, onSaved }: Props) {
           reason: partsForNewVins[0].reason,
           department: partsForNewVins[0].department,
           notes: sharedNotes || undefined,
-          factoryOrgUnitId: vehicle.parts[0]?.factoryOrgUnitId ?? undefined
+          factoryOrgUnitId: ctx.parts[0]?.factoryOrgUnitId ?? undefined
         })
       }
 
