@@ -11,6 +11,8 @@ type ModalProps = {
   children: ReactNode
   footer?: ReactNode
   maxWidthClass?: string
+  /** Overlay stacking; raise for nested dialogs (e.g. confirm over edit). */
+  zIndexClass?: string
 }
 
 // Elegant centered card modal used across the app (add / edit forms, etc.).
@@ -24,7 +26,8 @@ export function Modal({
   onClose,
   children,
   footer,
-  maxWidthClass = 'max-w-lg'
+  maxWidthClass = 'max-w-lg',
+  zIndexClass = 'z-[100]'
 }: ModalProps) {
   const backdropMouseDown = useRef(false)
 
@@ -43,7 +46,7 @@ export function Modal({
 
   const node = (
     <div
-      className="fixed inset-0 z-[100] flex items-end justify-center overflow-hidden bg-black/70 p-2 backdrop-blur-sm sm:items-center sm:p-4"
+      className={`fixed inset-0 ${zIndexClass} flex items-end justify-center overflow-hidden bg-black/70 p-2 backdrop-blur-sm sm:items-center sm:p-4`}
       onMouseDown={handleBackdropMouseDown}
       onClick={handleBackdropClick}
     >

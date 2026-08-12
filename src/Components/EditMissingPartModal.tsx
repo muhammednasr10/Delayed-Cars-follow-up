@@ -2,6 +2,8 @@ import { useEffect, useMemo, useState, type ReactNode } from 'react'
 import { Pencil, Plus, Trash2 } from 'lucide-react'
 import { useLang } from '../i18n/LanguageContext'
 import { Modal } from './Modal'
+import { EditableVinList } from './EditableVinList'
+import { VinConflictDialog } from './VinConflictDialog'
 import { reportMissingPartsBatch, updateMissingPartRecord, deleteMissingPartRecord } from '../services/missingPartsService'
 import { updateVehicle } from '../services/vehiclesService'
 import { getVehicleColors, getVehicleModels } from '../services/settingsService'
@@ -10,13 +12,16 @@ import type { MissingPartDetail } from '../Types/missingPart'
 import type { VehicleColor, VehicleModel } from '../Types/settings'
 import { useMpLookups } from '../hooks/useMpLookups'
 import { useFormatError } from '../hooks/useFormatError'
+import { useVinListConflict } from '../hooks/useVinListConflict'
 import { MpLookupCreatableSelect } from './MpLookupCreatableSelect'
 import { VehicleModelFamilyPicker, resolveFamilyIdForVariant } from './VehicleModelFamilyPicker'
 import { defaultDepartmentCode, defaultReasonCode } from '../Utils/mpLookupLabel'
-import { isValidVinLength, normalizeChassisVin } from '../Utils/vinValidation'
+import { isValidVinLength } from '../Utils/vinValidation'
+import { normalizeVinKey, sanitizeChassisDigits } from '../Utils/vinListConflict'
 
 type Props = {
   vehicle: VehicleIssuesContext | null
+  activeListParts?: MissingPartDetail[]
   onClose: () => void
   onSaved: () => void
 }
@@ -52,7 +57,7 @@ function newIssueDraft(reason: string, department: string): NewIssue {
   return { key: crypto.randomUUID(), partDescription: '', reason, department }
 }
 
-export function EditMissingPartModal({ vehicle, onClose, onSaved }: Props) {
+export function EditMissingPartModal({ vehicle, activeListParts = [], onClose, onSaved }: Props) {
   const { t } = useLang()
   const { reasons, departments, addReason, addDepartment } = useMpLookups()
   const formatError = useFormatError()
@@ -76,12 +81,27 @@ export function EditMissingPartModal({ vehicle, onClose, onSaved }: Props) {
       vehicle?.parts.filter(p => vehicle.allowArchived || (p.status !== 'closed' && p.status !== 'cancelled')) ?? [],
     [vehicle]
   )
+  const ownedPartIds = useMemo(() => new Set(openParts.map(p => p.id)), [openParts])
+  const ownedVins = useMemo(
+    () => (vehicle ? new Set([normalizeVinKey(vehicle.vin)]) : new Set<string>()),
+    [vehicle]
+  )
+  const {
+    conflictVin,
+    reset: resetVinConflicts,
+    forgetDecision,
+    promptIfNeeded,
+    choose: chooseVinConflict,
+    requireResolved,
+    clearPartIds
+  } = useVinListConflict({ activeListParts, ownedPartIds, ownedVins })
 
   useEffect(() => {
     if (!vehicle) {
       setLines([])
       setNewIssues([])
       setExtraVins([])
+      resetVinConflicts()
       return
     }
     setVin(vehicle.vin)
@@ -99,6 +119,7 @@ export function EditMissingPartModal({ vehicle, onClose, onSaved }: Props) {
     setNewIssues([])
     setExtraVins([])
     setRemovedIds([])
+    resetVinConflicts()
     setError('')
     setListsLoading(true)
     Promise.all([getVehicleModels(), getVehicleColors()])
@@ -115,14 +136,14 @@ export function EditMissingPartModal({ vehicle, onClose, onSaved }: Props) {
       })
       .catch(err => setError(formatError(err)))
       .finally(() => setListsLoading(false))
-  }, [vehicle, openParts, formatError])
+  }, [vehicle, openParts, formatError, resetVinConflicts])
 
   if (!vehicle) return null
 
   const changedLines = lines.filter(lineChanged)
   const filledNewIssues = newIssues.filter(i => i.partDescription.trim())
-  const filledExtraVins = extraVins.map(v => normalizeChassisVin(v).toUpperCase()).filter(isValidVinLength)
-  const vinChanged = normalizeChassisVin(vin).toUpperCase() !== vehicle.vin.toUpperCase()
+  const filledExtraVins = extraVins.map(v => normalizeVinKey(v)).filter(isValidVinLength)
+  const vinChanged = normalizeVinKey(vin) !== normalizeVinKey(vehicle.vin)
   const originalColor = colors.find(c => c.name === vehicle.colorName)
   const colorChanged = (colorId || null) !== (originalColor?.id ?? null)
   const originalModel = models.find(m => m.name === vehicle.modelName)
@@ -158,7 +179,7 @@ export function EditMissingPartModal({ vehicle, onClose, onSaved }: Props) {
   async function saveAll() {
     if (!vehicle) return
     const ctx = vehicle
-    const nextVin = normalizeChassisVin(vin).toUpperCase()
+    const nextVin = normalizeVinKey(vin)
     if (!isValidVinLength(nextVin)) {
       setError(t('mp.errVinIndex', { n: 1 }))
       return
@@ -178,7 +199,7 @@ export function EditMissingPartModal({ vehicle, onClose, onSaved }: Props) {
       }
     }
     for (let i = 0; i < extraVins.length; i++) {
-      const raw = normalizeChassisVin(extraVins[i])
+      const raw = normalizeVinKey(extraVins[i])
       if (raw && !isValidVinLength(raw)) {
         setError(t('mp.errVinIndex', { n: i + 1 }))
         return
@@ -194,12 +215,20 @@ export function EditMissingPartModal({ vehicle, onClose, onSaved }: Props) {
       return
     }
 
+    if (requireResolved(allNewVins, extraVins)) {
+      setError(t('mp.edit.vinConflictTitle'))
+      return
+    }
+
     setBusy(true)
     setError('')
     try {
       const sharedNotes = notes.trim()
 
       for (const id of removedIds) {
+        await deleteMissingPartRecord(id)
+      }
+      for (const id of clearPartIds(allNewVins)) {
         await deleteMissingPartRecord(id)
       }
 
@@ -298,6 +327,7 @@ export function EditMissingPartModal({ vehicle, onClose, onSaved }: Props) {
   }
 
   return (
+    <>
     <Modal
       open={Boolean(vehicle)}
       title={t('mp.edit.vehicleTitle')}
@@ -336,7 +366,7 @@ export function EditMissingPartModal({ vehicle, onClose, onSaved }: Props) {
                 inputMode="numeric"
                 maxLength={4}
                 value={vin}
-                onChange={e => setVin(e.target.value.replace(/\D/g, '').slice(0, 4))}
+                onChange={e => setVin(sanitizeChassisDigits(e.target.value))}
                 placeholder="0000"
               />
             </Field>
@@ -377,44 +407,16 @@ export function EditMissingPartModal({ vehicle, onClose, onSaved }: Props) {
           </div>
         </section>
 
-        <section className="space-y-2 rounded-xl border border-slate-800 bg-slate-950/40 p-3">
-          <div className="flex items-center justify-between gap-2">
-            <div>
-              <p className="text-[10px] font-bold uppercase text-slate-500">{t('mp.edit.addVins')}</p>
-              <p className="text-[10px] text-slate-500">{t('mp.edit.addVinsHint')}</p>
-            </div>
-            <button
-              type="button"
-              onClick={() => setExtraVins(prev => [...prev, ''])}
-              className="inline-flex items-center gap-1 rounded-lg bg-slate-800 px-3 py-1.5 text-xs font-bold text-cyan-300 hover:bg-slate-700"
-            >
-              <Plus className="h-3.5 w-3.5" /> {t('mp.edit.addVin')}
-            </button>
-          </div>
-          {extraVins.map((v, i) => (
-            <div key={i} className="flex gap-2">
-              <input
-                className="input-dark min-w-0 flex-1 font-mono"
-                dir="ltr"
-                inputMode="numeric"
-                maxLength={4}
-                value={v}
-                onChange={e => {
-                  const next = e.target.value.replace(/\D/g, '').slice(0, 4)
-                  setExtraVins(prev => prev.map((x, idx) => (idx === i ? next : x)))
-                }}
-                placeholder="0000"
-              />
-              <button
-                type="button"
-                onClick={() => setExtraVins(prev => prev.filter((_, idx) => idx !== i))}
-                className="rounded-xl border border-red-500/30 bg-red-500/10 px-3 text-red-200"
-              >
-                <Trash2 className="h-4 w-4" />
-              </button>
-            </div>
-          ))}
-        </section>
+        <EditableVinList
+          vins={extraVins}
+          title={t('mp.edit.addVins')}
+          hint={t('mp.edit.addVinsHint')}
+          onAdd={() => setExtraVins(prev => [...prev, ''])}
+          onChange={(i, next) => setExtraVins(prev => prev.map((x, idx) => (idx === i ? next : x)))}
+          onRemove={i => setExtraVins(prev => prev.filter((_, idx) => idx !== i))}
+          onVinReady={promptIfNeeded}
+          onVinDiscarded={forgetDecision}
+        />
 
         <section className="space-y-3">
           <div className="flex items-center justify-between gap-2">
@@ -545,6 +547,11 @@ export function EditMissingPartModal({ vehicle, onClose, onSaved }: Props) {
         )}
       </div>
     </Modal>
+    <VinConflictDialog
+      vin={conflictVin}
+      onChoose={choice => chooseVinConflict(choice, i => setExtraVins(prev => prev.filter((_, idx) => idx !== i)))}
+    />
+    </>
   )
 }
 

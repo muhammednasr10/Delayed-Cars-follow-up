@@ -1748,7 +1748,12 @@ export const translations = {
         addVins: 'إضافة أرقام شاسيه',
         addVinsHint: 'الشاسيهات الجديدة تُسجَّل بنفس أسباب النقص الحالية والجديدة.',
         needIssueForNewVin: 'أضف سبب نقص واحد على الأقل قبل إضافة شاسيه جديد.',
-        modelResolveHint: 'تعذّر مطابقة الموديل — احفظ بعد التأكد من بيانات السيارة.'
+        modelResolveHint: 'تعذّر مطابقة الموديل — احفظ بعد التأكد من بيانات السيارة.',
+        vinConflictTitle: 'شاسيه موجود في القائمة',
+        vinConflictMessage: 'السيارة {vin} موجودة في قائمة النواقص. ماذا تريد؟',
+        vinConflictMove: 'شيله من القائمة وضيفه هنا',
+        vinConflictKeep: 'سيبه في القائمة وضيفه هنا كمان',
+        vinConflictSkip: 'متضيفوش'
       },
       history: { empty: 'لا توجد سيارات منتهية في الأرشيف بعد.' },
       cols: {
@@ -4955,7 +4960,12 @@ export const translations = {
         addVins: 'Add chassis numbers',
         addVinsHint: 'New chassis numbers get the same current and new shortage reasons.',
         needIssueForNewVin: 'Add at least one shortage reason before adding a new chassis.',
-        modelResolveHint: 'Could not match the model — verify vehicle details before saving.'
+        modelResolveHint: 'Could not match the model — verify vehicle details before saving.',
+        vinConflictTitle: 'Chassis already in the list',
+        vinConflictMessage: 'Vehicle {vin} is already in the shortages list. What do you want to do?',
+        vinConflictMove: 'Remove from list and add here',
+        vinConflictKeep: 'Keep in list and also add here',
+        vinConflictSkip: 'Do not add'
       },
       history: { empty: 'No completed vehicles in the archive yet.' },
       cols: {

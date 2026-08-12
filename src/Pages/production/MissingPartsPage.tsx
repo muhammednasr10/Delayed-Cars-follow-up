@@ -643,8 +643,18 @@ export function MissingPartsPage() {
         onChanged={load}
         onNotify={showSuccess}
       />
-      <EditMissingPartModal vehicle={editVehicle} onClose={() => setEditVehicle(null)} onSaved={load} />
-      <EditReportGroupModal group={editGroup} onClose={() => setEditGroup(null)} onSaved={load} />
+      <EditMissingPartModal
+        vehicle={editVehicle}
+        activeListParts={activeItems}
+        onClose={() => setEditVehicle(null)}
+        onSaved={load}
+      />
+      <EditReportGroupModal
+        group={editGroup}
+        activeListParts={activeItems}
+        onClose={() => setEditGroup(null)}
+        onSaved={load}
+      />
       <VinListModal
         vins={vinList?.vins ?? null}
         modelName={vinList?.modelName}
