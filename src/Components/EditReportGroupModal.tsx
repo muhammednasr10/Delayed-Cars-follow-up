@@ -190,6 +190,8 @@ export function EditReportGroupModal({ group, activeListParts = [], onClose, onS
   }
 
   async function save() {
+    if (!group) return
+    const ctx = group
     if (!modelId) {
       setError(t('mp.f.model'))
       return
@@ -277,7 +279,7 @@ export function EditReportGroupModal({ group, activeListParts = [], onClose, onS
           department: newPartLines[0].department,
           notes: notes || undefined,
           factoryOrgUnitId: editableParts[0]?.factoryOrgUnitId ?? undefined,
-          reportGroupId: group.reportGroupId
+          reportGroupId: ctx.reportGroupId
         })
       }
 
@@ -306,7 +308,7 @@ export function EditReportGroupModal({ group, activeListParts = [], onClose, onS
           department: partsForNew[0].department,
           notes: notes || undefined,
           factoryOrgUnitId: editableParts[0]?.factoryOrgUnitId ?? undefined,
-          reportGroupId: group.reportGroupId
+          reportGroupId: ctx.reportGroupId
         })
       }
 
