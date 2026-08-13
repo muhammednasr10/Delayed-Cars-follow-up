@@ -2,26 +2,27 @@ import { useCallback, useMemo } from 'react'
 import { usePermissions } from '../Context/PermissionsContext'
 import { useCanAccessSettings } from './useCanAccessSettings'
 import { permissionKey } from '../services/permissionsService'
-import {
-  type AppPageDef,
-  type AppPagePermissionKey,
-  pageDefByPermKey
-} from '../config/pageAccess'
+import { type AppPageDef, type AppPagePermissionKey, pageDefByPermKey } from '../config/pageAccess'
 import { resolveTabPagePerm } from '../config/pageTabAccess'
 
 export function useCanViewPage() {
-  const { permissions, hasPermission, loading } = usePermissions()
+  const { permissions, hasPermission, loading, loadError } = usePermissions()
   const { canAccess: canAccessSettings, loading: settingsLoading } = useCanAccessSettings()
 
-  const pagesConfigured = useMemo(
-    () => Object.keys(permissions).some(k => k.startsWith('pages.')),
-    [permissions]
-  )
+  const pagesConfigured = useMemo(() => Object.keys(permissions).some(k => k.startsWith('pages.')), [permissions])
 
   const canViewPage = useCallback(
     (permKey: AppPagePermissionKey | undefined, options?: { settingsFallback?: boolean }): boolean => {
       if (!permKey) return true
-      if (loading || settingsLoading) return true
+      if (loading || settingsLoading) return false
+      if (loadError) {
+        const isSettingsPerm =
+          permKey === 'production_settings' ||
+          permKey === 'production_home__settings' ||
+          permKey.startsWith('production_settings__') ||
+          options?.settingsFallback
+        return isSettingsPerm ? canAccessSettings : false
+      }
 
       const def = pageDefByPermKey(permKey)
       const key = permissionKey('pages', permKey)
@@ -48,9 +49,9 @@ export function useCanViewPage() {
       if (permissions[key] === false) return false
 
       if (def?.fallbackModule) return hasPermission(def.fallbackModule, 'view')
-      return def?.defaultVisible ?? true
+      return def?.defaultVisible ?? false
     },
-    [permissions, hasPermission, loading, settingsLoading, pagesConfigured, canAccessSettings]
+    [permissions, hasPermission, loading, settingsLoading, pagesConfigured, canAccessSettings, loadError]
   )
 
   const canViewPageDef = useCallback(
@@ -60,7 +61,7 @@ export function useCanViewPage() {
 
   const canViewTab = useCallback(
     (parentPerm: AppPagePermissionKey, tabKey: string): boolean => {
-      if (loading || settingsLoading) return true
+      if (loading || settingsLoading) return false
       const parentVisible = canViewPage(parentPerm)
       return resolveTabPagePerm(parentPerm, tabKey, permissions, pagesConfigured, parentVisible)
     },

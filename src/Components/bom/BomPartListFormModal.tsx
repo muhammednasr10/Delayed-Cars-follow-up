@@ -1,21 +1,40 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
-import { ClipboardList } from 'lucide-react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { AlertTriangle, ClipboardList } from 'lucide-react'
 import { useLang } from '../../i18n/LanguageContext'
 import { inputCls } from '../FormField'
 import { Modal } from '../Modal'
-import { getT4cIplStationOptions, type PartListStationOption } from '../../services/partsService'
-import { getVehicleModels } from '../../services/settingsService'
-import { isLatinPartName, isMostlyArabic, translateArabicPartName, translateEnglishPartName } from '../../Utils/partNameEn'
-import { displayBomStationCode } from '../../Utils/bomStationCode'
-import { isAssignableModel } from '../../Utils/vehicleModelHierarchy'
-import type { VehicleModel } from '../../Types/settings'
+import { ConfirmDialog } from '../ConfirmDialog'
+import {
+  findPartMasterByArabicName,
+  getT4cIplStationOptions,
+  type PartListStationOption,
+  type PartMasterHit
+} from '../../services/partsService'
+import { fetchBomCardsForPartMaster } from '../../services/bomService'
+import { getStations, getVehicleModels } from '../../services/settingsService'
+import { isMostlyArabic, translateArabicPartName, translateEnglishPartName } from '../../Utils/partNameEn'
+import { displayBomStationCode, findMasterStationByCode, normalizeBomStationCodeText } from '../../Utils/bomStationCode'
+import { DEFAULT_PART_KIND, DEFAULT_SUPPLY_SOURCE } from '../../Utils/bomDefaults'
+import { partKindPresetOptions, supplySourcePresetOptions } from '../../Utils/bomPresetOptions'
+import { syncModelCardsWithFamilies, type ModelCardDraft } from '../../Utils/bomModelCards'
+import { selectableVehicleModels } from '../../Utils/vehicleModelHierarchy'
+import type { Station, VehicleModel } from '../../Types/settings'
+import { BomPresetSelect } from './BomPresetSelect'
+import { PartListAutocomplete } from './PartListAutocomplete'
+import { BomModelCardsEditor } from './BomModelCardsEditor'
 
 export type PartListFormState = {
   common_station: string
   part_name_ar: string
   part_name_en: string
   common_name: string
-  model_names: string[]
+  part_type: string
+  common_supply_source: string
+}
+
+export type PartListSavePayload = {
+  cards: ModelCardDraft[]
+  models: VehicleModel[]
 }
 
 type Props = {
@@ -23,42 +42,132 @@ type Props = {
   editId: string | null
   form: PartListFormState
   busy: boolean
-  defaultModelNames?: string[]
   onClose: () => void
-  onSave: () => void
+  onSave: (payload: PartListSavePayload) => void
   onChange: (form: PartListFormState) => void
 }
 
-export function BomPartListFormModal({ open, editId, form, busy, defaultModelNames, onClose, onSave, onChange }: Props) {
+function seedCardFromForm(form: PartListFormState, stations: Station[]): Partial<ModelCardDraft> {
+  const stationCode = normalizeBomStationCodeText(form.common_station)
+  const matched = findMasterStationByCode(stations, stationCode)
+  return {
+    part_kind: form.part_type || DEFAULT_PART_KIND,
+    supply_source: form.common_supply_source || DEFAULT_SUPPLY_SOURCE,
+    station_code_text: stationCode,
+    station_id: matched?.id ?? '',
+    qty: '0'
+  }
+}
+
+function buildDefaultCards(models: VehicleModel[], form: PartListFormState, stations: Station[]): ModelCardDraft[] {
+  const seed = seedCardFromForm(form, stations)
+  return syncModelCardsWithFamilies(models, [], [
+    {
+      modelId: '__seed__',
+      modelName: '',
+      part_number: '',
+      part_number_new: '',
+      alternative_part_no: '',
+      qty: '0',
+      part_kind: seed.part_kind ?? DEFAULT_PART_KIND,
+      supply_source: seed.supply_source ?? DEFAULT_SUPPLY_SOURCE,
+      station_id: seed.station_id ?? '',
+      station_code_text: seed.station_code_text ?? '',
+      bom_classification: '',
+      station_category: ''
+    }
+  ])
+}
+
+export function BomPartListFormModal({ open, editId, form, busy, onClose, onSave, onChange }: Props) {
   const { t } = useLang()
   const [stationOptions, setStationOptions] = useState<PartListStationOption[]>([])
-  const [vehicleModels, setVehicleModels] = useState<VehicleModel[]>([])
-  const autoAr = useRef(false)
-  const autoEn = useRef(false)
+  const [models, setModels] = useState<VehicleModel[]>([])
+  const [stations, setStations] = useState<Station[]>([])
+  const [familyIds, setFamilyIds] = useState<string[]>([])
+  const [cards, setCards] = useState<ModelCardDraft[]>([])
+  const [cardsLoading, setCardsLoading] = useState(false)
+  const [formError, setFormError] = useState('')
+  const [duplicateHit, setDuplicateHit] = useState<PartMasterHit | null>(null)
+  const [confirmDuplicateOpen, setConfirmDuplicateOpen] = useState(false)
+  const autoCommon = useRef(true)
+  const duplicateCheckRef = useRef<number | null>(null)
+  const pendingSave = useRef<PartListSavePayload | null>(null)
+
+  const partKindOptions = useMemo(() => partKindPresetOptions(t), [t])
+  const supplyOptions = useMemo(() => supplySourcePresetOptions(t), [t])
+
+  const englishSuggestion = useMemo(() => {
+    if (!isMostlyArabic(form.part_name_ar)) return ''
+    return translateArabicPartName(form.part_name_ar) || ''
+  }, [form.part_name_ar])
+
+  const arabicSuggestion = useMemo(() => {
+    if (!form.part_name_en.trim() || isMostlyArabic(form.part_name_en)) return ''
+    const translated = translateEnglishPartName(form.part_name_en)
+    return translated && isMostlyArabic(translated) ? translated : ''
+  }, [form.part_name_en])
+
+  const cardMasterSeed = useMemo(() => seedCardFromForm(form, stations), [form, stations])
+
+  const loadModelCards = useCallback(async (partId: string | null, allModels: VehicleModel[], st: Station[], snapshot: PartListFormState) => {
+    if (partId) {
+      const loaded = await fetchBomCardsForPartMaster(partId, allModels)
+      if (loaded.cards.length > 0) {
+        setFamilyIds(loaded.familyIds)
+        setCards(loaded.cards)
+        return
+      }
+    }
+    setFamilyIds([])
+    setCards(buildDefaultCards(allModels, snapshot, st))
+  }, [])
 
   useEffect(() => {
     if (!open) return
-    autoAr.current = false
-    autoEn.current = false
-    void getT4cIplStationOptions()
-      .then(setStationOptions)
-      .catch(() => setStationOptions([]))
-    void getVehicleModels()
-      .then(setVehicleModels)
-      .catch(() => setVehicleModels([]))
-  }, [open])
+    autoCommon.current = !editId
+    setDuplicateHit(null)
+    setConfirmDuplicateOpen(false)
+    setFormError('')
+    pendingSave.current = null
+    setCardsLoading(true)
+    const snapshot = form
 
-  const assignableModels = useMemo(
-    () => vehicleModels.filter(isAssignableModel).sort((a, b) => a.name.localeCompare(b.name)),
-    [vehicleModels]
-  )
+    void Promise.all([getT4cIplStationOptions(), getVehicleModels(), getStations()])
+      .then(async ([stationOpts, allModels, st]) => {
+        setStationOptions(stationOpts)
+        const assignable = selectableVehicleModels(allModels)
+        setModels(assignable)
+        setStations(st)
+        await loadModelCards(editId, assignable, st, snapshot)
+      })
+      .catch(() => {
+        setModels([])
+        setStations([])
+        setCards([])
+      })
+      .finally(() => setCardsLoading(false))
+    // form snapshot at open — do not reload cards while typing
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open, editId, loadModelCards])
 
-  const allModelNames = useMemo(
-    () => defaultModelNames ?? assignableModels.map(m => m.name),
-    [defaultModelNames, assignableModels]
-  )
-
-  const selectedModels = useMemo(() => new Set(form.model_names), [form.model_names])
+  useEffect(() => {
+    if (!open) return
+    const term = form.part_name_ar.trim()
+    if (duplicateCheckRef.current) window.clearTimeout(duplicateCheckRef.current)
+    if (term.length < 2) {
+      setDuplicateHit(null)
+      return
+    }
+    duplicateCheckRef.current = window.setTimeout(() => {
+      void findPartMasterByArabicName(term, editId)
+        .then(setDuplicateHit)
+        .catch(() => setDuplicateHit(null))
+    }, 250)
+    return () => {
+      if (duplicateCheckRef.current) window.clearTimeout(duplicateCheckRef.current)
+    }
+  }, [open, form.part_name_ar, editId])
 
   const selectOptions = useMemo(() => {
     const map = new Map(stationOptions.map(o => [o.code, o]))
@@ -69,162 +178,245 @@ export function BomPartListFormModal({ open, editId, form, busy, defaultModelNam
     return [...map.values()]
   }, [stationOptions, form.common_station])
 
-  function patch(patch: Partial<PartListFormState>) {
-    onChange({ ...form, ...patch })
-  }
-
-  function toggleModel(modelName: string, checked: boolean) {
-    const next = new Set(form.model_names)
-    if (checked) next.add(modelName)
-    else next.delete(modelName)
-    patch({ model_names: [...next].sort((a, b) => a.localeCompare(b)) })
+  function patch(patchValues: Partial<PartListFormState>) {
+    onChange({ ...form, ...patchValues })
   }
 
   function onArabicChange(value: string) {
     const next: PartListFormState = { ...form, part_name_ar: value }
-    if (!form.part_name_en.trim() || autoEn.current) {
-      if (isMostlyArabic(value)) {
-        const translated = translateArabicPartName(value)
-        if (translated) {
-          next.part_name_en = translated
-          autoEn.current = true
-        }
-      } else if (isLatinPartName(value)) {
-        next.part_name_en = value
-        autoEn.current = true
-      }
-    }
-    if (!form.common_name.trim() && value.trim()) {
+    if (autoCommon.current || !form.common_name.trim() || form.common_name.trim() === form.part_name_ar.trim()) {
       next.common_name = value.trim()
+      autoCommon.current = true
     }
     onChange(next)
   }
 
-  function onEnglishChange(value: string) {
-    const next: PartListFormState = { ...form, part_name_en: value }
-    if (!form.part_name_ar.trim() || autoAr.current) {
-      if (isLatinPartName(value)) {
-        const translated = translateEnglishPartName(value)
-        if (translated && isMostlyArabic(translated)) {
-          next.part_name_ar = translated
-          autoAr.current = true
-        } else if (!isMostlyArabic(value)) {
-          next.part_name_ar = value
-          autoAr.current = true
+  function onCommonChange(value: string) {
+    autoCommon.current = false
+    patch({ common_name: value })
+  }
+
+  function applyMasterHit(hit: PartMasterHit) {
+    autoCommon.current = false
+    onChange({
+      ...form,
+      part_name_ar: hit.part_name_ar?.trim() || '',
+      part_name_en: hit.part_name_en?.trim() || form.part_name_en,
+      common_name: hit.common_name?.trim() || hit.part_name_ar?.trim() || '',
+      common_station: hit.common_station?.trim() || form.common_station,
+      part_type: hit.part_type?.trim() || form.part_type || DEFAULT_PART_KIND,
+      common_supply_source: hit.common_supply_source?.trim() || form.common_supply_source || DEFAULT_SUPPLY_SOURCE
+    })
+    if (models.length > 0) {
+      void fetchBomCardsForPartMaster(hit.id, models).then(loaded => {
+        if (loaded.cards.length > 0) {
+          setFamilyIds(loaded.familyIds)
+          setCards(loaded.cards)
         }
-      }
-    }
-    if (!form.common_name.trim() && value.trim()) {
-      next.common_name = value.trim()
-    }
-    onChange(next)
-  }
-
-  function onArabicBlur() {
-    if (form.part_name_ar.trim() && (!form.part_name_en.trim() || autoEn.current)) {
-      onArabicChange(form.part_name_ar)
+      })
     }
   }
 
-  function onEnglishBlur() {
-    if (form.part_name_en.trim() && (!form.part_name_ar.trim() || autoAr.current)) {
-      onEnglishChange(form.part_name_en)
+  function applyEnglishSuggestion() {
+    if (englishSuggestion) patch({ part_name_en: englishSuggestion })
+  }
+
+  function applyArabicSuggestion() {
+    if (arabicSuggestion) patch({ part_name_ar: arabicSuggestion })
+  }
+
+  function validateSave(): string | null {
+    if (!form.part_name_ar.trim() && !form.common_name.trim()) {
+      return t('bom.partListCommonNameRequired')
     }
+    for (const card of cards) {
+      const q = Number(card.qty)
+      const hasPn = Boolean(card.part_number.trim())
+      const hasQty = Number.isFinite(q) && q > 0
+      if (hasPn && !hasQty) return t('bom.partListQtyRequiredWithNumber')
+      if (hasQty && !hasPn) return t('bom.partNumberRequiredPerModel')
+    }
+    return null
+  }
+
+  function commitSave() {
+    const err = validateSave()
+    if (err) {
+      setFormError(err)
+      return
+    }
+    setFormError('')
+    onSave({ cards, models })
+  }
+
+  function handleSaveClick() {
+    const err = validateSave()
+    if (err) {
+      setFormError(err)
+      return
+    }
+    if (duplicateHit) {
+      pendingSave.current = { cards, models }
+      setConfirmDuplicateOpen(true)
+      return
+    }
+    commitSave()
   }
 
   return (
-    <Modal
-      open={open}
-      title={editId ? t('bom.partListEdit') : t('bom.partListAdd')}
-      icon={<ClipboardList className="h-5 w-5" />}
-      onClose={onClose}
-      maxWidthClass="max-w-2xl"
-      footer={
-        <>
-          <button
-            type="button"
-            onClick={onClose}
-            className="rounded-xl bg-slate-800 px-4 py-2 text-sm font-bold text-slate-300"
-          >
-            {t('common.cancel')}
-          </button>
-          <button
-            type="button"
-            disabled={busy}
-            onClick={onSave}
-            className="rounded-xl bg-cyan-500 px-4 py-2 text-sm font-black text-slate-950 disabled:opacity-50"
-          >
-            {t('common.save')}
-          </button>
-        </>
-      }
-    >
-      <p className="mb-3 text-xs text-slate-500">{t('bom.partListTranslateHint')}</p>
-      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-        <label className="block sm:col-span-2">
-          <span className="mb-1 block text-xs text-slate-500">{t('bom.col.common_station')}</span>
-          <select
-            className={inputCls()}
-            value={form.common_station}
-            onChange={e => patch({ common_station: e.target.value })}
-          >
-            <option value="">{t('bom.partListStationOptional')}</option>
-            {selectOptions.map(opt => (
-              <option key={opt.code} value={opt.code}>
-                {opt.label}
-              </option>
-            ))}
-          </select>
-          <span className="mt-1 block text-[10px] text-slate-600">{t('bom.partListStationFromSettings')}</span>
-        </label>
-        <label className="block">
-          <span className="mb-1 block text-xs text-slate-500">{t('bom.col.part_name_ar')}</span>
-          <input
-            className={inputCls()}
-            value={form.part_name_ar}
-            onChange={e => onArabicChange(e.target.value)}
-            onBlur={onArabicBlur}
-          />
-        </label>
-        <label className="block">
-          <span className="mb-1 block text-xs text-slate-500">{t('bom.col.part_name_en')}</span>
-          <input
-            className={inputCls()}
-            value={form.part_name_en}
-            onChange={e => onEnglishChange(e.target.value)}
-            onBlur={onEnglishBlur}
-            dir="ltr"
-          />
-        </label>
-        <label className="block sm:col-span-2">
-          <span className="mb-1 block text-xs text-slate-500">{t('bom.col.common_name')}</span>
-          <input className={inputCls()} value={form.common_name} onChange={e => patch({ common_name: e.target.value })} />
-        </label>
-        <div className="sm:col-span-2">
-          <span className="mb-2 block text-xs text-slate-500">{t('bom.col.used_in_models')}</span>
-          {assignableModels.length === 0 ? (
-            <p className="text-xs text-slate-500">{t('common.loading')}</p>
-          ) : (
-            <div className="max-h-48 space-y-1 overflow-y-auto rounded-xl border border-slate-800 bg-slate-900/50 p-3">
-              {assignableModels.map(m => (
-                <label
-                  key={m.id}
-                  className="flex cursor-pointer items-center gap-2 rounded-lg px-2 py-1.5 text-sm text-slate-200 hover:bg-slate-950/40"
-                >
-                  <input
-                    type="checkbox"
-                    className="rounded border-slate-600"
-                    checked={selectedModels.has(m.name)}
-                    onChange={e => toggleModel(m.name, e.target.checked)}
-                  />
-                  <span className="font-bold text-violet-200">{m.name}</span>
-                </label>
+    <>
+      <Modal
+        open={open}
+        title={editId ? t('bom.partListEdit') : t('bom.partListAdd')}
+        icon={<ClipboardList className="h-5 w-5" />}
+        onClose={onClose}
+        maxWidthClass="max-w-4xl"
+        footer={
+          <>
+            <button
+              type="button"
+              onClick={onClose}
+              className="rounded-xl bg-slate-800 px-4 py-2 text-sm font-bold text-slate-300"
+            >
+              {t('common.cancel')}
+            </button>
+            <button
+              type="button"
+              disabled={busy || cardsLoading}
+              onClick={handleSaveClick}
+              className="rounded-xl bg-cyan-500 px-4 py-2 text-sm font-black text-slate-950 disabled:opacity-50"
+            >
+              {t('common.save')}
+            </button>
+          </>
+        }
+      >
+        {formError && <p className="mb-3 text-sm text-red-300">{formError}</p>}
+        <p className="mb-3 text-xs text-slate-500">{t('bom.partListTranslateHint')}</p>
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+          <label className="block sm:col-span-2">
+            <span className="mb-1 block text-xs text-slate-500">{t('bom.col.common_station')}</span>
+            <select
+              className={inputCls()}
+              value={form.common_station}
+              onChange={e => patch({ common_station: e.target.value })}
+            >
+              <option value="">{t('bom.partListStationOptional')}</option>
+              {selectOptions.map(opt => (
+                <option key={opt.code} value={opt.code}>
+                  {opt.label}
+                </option>
               ))}
-            </div>
-          )}
-          <span className="mt-1 block text-[10px] text-slate-600">{t('bom.partListModelsHint')}</span>
+            </select>
+            <span className="mt-1 block text-[10px] text-slate-600">{t('bom.partListStationFromSettings')}</span>
+          </label>
+
+          <label className="block">
+            <span className="mb-1 block text-xs text-slate-500">{t('bom.col.part_name_ar')}</span>
+            <PartListAutocomplete
+              value={form.part_name_ar}
+              excludePartId={editId}
+              onChange={onArabicChange}
+              onPick={applyMasterHit}
+            />
+            <span className="mt-1 block text-[10px] text-slate-600">{t('bom.partListAutocompleteHint')}</span>
+            {duplicateHit && (
+              <p className="mt-1 flex items-start gap-1 text-[10px] font-bold text-amber-400">
+                <AlertTriangle className="mt-0.5 h-3 w-3 shrink-0" />
+                {t('bom.partListDuplicateWarning', { name: form.part_name_ar.trim() })}
+              </p>
+            )}
+            {arabicSuggestion && !form.part_name_ar.trim() && (
+              <button
+                type="button"
+                onClick={applyArabicSuggestion}
+                className="mt-1 text-[10px] font-bold text-cyan-400 hover:text-cyan-300"
+              >
+                {t('bom.partListUseSuggestion', { s: arabicSuggestion })}
+              </button>
+            )}
+          </label>
+
+          <label className="block">
+            <span className="mb-1 block text-xs text-slate-500">{t('bom.col.part_name_en')}</span>
+            <input
+              className={inputCls()}
+              value={form.part_name_en}
+              onChange={e => patch({ part_name_en: e.target.value })}
+              dir="ltr"
+              placeholder={englishSuggestion || undefined}
+            />
+            {englishSuggestion && form.part_name_en.trim() !== englishSuggestion && (
+              <button
+                type="button"
+                onClick={applyEnglishSuggestion}
+                className="mt-1 text-[10px] font-bold text-cyan-400 hover:text-cyan-300"
+              >
+                {t('bom.partListUseSuggestion', { s: englishSuggestion })}
+              </button>
+            )}
+          </label>
+
+          <label className="block sm:col-span-2">
+            <span className="mb-1 block text-xs text-slate-500">{t('bom.col.common_name')}</span>
+            <input className={inputCls()} value={form.common_name} onChange={e => onCommonChange(e.target.value)} />
+            <span className="mt-1 block text-[10px] text-slate-600">{t('bom.partListCommonNameHint')}</span>
+          </label>
+
+          <label className="block">
+            <span className="mb-1 block text-xs text-slate-500">{t('bom.col.part_kind')}</span>
+            <BomPresetSelect
+              value={form.part_type || DEFAULT_PART_KIND}
+              presets={partKindOptions}
+              onChange={v => patch({ part_type: v })}
+              className="w-full"
+            />
+          </label>
+
+          <label className="block">
+            <span className="mb-1 block text-xs text-slate-500">{t('bom.col.common_supply_source')}</span>
+            <BomPresetSelect
+              value={form.common_supply_source || DEFAULT_SUPPLY_SOURCE}
+              presets={supplyOptions}
+              onChange={v => patch({ common_supply_source: v })}
+              className="w-full"
+            />
+          </label>
         </div>
-      </div>
-    </Modal>
+
+        <div className="mt-5 border-t border-slate-800 pt-4">
+          <p className="mb-3 text-xs text-slate-500">{t('bom.partListModelNumbersHint')}</p>
+          {cardsLoading ? (
+            <p className="text-sm text-slate-400">{t('common.loading')}</p>
+          ) : (
+            <BomModelCardsEditor
+              models={models}
+              stations={stations}
+              familyIds={familyIds}
+              cards={cards}
+              masterSeed={cardMasterSeed}
+              onFamilyIdsChange={setFamilyIds}
+              onCardsChange={setCards}
+            />
+          )}
+        </div>
+      </Modal>
+
+      <ConfirmDialog
+        open={confirmDuplicateOpen}
+        title={t('bom.partListDuplicateTitle')}
+        message={t('bom.partListDuplicateConfirm', { name: form.part_name_ar.trim() })}
+        confirmLabel={t('common.save')}
+        cancelLabel={t('common.cancel')}
+        tone="default"
+        busy={busy}
+        onConfirm={() => {
+          setConfirmDuplicateOpen(false)
+          if (pendingSave.current) onSave(pendingSave.current)
+          else commitSave()
+        }}
+        onCancel={() => setConfirmDuplicateOpen(false)}
+      />
+    </>
   )
 }

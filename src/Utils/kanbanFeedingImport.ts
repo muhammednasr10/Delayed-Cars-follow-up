@@ -19,7 +19,11 @@ function findCol(headers: string[], ...candidates: string[]): number {
 }
 
 function parseNum(val: string): number {
-  const n = parseFloat(String(val ?? '').replace(/,/g, '').trim())
+  const n = parseFloat(
+    String(val ?? '')
+      .replace(/,/g, '')
+      .trim()
+  )
   return Number.isFinite(n) && n > 0 ? n : 0
 }
 
@@ -43,10 +47,7 @@ export function parseKanbanFeedingRows(rows: string[][]): KanbanImportResult {
   let headerRow = 0
   for (let i = 0; i < Math.min(rows.length, 15); i++) {
     const line = rows[i].join(' ').toLowerCase()
-    if (
-      /part|جزء|رقم/.test(line) &&
-      (/qty|كمية|quantity|qv/.test(line) || /rack|راك/.test(line))
-    ) {
+    if (/part|جزء|رقم/.test(line) && (/qty|كمية|quantity|qv/.test(line) || /rack|راك/.test(line))) {
       headerRow = i
       break
     }
@@ -65,7 +66,16 @@ export function parseKanbanFeedingRows(rows: string[][]): KanbanImportResult {
     'كمية في السيارة',
     'qty'
   )
-  const colDir = findCol(headers, 'direction', 'rack_direction', 'rack direction', 'اتجاه', 'اتجاه_الراك', 'side', 'r/l')
+  const colDir = findCol(
+    headers,
+    'direction',
+    'rack_direction',
+    'rack direction',
+    'اتجاه',
+    'اتجاه_الراك',
+    'side',
+    'r/l'
+  )
   const colCartonDim = findCol(
     headers,
     'carton_dimensions',
@@ -76,7 +86,17 @@ export function parseKanbanFeedingRows(rows: string[][]): KanbanImportResult {
     'dimensions',
     'l*w*h'
   )
-  const colRack = findCol(headers, 'rack_qty', 'rack size', 'rack_size', 'rack_capacity', 'حجم_الراك', 'حجم الراك', 'سعة_الراك', 'rack')
+  const colRack = findCol(
+    headers,
+    'rack_qty',
+    'rack size',
+    'rack_size',
+    'rack_capacity',
+    'حجم_الراك',
+    'حجم الراك',
+    'سعة_الراك',
+    'rack'
+  )
   const colCartonQty = findCol(
     headers,
     'carton_qty',

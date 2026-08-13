@@ -10,12 +10,6 @@ export function DuplicateBadge({ status }: { status: string | null }) {
           ? 'border-amber-500/40 bg-amber-500/10 text-amber-200'
           : 'border-slate-600 bg-slate-800 text-slate-400'
   const label =
-    s === 'unique'
-      ? 'فريد'
-      : s === 'duplicate'
-        ? 'مكرر'
-        : s === 'possible_duplicate'
-          ? 'مكرر محتمل'
-          : 'يحتاج مراجعة'
+    s === 'unique' ? 'فريد' : s === 'duplicate' ? 'مكرر' : s === 'possible_duplicate' ? 'مكرر محتمل' : 'يحتاج مراجعة'
   return <span className={`rounded-md border px-2 py-0.5 text-[10px] font-black ${cls}`}>{label}</span>
 }

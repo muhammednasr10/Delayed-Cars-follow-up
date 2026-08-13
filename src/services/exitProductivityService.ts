@@ -2,11 +2,7 @@ import { supabase } from '../lib/supabase'
 import type { EntryProductivityDay, EntryProductivityDayInput } from '../Types/entryProductivity'
 import type { VehicleOverview } from '../Types/vehicle'
 import type { VehicleModel } from '../Types/settings'
-import {
-  buildMonthGrid,
-  buildVariantToFamilyMap,
-  gridToInputs
-} from './entryProductivityService'
+import { buildMonthGrid, buildVariantToFamilyMap, gridToInputs } from './entryProductivityService'
 
 function requireClient() {
   if (!supabase) throw new Error('Supabase غير مهيأ. تحقق من ملف .env')
@@ -60,6 +56,20 @@ export async function getExitProductivityMonth(year: number, month: number): Pro
   return (data ?? []).map(r => mapDay(r as DayRow))
 }
 
+export async function getExitProductivityYear(year: number): Promise<EntryProductivityDay[]> {
+  const start = `${year}-01-01`
+  const end = `${year}-12-31`
+  const { data, error } = await requireClient()
+    .from('exit_productivity_daily')
+    .select('*')
+    .gte('work_date', start)
+    .lte('work_date', end)
+    .order('work_date')
+
+  if (error) throw new Error(error.message)
+  return (data ?? []).map(r => mapDay(r as DayRow))
+}
+
 export async function bulkUpsertExitProductivity(inputs: EntryProductivityDayInput[]): Promise<void> {
   if (inputs.length === 0) return
   const { error } = await requireClient()
@@ -99,7 +109,8 @@ export function tallyDeliveredByFamilyDay(
     if (!vehicle.modelId || vehicle.deliveryStatus !== 'delivered') continue
     const familyId = variantToFamily.get(vehicle.modelId)
     if (!familyId) continue
-    const workDate = vehicle.updatedAt.slice(0, 10)
+    const deliveryInstant = vehicle.deliveredAt ?? vehicle.updatedAt
+    const workDate = deliveryInstant.slice(0, 10)
     if (!workDate.startsWith(prefix)) continue
     const key = `${familyId}|${workDate}`
     grid.set(key, (grid.get(key) ?? 0) + 1)

@@ -43,9 +43,7 @@ export function MoveOperationModal({
       for (const w of p.workers) {
         if (w.stationId === currentWorkerStationId) continue
         const workerLabel =
-          w.workerIndex != null
-            ? `${t('operations.workerN', { n: w.workerIndex })} (${w.displayCode})`
-            : w.displayCode
+          w.workerIndex != null ? `${t('operations.workerN', { n: w.workerIndex })} (${w.displayCode})` : w.displayCode
         list.push({ stationId: w.stationId, parentLabel, workerLabel })
       }
     }
@@ -81,7 +79,11 @@ export function MoveOperationModal({
       maxWidthClass="max-w-lg"
       footer={
         <>
-          <button disabled={busy} onClick={onClose} className="rounded-xl bg-slate-800 px-4 py-2 font-bold text-slate-200">
+          <button
+            disabled={busy}
+            onClick={onClose}
+            className="rounded-xl bg-slate-800 px-4 py-2 font-bold text-slate-200"
+          >
             {t('common.cancel')}
           </button>
           <button

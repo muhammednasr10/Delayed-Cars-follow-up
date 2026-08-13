@@ -5,13 +5,14 @@ import { useNavigation } from '../../Context/NavigationContext'
 import { ProductionPlanOrdersTab } from '../../Components/production/ProductionPlanOrdersTab'
 import { ProductionPlanWorkDaysTab } from '../../Components/ProductionPlanWorkDaysTab'
 import { PlanningDailyTrackingTab } from '../../Components/planning/PlanningDailyTrackingTab'
+import { ProductionPlanLandingPage } from './ProductionPlanLandingPage'
 import { useCanViewPage } from '../../hooks/useCanViewPage'
 import { pagePermForPlanning } from '../../config/pageAccess'
 import type { PlanningTab } from '../../Types/navigation'
 
 export function PlanningPage() {
   const { t } = useLang()
-  const { planningTab: tab, setPlanningTab: setTab } = useNavigation()
+  const { planningTab: tab, planScope, setPlanningTab: setTab, navigate } = useNavigation()
   const { canViewPage, loading } = useCanViewPage()
 
   const tabs = useMemo(() => {
@@ -36,7 +37,13 @@ export function PlanningPage() {
 
   return (
     <section className="space-y-4">
-      {activeTab === 'plan' && <ProductionPlanOrdersTab view="plan" />}
+      {activeTab === 'plan' && planScope === 'hub' && <ProductionPlanLandingPage />}
+      {activeTab === 'plan' && planScope === 'monthly' && (
+        <ProductionPlanOrdersTab view="plan" planScope="monthly" onBack={() => navigate({ planScope: 'hub' })} />
+      )}
+      {activeTab === 'plan' && planScope === 'annual' && (
+        <ProductionPlanOrdersTab view="plan" planScope="annual" onBack={() => navigate({ planScope: 'hub' })} />
+      )}
       {activeTab === 'workDays' && <ProductionPlanWorkDaysTab variant="workDays" />}
       {activeTab === 'tracking' && <PlanningDailyTrackingTab />}
       {activeTab === 'orders' && <ProductionPlanOrdersTab view="orders" />}

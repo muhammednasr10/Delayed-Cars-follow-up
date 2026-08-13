@@ -17,10 +17,7 @@ import { useEquipmentListState } from './useEquipmentListState'
 import { WarehouseEquipmentSectionHeader } from './WarehouseEquipmentSectionHeader'
 import { WarehouseEquipmentListCard } from './WarehouseEquipmentListCard'
 import { WarehouseEquipmentRowActions } from './WarehouseEquipmentRowActions'
-import {
-  WarehouseEquipmentCommonFields,
-  WarehouseEquipmentModalFooter
-} from './WarehouseEquipmentFormFields'
+import { WarehouseEquipmentCommonFields, WarehouseEquipmentModalFooter } from './WarehouseEquipmentFormFields'
 
 type Props = {
   warehouses: Warehouse[]
@@ -152,7 +149,11 @@ export function WarehouseRacksTab({ warehouses, stations, canManage, notify }: P
         searchPlaceholder={t('common.search')}
       />
 
-      <WarehouseEquipmentListCard loading={loading} isEmpty={filtered.length === 0} emptyTitle={t('warehouses.equipment.racksEmpty')}>
+      <WarehouseEquipmentListCard
+        loading={loading}
+        isEmpty={filtered.length === 0}
+        emptyTitle={t('warehouses.equipment.racksEmpty')}
+      >
         <div className="overflow-x-auto">
           <table className="w-full min-w-[720px]">
             <thead>
@@ -174,7 +175,9 @@ export function WarehouseRacksTab({ warehouses, stations, canManage, notify }: P
                     {row.code}
                   </td>
                   <td className={equipmentTd}>{row.name || '—'}</td>
-                  <td className={equipmentTd}>{row.warehouseCode ? `${row.warehouseCode} — ${row.warehouseName}` : '—'}</td>
+                  <td className={equipmentTd}>
+                    {row.warehouseCode ? `${row.warehouseCode} — ${row.warehouseName}` : '—'}
+                  </td>
                   <td className={equipmentTd} dir="ltr">
                     {row.stationNumber ? `${row.stationNumber}${row.stationName ? ` — ${row.stationName}` : ''}` : '—'}
                   </td>
@@ -203,7 +206,9 @@ export function WarehouseRacksTab({ warehouses, stations, canManage, notify }: P
         icon={<LayoutGrid className="h-5 w-5" />}
         onClose={() => setFormOpen(false)}
         maxWidthClass="max-w-2xl"
-        footer={<WarehouseEquipmentModalFooter busy={busy} onCancel={() => setFormOpen(false)} onSave={() => void submit()} />}
+        footer={
+          <WarehouseEquipmentModalFooter busy={busy} onCancel={() => setFormOpen(false)} onSave={() => void submit()} />
+        }
       >
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
           <WarehouseEquipmentCommonFields
@@ -218,7 +223,11 @@ export function WarehouseRacksTab({ warehouses, stations, canManage, notify }: P
           />
           <label className="block">
             <span className="mb-1 block text-xs text-slate-500">{t('warehouses.feeding.station')}</span>
-            <select className={inputCls()} value={form.stationId} onChange={e => patchForm({ stationId: e.target.value })}>
+            <select
+              className={inputCls()}
+              value={form.stationId}
+              onChange={e => patchForm({ stationId: e.target.value })}
+            >
               <option value="">{t('warehouses.equipment.optional')}</option>
               {stations.map(s => (
                 <option key={s.id} value={s.id}>
@@ -229,19 +238,42 @@ export function WarehouseRacksTab({ warehouses, stations, canManage, notify }: P
           </label>
           <label className="block">
             <span className="mb-1 block text-xs text-slate-500">{t('warehouses.equipment.cols.direction')}</span>
-            <input className={inputCls()} value={form.direction} onChange={e => patchForm({ direction: e.target.value })} placeholder="ي / ش" />
+            <input
+              className={inputCls()}
+              value={form.direction}
+              onChange={e => patchForm({ direction: e.target.value })}
+              placeholder="ي / ش"
+            />
           </label>
           <label className="block">
             <span className="mb-1 block text-xs text-slate-500">L (mm)</span>
-            <input type="number" className={inputCls()} value={form.lengthMm} onChange={e => patchForm({ lengthMm: e.target.value })} dir="ltr" />
+            <input
+              type="number"
+              className={inputCls()}
+              value={form.lengthMm}
+              onChange={e => patchForm({ lengthMm: e.target.value })}
+              dir="ltr"
+            />
           </label>
           <label className="block">
             <span className="mb-1 block text-xs text-slate-500">W (mm)</span>
-            <input type="number" className={inputCls()} value={form.widthMm} onChange={e => patchForm({ widthMm: e.target.value })} dir="ltr" />
+            <input
+              type="number"
+              className={inputCls()}
+              value={form.widthMm}
+              onChange={e => patchForm({ widthMm: e.target.value })}
+              dir="ltr"
+            />
           </label>
           <label className="block">
             <span className="mb-1 block text-xs text-slate-500">H (mm)</span>
-            <input type="number" className={inputCls()} value={form.heightMm} onChange={e => patchForm({ heightMm: e.target.value })} dir="ltr" />
+            <input
+              type="number"
+              className={inputCls()}
+              value={form.heightMm}
+              onChange={e => patchForm({ heightMm: e.target.value })}
+              dir="ltr"
+            />
           </label>
         </div>
       </Modal>

@@ -8,13 +8,20 @@ export function useTrainingSkills() {
   const [error, setError] = useState('')
 
   const load = useCallback(async () => {
-    setLoading(true); setError('')
-    try { setSkills(await getSkills()) }
-    catch (e) { setError(e instanceof Error ? e.message : 'Failed to load skills') }
-    finally { setLoading(false) }
+    setLoading(true)
+    setError('')
+    try {
+      setSkills(await getSkills())
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Failed to load skills')
+    } finally {
+      setLoading(false)
+    }
   }, [])
 
-  useEffect(() => { load() }, [load])
+  useEffect(() => {
+    load()
+  }, [load])
   return { skills, loading, error, reload: load }
 }
 
@@ -24,13 +31,20 @@ export function useStationRequiredSkills() {
   const [error, setError] = useState('')
 
   const load = useCallback(async () => {
-    setLoading(true); setError('')
-    try { setRequired(await getStationRequiredSkills()) }
-    catch (e) { setError(e instanceof Error ? e.message : 'Failed to load required skills') }
-    finally { setLoading(false) }
+    setLoading(true)
+    setError('')
+    try {
+      setRequired(await getStationRequiredSkills())
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Failed to load required skills')
+    } finally {
+      setLoading(false)
+    }
   }, [])
 
-  useEffect(() => { load() }, [load])
+  useEffect(() => {
+    load()
+  }, [load])
   return { required, loading, error, reload: load }
 }
 
@@ -40,12 +54,19 @@ export function useEmployeeTrainingRecords() {
   const [error, setError] = useState('')
 
   const load = useCallback(async () => {
-    setLoading(true); setError('')
-    try { setRecords(await getEmployeeTrainings()) }
-    catch (e) { setError(e instanceof Error ? e.message : 'Failed to load training records') }
-    finally { setLoading(false) }
+    setLoading(true)
+    setError('')
+    try {
+      setRecords(await getEmployeeTrainings())
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Failed to load training records')
+    } finally {
+      setLoading(false)
+    }
   }, [])
 
-  useEffect(() => { load() }, [load])
+  useEffect(() => {
+    load()
+  }, [load])
   return { records, loading, error, reload: load }
 }

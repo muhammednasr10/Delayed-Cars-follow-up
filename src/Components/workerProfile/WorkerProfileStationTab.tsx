@@ -15,7 +15,9 @@ export function WorkerProfileStationTab() {
   const [err, setErr] = useState('')
 
   useEffect(() => {
-    getVehicleModels().then(setModels).catch(() => setModels([]))
+    getVehicleModels()
+      .then(setModels)
+      .catch(() => setModels([]))
   }, [])
 
   useEffect(() => {
@@ -37,7 +39,9 @@ export function WorkerProfileStationTab() {
   }
 
   if (!work) {
-    return <div className="card-industrial p-6 text-center text-sm text-amber-200">{t('workerProfile.noEmployeeLink')}</div>
+    return (
+      <div className="card-industrial p-6 text-center text-sm text-amber-200">{t('workerProfile.noEmployeeLink')}</div>
+    )
   }
 
   if (!work.hasAllocation) {
@@ -55,7 +59,9 @@ export function WorkerProfileStationTab() {
       <section className="card-industrial space-y-3 p-5">
         <div className="flex items-center gap-2 text-violet-300">
           <MapPin className="h-5 w-5" />
-          <h3 className="text-sm font-black uppercase tracking-wide text-slate-400">{t('workerProfile.todayStation')}</h3>
+          <h3 className="text-sm font-black uppercase tracking-wide text-slate-400">
+            {t('workerProfile.todayStation')}
+          </h3>
         </div>
         <div className="grid gap-3 sm:grid-cols-2">
           <div className="rounded-xl border border-violet-500/30 bg-violet-500/5 p-3">

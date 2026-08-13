@@ -59,11 +59,7 @@ export async function removeMyAvatar(userId: string): Promise<void> {
   await updateMyProfile({ avatarUrl: '' })
 }
 
-export async function changeMyPassword(
-  _email: string,
-  currentPassword: string,
-  newPassword: string
-): Promise<void> {
+export async function changeMyPassword(_email: string, currentPassword: string, newPassword: string): Promise<void> {
   const { error } = await client().rpc('change_my_password', {
     p_current: currentPassword,
     p_new: newPassword
@@ -98,9 +94,7 @@ export async function fetchMyEmployeeSnapshot(employeeId: string): Promise<MyEmp
   const units = await getFactoryOrgUnits()
   const orgUnitLabel = orgPathLabel(orgPathFromLeaf(data.factory_org_unit_id, units), units)
   const st = data.stations as { station_number?: string; station_name?: string } | null
-  const stationLabel = st
-    ? [st.station_number, st.station_name].filter(Boolean).join(' — ')
-    : null
+  const stationLabel = st ? [st.station_number, st.station_name].filter(Boolean).join(' — ') : null
 
   const { data: mgrLinks } = await client()
     .from('employee_direct_managers')

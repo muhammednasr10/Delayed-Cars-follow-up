@@ -22,7 +22,9 @@ export function JobRoleBadge({ role }: { role: JobRole }) {
 
 export function ActiveBadge({ active }: { active: boolean }) {
   const { t } = useLang()
-  const cls = active ? 'bg-emerald-500/15 text-emerald-200 ring-emerald-400/30' : 'bg-slate-600/20 text-slate-300 ring-slate-500/30'
+  const cls = active
+    ? 'bg-emerald-500/15 text-emerald-200 ring-emerald-400/30'
+    : 'bg-slate-600/20 text-slate-300 ring-slate-500/30'
   return <span className={`${base} ${cls}`}>{active ? t('org.f.active') : t('org.f.inactive')}</span>
 }
 
@@ -36,9 +38,5 @@ const EMPLOYMENT_STATUS_CLASSES: Record<EmploymentStatus, string> = {
 
 export function EmploymentStatusBadge({ status }: { status: EmploymentStatus }) {
   const { t } = useLang()
-  return (
-    <span className={`${base} ${EMPLOYMENT_STATUS_CLASSES[status]}`}>
-      {t(`org.employmentStatus.${status}`)}
-    </span>
-  )
+  return <span className={`${base} ${EMPLOYMENT_STATUS_CLASSES[status]}`}>{t(`org.employmentStatus.${status}`)}</span>
 }

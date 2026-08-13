@@ -121,24 +121,45 @@ export function NewVehicleModal({ onClose }: { onClose: () => void }) {
             <span className="text-sm font-bold text-slate-300">الموديل</span>
             <select className="input-dark" value={modelId} onChange={e => setModelId(e.target.value)}>
               <option value="">اختر الموديل</option>
-              {lists.models.map(m => <option key={m.id} value={m.id}>{m.name}</option>)}
+              {lists.models.map(m => (
+                <option key={m.id} value={m.id}>
+                  {m.name}
+                </option>
+              ))}
             </select>
           </label>
 
           <label className="space-y-2 sm:col-span-2">
             <span className="text-sm font-bold text-slate-300">أمر الإنتاج</span>
-            <select className="input-dark" value={productionOrderId} onChange={e => setProductionOrderId(e.target.value)}>
+            <select
+              className="input-dark"
+              value={productionOrderId}
+              onChange={e => setProductionOrderId(e.target.value)}
+            >
               <option value="">اختر أمر الإنتاج</option>
-              {lists.orders.map(o => <option key={o.id} value={o.id}>{o.orderNumber}</option>)}
+              {lists.orders.map(o => (
+                <option key={o.id} value={o.id}>
+                  {o.orderNumber}
+                </option>
+              ))}
             </select>
           </label>
 
           <div className="flex items-end gap-2 sm:col-span-2">
             <label className="flex-1 space-y-2">
               <span className="text-sm font-bold text-slate-300">أو أنشئ أمر إنتاج جديد</span>
-              <input className="input-dark" value={newOrderNumber} onChange={e => setNewOrderNumber(e.target.value)} placeholder="PO-2026-001" />
+              <input
+                className="input-dark"
+                value={newOrderNumber}
+                onChange={e => setNewOrderNumber(e.target.value)}
+                placeholder="PO-2026-001"
+              />
             </label>
-            <button type="button" onClick={handleCreateOrder} className="rounded-xl bg-slate-700 px-4 py-2 text-sm font-bold text-slate-100 hover:bg-slate-600">
+            <button
+              type="button"
+              onClick={handleCreateOrder}
+              className="rounded-xl bg-slate-700 px-4 py-2 text-sm font-bold text-slate-100 hover:bg-slate-600"
+            >
               <Plus className="inline h-4 w-4" /> إنشاء
             </button>
           </div>
@@ -147,7 +168,11 @@ export function NewVehicleModal({ onClose }: { onClose: () => void }) {
             <span className="text-sm font-bold text-slate-300">اللون</span>
             <select className="input-dark" value={vehicleColorId} onChange={e => setVehicleColorId(e.target.value)}>
               <option value="">اختر اللون</option>
-              {lists.colors.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+              {lists.colors.map(c => (
+                <option key={c.id} value={c.id}>
+                  {c.name}
+                </option>
+              ))}
             </select>
           </label>
 
@@ -155,7 +180,11 @@ export function NewVehicleModal({ onClose }: { onClose: () => void }) {
             <span className="text-sm font-bold text-slate-300">المحطة الحالية</span>
             <select className="input-dark" value={currentStationId} onChange={e => setCurrentStationId(e.target.value)}>
               <option value="">اختر المحطة</option>
-              {lists.stations.map(s => <option key={s.id} value={s.id}>{s.station_number} - {s.station_name}</option>)}
+              {lists.stations.map(s => (
+                <option key={s.id} value={s.id}>
+                  {s.station_number} - {s.station_name}
+                </option>
+              ))}
             </select>
           </label>
 
@@ -164,11 +193,24 @@ export function NewVehicleModal({ onClose }: { onClose: () => void }) {
             <textarea className="input-dark min-h-20" value={notes} onChange={e => setNotes(e.target.value)} />
           </label>
 
-          {error && <div className="rounded-xl border border-red-500/30 bg-red-500/10 p-3 text-sm text-red-200 sm:col-span-2">{error}</div>}
+          {error && (
+            <div className="rounded-xl border border-red-500/30 bg-red-500/10 p-3 text-sm text-red-200 sm:col-span-2">
+              {error}
+            </div>
+          )}
 
           <div className="flex justify-end gap-2 sm:col-span-2">
-            <button type="button" onClick={onClose} className="rounded-xl bg-slate-800 px-4 py-2 font-bold text-slate-200">إلغاء</button>
-            <button disabled={submitting} className="rounded-xl bg-cyan-500 px-5 py-2 font-black text-slate-950 disabled:opacity-60">
+            <button
+              type="button"
+              onClick={onClose}
+              className="rounded-xl bg-slate-800 px-4 py-2 font-bold text-slate-200"
+            >
+              إلغاء
+            </button>
+            <button
+              disabled={submitting}
+              className="rounded-xl bg-cyan-500 px-5 py-2 font-black text-slate-950 disabled:opacity-60"
+            >
               {submitting ? 'جاري الحفظ...' : 'حفظ السيارة'}
             </button>
           </div>

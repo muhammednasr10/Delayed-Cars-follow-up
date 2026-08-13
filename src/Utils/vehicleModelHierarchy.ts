@@ -9,7 +9,27 @@ export type ModelFamilyGroup = {
 
 /** Models that can be assigned to a vehicle / shortage / BOM line (not a family row). */
 export function isAssignableModel(m: VehicleModel): boolean {
-  return m.model_kind === 'variant'
+  return m.model_kind === 'variant' && m.is_active
+}
+
+/** Active variant with an active parent family (if any). */
+export function isSelectableVehicleModel(m: VehicleModel, allModels: VehicleModel[]): boolean {
+  if (!isAssignableModel(m)) return false
+  if (!m.parent_model_id) return true
+  const parent = allModels.find(p => p.id === m.parent_model_id)
+  return Boolean(parent?.is_active)
+}
+
+export function selectableVehicleModels(models: VehicleModel[]): VehicleModel[] {
+  const seen = new Set<string>()
+  return models
+    .filter(m => isSelectableVehicleModel(m, models))
+    .filter(m => {
+      if (seen.has(m.id)) return false
+      seen.add(m.id)
+      return true
+    })
+    .sort((a, b) => a.name.localeCompare(b.name))
 }
 
 const GD_VARIANT_NAMES = new Set(['K50', 'K51', 'F10', 'K52', 'K53', 'F12'])
@@ -73,9 +93,7 @@ export function buildModelFamilyGroups(models: VehicleModel[]): {
 
   const groups: ModelFamilyGroup[] = families.map(family => ({
     family,
-    variants: variants
-      .filter(v => v.parent_model_id === family.id)
-      .sort((a, b) => a.name.localeCompare(b.name))
+    variants: variants.filter(v => v.parent_model_id === family.id).sort((a, b) => a.name.localeCompare(b.name))
   }))
 
   const orphanVariants = variants
@@ -87,9 +105,5 @@ export function buildModelFamilyGroups(models: VehicleModel[]): {
 
 export function variantModelsForLine(models: VehicleModel[], linePrefix: string): VehicleModel[] {
   const p = linePrefix.toUpperCase()
-  return models.filter(
-    m =>
-      isAssignableModel(m) &&
-      (m.name.toUpperCase() === p || m.name.toUpperCase().startsWith(p))
-  )
+  return models.filter(m => isAssignableModel(m) && (m.name.toUpperCase() === p || m.name.toUpperCase().startsWith(p)))
 }

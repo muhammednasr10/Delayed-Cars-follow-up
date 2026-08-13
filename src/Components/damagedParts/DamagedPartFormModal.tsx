@@ -13,7 +13,14 @@ import type { VehicleModel } from '../../Types/settings'
 
 import type { ResponsibleDepartment } from '../../Types/enums'
 
-const CAUSING_DEPARTMENTS: ResponsibleDepartment[] = ['warehouse', 'purchasing', 'production', 'quality', 'supplier', 'management']
+const CAUSING_DEPARTMENTS: ResponsibleDepartment[] = [
+  'warehouse',
+  'purchasing',
+  'production',
+  'quality',
+  'supplier',
+  'management'
+]
 
 type FormState = {
   vehicleModelId: string
@@ -85,7 +92,8 @@ export function DamagedPartFormModal({ open, models, employees, editing, onClose
   const fileInputRef = useRef<HTMLInputElement>(null)
 
   const familyModels = useMemo(
-    () => models.filter(m => m.is_active && m.model_kind === 'family').sort((a, b) => a.name.localeCompare(b.name, 'ar')),
+    () =>
+      models.filter(m => m.is_active && m.model_kind === 'family').sort((a, b) => a.name.localeCompare(b.name, 'ar')),
     [models]
   )
 
@@ -190,7 +198,11 @@ export function DamagedPartFormModal({ open, models, employees, editing, onClose
       maxWidthClass="max-w-xl"
       footer={
         <div className="flex justify-end gap-2">
-          <button type="button" onClick={onClose} className="rounded-xl bg-slate-800 px-4 py-2 text-sm font-bold text-slate-200 hover:bg-slate-700">
+          <button
+            type="button"
+            onClick={onClose}
+            className="rounded-xl bg-slate-800 px-4 py-2 text-sm font-bold text-slate-200 hover:bg-slate-700"
+          >
             {t('common.cancel')}
           </button>
           <button
@@ -205,7 +217,9 @@ export function DamagedPartFormModal({ open, models, employees, editing, onClose
       }
     >
       <div className="space-y-4">
-        {error && <div className="rounded-xl border border-red-500/30 bg-red-500/10 p-3 text-sm text-red-200">{error}</div>}
+        {error && (
+          <div className="rounded-xl border border-red-500/30 bg-red-500/10 p-3 text-sm text-red-200">{error}</div>
+        )}
 
         <Field label={t('damagedParts.cols.model')} required>
           <select
@@ -392,4 +406,3 @@ export function DamagedPartFormModal({ open, models, employees, editing, onClose
     </Modal>
   )
 }
-

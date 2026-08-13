@@ -8,10 +8,7 @@ export function ProductivityPage() {
   const { productivityTab: tab } = useNavigation()
   const { canViewTab, loading: permsLoading } = useCanViewPage()
 
-  const allTabs: { key: ProductivityTab }[] = [
-    { key: 'productivity' },
-    { key: 'stops' }
-  ]
+  const allTabs: { key: ProductivityTab }[] = [{ key: 'productivity' }, { key: 'stops' }]
 
   const tabs = allTabs.filter(item => permsLoading || canViewTab('production_productivity', item.key))
 

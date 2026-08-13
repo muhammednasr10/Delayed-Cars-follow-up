@@ -36,7 +36,13 @@ export function BomPage({ embedded = false }: { embedded?: boolean }) {
     </>
   )
 
-  if (embedded) return <div className="space-y-4">{message}{content}</div>
+  if (embedded)
+    return (
+      <div className="space-y-4">
+        {message}
+        {content}
+      </div>
+    )
 
   return (
     <section className="space-y-4">

@@ -32,8 +32,16 @@ function handleError(label: string, error: unknown): never {
 // migration is applied they don't exist, so we detect that case and retry
 // without them instead of failing the whole save.
 const STATION_EXTRA_COLUMNS = [
-  'line_name', 'responsible_department', 'responsible_person', 'station_type', 'station_name_en', 'sort_order',
-  'headcount_workers', 'avg_station_time_minutes', 'parent_station_id', 'worker1_operations_summary'
+  'line_name',
+  'responsible_department',
+  'responsible_person',
+  'station_type',
+  'station_name_en',
+  'sort_order',
+  'headcount_workers',
+  'avg_station_time_minutes',
+  'parent_station_id',
+  'worker1_operations_summary'
 ]
 
 function isMissingColumnError(error: { code?: string; message?: string } | null): boolean {
@@ -61,6 +69,8 @@ function mapVehicleModel(row: Record<string, unknown>, parentName?: string | nul
     model_kind: (row.model_kind as VehicleModel['model_kind']) ?? 'variant',
     parent_model_id: (row.parent_model_id as string | null) ?? null,
     parent_name: parentName ?? null,
+    parent_company: (row.parent_company as string | null) ?? null,
+    agency: (row.agency as string | null) ?? null,
     is_active: Boolean(row.is_active),
     created_at: row.created_at as string | undefined,
     updated_at: row.updated_at as string | undefined
@@ -75,7 +85,7 @@ export async function getVehicleModels(opts?: { includeInactive?: boolean }): Pr
   const rows = (data ?? []) as Record<string, unknown>[]
   const nameById = new Map(rows.map(r => [r.id as string, r.name as string]))
   return rows.map(r =>
-    mapVehicleModel(r, r.parent_model_id ? nameById.get(r.parent_model_id as string) ?? null : null)
+    mapVehicleModel(r, r.parent_model_id ? (nameById.get(r.parent_model_id as string) ?? null) : null)
   )
 }
 
@@ -83,13 +93,18 @@ export async function createVehicleModel(input: {
   name: string
   model_kind?: VehicleModel['model_kind']
   parent_model_id?: string | null
+  parent_company?: string | null
+  agency?: string | null
+  is_active?: boolean
 }): Promise<VehicleModel> {
   const kind = input.model_kind ?? 'variant'
   const payload = {
     name: input.name.trim().toUpperCase(),
     model_kind: kind,
-    parent_model_id: kind === 'family' ? null : input.parent_model_id ?? null,
-    is_active: true
+    parent_model_id: kind === 'family' ? null : (input.parent_model_id ?? null),
+    parent_company: input.parent_company?.trim() || null,
+    agency: input.agency?.trim() || null,
+    is_active: input.is_active ?? true
   }
   const { data, error } = await requireClient().from('vehicle_models').insert(payload).select('*').single()
   if (error) handleError('Failed to create vehicle model:', error)
@@ -109,10 +124,12 @@ export async function createVehicleModel(input: {
 
 export async function updateVehicleModel(
   id: string,
-  input: Partial<Pick<VehicleModel, 'name' | 'is_active' | 'model_kind' | 'parent_model_id'>>
+  input: Partial<Pick<VehicleModel, 'name' | 'is_active' | 'model_kind' | 'parent_model_id' | 'parent_company' | 'agency'>>
 ): Promise<VehicleModel> {
   const patch: Record<string, unknown> = { ...input }
   if (typeof patch.name === 'string') patch.name = patch.name.trim().toUpperCase()
+  if (typeof patch.parent_company === 'string') patch.parent_company = patch.parent_company.trim() || null
+  if (typeof patch.agency === 'string') patch.agency = patch.agency.trim() || null
   if (patch.model_kind === 'family') patch.parent_model_id = null
   const { data, error } = await requireClient().from('vehicle_models').update(patch).eq('id', id).select('*').single()
   if (error) handleError('Failed to update vehicle model:', error)
@@ -126,7 +143,14 @@ export async function updateVehicleModel(
       .maybeSingle()
     parent_name = p?.name ?? null
   }
-  await syncModelFamilyMembership(id, row.model_kind as VehicleModel['model_kind'], row.parent_model_id as string | null)
+  await syncModelFamilyMembership(
+    id,
+    row.model_kind as VehicleModel['model_kind'],
+    row.parent_model_id as string | null
+  )
+  if (input.is_active === false && row.model_kind === 'family') {
+    await requireClient().from('vehicle_models').update({ is_active: false }).eq('parent_model_id', id)
+  }
   return mapVehicleModel(row, parent_name)
 }
 
@@ -138,7 +162,10 @@ async function syncModelFamilyMembership(
   if (kind !== 'variant' || !parentId) return
   const { data: parent } = await requireClient().from('vehicle_models').select('name').eq('id', parentId).maybeSingle()
   if (!parent?.name) return
-  const code = parent.name.trim().toLowerCase().replace(/[^a-z0-9]+/g, '_')
+  const code = parent.name
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '_')
   const { data: fam } = await requireClient()
     .from('vehicle_model_families')
     .upsert(
@@ -154,8 +181,15 @@ async function syncModelFamilyMembership(
 }
 
 export async function deactivateVehicleModel(id: string): Promise<void> {
-  const { error } = await requireClient().from('vehicle_models').update({ is_active: false }).eq('id', id)
+  const client = requireClient()
+  const { error } = await client.from('vehicle_models').update({ is_active: false }).eq('id', id)
   if (error) handleError('Failed to deactivate vehicle model:', error)
+  await client.from('vehicle_models').update({ is_active: false }).eq('parent_model_id', id)
+}
+
+export async function reactivateVehicleModel(id: string): Promise<void> {
+  const { error } = await requireClient().from('vehicle_models').update({ is_active: true }).eq('id', id)
+  if (error) handleError('Failed to reactivate vehicle model:', error)
 }
 
 export async function deleteVehicleModel(id: string): Promise<void> {
@@ -187,7 +221,10 @@ export async function createWorkArea(input: { name: string; description?: string
   return data
 }
 
-export async function updateWorkArea(id: string, input: Partial<Pick<WorkArea, 'name' | 'description' | 'is_active'>>): Promise<WorkArea> {
+export async function updateWorkArea(
+  id: string,
+  input: Partial<Pick<WorkArea, 'name' | 'description' | 'is_active'>>
+): Promise<WorkArea> {
   const { data, error } = await requireClient().from('work_areas').update(input).eq('id', id).select('*').single()
   if (error) handleError('Failed to update work area:', error)
   return data
@@ -262,7 +299,28 @@ export async function createStation(input: {
   return data
 }
 
-export async function updateStation(id: string, input: Partial<Pick<Station, 'station_number' | 'station_name' | 'station_name_en' | 'station_type' | 'sort_order' | 'work_area_id' | 'line_name' | 'responsible_department' | 'responsible_person' | 'headcount_workers' | 'avg_station_time_minutes' | 'worker1_operations_summary' | 'is_active' | 'parent_station_id'>>): Promise<Station> {
+export async function updateStation(
+  id: string,
+  input: Partial<
+    Pick<
+      Station,
+      | 'station_number'
+      | 'station_name'
+      | 'station_name_en'
+      | 'station_type'
+      | 'sort_order'
+      | 'work_area_id'
+      | 'line_name'
+      | 'responsible_department'
+      | 'responsible_person'
+      | 'headcount_workers'
+      | 'avg_station_time_minutes'
+      | 'worker1_operations_summary'
+      | 'is_active'
+      | 'parent_station_id'
+    >
+  >
+): Promise<Station> {
   const payload = { ...input } as Record<string, unknown>
   if (typeof payload.station_number === 'string') {
     payload.station_number = normalizeStationNumberForSave(payload.station_number)
@@ -270,7 +328,12 @@ export async function updateStation(id: string, input: Partial<Pick<Station, 'st
 
   let { data, error } = await requireClient().from('stations').update(payload).eq('id', id).select('*').single()
   if (error && isMissingColumnError(error)) {
-    ;({ data, error } = await requireClient().from('stations').update(stripStationExtras(payload)).eq('id', id).select('*').single())
+    ;({ data, error } = await requireClient()
+      .from('stations')
+      .update(stripStationExtras(payload))
+      .eq('id', id)
+      .select('*')
+      .single())
   }
   if (error) handleError('Failed to update station:', error)
   return data
@@ -319,7 +382,11 @@ function colorCodeFromName(name: string, explicit?: string): string {
   return slug || `c_${Date.now()}`
 }
 
-export async function createVehicleColor(input: { name: string; code?: string; hex_code: string }): Promise<VehicleColor> {
+export async function createVehicleColor(input: {
+  name: string
+  code?: string
+  hex_code: string
+}): Promise<VehicleColor> {
   const { data, error } = await requireClient()
     .from('vehicle_colors')
     .insert({
@@ -373,7 +440,10 @@ export async function createAppUser(input: { name: string; email?: string; role:
   return data
 }
 
-export async function updateAppUser(id: string, input: Partial<Pick<AppUser, 'name' | 'email' | 'role' | 'is_active'>>): Promise<AppUser> {
+export async function updateAppUser(
+  id: string,
+  input: Partial<Pick<AppUser, 'name' | 'email' | 'role' | 'is_active'>>
+): Promise<AppUser> {
   const { data, error } = await requireClient().from('app_users').update(input).eq('id', id).select('*').single()
   if (error) handleError('Failed to update app user:', error)
   return data

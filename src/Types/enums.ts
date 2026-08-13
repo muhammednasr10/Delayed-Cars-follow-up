@@ -5,12 +5,7 @@ export type UserRole = 'admin' | 'production' | 'warehouse' | 'purchasing' | 'qu
 
 export type ProductionOrderStatus = 'planned' | 'in_progress' | 'on_hold' | 'completed' | 'cancelled'
 
-export type VehicleProductionStatus =
-  | 'planned'
-  | 'on_line'
-  | 'off_line_incomplete'
-  | 'rework'
-  | 'completed'
+export type VehicleProductionStatus = 'planned' | 'on_line' | 'off_line_incomplete' | 'rework' | 'completed'
 
 export type VehicleCompletionStatus = 'incomplete' | 'complete'
 

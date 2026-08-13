@@ -113,7 +113,9 @@ export function EquipmentTransactionLogTab() {
       return (
         <div className="text-xs">
           <p className="font-bold text-slate-200">{t(`equipment.calibration.${row.calibrationResult ?? 'fail'}`)}</p>
-          <p className="text-slate-500">{t('equipment.cols.nextCalibration')}: {formatDate(row.nextCalibrationDue)}</p>
+          <p className="text-slate-500">
+            {t('equipment.cols.nextCalibration')}: {formatDate(row.nextCalibrationDue)}
+          </p>
         </div>
       )
     }
@@ -121,7 +123,9 @@ export function EquipmentTransactionLogTab() {
       <div className="text-xs">
         <p className="text-slate-200">{row.scrapReason}</p>
         {row.scrapQty != null && row.scrapQty > 0 && (
-          <p className="text-slate-500">{t('equipment.cols.scrapQty')}: {row.scrapQty}</p>
+          <p className="text-slate-500">
+            {t('equipment.cols.scrapQty')}: {row.scrapQty}
+          </p>
         )}
       </div>
     )
@@ -170,7 +174,11 @@ export function EquipmentTransactionLogTab() {
           </div>
         </div>
         <div className="flex flex-wrap items-center gap-2">
-          <button type="button" onClick={() => void load()} className="rounded-xl bg-slate-800 px-3 py-2 text-slate-200 hover:bg-slate-700">
+          <button
+            type="button"
+            onClick={() => void load()}
+            className="rounded-xl bg-slate-800 px-3 py-2 text-slate-200 hover:bg-slate-700"
+          >
             <RefreshCcw className="h-4 w-4" />
           </button>
           {canManage && (
@@ -214,7 +222,11 @@ export function EquipmentTransactionLogTab() {
           </select>
         </Field>
         <Field label={t('equipment.filterEquipmentType')}>
-          <select className={inputCls()} value={typeFilter} onChange={e => setTypeFilter(e.target.value as EquipmentType | 'all')}>
+          <select
+            className={inputCls()}
+            value={typeFilter}
+            onChange={e => setTypeFilter(e.target.value as EquipmentType | 'all')}
+          >
             <option value="all">{t('common.all')}</option>
             <option value="rivet_gun">{t('equipment.types.rivet_gun')}</option>
             <option value="torque_wrench">{t('equipment.types.torque_wrench')}</option>
@@ -230,8 +242,14 @@ export function EquipmentTransactionLogTab() {
         </div>
       )}
 
-      {success && <div className="rounded-xl border border-emerald-500/30 bg-emerald-500/10 p-3 text-sm text-emerald-200">{success}</div>}
-      {error && !setupRequired && <div className="rounded-xl border border-red-500/30 bg-red-500/10 p-3 text-sm text-red-200">{error}</div>}
+      {success && (
+        <div className="rounded-xl border border-emerald-500/30 bg-emerald-500/10 p-3 text-sm text-emerald-200">
+          {success}
+        </div>
+      )}
+      {error && !setupRequired && (
+        <div className="rounded-xl border border-red-500/30 bg-red-500/10 p-3 text-sm text-red-200">{error}</div>
+      )}
 
       <div className="card-industrial overflow-x-auto">
         <table className="w-full text-center text-sm">
@@ -288,7 +306,15 @@ export function EquipmentTransactionLogTab() {
   )
 }
 
-function StatPill({ label, value, tone = 'slate' }: { label: string; value: string; tone?: 'slate' | 'cyan' | 'red' | 'amber' }) {
+function StatPill({
+  label,
+  value,
+  tone = 'slate'
+}: {
+  label: string
+  value: string
+  tone?: 'slate' | 'cyan' | 'red' | 'amber'
+}) {
   const tones = {
     slate: 'border-slate-600/50 bg-slate-800/50 text-slate-200',
     cyan: 'border-cyan-500/30 bg-cyan-500/10 text-cyan-100',

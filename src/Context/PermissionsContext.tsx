@@ -6,6 +6,7 @@ import type { PermissionMap } from '../Types/permissions'
 type PermissionsContextValue = {
   permissions: PermissionMap
   loading: boolean
+  loadError: boolean
   hasPermission: (module: string, action: string) => boolean
   canViewModule: (module: string) => boolean
   reload: () => Promise<void>
@@ -17,6 +18,7 @@ export function PermissionsProvider({ children }: { children: ReactNode }) {
   const { session, profile } = useAuth()
   const [permissions, setPermissions] = useState<PermissionMap>({})
   const [loading, setLoading] = useState(false)
+  const [loadError, setLoadError] = useState(false)
   const loadedForRef = useRef<string | null>(null)
   const inflightRef = useRef<Promise<void> | null>(null)
 
@@ -24,6 +26,7 @@ export function PermissionsProvider({ children }: { children: ReactNode }) {
     if (!session) {
       setPermissions({})
       setLoading(false)
+      setLoadError(false)
       loadedForRef.current = null
       return
     }
@@ -41,8 +44,10 @@ export function PermissionsProvider({ children }: { children: ReactNode }) {
       try {
         const next = await fetchCurrentUserPermissions()
         setPermissions(next)
+        setLoadError(false)
         loadedForRef.current = cacheKey
       } catch {
+        setLoadError(true)
         if (firstLoad) setPermissions({})
       } finally {
         if (firstLoad) setLoading(false)
@@ -71,8 +76,8 @@ export function PermissionsProvider({ children }: { children: ReactNode }) {
   const canViewModule = useCallback((module: string) => hasPermission(module, 'view'), [hasPermission])
 
   const value = useMemo(
-    () => ({ permissions, loading, hasPermission, canViewModule, reload }),
-    [permissions, loading, hasPermission, canViewModule, reload]
+    () => ({ permissions, loading, loadError, hasPermission, canViewModule, reload }),
+    [permissions, loading, loadError, hasPermission, canViewModule, reload]
   )
 
   return <PermissionsContext.Provider value={value}>{children}</PermissionsContext.Provider>

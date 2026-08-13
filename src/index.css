@@ -152,9 +152,7 @@ textarea {
   touch-action: none;
   user-select: none;
   direction: ltr;
-  background:
-    radial-gradient(ellipse at 50% 0%, rgb(34 211 238 / 0.06), transparent 55%),
-    rgb(15 23 42 / 0.35);
+  background: radial-gradient(ellipse at 50% 0%, rgb(34 211 238 / 0.06), transparent 55%), rgb(15 23 42 / 0.35);
 }
 
 .org-chart-viewport--dragging,

@@ -129,10 +129,19 @@ export function EmployeeMonthAttendanceModal({ open, summary, year, month, onClo
       maxWidthClass="max-w-4xl"
       footer={
         <>
-          <button type="button" onClick={onClose} className="rounded-xl bg-slate-800 px-4 py-2 font-bold text-slate-200">
+          <button
+            type="button"
+            onClick={onClose}
+            className="rounded-xl bg-slate-800 px-4 py-2 font-bold text-slate-200"
+          >
             {t('common.cancel')}
           </button>
-          <button type="button" disabled={busy || loading} onClick={() => void save()} className="rounded-xl bg-cyan-500 px-5 py-2 font-black text-slate-950 disabled:opacity-50">
+          <button
+            type="button"
+            disabled={busy || loading}
+            onClick={() => void save()}
+            className="rounded-xl bg-cyan-500 px-5 py-2 font-black text-slate-950 disabled:opacity-50"
+          >
             {busy ? t('common.saving') : t('attendance.saveMonth')}
           </button>
         </>
@@ -145,7 +154,11 @@ export function EmployeeMonthAttendanceModal({ open, summary, year, month, onClo
       ) : (
         <>
           <div className="mb-3 flex justify-end">
-            <button type="button" onClick={markAllFromPlan} className="rounded-lg bg-slate-800 px-3 py-1.5 text-xs font-bold text-slate-200 hover:bg-slate-700">
+            <button
+              type="button"
+              onClick={markAllFromPlan}
+              className="rounded-lg bg-slate-800 px-3 py-1.5 text-xs font-bold text-slate-200 hover:bg-slate-700"
+            >
               {t('attendance.markAllFromPlan')}
             </button>
           </div>
@@ -153,9 +166,15 @@ export function EmployeeMonthAttendanceModal({ open, summary, year, month, onClo
             <table className="w-full min-w-[640px] text-start">
               <thead className="sticky top-0 z-10 bg-slate-950">
                 <tr>
-                  <th className="table-cell text-xs font-black uppercase text-slate-400">{t('attendance.cols.date')}</th>
-                  <th className="table-cell text-xs font-black uppercase text-slate-400">{t('attendance.cols.planDay')}</th>
-                  <th className="table-cell text-xs font-black uppercase text-slate-400">{t('attendance.cols.status')}</th>
+                  <th className="table-cell text-xs font-black uppercase text-slate-400">
+                    {t('attendance.cols.date')}
+                  </th>
+                  <th className="table-cell text-xs font-black uppercase text-slate-400">
+                    {t('attendance.cols.planDay')}
+                  </th>
+                  <th className="table-cell text-xs font-black uppercase text-slate-400">
+                    {t('attendance.cols.status')}
+                  </th>
                   <th className="table-cell text-xs font-black uppercase text-slate-400">{t('attendance.checkIn')}</th>
                   <th className="table-cell text-xs font-black uppercase text-slate-400">{t('attendance.checkOut')}</th>
                   <th className="table-cell text-xs font-black uppercase text-slate-400">{t('common.notes')}</th>

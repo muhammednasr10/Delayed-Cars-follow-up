@@ -20,22 +20,27 @@ export function VinListModal({ vins, modelName, colorName, onClose }: Props) {
       subtitle={t('mp.vinListModal.subtitle', { n: vins.length })}
       icon={<Hash className="h-5 w-5" />}
       onClose={onClose}
-      maxWidthClass="max-w-md"
+      maxWidthClass="max-w-lg"
     >
       {(modelName || colorName) && (
-        <p className="mb-3 text-center text-sm text-slate-400">
-          {modelName}
-          {colorName ? ` · ${colorName}` : ''}
-        </p>
+        <div className="mb-4 rounded-xl border border-slate-700 bg-slate-950/60 px-4 py-3 text-center">
+          <p className="text-sm font-bold text-white">{modelName}</p>
+          {colorName && <p className="mt-1 text-xs text-slate-400">{colorName}</p>}
+        </div>
       )}
-      <ul className="max-h-64 space-y-2 overflow-y-auto rounded-xl border border-slate-700 bg-slate-950/50 p-3">
+      <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
         {vins.map((vin, i) => (
-          <li key={vin} className="flex items-center gap-2 font-mono text-sm text-white" dir="ltr">
-            <span className="w-6 shrink-0 text-right text-[10px] font-bold text-slate-500">{i + 1}.</span>
-            {vin}
-          </li>
+          <div
+            key={`${vin}-${i}`}
+            className="rounded-xl border border-cyan-500/25 bg-cyan-500/5 px-3 py-3 text-center shadow-sm"
+          >
+            <p className="text-[10px] font-bold uppercase text-slate-500">{i + 1}</p>
+            <p className="mt-1 font-mono text-base font-black text-cyan-100" dir="ltr">
+              {vin}
+            </p>
+          </div>
         ))}
-      </ul>
+      </div>
     </Modal>
   )
 }

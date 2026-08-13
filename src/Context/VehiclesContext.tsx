@@ -34,7 +34,7 @@ function isSchemaMissing(message: string): boolean {
     m.includes('schema cache') ||
     m.includes('could not find the table') ||
     m.includes('does not exist') ||
-    m.includes('relation') && m.includes('not exist')
+    (m.includes('relation') && m.includes('not exist'))
   )
 }
 
@@ -121,7 +121,18 @@ export function VehiclesProvider({ children }: { children: ReactNode }) {
   }
 
   const value = useMemo(
-    () => ({ vehicles, loading, error, setupRequired, refresh, addVehicle, updateVehicle, removeVehicle, release, deliver }),
+    () => ({
+      vehicles,
+      loading,
+      error,
+      setupRequired,
+      refresh,
+      addVehicle,
+      updateVehicle,
+      removeVehicle,
+      release,
+      deliver
+    }),
     [vehicles, loading, error, setupRequired]
   )
 

@@ -115,7 +115,9 @@ export async function refreshPartNumberComparisons(): Promise<number> {
 
   const CHUNK = 200
   for (let i = 0; i < inserts.length; i += CHUNK) {
-    const { error: insErr } = await client().from('part_number_comparisons').insert(inserts.slice(i, i + CHUNK))
+    const { error: insErr } = await client()
+      .from('part_number_comparisons')
+      .insert(inserts.slice(i, i + CHUNK))
     if (insErr) throw new Error(insErr.message)
   }
 
@@ -123,7 +125,14 @@ export async function refreshPartNumberComparisons(): Promise<number> {
 }
 
 export async function importComparisonSheetRows(
-  rows: { part_number: string; normalized?: string; occurrences?: number; status?: string; stations?: string; models?: string }[]
+  rows: {
+    part_number: string
+    normalized?: string
+    occurrences?: number
+    status?: string
+    stations?: string
+    models?: string
+  }[]
 ): Promise<void> {
   const payload = rows.map(r => ({
     part_number: r.part_number,

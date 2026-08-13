@@ -46,8 +46,16 @@ export function SettingsAreasTab({ areas, busy, runAction }: TabProps & { areas:
         { header: t('settings.cols.description'), render: a => a.description || '-' }
       ]}
       toValues={a => ({ name: a.name, description: a.description || '' })}
-      onCreate={v => runAction(async () => { await createWorkArea({ name: v.name, description: v.description }) }, t('settings.added'))}
-      onUpdate={(id, v) => runAction(async () => { await updateWorkArea(id, { name: v.name, description: v.description }) }, t('settings.updated'))}
+      onCreate={v =>
+        runAction(async () => {
+          await createWorkArea({ name: v.name, description: v.description })
+        }, t('settings.added'))
+      }
+      onUpdate={(id, v) =>
+        runAction(async () => {
+          await updateWorkArea(id, { name: v.name, description: v.description })
+        }, t('settings.updated'))
+      }
       onDelete={id => runAction(() => deleteWorkArea(id), t('settings.deleted'))}
     />
   )
@@ -69,15 +77,34 @@ export function SettingsColorsTab({ colors, busy, runAction }: TabProps & { colo
         { key: 'hex_code', label: t('settings.fields.color'), type: 'color', defaultValue: '#ffffff' }
       ]}
       columns={[
-        { header: t('settings.cols.color'), render: c => <span className="inline-block h-5 w-5 rounded-full ring-1 ring-slate-500" style={{ backgroundColor: c.hex_code }} /> },
+        {
+          header: t('settings.cols.color'),
+          render: c => (
+            <span
+              className="inline-block h-5 w-5 rounded-full ring-1 ring-slate-500"
+              style={{ backgroundColor: c.hex_code }}
+            />
+          )
+        },
         { header: t('settings.cols.name'), render: c => c.name },
-        { header: t('settings.fields.code'), render: c => <span className="font-mono text-xs text-slate-300">{c.code ?? '—'}</span> },
+        {
+          header: t('settings.fields.code'),
+          render: c => <span className="font-mono text-xs text-slate-300">{c.code ?? '—'}</span>
+        },
         { header: t('settings.cols.hex'), render: c => c.hex_code },
         { header: t('settings.cols.active'), render: c => (c.is_active ? t('common.yes') : t('common.no')) }
       ]}
       toValues={c => ({ name: c.name, code: c.code ?? '', hex_code: c.hex_code })}
-      onCreate={v => runAction(async () => { await createVehicleColor({ name: v.name, code: v.code, hex_code: v.hex_code }) }, t('settings.added'))}
-      onUpdate={(id, v) => runAction(async () => { await updateVehicleColor(id, { name: v.name, code: v.code, hex_code: v.hex_code }) }, t('settings.updated'))}
+      onCreate={v =>
+        runAction(async () => {
+          await createVehicleColor({ name: v.name, code: v.code, hex_code: v.hex_code })
+        }, t('settings.added'))
+      }
+      onUpdate={(id, v) =>
+        runAction(async () => {
+          await updateVehicleColor(id, { name: v.name, code: v.code, hex_code: v.hex_code })
+        }, t('settings.updated'))
+      }
       onDelete={id => runAction(() => deleteVehicleColor(id), t('settings.deleted'))}
     />
   )
@@ -149,7 +176,11 @@ export function SettingsReasonsTab({ reasonOptions, busy, runAction }: TabProps 
   )
 }
 
-export function SettingsDepartmentsTab({ departmentOptions, busy, runAction }: TabProps & { departmentOptions: MpLookupOption[] }) {
+export function SettingsDepartmentsTab({
+  departmentOptions,
+  busy,
+  runAction
+}: TabProps & { departmentOptions: MpLookupOption[] }) {
   const { t } = useLang()
   return (
     <CrudSection

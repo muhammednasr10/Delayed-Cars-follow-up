@@ -24,7 +24,9 @@ export function SopPage() {
   const [errorMsg, setErrorMsg] = useState('')
 
   useEffect(() => {
-    getVehicleModels().then(setModels).catch(() => setModels([]))
+    getVehicleModels()
+      .then(setModels)
+      .catch(() => setModels([]))
   }, [])
 
   function notify(msg: string, isError = false) {
@@ -49,8 +51,14 @@ export function SopPage() {
       activeClassName="bg-fuchsia-500 text-slate-950"
       message={
         <>
-          {success && <div className="rounded-xl border border-emerald-500/30 bg-emerald-500/10 p-3 text-sm text-emerald-200">{success}</div>}
-          {errorMsg && <div className="rounded-xl border border-red-500/30 bg-red-500/10 p-3 text-sm text-red-200">{errorMsg}</div>}
+          {success && (
+            <div className="rounded-xl border border-emerald-500/30 bg-emerald-500/10 p-3 text-sm text-emerald-200">
+              {success}
+            </div>
+          )}
+          {errorMsg && (
+            <div className="rounded-xl border border-red-500/30 bg-red-500/10 p-3 text-sm text-red-200">{errorMsg}</div>
+          )}
         </>
       }
     >

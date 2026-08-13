@@ -37,7 +37,12 @@ type Props = {
 type DropdownRect = { top: number; left: number; width: number }
 
 export function hardwareDraftsFromOperation(
-  hardware: { hardwareName: string; hardwareQty: number | null; hardwareType: string | null; hardwareSize: string | null }[]
+  hardware: {
+    hardwareName: string
+    hardwareQty: number | null
+    hardwareType: string | null
+    hardwareSize: string | null
+  }[]
 ): HardwareDraft[] {
   if (hardware.length === 0) return []
   return hardware.map((h, i) => ({

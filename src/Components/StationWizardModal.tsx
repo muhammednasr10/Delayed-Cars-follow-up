@@ -116,9 +116,7 @@ export function StationWizardModal({
       is_active: station.is_active === false ? 'false' : 'true',
       station_number: base,
       headcount_workers:
-        station.headcount_workers != null && station.headcount_workers > 0
-          ? String(station.headcount_workers)
-          : '1',
+        station.headcount_workers != null && station.headcount_workers > 0 ? String(station.headcount_workers) : '1',
       worker_suffix: prev.worker_suffix ?? ''
     }))
     setErrors({})
@@ -127,9 +125,7 @@ export function StationWizardModal({
   function validate(): boolean {
     const e: Record<string, string> = {}
     const base = normalizeStationReferenceCode(values.station_base ?? '')
-    const originalBase = normalizeStationReferenceCode(
-      initialValues.station_base ?? initialValues.station_number ?? ''
-    )
+    const originalBase = normalizeStationReferenceCode(initialValues.station_base ?? initialValues.station_number ?? '')
     const baseChanged = mode === 'edit' && base !== originalBase
     if (!base) {
       e.station_base = `«${t('settings.cols.stationName')}» ${t('common.required')}`
@@ -188,11 +184,27 @@ export function StationWizardModal({
       maxWidthClass="max-w-xl"
       footer={
         <div className="flex w-full items-center justify-between gap-2">
-          <button type="button" onClick={onClose} disabled={busy} className="rounded-xl bg-slate-800 px-4 py-2 font-bold text-slate-200 hover:bg-slate-700 disabled:opacity-50">
+          <button
+            type="button"
+            onClick={onClose}
+            disabled={busy}
+            className="rounded-xl bg-slate-800 px-4 py-2 font-bold text-slate-200 hover:bg-slate-700 disabled:opacity-50"
+          >
             {t('common.cancel')}
           </button>
-          <button type="button" onClick={() => void save()} disabled={busy} className="rounded-xl bg-cyan-500 px-5 py-2 font-black text-slate-950 hover:bg-cyan-400 disabled:opacity-50">
-            {busy ? t('common.saving') : linkFromSettingsOnly && mode === 'create' ? t('operations.linkStationConfirm') : mode === 'edit' ? t('settings.wizard.saveEdit') : t('settings.wizard.addStation')}
+          <button
+            type="button"
+            onClick={() => void save()}
+            disabled={busy}
+            className="rounded-xl bg-cyan-500 px-5 py-2 font-black text-slate-950 hover:bg-cyan-400 disabled:opacity-50"
+          >
+            {busy
+              ? t('common.saving')
+              : linkFromSettingsOnly && mode === 'create'
+                ? t('operations.linkStationConfirm')
+                : mode === 'edit'
+                  ? t('settings.wizard.saveEdit')
+                  : t('settings.wizard.addStation')}
           </button>
         </div>
       }
@@ -249,12 +261,20 @@ export function StationWizardModal({
         </div>
 
         <Field label={t('settings.fields.commonName')} required error={errors.station_name}>
-          <input className={inputCls(errors.station_name)} value={values.station_name ?? ''} onChange={e => set('station_name', e.target.value)} />
+          <input
+            className={inputCls(errors.station_name)}
+            value={values.station_name ?? ''}
+            onChange={e => set('station_name', e.target.value)}
+          />
         </Field>
 
         {workAreas && (
           <Field label={t('settings.cols.workArea')}>
-            <select className={inputCls()} value={values.work_area_id ?? ''} onChange={e => set('work_area_id', e.target.value)}>
+            <select
+              className={inputCls()}
+              value={values.work_area_id ?? ''}
+              onChange={e => set('work_area_id', e.target.value)}
+            >
               <option value="">{t('operations.workplaceEmpty')}</option>
               {workAreas.map(area => (
                 <option key={area.id} value={area.id}>
@@ -295,8 +315,18 @@ export function StationWizardModal({
         <div>
           <span className="mb-2 block text-sm font-bold text-slate-300">{t('settings.wizard.activeStatus')}</span>
           <div className="flex gap-2">
-            <Toggle active={isActive} label={t('settings.wizard.active')} onClick={() => set('is_active', 'true')} tone="emerald" />
-            <Toggle active={!isActive} label={t('settings.wizard.inactive')} onClick={() => set('is_active', 'false')} tone="slate" />
+            <Toggle
+              active={isActive}
+              label={t('settings.wizard.active')}
+              onClick={() => set('is_active', 'true')}
+              tone="emerald"
+            />
+            <Toggle
+              active={!isActive}
+              label={t('settings.wizard.inactive')}
+              onClick={() => set('is_active', 'false')}
+              tone="slate"
+            />
           </div>
         </div>
 
@@ -346,8 +376,21 @@ function Field({
   )
 }
 
-function Toggle({ active, label, onClick, tone }: { active: boolean; label: string; onClick: () => void; tone: 'emerald' | 'slate' }) {
-  const activeCls = tone === 'emerald' ? 'border-emerald-500 bg-emerald-500/15 text-emerald-100' : 'border-slate-500 bg-slate-500/15 text-slate-100'
+function Toggle({
+  active,
+  label,
+  onClick,
+  tone
+}: {
+  active: boolean
+  label: string
+  onClick: () => void
+  tone: 'emerald' | 'slate'
+}) {
+  const activeCls =
+    tone === 'emerald'
+      ? 'border-emerald-500 bg-emerald-500/15 text-emerald-100'
+      : 'border-slate-500 bg-slate-500/15 text-slate-100'
   return (
     <button
       type="button"

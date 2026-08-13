@@ -91,8 +91,7 @@ export function StationOperationForm({
     }
     setToolSpec(operation.toolSpec ?? '')
     setNameAr(operation.operationNameAr)
-    const familyId =
-      operation.parentModelId ?? familyModelIdForLine(models, modelLine) ?? ''
+    const familyId = operation.parentModelId ?? familyModelIdForLine(models, modelLine) ?? ''
     setParentModelId(familyId ?? '')
     const init = initClassificationState(models, operation.operationType, familyId)
     setSelectedVariants(init.selectedVariantNames)
@@ -190,7 +189,11 @@ export function StationOperationForm({
       maxWidthClass="max-w-3xl"
       footer={
         <>
-          <button disabled={busy} onClick={onClose} className="rounded-xl bg-slate-800 px-4 py-2 font-bold text-slate-200">
+          <button
+            disabled={busy}
+            onClick={onClose}
+            className="rounded-xl bg-slate-800 px-4 py-2 font-bold text-slate-200"
+          >
             {t('common.cancel')}
           </button>
           <button
@@ -204,7 +207,10 @@ export function StationOperationForm({
       }
     >
       {workerLabel && (
-        <p className="mb-3 rounded-lg border border-cyan-500/25 bg-cyan-500/10 px-3 py-2 text-xs font-mono text-cyan-100" dir="ltr">
+        <p
+          className="mb-3 rounded-lg border border-cyan-500/25 bg-cyan-500/10 px-3 py-2 text-xs font-mono text-cyan-100"
+          dir="ltr"
+        >
           {t('operations.cols.stationWorker')}: {workerLabel}
         </p>
       )}
@@ -241,7 +247,11 @@ export function StationOperationForm({
 
         <label className="block space-y-1.5 sm:col-span-2">
           <span className="text-sm font-bold text-slate-300">{t('operations.cols.techPosition')}</span>
-          <input className={inputCls()} value={technicianPosition} onChange={e => setTechnicianPosition(e.target.value)} />
+          <input
+            className={inputCls()}
+            value={technicianPosition}
+            onChange={e => setTechnicianPosition(e.target.value)}
+          />
         </label>
 
         <OperationPrecedencePicker
@@ -252,7 +262,12 @@ export function StationOperationForm({
 
         <label className="block space-y-1.5 sm:col-span-2">
           <span className="text-sm font-bold text-slate-300">{t('operations.cols.zoning')}</span>
-          <input className={inputCls()} value={zoningConstraints} onChange={e => setZoningConstraints(e.target.value)} dir="ltr" />
+          <input
+            className={inputCls()}
+            value={zoningConstraints}
+            onChange={e => setZoningConstraints(e.target.value)}
+            dir="ltr"
+          />
         </label>
 
         <label className="block space-y-1.5">

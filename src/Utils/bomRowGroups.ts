@@ -53,9 +53,7 @@ function variantsFromSingleRow(row: BomItemDetail): BomVariantLine[] {
   if (entries.length > 0) {
     return entries.map(e => variantFromRow(row, e.modelName, e.qty))
   }
-  return [
-    variantFromRow(row, row.vehicle_model_name || row.applicable_models_text || '', row.quantity ?? 1)
-  ]
+  return [variantFromRow(row, row.vehicle_model_name || row.applicable_models_text || '', row.quantity ?? 1)]
 }
 
 function variantMergeKey(v: BomVariantLine): string {
@@ -131,7 +129,9 @@ function buildSummary(
     part_name_ar: bestAr || primary.part_name_ar || primary.part_name,
     part_name: bestAr || primary.part_name_ar || primary.part_name,
     part_name_en: bestEn || primary.part_name_en,
-    part_number: allSame(variants.map(v => v.part_number)) ? variants[0]?.part_number ?? primary.part_number : primary.part_number,
+    part_number: allSame(variants.map(v => v.part_number))
+      ? (variants[0]?.part_number ?? primary.part_number)
+      : primary.part_number,
     applicable_models_text: models.join(', '),
     vehicle_model_name: null,
     qty_by_model_raw: qtyRaw || primary.qty_by_model_raw,

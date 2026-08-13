@@ -186,7 +186,10 @@ export function QualityNotesRecordTab({
                       </td>
                       <td className={cell}>{severityBadge(row.severity)}</td>
                       <td className={`${cell} font-black text-white`}>{row.vehicleCount}</td>
-                      <td className={`${cell} max-w-[10rem] truncate font-mono text-xs text-white`} title={row.vins.join(', ')}>
+                      <td
+                        className={`${cell} max-w-[10rem] truncate font-mono text-xs text-white`}
+                        title={row.vins.join(', ')}
+                      >
                         {row.vins.length ? row.vins.join(', ') : '—'}
                       </td>
                       <td className={cell}>{statusBadge(row.status)}</td>

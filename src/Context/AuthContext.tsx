@@ -2,13 +2,18 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useRef, use
 import { supabase } from '../lib/supabase'
 import type { UserRole } from '../Types/enums'
 import {
+  applySession,
   clearSession,
+  ensureFreshSession,
+  isRefreshTokenExpired,
   loginWithEmailPassword,
+  readRawSession,
   registerAuthFailureHandler,
-  restoreSessionFromStorage,
+  refreshSessionOnWake,
   withTimeout,
   type AppAuthSession
 } from '../services/authService'
+import { clearSentryUser, setSentryUser } from '../lib/sentry'
 
 export type Profile = {
   id: string
@@ -57,6 +62,7 @@ type AuthContextValue = {
   signIn: (email: string, password: string) => Promise<{ ok: boolean; message?: string }>
   signOut: () => Promise<void>
   reloadProfile: () => Promise<void>
+  tryRestoreSession: () => Promise<boolean>
   hasRole: (...roles: UserRole[]) => boolean
   isAdmin: boolean
 }
@@ -95,9 +101,7 @@ function mapProfileRow(row: Record<string, unknown>): Profile {
     system_role_name_ar: (row.system_role_name_ar as string | null) ?? null,
     employment_status: (row.employment_status as string | null) ?? null,
     employee_is_active:
-      row.employee_is_active === undefined || row.employee_is_active === null
-        ? null
-        : Boolean(row.employee_is_active)
+      row.employee_is_active === undefined || row.employee_is_active === null ? null : Boolean(row.employee_is_active)
   }
 }
 
@@ -118,78 +122,85 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const profileLoadedUidRef = useRef<string | null>(null)
   const bootGenRef = useRef(0)
 
-  const kickSession = useCallback((message: string, result: Exclude<LoadProfileResult, 'ok' | 'missing' | 'error'>): LoadProfileResult => {
-    profileLoadedUidRef.current = null
-    setAccessDeniedMessage(message)
-    setProfile(null)
-    clearSession()
-    setSession(null)
-    return result
-  }, [])
+  const kickSession = useCallback(
+    (message: string, result: Exclude<LoadProfileResult, 'ok' | 'missing' | 'error'>): LoadProfileResult => {
+      profileLoadedUidRef.current = null
+      setAccessDeniedMessage(message)
+      setProfile(null)
+      clearSession()
+      setSession(null)
+      return result
+    },
+    []
+  )
 
-  const loadProfileInner = useCallback(async (userId: string): Promise<LoadProfileResult> => {
-    if (!supabase) return 'error'
+  const loadProfileInner = useCallback(
+    async (userId: string): Promise<LoadProfileResult> => {
+      if (!supabase) return 'error'
 
-    const { data: rpcData, error: rpcErr } = await supabase.rpc('get_my_profile')
-    if (!rpcErr && rpcData && typeof rpcData === 'object') {
-      const mapped = mapProfileRow(rpcData as Record<string, unknown>)
+      const { data: rpcData, error: rpcErr } = await supabase.rpc('get_my_profile')
+      if (!rpcErr && rpcData && typeof rpcData === 'object') {
+        const mapped = mapProfileRow(rpcData as Record<string, unknown>)
+        if (!profileAccessOk(mapped)) {
+          if (!mapped.is_active || mapped.is_blocked) return kickSession(BLOCKED_MSG_AR, 'blocked')
+          return kickSession(EMPLOYEE_STOPPED_MSG_AR, 'employee_inactive')
+        }
+        setAccessDeniedMessage(null)
+        setProfile(mapped)
+        profileLoadedUidRef.current = userId
+        return 'ok'
+      }
+
+      const { data, error } = await supabase
+        .from('profiles')
+        .select(
+          'id, full_name, email, avatar_url, role, is_active, is_blocked, blocked_reason, employee_id, system_role_id, system_roles(role_code, role_name_ar), employees(employee_code, full_name, employment_status, is_active)'
+        )
+        .eq('id', userId)
+        .maybeSingle()
+
+      if (error) {
+        console.error('Failed to load profile:', error)
+        setProfile(null)
+        return 'error'
+      }
+      if (!data) {
+        setProfile(null)
+        return 'missing'
+      }
+
+      const row = data as Profile & {
+        system_roles?:
+          { role_code: string; role_name_ar: string } | { role_code: string; role_name_ar: string }[] | null
+        employees?:
+          | { employment_status: string; employee_code: string; full_name: string; is_active: boolean }
+          | { employment_status: string; employee_code: string; full_name: string; is_active: boolean }[]
+          | null
+      }
+      const srRow = Array.isArray(row.system_roles) ? row.system_roles[0] : row.system_roles
+      const empRow = Array.isArray(row.employees) ? row.employees[0] : row.employees
+      const mapped: Profile = {
+        ...row,
+        employment_status: empRow?.employment_status ?? null,
+        employee_code: empRow?.employee_code ?? null,
+        employee_full_name: empRow?.full_name ?? null,
+        employee_is_active: empRow ? Boolean(empRow.is_active) : null,
+        system_role_code: srRow?.role_code ?? null,
+        system_role_name_ar: srRow?.role_name_ar ?? null
+      }
+
       if (!profileAccessOk(mapped)) {
         if (!mapped.is_active || mapped.is_blocked) return kickSession(BLOCKED_MSG_AR, 'blocked')
         return kickSession(EMPLOYEE_STOPPED_MSG_AR, 'employee_inactive')
       }
+
       setAccessDeniedMessage(null)
       setProfile(mapped)
       profileLoadedUidRef.current = userId
       return 'ok'
-    }
-
-    const { data, error } = await supabase
-      .from('profiles')
-      .select(
-        'id, full_name, email, avatar_url, role, is_active, is_blocked, blocked_reason, employee_id, system_role_id, system_roles(role_code, role_name_ar), employees(employee_code, full_name, employment_status, is_active)'
-      )
-      .eq('id', userId)
-      .maybeSingle()
-
-    if (error) {
-      console.error('Failed to load profile:', error)
-      setProfile(null)
-      return 'error'
-    }
-    if (!data) {
-      setProfile(null)
-      return 'missing'
-    }
-
-    const row = data as Profile & {
-      system_roles?: { role_code: string; role_name_ar: string } | { role_code: string; role_name_ar: string }[] | null
-      employees?:
-        | { employment_status: string; employee_code: string; full_name: string; is_active: boolean }
-        | { employment_status: string; employee_code: string; full_name: string; is_active: boolean }[]
-        | null
-    }
-    const srRow = Array.isArray(row.system_roles) ? row.system_roles[0] : row.system_roles
-    const empRow = Array.isArray(row.employees) ? row.employees[0] : row.employees
-    const mapped: Profile = {
-      ...row,
-      employment_status: empRow?.employment_status ?? null,
-      employee_code: empRow?.employee_code ?? null,
-      employee_full_name: empRow?.full_name ?? null,
-      employee_is_active: empRow ? Boolean(empRow.is_active) : null,
-      system_role_code: srRow?.role_code ?? null,
-      system_role_name_ar: srRow?.role_name_ar ?? null
-    }
-
-    if (!profileAccessOk(mapped)) {
-      if (!mapped.is_active || mapped.is_blocked) return kickSession(BLOCKED_MSG_AR, 'blocked')
-      return kickSession(EMPLOYEE_STOPPED_MSG_AR, 'employee_inactive')
-    }
-
-    setAccessDeniedMessage(null)
-    setProfile(mapped)
-    profileLoadedUidRef.current = userId
-    return 'ok'
-  }, [kickSession])
+    },
+    [kickSession]
+  )
 
   const loadProfile = useCallback(
     async (userId: string, force = false): Promise<LoadProfileResult> => {
@@ -213,21 +224,36 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     const gen = ++bootGenRef.current
     setLoading(true)
-    const BOOT_TIMEOUT_MS = 6_000
+    const REFRESH_BOOT_TIMEOUT_MS = 25_000
 
     void (async () => {
       try {
-        const stored = await withTimeout(restoreSessionFromStorage(), BOOT_TIMEOUT_MS, null)
-        if (bootGenRef.current !== gen) return
-        setSession(stored)
-        if (stored?.user?.id) {
-          void loadProfile(stored.user.id)
+        const raw = readRawSession()
+        if (!raw) return
+
+        if (isRefreshTokenExpired(raw)) {
+          clearSession()
+          return
         }
+
+        // Enter the app immediately; refresh tokens in the background.
+        applySession(raw)
+        if (bootGenRef.current !== gen) return
+        setSession(raw)
+        setAccessDeniedMessage(null)
+
+        const profileTask = loadProfile(raw.user.id)
+        const refreshed = await withTimeout(ensureFreshSession(), REFRESH_BOOT_TIMEOUT_MS, null)
+        if (bootGenRef.current !== gen) return
+        if (refreshed) setSession(refreshed)
+        await profileTask
       } catch (err) {
         console.error('Auth boot failed:', err)
-        if (bootGenRef.current === gen) {
-          setSession(null)
-          setProfile(null)
+        const raw = readRawSession()
+        if (raw && !isRefreshTokenExpired(raw) && bootGenRef.current === gen) {
+          applySession(raw)
+          setSession(raw)
+          void loadProfile(raw.user.id)
         }
       } finally {
         if (bootGenRef.current === gen) setLoading(false)
@@ -238,6 +264,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     registerAuthFailureHandler(() => {
       profileLoadedUidRef.current = null
+      clearSentryUser()
       setSession(null)
       setProfile(null)
       setAccessDeniedMessage(SESSION_EXPIRED_MSG_AR)
@@ -248,19 +275,28 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     if (!session?.user?.id) return
 
-    const tick = () => {
-      void import('../services/authService').then(({ readRawSession, isAccessTokenExpired, ensureFreshSession }) => {
-        const current = readRawSession()
-        if (!current || !isAccessTokenExpired(current)) return
-        void ensureFreshSession().then(next => {
-          if (next) setSession(next)
-        })
+    const refreshIfNeeded = () => {
+      void refreshSessionOnWake().then(next => {
+        if (next) setSession(next)
       })
     }
 
-    tick()
-    const id = window.setInterval(tick, 60_000)
-    return () => window.clearInterval(id)
+    refreshIfNeeded()
+    const intervalId = window.setInterval(refreshIfNeeded, 60_000)
+
+    const onWake = () => {
+      if (document.visibilityState === 'visible') refreshIfNeeded()
+    }
+    document.addEventListener('visibilitychange', onWake)
+    window.addEventListener('focus', refreshIfNeeded)
+    window.addEventListener('pageshow', refreshIfNeeded)
+
+    return () => {
+      window.clearInterval(intervalId)
+      document.removeEventListener('visibilitychange', onWake)
+      window.removeEventListener('focus', refreshIfNeeded)
+      window.removeEventListener('pageshow', refreshIfNeeded)
+    }
   }, [session?.user?.id])
 
   useEffect(() => {
@@ -268,11 +304,24 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (!uid) {
       profileLoadedUidRef.current = null
       setProfile(null)
+      clearSentryUser()
       return
     }
     if (profileLoadedUidRef.current === uid) return
     void loadProfile(uid)
   }, [session?.user?.id, loadProfile])
+
+  useEffect(() => {
+    if (!session?.user?.id || !profile) {
+      if (!session?.user?.id) clearSentryUser()
+      return
+    }
+    setSentryUser({
+      id: session.user.id,
+      email: profile.email ?? session.user.email,
+      username: profile.full_name ?? profile.employee_full_name
+    })
+  }, [session?.user?.id, session?.user?.email, profile])
 
   async function signIn(email: string, password: string) {
     if (!supabase) return { ok: false, message: 'Supabase غير مهيأ.' }
@@ -291,6 +340,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   async function signOut() {
     profileLoadedUidRef.current = null
     clearSession()
+    clearSentryUser()
     setSession(null)
     setProfile(null)
     setAccessDeniedMessage(null)
@@ -300,6 +350,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const uid = session?.user?.id
     if (uid) await loadProfile(uid, true)
   }, [session?.user?.id, loadProfile])
+
+  const tryRestoreSession = useCallback(async (): Promise<boolean> => {
+    const next = await refreshSessionOnWake()
+    if (!next?.user?.id) return false
+    setSession(next)
+    setAccessDeniedMessage(null)
+    const profileResult = await loadProfile(next.user.id, true)
+    if (profileResult !== 'ok') {
+      setAccessDeniedMessage(loadProfileFailureMessage(profileResult))
+      setSession(null)
+      setProfile(null)
+      return false
+    }
+    return true
+  }, [loadProfile])
 
   const role: UserRole = profile?.role ?? 'viewer'
   const displayRole = resolveDisplayRole(profile, role)
@@ -320,10 +385,31 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       signIn,
       signOut,
       reloadProfile,
-      hasRole: (...roles: UserRole[]) => roles.includes(role),
+      tryRestoreSession,
+      hasRole: (...roles: UserRole[]) => {
+        if (roles.includes(role)) return true
+        if (roles.includes('admin') && profileIsAdmin(profile)) return true
+        if (roles.includes('production')) {
+          const code = profile?.system_role_code
+          return code === 'production_manager' || code === 'supervisor' || code === 'data_entry'
+        }
+        return false
+      },
       isAdmin
     }),
-    [configured, loading, session, profile, role, displayRole, systemRoleCode, accessDeniedMessage, isAdmin, reloadProfile]
+    [
+      configured,
+      loading,
+      session,
+      profile,
+      role,
+      displayRole,
+      systemRoleCode,
+      accessDeniedMessage,
+      isAdmin,
+      reloadProfile,
+      tryRestoreSession
+    ]
   )
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>

@@ -78,10 +78,7 @@ export function WarehouseFeedingPlanForm({
     [stations]
   )
 
-  const selectedModelName = useMemo(
-    () => models.find(m => m.id === variantId)?.name ?? '',
-    [models, variantId]
-  )
+  const selectedModelName = useMemo(() => models.find(m => m.id === variantId)?.name ?? '', [models, variantId])
 
   const stationCode = useMemo(() => {
     if (!stationId) return undefined
@@ -92,8 +89,7 @@ export function WarehouseFeedingPlanForm({
   const filteredRows = useMemo(() => {
     const term = search.trim().toLowerCase()
     const base = [...iplRows].sort(
-      (a, b) =>
-        (a.stationCode ?? '').localeCompare(b.stationCode ?? '') || a.partNumber.localeCompare(b.partNumber)
+      (a, b) => (a.stationCode ?? '').localeCompare(b.stationCode ?? '') || a.partNumber.localeCompare(b.partNumber)
     )
     if (!term) return base
     return base.filter(

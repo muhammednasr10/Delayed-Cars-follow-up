@@ -91,7 +91,11 @@ export function MissionsLeaderboardTab() {
               }
             }}
           />
-          <button type="button" onClick={() => void load()} className="rounded-xl bg-slate-800 px-3 py-2 text-slate-200 hover:bg-slate-700">
+          <button
+            type="button"
+            onClick={() => void load()}
+            className="rounded-xl bg-slate-800 px-3 py-2 text-slate-200 hover:bg-slate-700"
+          >
             <RefreshCcw className="h-4 w-4" />
           </button>
         </div>
@@ -104,7 +108,9 @@ export function MissionsLeaderboardTab() {
         </div>
       )}
 
-      {error && !setupRequired && <div className="rounded-xl border border-red-500/30 bg-red-500/10 p-3 text-sm text-red-200">{error}</div>}
+      {error && !setupRequired && (
+        <div className="rounded-xl border border-red-500/30 bg-red-500/10 p-3 text-sm text-red-200">{error}</div>
+      )}
 
       {loading ? (
         <div className="card-industrial p-12 text-center text-slate-500">{t('common.loading')}</div>

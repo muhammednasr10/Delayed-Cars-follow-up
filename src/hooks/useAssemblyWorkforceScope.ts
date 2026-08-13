@@ -24,7 +24,7 @@ export function useAssemblyWorkforceScope(employees: Employee[]) {
   )
 
   const viewer = useMemo(
-    () => (employeeId ? employees.find(e => e.id === employeeId) ?? null : null),
+    () => (employeeId ? (employees.find(e => e.id === employeeId) ?? null) : null),
     [employees, employeeId]
   )
 

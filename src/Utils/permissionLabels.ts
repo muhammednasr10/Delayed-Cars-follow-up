@@ -66,9 +66,7 @@ export function formatPermissionLabel(moduleKey: string, actionKey: string, t: T
 }
 
 export function sortModuleKeys(keys: string[], t: TFn, locale: string): string[] {
-  return [...keys].sort((a, b) =>
-    permissionModuleLabel(a, t).localeCompare(permissionModuleLabel(b, t), locale)
-  )
+  return [...keys].sort((a, b) => permissionModuleLabel(a, t).localeCompare(permissionModuleLabel(b, t), locale))
 }
 
 export function permissionActionDescription(actionKey: string, t: TFn): string {
@@ -112,5 +110,7 @@ export function groupModulesForMatrix(
 
 export function sortActionsForMatrix(actions: string[]): string[] {
   const order = new Map(PERMISSION_ACTION_ORDER.map((a, i) => [a, i]))
-  return [...actions].sort((a, b) => (order.get(a as PermissionActionKey) ?? 99) - (order.get(b as PermissionActionKey) ?? 99))
+  return [...actions].sort(
+    (a, b) => (order.get(a as PermissionActionKey) ?? 99) - (order.get(b as PermissionActionKey) ?? 99)
+  )
 }

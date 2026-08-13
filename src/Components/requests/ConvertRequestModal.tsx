@@ -61,7 +61,11 @@ export function ConvertRequestModal({ open, request, assignableEmployees, onClos
       maxWidthClass="max-w-lg"
       footer={
         <div className="flex justify-end gap-2">
-          <button type="button" onClick={onClose} className="rounded-xl bg-slate-800 px-4 py-2 text-sm font-bold text-slate-200 hover:bg-slate-700">
+          <button
+            type="button"
+            onClick={onClose}
+            className="rounded-xl bg-slate-800 px-4 py-2 text-sm font-bold text-slate-200 hover:bg-slate-700"
+          >
             {t('common.cancel')}
           </button>
           <button
@@ -76,7 +80,9 @@ export function ConvertRequestModal({ open, request, assignableEmployees, onClos
       }
     >
       <div className="space-y-4 p-5">
-        {error && <div className="rounded-xl border border-red-500/30 bg-red-500/10 p-3 text-sm text-red-200">{error}</div>}
+        {error && (
+          <div className="rounded-xl border border-red-500/30 bg-red-500/10 p-3 text-sm text-red-200">{error}</div>
+        )}
         <div className="rounded-xl border border-slate-700 bg-slate-900/50 p-3 text-sm">
           <p className="font-bold text-white">{request.title}</p>
           {request.description && <p className="mt-1 text-slate-400">{request.description}</p>}
@@ -89,7 +95,11 @@ export function ConvertRequestModal({ open, request, assignableEmployees, onClos
         </Field>
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
           <Field label={t('missions.cols.priority')}>
-            <select className={inputCls()} value={priority} onChange={e => setPriority(e.target.value as MissionPriority)}>
+            <select
+              className={inputCls()}
+              value={priority}
+              onChange={e => setPriority(e.target.value as MissionPriority)}
+            >
               {MISSION_PRIORITIES.map(key => (
                 <option key={key} value={key}>
                   {t(`missions.priority.${key}`)}
@@ -102,7 +112,11 @@ export function ConvertRequestModal({ open, request, assignableEmployees, onClos
           </Field>
         </div>
         <Field label={t('common.notes')}>
-          <textarea className={`${inputCls()} min-h-[3rem] resize-y`} value={notes} onChange={e => setNotes(e.target.value)} />
+          <textarea
+            className={`${inputCls()} min-h-[3rem] resize-y`}
+            value={notes}
+            onChange={e => setNotes(e.target.value)}
+          />
         </Field>
       </div>
     </Modal>

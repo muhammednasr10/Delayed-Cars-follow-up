@@ -76,14 +76,16 @@ export async function fetchMyEmployeeProfile(): Promise<MyEmployeeProfile | null
 
   const { data: emp, error: empErr } = await client()
     .from('employees')
-    .select('employee_code, full_name, job_role, line_name, station_id, work_areas(name), stations(station_number, station_name)')
+    .select(
+      'employee_code, full_name, job_role, line_name, station_id, work_areas(name), stations(station_number, station_name)'
+    )
     .eq('id', employeeId)
     .maybeSingle()
   if (empErr) throw new Error(empErr.message)
   if (!emp) return null
 
   const area = emp.work_areas as { name?: string } | { name?: string }[] | null
-  const workAreaName = Array.isArray(area) ? area[0]?.name ?? null : area?.name ?? null
+  const workAreaName = Array.isArray(area) ? (area[0]?.name ?? null) : (area?.name ?? null)
   const st = emp.stations as { station_number?: string; station_name?: string } | null
 
   return {

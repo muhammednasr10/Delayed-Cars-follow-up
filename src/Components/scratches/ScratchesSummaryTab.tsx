@@ -8,7 +8,15 @@ type Props = {
   items: ScratchRecord[]
 }
 
-function StatPill({ label, value, tone = 'rose' }: { label: string; value: string; tone?: 'rose' | 'emerald' | 'amber' | 'red' | 'slate' }) {
+function StatPill({
+  label,
+  value,
+  tone = 'rose'
+}: {
+  label: string
+  value: string
+  tone?: 'rose' | 'emerald' | 'amber' | 'red' | 'slate'
+}) {
   const tones = {
     rose: 'border-rose-500/30 bg-rose-500/10 text-rose-100',
     emerald: 'border-emerald-500/30 bg-emerald-500/10 text-emerald-100',

@@ -1,4 +1,8 @@
-import type { PlanDayType, ProductionPlanWorkDayEdit, ProductionPlanWorkDayRow } from '../Types/productionPlanWorkDayDaily'
+import type {
+  PlanDayType,
+  ProductionPlanWorkDayEdit,
+  ProductionPlanWorkDayRow
+} from '../Types/productionPlanWorkDayDaily'
 import { defaultWorkDayRow } from '../Types/productionPlanWorkDayDaily'
 import { listDatesInMonth } from '../services/entryProductivityService'
 import { DEFAULT_PLANNED_WORK_HOURS } from './workScheduleDefaults'
@@ -82,11 +86,20 @@ export function mergeProductivityIntoRows(
   }))
 }
 
-export function computeProductivityDeficit(
-  actualHours: number,
-  lineJph: number,
-  productivity: number
-): number {
+/** الهدف اليومي لإنتاجية الدخول/الخروج — السيارات الضائعة = الهدف − الإنتاجية */
+export const DAILY_PRODUCTIVITY_TARGET = 75
+
+export function computeProductivityLostCars(productivity: number): number {
+  if (productivity <= 0) return 0
+  return Math.max(0, DAILY_PRODUCTIVITY_TARGET - productivity)
+}
+
+/** الباقي من الضائع بعد خصم سيارات التوقفات */
+export function computeProductivityLossRemainder(productivity: number, stopLostVehicles: number): number {
+  return Math.max(0, computeProductivityLostCars(productivity) - stopLostVehicles)
+}
+
+export function computeProductivityDeficit(actualHours: number, lineJph: number, productivity: number): number {
   if (lineJph <= 0) return 0
   return Math.round(actualHours * lineJph - productivity)
 }
@@ -110,11 +123,7 @@ export function computeMonthProductivityEfficiency(
 }
 
 /** @deprecated use computeProductivityDeficit */
-export function computeTotalLostVehicles(
-  actualHours: number,
-  lineJph: number,
-  entryProductivity: number
-): number {
+export function computeTotalLostVehicles(actualHours: number, lineJph: number, entryProductivity: number): number {
   return computeProductivityDeficit(actualHours, lineJph, entryProductivity)
 }
 

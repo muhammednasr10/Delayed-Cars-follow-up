@@ -19,9 +19,7 @@ function activeVariants(models: VehicleModel[], familyId: string) {
   const fromGroup = (group?.variants ?? []).filter(isAssignableModel)
   if (fromGroup.length > 0) return fromGroup
 
-  const direct = models.filter(
-    m => m.parent_model_id === familyId && m.model_kind !== 'family' && m.is_active
-  )
+  const direct = models.filter(m => m.parent_model_id === familyId && m.model_kind !== 'family' && m.is_active)
   if (direct.length > 0) return direct
 
   return orphanVariants.filter(isAssignableModel)

@@ -20,15 +20,11 @@ function monthPrefix(year: number, month: number): string {
 }
 
 /** هل الأمر يخص شهر الخطة؟ */
-export function orderBelongsToPlanMonth(
-  order: ProductionOrder,
-  year: number,
-  month: number
-): boolean {
+export function orderBelongsToPlanMonth(order: ProductionOrder, year: number, month: number): boolean {
   if (order.status === 'cancelled') return false
   const prefix = monthPrefix(year, month)
-  const candidates = [order.plannedStart, order.plannedEnd, order.createdAt?.slice(0, 10)].filter(
-    (d): d is string => Boolean(d)
+  const candidates = [order.plannedStart, order.plannedEnd, order.createdAt?.slice(0, 10)].filter((d): d is string =>
+    Boolean(d)
   )
   if (candidates.length === 0) {
     const now = new Date()

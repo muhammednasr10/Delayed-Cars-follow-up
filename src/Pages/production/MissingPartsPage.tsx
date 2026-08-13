@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState, useCallback } from 'react'
-import { PackageCheck } from 'lucide-react'
+import { CheckCircle2, PackageCheck, Trash2 } from 'lucide-react'
 import { useLang } from '../../i18n/LanguageContext'
 import { useEmployees } from '../../hooks/useEmployees'
 import { useFactoryOrgScope } from '../../hooks/useFactoryOrgScope'
@@ -12,10 +12,10 @@ import { UpdateMissingPartModal, type UpdateVehicleContext } from '../../Compone
 import { EditMissingPartModal } from '../../Components/EditMissingPartModal'
 import { EditReportGroupModal } from '../../Components/EditReportGroupModal'
 import { VinListModal } from '../../Components/VinListModal'
+import { MissingPartIssuesModal } from '../../Components/MissingPartIssuesModal'
 import type { ReportGroupContext, VehicleIssuesContext } from '../../Types/missingPart'
 import {
   buildMissingPartTableRows,
-  hasPendingInstall,
   isReportGroup,
   partsFromTableRow,
   reportGroupMembers,
@@ -23,19 +23,28 @@ import {
   type MissingPartTableRow
 } from '../../Utils/missingPartDisplay'
 import { MissingPartDetailModal } from '../../Components/MissingPartDetailModal'
+import { VehicleCardModal } from '../../Components/missingParts/VehicleCardModal'
 import { VehicleNotesModal } from '../../Components/VehicleNotesModal'
 import type { VehicleNoteTarget } from '../../Types/vehicleNote'
 import {
   bulkInstallVehiclesToFull,
   completeVehicleShortage,
   deleteMissingPartRecord,
-  getMissingParts
+  getMissingParts,
+  transferMissingPartIssue
 } from '../../services/missingPartsService'
 import type { MissingPartDetail, MissingPartFilters } from '../../Types/missingPart'
 import { MissingPartsToolbar, type ListTab } from '../../Components/missingParts/MissingPartsToolbar'
 import { MissingPartsTable } from '../../Components/missingParts/MissingPartsTable'
 import { MissingPartsSummaryTab } from '../../Components/missingParts/MissingPartsSummaryTab'
-import { applyFilters, isSchemaMissing, openVehicleShortageLines, remainingInstallLineCount, uniqueVehicleReps } from '../../Utils/missingPartPageUtils'
+import { MissingPartsFamilyCardsTab } from '../../Components/missingParts/MissingPartsFamilyCardsTab'
+import {
+  applyFilters,
+  isSchemaMissing,
+  openVehicleShortageLines,
+  remainingInstallLineCount,
+  uniqueVehicleReps
+} from '../../Utils/missingPartPageUtils'
 import { scratchAreaLabel } from '../../Utils/scratchAreaOptions'
 import { ConfirmDialog } from '../../Components/ConfirmDialog'
 
@@ -63,6 +72,8 @@ export function MissingPartsPage() {
     [orgUnits]
   )
   const canBulkInstall = canBulkInstallAndUpdate
+  const canBulkSelectActive = canBulkInstall || canComplete || canDelete
+  const canBulkSelectArchive = canDelete
   const [items, setItems] = useState<MissingPartDetail[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
@@ -70,23 +81,34 @@ export function MissingPartsPage() {
   const [listTab, setListTab] = useState<ListTab>('active')
   const [filters, setFilters] = useState<MissingPartFilters>({
     search: '',
-    stationNumbers: [],
     modelNames: [],
-    departments: []
+    departments: [],
+    resolvedMonth: null
   })
   const [showReport, setShowReport] = useState(false)
   const [updateVehicle, setUpdateVehicle] = useState<UpdateVehicleContext | null>(null)
   const [editVehicle, setEditVehicle] = useState<VehicleIssuesContext | null>(null)
   const [editGroup, setEditGroup] = useState<ReportGroupContext | null>(null)
   const [vinList, setVinList] = useState<{ vins: string[]; modelName: string; colorName: string | null } | null>(null)
+  const [issuesList, setIssuesList] = useState<{ parts: MissingPartDetail[]; vin?: string; modelName?: string } | null>(
+    null
+  )
   const [detailTarget, setDetailTarget] = useState<MissingPartDetail | null>(null)
+  const [vehicleCardParts, setVehicleCardParts] = useState<MissingPartDetail[] | null>(null)
   const [notesTarget, setNotesTarget] = useState<VehicleNoteTarget | null>(null)
   const [success, setSuccess] = useState('')
   const [completingVehicleId, setCompletingVehicleId] = useState<string | null>(null)
   const [selectedVehicleIds, setSelectedVehicleIds] = useState<Set<string>>(new Set())
-  const [bulkInstalling, setBulkInstalling] = useState(false)
+  const [bulkActionBusy, setBulkActionBusy] = useState(false)
   const [completeTarget, setCompleteTarget] = useState<MissingPartDetail | null>(null)
   const [completeAllTargets, setCompleteAllTargets] = useState<MissingPartDetail[] | null>(null)
+  const [transferringPartId, setTransferringPartId] = useState<string | null>(null)
+
+  const canBulkSelectForTab = useMemo(() => {
+    if (listTab === 'history') return canBulkSelectArchive
+    if (listTab === 'active') return canBulkSelectActive
+    return false
+  }, [listTab, canBulkSelectArchive, canBulkSelectActive])
 
   useEffect(() => {
     if (!visibleTabs.includes(listTab)) {
@@ -101,7 +123,8 @@ export function MissingPartsPage() {
 
   function vehicleContext(row: MissingPartDetail): VehicleIssuesContext {
     const parts = filtered.filter(
-      p => p.vehicleId === row.vehicleId && (listTab === 'history' || (p.status !== 'closed' && p.status !== 'cancelled'))
+      p =>
+        p.vehicleId === row.vehicleId && (listTab === 'history' || (p.status !== 'closed' && p.status !== 'cancelled'))
     )
     return {
       vehicleId: row.vehicleId,
@@ -170,10 +193,6 @@ export function MissingPartsPage() {
     setSelectedVehicleIds(new Set())
   }, [listTab, filters])
 
-  const stationOptions = useMemo(
-    () => Array.from(new Set(items.map(i => i.stationNumber).filter(Boolean))).sort() as string[],
-    [items]
-  )
   const modelOptions = useMemo(() => Array.from(new Set(items.map(i => i.modelName).filter(Boolean))).sort(), [items])
   const departmentFilterCodes = useMemo(() => {
     const codes = new Set<string>()
@@ -192,29 +211,71 @@ export function MissingPartsPage() {
     return activeItems
   }, [listTab, historyItems, activeItems])
   const filtered = useMemo(() => applyFilters(tabSource, filters), [tabSource, filters])
-  const tableRows = useMemo(() => buildMissingPartTableRows(filtered), [filtered])
+  const tableRows = useMemo(
+    () => buildMissingPartTableRows(filtered, listTab === 'history' ? 'resolved-desc' : 'created-asc'),
+    [filtered, listTab]
+  )
   const tabVehicleCount = useMemo(() => new Set(tabSource.map(i => i.vehicleId)).size, [tabSource])
   const filteredVehicleCount = useMemo(() => new Set(filtered.map(i => i.vehicleId)).size, [filtered])
   const hasActiveFilter = Boolean(
     filters.search.trim() ||
-      filters.stationNumbers.length > 0 ||
       filters.modelNames.length > 0 ||
-      filters.departments.length > 0
+      filters.departments.length > 0 ||
+      filters.resolvedMonth
   )
 
+  function changeListTab(tab: ListTab) {
+    const leavingArchive =
+      (listTab === 'history' || listTab === 'historySummary') && tab !== 'history' && tab !== 'historySummary'
+    if (leavingArchive) setFilters(p => (p.resolvedMonth ? { ...p, resolvedMonth: null } : p))
+    setListTab(tab)
+  }
+
+  // Keep the vehicle card in sync after actions like "ترحيل".
+  useEffect(() => {
+    if (!vehicleCardParts?.length) return
+    const vid = vehicleCardParts[0].vehicleId
+    const next = items.filter(p => p.vehicleId === vid)
+    setVehicleCardParts(next.length ? next : null)
+  }, [items])
+
+  // Keep update-install modal parts in sync after per-issue transfer.
+  useEffect(() => {
+    if (!updateVehicle) return
+    const vehicleIds = new Set(updateVehicle.parts.map(p => p.vehicleId))
+    const nextParts = items.filter(
+      p =>
+        vehicleIds.has(p.vehicleId) &&
+        p.status !== 'closed' &&
+        p.status !== 'cancelled' &&
+        !p.shortageResolvedAt
+    )
+    if (nextParts.length === 0) {
+      setUpdateVehicle(null)
+      return
+    }
+    const prevIds = updateVehicle.parts.map(p => p.id).join(',')
+    const nextIds = nextParts.map(p => p.id).join(',')
+    if (prevIds === nextIds) return
+    setUpdateVehicle(prev => (prev ? { ...prev, parts: nextParts } : null))
+  }, [items, updateVehicle])
+
   const selectableVehicleIds = useMemo(() => {
-    if (!canBulkInstall) return new Set<string>()
+    if (!canBulkSelectForTab || (listTab !== 'active' && listTab !== 'history')) return new Set<string>()
     const ids = new Set<string>()
     for (const row of tableRows) {
-      const parts = partsFromTableRow(row).filter(p => p.status !== 'closed' && p.status !== 'cancelled')
-      if (hasPendingInstall(parts)) {
-        for (const id of vehicleIdsFromTableRow(row)) ids.add(id)
-      }
+      const parts = partsFromTableRow(row).filter(p => {
+        if (listTab === 'history') return !!p.shortageResolvedAt
+        return p.status !== 'closed' && p.status !== 'cancelled' && !p.shortageResolvedAt
+      })
+      if (parts.length === 0) continue
+      for (const id of vehicleIdsFromTableRow(row)) ids.add(id)
     }
     return ids
-  }, [tableRows, canBulkInstall])
+  }, [tableRows, canBulkSelectForTab, listTab])
 
-  const allSelectableSelected = selectableVehicleIds.size > 0 && [...selectableVehicleIds].every(id => selectedVehicleIds.has(id))
+  const allSelectableSelected =
+    selectableVehicleIds.size > 0 && [...selectableVehicleIds].every(id => selectedVehicleIds.has(id))
   const someSelectableSelected = [...selectableVehicleIds].some(id => selectedVehicleIds.has(id))
 
   function toggleRowSelection(tableRow: MissingPartTableRow) {
@@ -237,14 +298,15 @@ export function MissingPartsPage() {
     if (!canBulkInstall || selectedVehicleIds.size === 0) return
     const ids = [...selectedVehicleIds]
     const pendingLines = filtered.filter(
-      p => ids.includes(p.vehicleId) && p.status !== 'closed' && p.status !== 'cancelled' && p.installedQty < p.requiredQty
+      p =>
+        ids.includes(p.vehicleId) && p.status !== 'closed' && p.status !== 'cancelled' && p.installedQty < p.requiredQty
     )
     if (pendingLines.length === 0) {
       setError(t('mp.bulk.nothingToInstall'))
       return
     }
     if (!window.confirm(t('mp.bulk.installConfirm', { vehicles: ids.length, lines: pendingLines.length }))) return
-    setBulkInstalling(true)
+    setBulkActionBusy(true)
     setError('')
     try {
       const result = await bulkInstallVehiclesToFull(ids, filtered)
@@ -254,7 +316,56 @@ export function MissingPartsPage() {
     } catch (err) {
       setError(formatError(err))
     } finally {
-      setBulkInstalling(false)
+      setBulkActionBusy(false)
+    }
+  }
+
+  function bulkCompleteSelected() {
+    const ids = [...selectedVehicleIds]
+    const reps = uniqueVehicleReps(
+      filtered.filter(
+        p => ids.includes(p.vehicleId) && !p.shortageResolvedAt && p.status !== 'closed' && p.status !== 'cancelled'
+      )
+    )
+    if (reps.length === 0) {
+      setError(t('mp.bulk.nothingToComplete'))
+      return
+    }
+    requestCompleteAll(reps)
+  }
+
+  async function bulkDeleteSelected() {
+    if (!canDelete || selectedVehicleIds.size === 0) return
+    const ids = [...selectedVehicleIds]
+    const targets = filtered.filter(p => {
+      if (!ids.includes(p.vehicleId)) return false
+      if (listTab === 'history') return !!p.shortageResolvedAt
+      return p.status !== 'closed' && p.status !== 'cancelled' && !p.shortageResolvedAt
+    })
+    if (targets.length === 0) {
+      setError(t('mp.bulk.nothingToDelete'))
+      return
+    }
+    if (
+      !window.confirm(
+        t(listTab === 'history' ? 'mp.bulk.deleteConfirmArchive' : 'mp.bulk.deleteConfirm', {
+          vehicles: ids.length,
+          lines: targets.length
+        })
+      )
+    )
+      return
+    setBulkActionBusy(true)
+    setError('')
+    try {
+      for (const row of targets) await deleteMissingPartRecord(row.id)
+      setSelectedVehicleIds(new Set())
+      showSuccess(t('mp.bulk.deleteSuccess', { vehicles: ids.length, lines: targets.length }))
+      await load()
+    } catch (err) {
+      setError(formatError(err))
+    } finally {
+      setBulkActionBusy(false)
     }
   }
 
@@ -290,6 +401,35 @@ export function MissingPartsPage() {
     setCompleteTarget(row)
   }
 
+  async function transferIssueFromCard(part: MissingPartDetail) {
+    if (!canComplete || transferringPartId) return
+    setTransferringPartId(part.id)
+    setError('')
+    try {
+      const openOnVehicle = (vehicleCardParts ?? items).filter(
+        p =>
+          p.vehicleId === part.vehicleId &&
+          p.status !== 'closed' &&
+          p.status !== 'cancelled' &&
+          !p.shortageResolvedAt
+      ).length
+      const result = await transferMissingPartIssue(part.id, {
+        vehicleId: part.vehicleId,
+        remainingOpenOnVehicle: openOnVehicle
+      })
+      showSuccess(
+        result.vehicle_archived
+          ? t('mp.vehicleCard.transferIssueArchived', { vin: part.vin })
+          : t('mp.vehicleCard.transferIssueSuccess')
+      )
+      void load()
+    } catch (err) {
+      setError(formatError(err))
+    } finally {
+      setTransferringPartId(null)
+    }
+  }
+
   function requestCompleteAll(parts: MissingPartDetail[]) {
     setCompleteTarget(null)
     setCompleteAllTargets(uniqueVehicleReps(parts))
@@ -302,6 +442,7 @@ export function MissingPartsPage() {
     try {
       await completeVehicleShortage(completeTarget.vehicleId)
       setCompleteTarget(null)
+      setSelectedVehicleIds(new Set())
       showSuccess(t('mp.completeSuccess', { vin: completeTarget.vin }))
       void load()
     } catch (err) {
@@ -324,6 +465,7 @@ export function MissingPartsPage() {
         archived += 1
       }
       setCompleteAllTargets(null)
+      setSelectedVehicleIds(new Set())
       showSuccess(t('mp.completeAllSuccess', { n: archived || targets.length }))
       void load()
     } catch (err) {
@@ -346,44 +488,76 @@ export function MissingPartsPage() {
           listTab={listTab}
           visibleTabs={visibleTabs}
           canUseFilters={canFilter}
-          onListTabChange={setListTab}
+          onListTabChange={changeListTab}
           activeCount={activeVehicleCount}
           historyCount={historyVehicleCount}
           searchPool={tabSource}
           filters={filters}
           onFiltersChange={patch => setFilters(p => ({ ...p, ...patch }))}
-          stationOptions={stationOptions}
           modelOptions={modelOptions}
           departmentFilterCodes={departmentFilterCodes}
           departments={departments}
           canReport={canReport}
           role={role}
           onReport={() => setShowReport(true)}
+          summaryItems={listTab === 'active' ? filtered : null}
         />
 
-        {success && <div className="m-4 rounded-xl border border-emerald-500/30 bg-emerald-500/10 p-3 text-sm text-emerald-200">{success}</div>}
-        {error && !setupRequired && <div className="m-4 rounded-xl border border-red-500/30 bg-red-500/10 p-3 text-sm text-red-200">{error}</div>}
+        {success && (
+          <div className="m-4 rounded-xl border border-emerald-500/30 bg-emerald-500/10 p-3 text-sm text-emerald-200">
+            {success}
+          </div>
+        )}
+        {error && !setupRequired && (
+          <div className="m-4 rounded-xl border border-red-500/30 bg-red-500/10 p-3 text-sm text-red-200">{error}</div>
+        )}
         {isScopedView && scopeLabel && (
           <div className="mx-4 mb-4 rounded-xl border border-cyan-500/25 bg-cyan-500/10 p-3 text-sm text-cyan-100">
             {t('org.scopeBanner', { scope: scopeLabel })}
           </div>
         )}
 
-        {listTab === 'active' && canBulkInstall && selectedVehicleIds.size > 0 && (
+        {(listTab === 'active' || listTab === 'history') && canBulkSelectForTab && selectedVehicleIds.size > 0 && (
           <div className="flex flex-wrap items-center gap-3 border-b border-slate-800 px-4 py-3 sm:px-5">
-            <span className="text-sm font-bold text-slate-300">{t('mp.bulk.selected', { n: selectedVehicleIds.size })}</span>
+            <span className="text-sm font-bold text-slate-300">
+              {t('mp.bulk.selected', { n: selectedVehicleIds.size })}
+            </span>
+            {listTab === 'active' && canBulkInstall && (
+              <button
+                type="button"
+                disabled={bulkActionBusy}
+                onClick={() => void bulkInstallSelected()}
+                className="inline-flex items-center gap-2 rounded-xl bg-emerald-600 px-4 py-2 text-sm font-black text-white hover:bg-emerald-500 disabled:opacity-50"
+              >
+                <PackageCheck className="h-4 w-4" />
+                {t('mp.bulk.installSelected')}
+              </button>
+            )}
+            {listTab === 'active' && canComplete && (
+              <button
+                type="button"
+                disabled={bulkActionBusy || Boolean(completingVehicleId)}
+                onClick={bulkCompleteSelected}
+                className="inline-flex items-center gap-2 rounded-xl bg-cyan-600 px-4 py-2 text-sm font-black text-white hover:bg-cyan-500 disabled:opacity-50"
+              >
+                <CheckCircle2 className="h-4 w-4" />
+                {t('mp.bulk.completeSelected')}
+              </button>
+            )}
+            {canDelete && (
+              <button
+                type="button"
+                disabled={bulkActionBusy}
+                onClick={() => void bulkDeleteSelected()}
+                className="inline-flex items-center gap-2 rounded-xl bg-red-600/90 px-4 py-2 text-sm font-black text-white hover:bg-red-500 disabled:opacity-50"
+              >
+                <Trash2 className="h-4 w-4" />
+                {t('mp.bulk.deleteSelected')}
+              </button>
+            )}
             <button
               type="button"
-              disabled={bulkInstalling}
-              onClick={() => void bulkInstallSelected()}
-              className="inline-flex items-center gap-2 rounded-xl bg-emerald-600 px-4 py-2 text-sm font-black text-white hover:bg-emerald-500 disabled:opacity-50"
-            >
-              <PackageCheck className="h-4 w-4" />
-              {t('mp.bulk.installSelected')}
-            </button>
-            <button
-              type="button"
-              disabled={bulkInstalling}
+              disabled={bulkActionBusy}
               onClick={() => setSelectedVehicleIds(new Set())}
               className="rounded-xl bg-slate-800 px-4 py-2 text-sm font-bold text-slate-300 hover:bg-slate-700 disabled:opacity-50"
             >
@@ -392,7 +566,34 @@ export function MissingPartsPage() {
           </div>
         )}
 
-        {listTab === 'summary' || listTab === 'historySummary' ? (
+        {listTab === 'byFamily' ? (
+          <MissingPartsFamilyCardsTab
+            items={filtered}
+            reasons={reasons}
+            departments={departments}
+            loading={loading}
+            canUpdateStatus={canUpdateStatus}
+            canNotes={canNotes}
+            canEdit={canEdit}
+            canDelete={canDelete}
+            canComplete={canComplete}
+            completingVehicleId={completingVehicleId}
+            onOpenNotes={row =>
+              setNotesTarget({
+                vehicleId: row.vehicleId,
+                vin: row.vin,
+                modelName: row.modelName,
+                colorName: row.colorName,
+                colorHex: row.colorHex
+              })
+            }
+            onOpenDetail={setDetailTarget}
+            onEdit={openEdit}
+            onUpdate={openUpdate}
+            onDeleteParts={parts => void removeParts(parts)}
+            onComplete={requestCompleteVehicle}
+          />
+        ) : listTab === 'summary' || listTab === 'historySummary' ? (
           <MissingPartsSummaryTab
             items={filtered}
             reasons={reasons}
@@ -409,7 +610,7 @@ export function MissingPartsPage() {
             loading={loading}
             reasons={reasons}
             departments={departments}
-            orgUnitLabelFor={orgUnitLabelFor}
+            canBulkSelect={canBulkSelectForTab}
             canBulkInstall={canBulkInstall}
             canExport={canExport}
             canEdit={canEdit}
@@ -419,14 +620,16 @@ export function MissingPartsPage() {
             canComplete={canComplete}
             selectableVehicleIds={selectableVehicleIds}
             selectedVehicleIds={selectedVehicleIds}
-            bulkInstalling={bulkInstalling}
+            bulkInstalling={bulkActionBusy}
             completingVehicleId={completingVehicleId}
             allSelectableSelected={allSelectableSelected}
             someSelectableSelected={someSelectableSelected}
             onToggleSelectAll={toggleSelectAllVisible}
             onToggleRowSelection={toggleRowSelection}
             onOpenVinList={(vins, modelName, colorName) => setVinList({ vins, modelName, colorName })}
+            onOpenIssuesList={(parts, vin, modelName) => setIssuesList({ parts, vin, modelName })}
             onOpenDetail={setDetailTarget}
+            onRowClick={setVehicleCardParts}
             onOpenNotes={row =>
               setNotesTarget({
                 vehicleId: row.vehicleId,
@@ -446,11 +649,48 @@ export function MissingPartsPage() {
       </div>
 
       <ReportMissingPartModal open={showReport} onClose={() => setShowReport(false)} onReported={onReported} />
-      <UpdateMissingPartModal vehicle={updateVehicle} onClose={() => setUpdateVehicle(null)} onChanged={load} />
-      <EditMissingPartModal vehicle={editVehicle} onClose={() => setEditVehicle(null)} onSaved={load} />
-      <EditReportGroupModal group={editGroup} onClose={() => setEditGroup(null)} onSaved={load} />
-      <VinListModal vins={vinList?.vins ?? null} modelName={vinList?.modelName} colorName={vinList?.colorName} onClose={() => setVinList(null)} />
+      <UpdateMissingPartModal
+        vehicle={updateVehicle}
+        onClose={() => setUpdateVehicle(null)}
+        onChanged={load}
+        onNotify={showSuccess}
+      />
+      <EditMissingPartModal
+        vehicle={editVehicle}
+        activeListParts={activeItems}
+        onClose={() => setEditVehicle(null)}
+        onSaved={load}
+      />
+      <EditReportGroupModal
+        group={editGroup}
+        activeListParts={activeItems}
+        onClose={() => setEditGroup(null)}
+        onSaved={load}
+      />
+      <VinListModal
+        vins={vinList?.vins ?? null}
+        modelName={vinList?.modelName}
+        colorName={vinList?.colorName}
+        onClose={() => setVinList(null)}
+      />
+      <MissingPartIssuesModal
+        parts={issuesList?.parts ?? null}
+        vin={issuesList?.vin}
+        modelName={issuesList?.modelName}
+        reasons={reasons}
+        departments={departments}
+        onClose={() => setIssuesList(null)}
+      />
       <MissingPartDetailModal part={detailTarget} onClose={() => setDetailTarget(null)} />
+      <VehicleCardModal
+        parts={vehicleCardParts}
+        orgUnitLabel={vehicleCardParts?.[0] ? orgUnitLabelFor(vehicleCardParts[0].factoryOrgUnitId) : undefined}
+        completingVehicleId={completingVehicleId}
+        transferringPartId={transferringPartId}
+        canTransferIssue={canComplete}
+        onTransferIssue={part => void transferIssueFromCard(part)}
+        onClose={() => setVehicleCardParts(null)}
+      />
       <VehicleNotesModal target={notesTarget} onClose={() => setNotesTarget(null)} />
 
       <ConfirmDialog

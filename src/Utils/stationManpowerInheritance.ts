@@ -66,21 +66,12 @@ export function assignedCountForRows(rows: StationManpowerDayEdit[]): number {
   return rows.reduce((sum, row) => sum + row.employeeIds.length, 0)
 }
 
-export function assignedCountForParent(
-  parentCode: string,
-  rows: StationManpowerDayEdit[]
-): number {
-  return assignedCountForRows(
-    rows.filter(row => normalizeStationReferenceCode(row.stationNumber) === parentCode)
-  )
+export function assignedCountForParent(parentCode: string, rows: StationManpowerDayEdit[]): number {
+  return assignedCountForRows(rows.filter(row => normalizeStationReferenceCode(row.stationNumber) === parentCode))
 }
 
 /** أقصى عدد عمال معيّنين لمجموعة محطة عبر العام وجميع الموديلات */
-export function maxAssignedCountForParent(
-  parentCode: string,
-  state: ManpowerDayState,
-  modelIds: string[]
-): number {
+export function maxAssignedCountForParent(parentCode: string, state: ManpowerDayState, modelIds: string[]): number {
   const counts = [
     assignedCountForParent(parentCode, state.generalRows),
     ...modelIds.map(id => assignedCountForParent(parentCode, effectiveModelRows(state.generalRows, id, state)))
@@ -121,8 +112,6 @@ export function updateGeneralRow(
   patch: Partial<Pick<StationManpowerDayEdit, 'employeeIds'>>,
   modelIds: string[]
 ): ManpowerDayState {
-  const generalRows = state.generalRows.map(row =>
-    row.stationId === stationId ? { ...row, ...patch } : { ...row }
-  )
+  const generalRows = state.generalRows.map(row => (row.stationId === stationId ? { ...row, ...patch } : { ...row }))
   return propagateGeneralToModels({ ...state, generalRows }, modelIds)
 }

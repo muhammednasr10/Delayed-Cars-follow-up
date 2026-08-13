@@ -77,7 +77,12 @@ export async function updateMpReasonOption(
   id: string,
   input: Partial<{ label_ar: string; label_en: string; sort_order: number; is_active: boolean }>
 ): Promise<MpLookupOption> {
-  const { data, error } = await requireClient().from('mp_reason_options').update(input).eq('id', id).select('*').single()
+  const { data, error } = await requireClient()
+    .from('mp_reason_options')
+    .update(input)
+    .eq('id', id)
+    .select('*')
+    .single()
   if (error) throw new Error(error.message)
   return mapRow(data as Row)
 }
@@ -113,7 +118,12 @@ export async function updateMpDepartmentOption(
   id: string,
   input: Partial<{ label_ar: string; label_en: string; sort_order: number; is_active: boolean }>
 ): Promise<MpLookupOption> {
-  const { data, error } = await requireClient().from('mp_department_options').update(input).eq('id', id).select('*').single()
+  const { data, error } = await requireClient()
+    .from('mp_department_options')
+    .update(input)
+    .eq('id', id)
+    .select('*')
+    .single()
   if (error) throw new Error(error.message)
   return mapRow(data as Row)
 }

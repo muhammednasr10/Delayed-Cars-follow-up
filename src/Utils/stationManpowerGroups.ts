@@ -1,8 +1,4 @@
-import {
-  formatStationDisplayCode,
-  normalizeStationReferenceCode,
-  workerIndexFromStationCode
-} from './stationHierarchy'
+import { formatStationDisplayCode, normalizeStationReferenceCode, workerIndexFromStationCode } from './stationHierarchy'
 import type { StationManpowerDayEdit } from '../Types/stationManpowerDaily'
 import type { Station } from '../Types/settings'
 
@@ -31,9 +27,7 @@ export function stationsForManpowerDaily(stations: Station[]): Station[] {
   const deduped = [...byNumber.values()]
   const workerLines = deduped.filter(s => isWorkerLineNumber(s.station_number))
   if (workerLines.length > 0) return workerLines.sort(compareStations)
-  return deduped
-    .filter(s => !deduped.some(other => other.parent_station_id === s.id))
-    .sort(compareStations)
+  return deduped.filter(s => !deduped.some(other => other.parent_station_id === s.id)).sort(compareStations)
 }
 
 function compareStations(a: Station, b: Station): number {

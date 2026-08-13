@@ -2,15 +2,7 @@ import type { WorkerProfileTab } from './navigation'
 
 /** تبويبات صفحة حسابي الموحّدة (حساب المستخدم + بيانات العامل) */
 export type ProfileTab =
-  | 'account'
-  | 'data'
-  | 'org'
-  | 'station'
-  | 'equipment'
-  | 'attendance'
-  | 'errors'
-  | 'missions'
-  | 'permissions'
+  'account' | 'data' | 'org' | 'station' | 'equipment' | 'attendance' | 'errors' | 'missions' | 'permissions'
 
 export const PROFILE_TABS: ProfileTab[] = [
   'account',

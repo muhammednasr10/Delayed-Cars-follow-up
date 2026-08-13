@@ -55,8 +55,12 @@ export function DamagedPartsPage() {
 
   useEffect(() => {
     void load()
-    getVehicleModels().then(setModels).catch(() => setModels([]))
-    getEmployees().then(setEmployees).catch(() => setEmployees([]))
+    getVehicleModels()
+      .then(setModels)
+      .catch(() => setModels([]))
+    getEmployees()
+      .then(setEmployees)
+      .catch(() => setEmployees([]))
   }, [load])
 
   const filtered = useMemo(() => applyDamagedPartFilters(items, filters), [items, filters])
@@ -84,7 +88,9 @@ export function DamagedPartsPage() {
       message={
         <>
           {success && (
-            <div className="rounded-xl border border-emerald-500/30 bg-emerald-500/10 p-3 text-sm text-emerald-200">{success}</div>
+            <div className="rounded-xl border border-emerald-500/30 bg-emerald-500/10 p-3 text-sm text-emerald-200">
+              {success}
+            </div>
           )}
           {error && (
             <div className="rounded-xl border border-red-500/30 bg-red-500/10 p-3 text-sm text-red-200">{error}</div>

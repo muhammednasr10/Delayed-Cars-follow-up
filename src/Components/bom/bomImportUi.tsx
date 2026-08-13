@@ -4,10 +4,7 @@ import type { BomImportProgress } from '../../services/bomImportService'
 import type { IplSheetSummary } from '../../Utils/iplImportParser'
 import { runBomImport } from '../../services/bomImportService'
 
-export function bomImportPhaseLabel(
-  p: BomImportProgress,
-  t: (key: string) => string
-): string {
+export function bomImportPhaseLabel(p: BomImportProgress, t: (key: string) => string): string {
   if (p.phase === 'parts') return t('bom.importPhaseParts')
   if (p.phase === 'bom') return t('bom.importPhaseBom')
   return t('bom.importPhaseFinish')
@@ -28,11 +25,7 @@ export function useBomImportRunner(notify: (msg: string, isError?: boolean) => v
     setBusy(true)
     setImportProgress({ phase: 'parts', done: 0, total: rows.length })
     try {
-      const sum = await runBomImport(
-        rows,
-        { fileName: file.name, sheetName, sourceFile: file.name },
-        setImportProgress
-      )
+      const sum = await runBomImport(rows, { fileName: file.name, sheetName, sourceFile: file.name }, setImportProgress)
       setSummary(sum)
       notify(doneMessage)
       return true
@@ -128,7 +121,11 @@ export function BomImportDoneCard({ summary, title, t, onReset, resetLabel, comp
         <li>{t('bom.sumErr', { n: summary.errorsCount })}</li>
       </ul>
       {onReset && resetLabel && (
-        <button type="button" onClick={onReset} className="rounded-lg bg-slate-800 px-3 py-1.5 text-xs font-bold text-slate-300">
+        <button
+          type="button"
+          onClick={onReset}
+          className="rounded-lg bg-slate-800 px-3 py-1.5 text-xs font-bold text-slate-300"
+        >
           {resetLabel}
         </button>
       )}

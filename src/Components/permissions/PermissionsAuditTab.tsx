@@ -1,10 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { History, RefreshCcw } from 'lucide-react'
 import { useLang } from '../../i18n/LanguageContext'
-import {
-  getPermissionAuditEvents,
-  type PermissionAuditEvent
-} from '../../services/securityAuditService'
+import { getPermissionAuditEvents, type PermissionAuditEvent } from '../../services/securityAuditService'
 import { permissionActionLabel, permissionModuleLabel } from '../../Utils/permissionLabels'
 import type { SystemRole, UserAccountDetail } from '../../Types/permissions'
 
@@ -156,9 +153,7 @@ export function PermissionsAuditTab({ users, roles, notify }: Props) {
                         </p>
                       )}
                     </td>
-                    <td className="table-cell px-3 py-2.5 font-bold text-violet-200">
-                      {actionLabel(event.action)}
-                    </td>
+                    <td className="table-cell px-3 py-2.5 font-bold text-violet-200">{actionLabel(event.action)}</td>
                     <td className="table-cell px-3 py-2.5 text-slate-200">{targetLabel(event)}</td>
                     <td className="table-cell max-w-[20rem] px-3 py-2.5 text-slate-400">{detailLabel(event)}</td>
                   </tr>

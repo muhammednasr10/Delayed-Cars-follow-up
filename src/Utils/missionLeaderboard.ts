@@ -45,4 +45,3 @@ export function computeMissionLeaderboard(
     .filter(r => r.completedCount > 0 || r.activeCount > 0)
     .sort((a, b) => b.completedCount - a.completedCount || a.employeeName.localeCompare(b.employeeName, 'ar'))
 }
-

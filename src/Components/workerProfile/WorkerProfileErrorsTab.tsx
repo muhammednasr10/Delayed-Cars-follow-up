@@ -85,7 +85,9 @@ export function WorkerProfileErrorsTab() {
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div className="flex items-center gap-2 text-red-300">
             <AlertCircle className="h-5 w-5" />
-            <h3 className="text-sm font-black uppercase tracking-wide text-slate-400">{t('workerProfile.tabs.errors')}</h3>
+            <h3 className="text-sm font-black uppercase tracking-wide text-slate-400">
+              {t('workerProfile.tabs.errors')}
+            </h3>
           </div>
           <button
             type="button"

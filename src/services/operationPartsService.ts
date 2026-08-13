@@ -21,7 +21,11 @@ export async function getOperationParts(operationId: string): Promise<OperationP
   if (error) throw new Error(error.message)
 
   return (data ?? []).map(row => {
-    const p = row.parts as unknown as { part_number: string; part_name_ar: string | null; normalized_part_number: string } | null
+    const p = row.parts as unknown as {
+      part_number: string
+      part_name_ar: string | null
+      normalized_part_number: string
+    } | null
     return {
       id: row.id,
       operation_id: row.operation_id,
@@ -40,15 +44,17 @@ export async function getOperationParts(operationId: string): Promise<OperationP
 }
 
 export async function addOperationPart(input: OperationPartInput): Promise<void> {
-  const { error } = await client().from('operation_parts').insert({
-    operation_id: input.operation_id,
-    part_id: input.part_id,
-    bom_item_id: input.bom_item_id ?? null,
-    quantity: input.quantity,
-    unit: input.unit ?? 'pcs',
-    usage_type: input.usage_type ?? 'main_part',
-    notes: input.notes?.trim() || null
-  })
+  const { error } = await client()
+    .from('operation_parts')
+    .insert({
+      operation_id: input.operation_id,
+      part_id: input.part_id,
+      bom_item_id: input.bom_item_id ?? null,
+      quantity: input.quantity,
+      unit: input.unit ?? 'pcs',
+      usage_type: input.usage_type ?? 'main_part',
+      notes: input.notes?.trim() || null
+    })
   if (error) throw new Error(error.message)
 }
 
@@ -129,9 +135,10 @@ export async function lookupPartByNumber(partNumber: string): Promise<PartLookup
   }
 }
 
-export async function searchPartsForLink(term: string, limit = 20): Promise<
-  { id: string; part_number: string; part_name_ar: string | null }[]
-> {
+export async function searchPartsForLink(
+  term: string,
+  limit = 20
+): Promise<{ id: string; part_number: string; part_name_ar: string | null }[]> {
   const hits = await searchPartsWithDetails(term, limit)
   return hits.map(p => ({ id: p.id, part_number: p.part_number, part_name_ar: p.part_name_ar }))
 }
@@ -168,7 +175,10 @@ function bomRowMatchesModel(row: BomQtyRow, modelLine: ModelLine | null): boolea
   if (row.model_family && modelBelongsToLine(row.model_family, modelLine)) return true
   if (row.vehicle_model_name && modelBelongsToLine(row.vehicle_model_name, modelLine)) return true
   if (row.applicable_models_text) {
-    const tokens = row.applicable_models_text.split(/[,;|/]/).map(s => s.trim()).filter(Boolean)
+    const tokens = row.applicable_models_text
+      .split(/[,;|/]/)
+      .map(s => s.trim())
+      .filter(Boolean)
     if (tokens.some(t => modelBelongsToLine(t, modelLine))) return true
   }
   return false
@@ -231,9 +241,7 @@ export async function lookupIplQuantityForPart(opts: {
 
   const { data, error } = await client()
     .from('v_bom_items_detail')
-    .select(
-      'quantity, station_code_text, station_id, model_family, vehicle_model_name, applicable_models_text'
-    )
+    .select('quantity, station_code_text, station_id, model_family, vehicle_model_name, applicable_models_text')
     .eq('part_id', partId)
     .eq('is_active', true)
   if (error) throw new Error(error.message)

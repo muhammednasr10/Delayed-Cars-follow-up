@@ -2,10 +2,7 @@ import type { BomItemDetail } from '../Types/bom'
 import type { BomStopperType } from '../Types/engineering'
 
 export function effectiveBomStopperType(
-  row: Pick<
-    BomItemDetail,
-    'stopper_type' | 'operation_is_line_stopper' | 'operation_is_car_stopper'
-  >
+  row: Pick<BomItemDetail, 'stopper_type' | 'operation_is_line_stopper' | 'operation_is_car_stopper'>
 ): BomStopperType {
   const st = row.stopper_type
   if (st === 'line_stopper' || st === 'car_stopper') return st

@@ -97,12 +97,14 @@ export async function saveStopperExclusions(sourceBomItemId: string, excludedPar
   const unique = [...new Set(excludedPartIds.filter(Boolean))]
   if (unique.length === 0) return
 
-  const { error } = await client().from('bom_stopper_exclusions').insert(
-    unique.map(partId => ({
-      source_bom_item_id: sourceBomItemId,
-      excluded_part_id: partId
-    }))
-  )
+  const { error } = await client()
+    .from('bom_stopper_exclusions')
+    .insert(
+      unique.map(partId => ({
+        source_bom_item_id: sourceBomItemId,
+        excluded_part_id: partId
+      }))
+    )
   if (error) throw new Error(error.message)
 }
 
@@ -169,8 +171,7 @@ function downstreamExclusions(item: BomItemDetail, candidates: BomItemDetail[]):
     if (!bomModelsOverlap(item, other)) continue
 
     const otherSort = other.station_sort_order ?? 0
-    const isDownstream =
-      stopper === 'line_stopper' ? otherSort > mySort : otherSort >= mySort && other.id !== item.id
+    const isDownstream = stopper === 'line_stopper' ? otherSort > mySort : otherSort >= mySort && other.id !== item.id
 
     if (!isDownstream) continue
 

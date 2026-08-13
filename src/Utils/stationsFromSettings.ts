@@ -1,10 +1,6 @@
 import type { Station } from '../Types/settings'
 import { formatStationReferenceCode } from './stationHierarchy'
-import {
-  dedupeMasterStationsForDisplay,
-  isMasterReferenceStation,
-  masterStationCode
-} from './stationMaster'
+import { dedupeMasterStationsForDisplay, isMasterReferenceStation, masterStationCode } from './stationMaster'
 
 /** Same label as Settings → Stations table (code + common name). */
 export function formatStationSettingsLabel(station: Pick<Station, 'station_number' | 'station_name'>): string {
@@ -19,9 +15,7 @@ export function resolveMasterStation(station: Station, allStations: Station[]): 
     if (parent) return resolveMasterStation(parent, allStations)
   }
   const code = masterStationCode(station).toUpperCase()
-  const master = allStations.find(
-    s => isMasterReferenceStation(s) && masterStationCode(s).toUpperCase() === code
-  )
+  const master = allStations.find(s => isMasterReferenceStation(s) && masterStationCode(s).toUpperCase() === code)
   return master ?? station
 }
 

@@ -145,105 +145,113 @@ export function DamagedPartsRecordTab({ items, loading, models, employees, onRel
 
       <div className="card-industrial overflow-hidden">
         <ExportableTable filename="damaged-parts" title={t('damagedParts.title')} rowCount={items.length}>
-        <div className="overflow-x-auto">
-        <table className="w-full min-w-[1150px] text-center text-sm">
-          <thead className="bg-slate-950/90">
-            <tr>
-              <th className={`${cell} font-black text-slate-400`}>{t('damagedParts.cols.date')}</th>
-              <th className={`${cell} font-black text-slate-400`}>{t('damagedParts.cols.model')}</th>
-              <th className={`${cell} font-black text-slate-400`}>{t('damagedParts.cols.part')}</th>
-              <th className={`${cell} font-black text-slate-400`}>{t('damagedParts.cols.quantity')}</th>
-              <th className={`${cell} font-black text-slate-400`}>{t('damagedParts.cols.causer')}</th>
-              <th className={`${cell} font-black text-slate-400`}>{t('damagedParts.cols.reason')}</th>
-              <th className={`${cell} font-black text-slate-400`}>{t('damagedParts.cols.finalDecision')}</th>
-              <th data-export-skip className={`${cell} font-black text-slate-400`}>{t('damagedParts.cols.image')}</th>
-              <th className={`${cell} font-black text-slate-400`}>{t('common.notes')}</th>
-              <th data-export-skip className={`${cell} font-black text-slate-400`}>{t('damagedParts.cols.actions')}</th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-slate-800">
-            {loading ? (
-              <tr>
-                <td colSpan={10} className="px-4 py-12 text-slate-500">
-                  {t('common.loading')}
-                </td>
-              </tr>
-            ) : items.length === 0 ? (
-              <tr>
-                <td colSpan={10} className="px-4 py-12 text-slate-500">
-                  {t('damagedParts.empty')}
-                </td>
-              </tr>
-            ) : (
-              items.map(row => (
-                <tr key={row.id} className="bg-slate-900/30 hover:bg-slate-800/40">
-                  <td className={`${cell} text-slate-300`}>{formatDate(row.reportedAt)}</td>
-                  <td className={`${cell} font-bold text-white`}>{row.modelName}</td>
-                  <td className={cell}>
-                    <p className="font-mono font-bold text-cyan-200" dir="ltr">
-                      {row.partNumber}
-                    </p>
-                    {row.partName && <p className="mt-0.5 text-xs text-slate-400">{row.partName}</p>}
-                  </td>
-                  <td className={`${cell} font-mono text-white`} dir="ltr">
-                    {row.quantity}
-                  </td>
-                  <td className={`${cell} font-bold text-slate-100`}>
-                    {row.causedByName ?? t('damagedParts.unknownCauser')}
-                  </td>
-                  <td className={`${cell} text-slate-200`}>{dpLookupLabel(reasons, row.damageReason, lang)}</td>
-                  <td className={cell}>{decisionBadge(row.finalDecision)}</td>
-                  <td data-export-skip className={cell}>
-                    {row.imageUrl ? (
-                      <button type="button" onClick={() => setPreviewImage(row.imageUrl)} className="mx-auto block">
-                        <img src={row.imageUrl} alt="" className="h-10 w-10 rounded-lg border border-slate-700 object-cover" />
-                      </button>
-                    ) : (
-                      <span className="text-slate-600">—</span>
-                    )}
-                  </td>
-                  <td className={`${cell} max-w-[12rem] truncate text-slate-400`}>{row.notes || '—'}</td>
-                  <td data-export-skip className={cell}>
-                    <div className="flex items-center justify-center gap-1">
-                      <button
-                        type="button"
-                        disabled={saving}
-                        title={row.isRepairable ? t('damagedParts.repairableYes') : t('damagedParts.repairableNo')}
-                        onClick={() => void toggleRepairable(row)}
-                        className={`rounded-lg p-2 ${
-                          row.isRepairable
-                            ? 'bg-emerald-500/15 text-emerald-300 hover:bg-emerald-500/25'
-                            : 'bg-red-500/10 text-red-300 hover:bg-red-500/20'
-                        }`}
-                      >
-                        {row.isRepairable ? <Wrench className="h-4 w-4" /> : <Ban className="h-4 w-4" />}
-                      </button>
-                      <button
-                        type="button"
-                        disabled={saving}
-                        title={t('common.edit')}
-                        onClick={() => openEdit(row)}
-                        className="rounded-lg bg-slate-800 p-2 text-cyan-300 hover:bg-slate-700"
-                      >
-                        <Pencil className="h-4 w-4" />
-                      </button>
-                      <button
-                        type="button"
-                        disabled={saving}
-                        title={t('common.delete')}
-                        onClick={() => setDeleteTarget(row)}
-                        className="rounded-lg bg-slate-800 p-2 text-red-300 hover:bg-slate-700"
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </button>
-                    </div>
-                  </td>
+          <div className="overflow-x-auto">
+            <table className="w-full min-w-[1150px] text-center text-sm">
+              <thead className="bg-slate-950/90">
+                <tr>
+                  <th className={`${cell} font-black text-slate-400`}>{t('damagedParts.cols.date')}</th>
+                  <th className={`${cell} font-black text-slate-400`}>{t('damagedParts.cols.model')}</th>
+                  <th className={`${cell} font-black text-slate-400`}>{t('damagedParts.cols.part')}</th>
+                  <th className={`${cell} font-black text-slate-400`}>{t('damagedParts.cols.quantity')}</th>
+                  <th className={`${cell} font-black text-slate-400`}>{t('damagedParts.cols.causer')}</th>
+                  <th className={`${cell} font-black text-slate-400`}>{t('damagedParts.cols.reason')}</th>
+                  <th className={`${cell} font-black text-slate-400`}>{t('damagedParts.cols.finalDecision')}</th>
+                  <th data-export-skip className={`${cell} font-black text-slate-400`}>
+                    {t('damagedParts.cols.image')}
+                  </th>
+                  <th className={`${cell} font-black text-slate-400`}>{t('common.notes')}</th>
+                  <th data-export-skip className={`${cell} font-black text-slate-400`}>
+                    {t('damagedParts.cols.actions')}
+                  </th>
                 </tr>
-              ))
-            )}
-          </tbody>
-        </table>
-        </div>
+              </thead>
+              <tbody className="divide-y divide-slate-800">
+                {loading ? (
+                  <tr>
+                    <td colSpan={10} className="px-4 py-12 text-slate-500">
+                      {t('common.loading')}
+                    </td>
+                  </tr>
+                ) : items.length === 0 ? (
+                  <tr>
+                    <td colSpan={10} className="px-4 py-12 text-slate-500">
+                      {t('damagedParts.empty')}
+                    </td>
+                  </tr>
+                ) : (
+                  items.map(row => (
+                    <tr key={row.id} className="bg-slate-900/30 hover:bg-slate-800/40">
+                      <td className={`${cell} text-slate-300`}>{formatDate(row.reportedAt)}</td>
+                      <td className={`${cell} font-bold text-white`}>{row.modelName}</td>
+                      <td className={cell}>
+                        <p className="font-mono font-bold text-cyan-200" dir="ltr">
+                          {row.partNumber}
+                        </p>
+                        {row.partName && <p className="mt-0.5 text-xs text-slate-400">{row.partName}</p>}
+                      </td>
+                      <td className={`${cell} font-mono text-white`} dir="ltr">
+                        {row.quantity}
+                      </td>
+                      <td className={`${cell} font-bold text-slate-100`}>
+                        {row.causedByName ?? t('damagedParts.unknownCauser')}
+                      </td>
+                      <td className={`${cell} text-slate-200`}>{dpLookupLabel(reasons, row.damageReason, lang)}</td>
+                      <td className={cell}>{decisionBadge(row.finalDecision)}</td>
+                      <td data-export-skip className={cell}>
+                        {row.imageUrl ? (
+                          <button type="button" onClick={() => setPreviewImage(row.imageUrl)} className="mx-auto block">
+                            <img
+                              src={row.imageUrl}
+                              alt=""
+                              className="h-10 w-10 rounded-lg border border-slate-700 object-cover"
+                            />
+                          </button>
+                        ) : (
+                          <span className="text-slate-600">—</span>
+                        )}
+                      </td>
+                      <td className={`${cell} max-w-[12rem] truncate text-slate-400`}>{row.notes || '—'}</td>
+                      <td data-export-skip className={cell}>
+                        <div className="flex items-center justify-center gap-1">
+                          <button
+                            type="button"
+                            disabled={saving}
+                            title={row.isRepairable ? t('damagedParts.repairableYes') : t('damagedParts.repairableNo')}
+                            onClick={() => void toggleRepairable(row)}
+                            className={`rounded-lg p-2 ${
+                              row.isRepairable
+                                ? 'bg-emerald-500/15 text-emerald-300 hover:bg-emerald-500/25'
+                                : 'bg-red-500/10 text-red-300 hover:bg-red-500/20'
+                            }`}
+                          >
+                            {row.isRepairable ? <Wrench className="h-4 w-4" /> : <Ban className="h-4 w-4" />}
+                          </button>
+                          <button
+                            type="button"
+                            disabled={saving}
+                            title={t('common.edit')}
+                            onClick={() => openEdit(row)}
+                            className="rounded-lg bg-slate-800 p-2 text-cyan-300 hover:bg-slate-700"
+                          >
+                            <Pencil className="h-4 w-4" />
+                          </button>
+                          <button
+                            type="button"
+                            disabled={saving}
+                            title={t('common.delete')}
+                            onClick={() => setDeleteTarget(row)}
+                            className="rounded-lg bg-slate-800 p-2 text-red-300 hover:bg-slate-700"
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
+          </div>
         </ExportableTable>
       </div>
 
@@ -287,4 +295,3 @@ export function DamagedPartsRecordTab({ items, loading, models, employees, onRel
     </div>
   )
 }
-

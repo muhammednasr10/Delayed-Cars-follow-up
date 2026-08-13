@@ -66,9 +66,7 @@ function mapRow(
   orgUnits: FactoryOrgUnit[]
 ): Employee {
   const manager = row.direct_manager_id ? byId.get(row.direct_manager_id) : null
-  const managerNames = managerIds
-    .map(id => byId.get(id)?.full_name)
-    .filter((name): name is string => Boolean(name))
+  const managerNames = managerIds.map(id => byId.get(id)?.full_name).filter((name): name is string => Boolean(name))
   const station = row.stations
   const orgPath = orgPathFromLeaf(row.factory_org_unit_id, orgUnits)
   return {
@@ -129,8 +127,7 @@ export async function getEmployees(): Promise<Employee[]> {
 
   return sortEmployees(
     rows.map(r => {
-      const managerIds =
-        managersByEmployee.get(r.id) ?? (r.direct_manager_id ? [r.direct_manager_id] : [])
+      const managerIds = managersByEmployee.get(r.id) ?? (r.direct_manager_id ? [r.direct_manager_id] : [])
       return mapRow(r, byId, managerIds, orgUnits)
     })
   )
@@ -140,10 +137,7 @@ async function saveEmployeeDirectManagers(employeeId: string, managerIds: string
   const client = requireClient()
   const uniqueIds = [...new Set(managerIds.filter(id => id && id !== employeeId))]
 
-  const { error: deleteError } = await client
-    .from('employee_direct_managers')
-    .delete()
-    .eq('employee_id', employeeId)
+  const { error: deleteError } = await client.from('employee_direct_managers').delete().eq('employee_id', employeeId)
   if (deleteError) throw new Error(translateError(deleteError))
 
   if (uniqueIds.length === 0) return
@@ -190,9 +184,7 @@ export async function createEmployee(input: EmployeeInput): Promise<void> {
   }
 }
 
-export async function bulkCreateEmployees(
-  inputs: EmployeeInput[]
-): Promise<{ imported: number; errors: string[] }> {
+export async function bulkCreateEmployees(inputs: EmployeeInput[]): Promise<{ imported: number; errors: string[] }> {
   const errors: string[] = []
   let imported = 0
   const batchSize = 50
@@ -225,11 +217,7 @@ export async function setEmployeeActive(id: string, isActive: boolean): Promise<
   if (error) throw new Error(error.message)
 }
 
-export async function suspendEmployee(
-  employeeId: string,
-  reason: string,
-  blockLinkedUser = true
-): Promise<void> {
+export async function suspendEmployee(employeeId: string, reason: string, blockLinkedUser = true): Promise<void> {
   const { error } = await requireClient().rpc('suspend_employee', {
     p_employee_id: employeeId,
     p_reason: reason,
@@ -243,11 +231,7 @@ export async function reactivateEmployee(employeeId: string): Promise<void> {
   if (error) throw new Error(error.message)
 }
 
-export async function endEmployeeEmployment(
-  employeeId: string,
-  reason: string,
-  blockLinkedUser = true
-): Promise<void> {
+export async function endEmployeeEmployment(employeeId: string, reason: string, blockLinkedUser = true): Promise<void> {
   const { error } = await requireClient().rpc('end_employee_employment', {
     p_employee_id: employeeId,
     p_reason: reason,

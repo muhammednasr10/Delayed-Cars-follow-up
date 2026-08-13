@@ -66,16 +66,26 @@ export function StationManpowerHistoryTab() {
         </label>
       </div>
 
-      {error && <div className="rounded-xl border border-red-500/30 bg-red-500/10 p-3 text-sm text-red-200">{error}</div>}
+      {error && (
+        <div className="rounded-xl border border-red-500/30 bg-red-500/10 p-3 text-sm text-red-200">{error}</div>
+      )}
 
       <div className="overflow-x-auto rounded-2xl border border-slate-800">
         <table className="w-full min-w-[800px] text-start">
           <thead className="bg-slate-950/90">
             <tr>
-              <th className="table-cell text-xs font-black uppercase text-slate-400">{t('manpower.history.cols.date')}</th>
-              <th className="table-cell text-xs font-black uppercase text-slate-400">{t('manpower.daily.cols.number')}</th>
-              <th className="table-cell text-xs font-black uppercase text-slate-400">{t('manpower.daily.cols.name')}</th>
-              <th className="table-cell text-xs font-black uppercase text-violet-300">{t('manpower.history.cols.employee')}</th>
+              <th className="table-cell text-xs font-black uppercase text-slate-400">
+                {t('manpower.history.cols.date')}
+              </th>
+              <th className="table-cell text-xs font-black uppercase text-slate-400">
+                {t('manpower.daily.cols.number')}
+              </th>
+              <th className="table-cell text-xs font-black uppercase text-slate-400">
+                {t('manpower.daily.cols.name')}
+              </th>
+              <th className="table-cell text-xs font-black uppercase text-violet-300">
+                {t('manpower.history.cols.employee')}
+              </th>
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-800">

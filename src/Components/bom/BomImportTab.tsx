@@ -35,9 +35,7 @@ export function BomImportTab({ notify }: { notify: (m: string, err?: boolean) =>
   const [workbookMode, setWorkbookMode] = useState(false)
   const [sheets, setSheets] = useState<string[]>([])
   const [sheet, setSheet] = useState('')
-  const [workbookSheets, setWorkbookSheets] = useState<ReturnType<typeof parseWorkbookIplSheets>['sheets'] | null>(
-    null
-  )
+  const [workbookSheets, setWorkbookSheets] = useState<ReturnType<typeof parseWorkbookIplSheets>['sheets'] | null>(null)
   const [validation, setValidation] = useState<BomImportValidation | null>(null)
 
   async function onPick(f: File) {
@@ -147,7 +145,11 @@ export function BomImportTab({ notify }: { notify: (m: string, err?: boolean) =>
           <BomImportErrorList errors={validation.errors} rowLabel={t('bom.row')} />
           <BomExcelPreviewTable rows={validation.rows} maxRows={50} />
           <div className="flex gap-2">
-            <button type="button" onClick={() => setStep('upload')} className="rounded-xl bg-slate-800 px-4 py-2 font-bold">
+            <button
+              type="button"
+              onClick={() => setStep('upload')}
+              className="rounded-xl bg-slate-800 px-4 py-2 font-bold"
+            >
               {t('common.back')}
             </button>
             {busy && importProgress && (

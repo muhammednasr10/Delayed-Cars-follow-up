@@ -151,7 +151,9 @@ export function EmployeeYearAttendanceTab({ employees, refreshKey = 0 }: Props) 
         </div>
       </div>
 
-      {error && <div className="rounded-xl border border-red-500/30 bg-red-500/10 p-3 text-sm text-red-200">{error}</div>}
+      {error && (
+        <div className="rounded-xl border border-red-500/30 bg-red-500/10 p-3 text-sm text-red-200">{error}</div>
+      )}
 
       <p className="text-xs text-slate-500">{t('attendance.yearly.hint')}</p>
 

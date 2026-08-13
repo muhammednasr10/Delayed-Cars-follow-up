@@ -52,9 +52,15 @@ export function TrainingMatrixPage() {
   const [error, setError] = useState('')
 
   useEffect(() => {
-    getStations().then(setStations).catch(() => setStations([]))
-    getVehicleModels().then(setModels).catch(() => setModels([]))
-    getFactoryOrgUnits({ includeInactive: true }).then(setOrgUnits).catch(() => setOrgUnits([]))
+    getStations()
+      .then(setStations)
+      .catch(() => setStations([]))
+    getVehicleModels()
+      .then(setModels)
+      .catch(() => setModels([]))
+    getFactoryOrgUnits({ includeInactive: true })
+      .then(setOrgUnits)
+      .catch(() => setOrgUnits([]))
   }, [])
 
   function notify(msg: string, isError = false) {
@@ -71,8 +77,14 @@ export function TrainingMatrixPage() {
   return (
     <section className="space-y-4">
       {!canManage && <p className="text-xs text-amber-300">{t('training.noPerm')}</p>}
-      {success && <div className="rounded-xl border border-emerald-500/30 bg-emerald-500/10 p-3 text-sm text-emerald-200">{success}</div>}
-      {error && <div className="rounded-xl border border-red-500/30 bg-red-500/10 p-3 text-sm text-red-200">{error}</div>}
+      {success && (
+        <div className="rounded-xl border border-emerald-500/30 bg-emerald-500/10 p-3 text-sm text-emerald-200">
+          {success}
+        </div>
+      )}
+      {error && (
+        <div className="rounded-xl border border-red-500/30 bg-red-500/10 p-3 text-sm text-red-200">{error}</div>
+      )}
 
       {tab === 'org' && <OrgStructurePage embedded workforceScope="assembly" />}
       {isScopedView && tab !== 'org' && (
@@ -96,7 +108,12 @@ export function TrainingMatrixPage() {
         </>
       )}
       {tab === 'manpower' && (
-        <WorkforceManpowerSection stations={stations} employees={employees} models={models} canManage={canManageEmployees} />
+        <WorkforceManpowerSection
+          stations={stations}
+          employees={employees}
+          models={models}
+          canManage={canManageEmployees}
+        />
       )}
       {tab === 'operations' && <OperationQualificationTab stations={stations} />}
       {tab === 'stationSkills' && (
@@ -110,9 +127,18 @@ export function TrainingMatrixPage() {
         />
       )}
       {tab === 'matrix' && (
-        <EmployeeTrainingMatrixTab employees={employees} skills={skills} records={records} canManage={canManage} onChanged={reloadRecords} notify={notify} />
+        <EmployeeTrainingMatrixTab
+          employees={employees}
+          skills={skills}
+          records={records}
+          canManage={canManage}
+          onChanged={reloadRecords}
+          notify={notify}
+        />
       )}
-      {tab === 'qualification' && <StationQualificationTab employees={employees} required={required} records={records} stations={stations} />}
+      {tab === 'qualification' && (
+        <StationQualificationTab employees={employees} required={required} records={records} stations={stations} />
+      )}
       {tab === 'expiry' && <TrainingExpiryDashboard employees={employees} records={records} />}
     </section>
   )

@@ -5,7 +5,13 @@ import { useAuth } from '../../Context/AuthContext'
 import { useAssemblyWorkforceScope } from '../../hooks/useAssemblyWorkforceScope'
 import { useEmployees } from '../../hooks/useEmployees'
 import { getFactoryOrgUnits } from '../../services/factoryOrgService'
-import { createEmployee, endEmployeeEmployment, reactivateEmployee, suspendEmployee, updateEmployee } from '../../services/employeesService'
+import {
+  createEmployee,
+  endEmployeeEmployment,
+  reactivateEmployee,
+  suspendEmployee,
+  updateEmployee
+} from '../../services/employeesService'
 import { usePermissions } from '../../Context/PermissionsContext'
 import { Modal } from '../../Components/Modal'
 import { Field, inputCls } from '../../Components/FormField'
@@ -63,8 +69,12 @@ export function OrgStructurePage({
   const [actionError, setActionError] = useState('')
 
   useEffect(() => {
-    getWorkAreas().then(setAreas).catch(() => setAreas([]))
-    getFactoryOrgUnits({ includeInactive: true }).then(setOrgUnits).catch(() => setOrgUnits([]))
+    getWorkAreas()
+      .then(setAreas)
+      .catch(() => setAreas([]))
+    getFactoryOrgUnits({ includeInactive: true })
+      .then(setOrgUnits)
+      .catch(() => setOrgUnits([]))
   }, [])
 
   const isAssemblyScope = workforceScope === 'assembly'
@@ -186,7 +196,9 @@ export function OrgStructurePage({
         {!embedded && (
           <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <div className="flex items-center gap-3">
-              <div className="rounded-xl bg-cyan-500/15 p-3 text-cyan-300"><Users className="h-6 w-6" /></div>
+              <div className="rounded-xl bg-cyan-500/15 p-3 text-cyan-300">
+                <Users className="h-6 w-6" />
+              </div>
               <div>
                 <h2 className="text-xl font-black text-white">{t('org.title')}</h2>
                 <p className="text-sm text-slate-400">
@@ -205,19 +217,31 @@ export function OrgStructurePage({
         <div className={`flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between ${embedded ? '' : 'mt-0'}`}>
           <div className="flex flex-wrap items-center gap-2 sm:ms-auto">
             <div className="flex rounded-xl bg-slate-800 p-1">
-              <button onClick={() => setView('table')} className={`flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-sm font-bold ${view === 'table' ? 'bg-cyan-500 text-slate-950' : 'text-slate-300'}`}>
+              <button
+                onClick={() => setView('table')}
+                className={`flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-sm font-bold ${view === 'table' ? 'bg-cyan-500 text-slate-950' : 'text-slate-300'}`}
+              >
                 <LayoutList className="h-4 w-4" /> {t('org.tableView')}
               </button>
-              <button onClick={() => setView('chart')} className={`flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-sm font-bold ${view === 'chart' ? 'bg-cyan-500 text-slate-950' : 'text-slate-300'}`}>
+              <button
+                onClick={() => setView('chart')}
+                className={`flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-sm font-bold ${view === 'chart' ? 'bg-cyan-500 text-slate-950' : 'text-slate-300'}`}
+              >
                 <Network className="h-4 w-4" /> {t('org.chartView')}
               </button>
             </div>
             {canCreateScoped && (
               <>
-                <button onClick={() => setImportOpen(true)} className="rounded-xl border border-cyan-500/40 bg-cyan-500/10 px-4 py-2 text-sm font-bold text-cyan-200 hover:bg-cyan-500/20">
+                <button
+                  onClick={() => setImportOpen(true)}
+                  className="rounded-xl border border-cyan-500/40 bg-cyan-500/10 px-4 py-2 text-sm font-bold text-cyan-200 hover:bg-cyan-500/20"
+                >
                   <Upload className="mr-1 inline h-4 w-4" /> {t('org.import.btn')}
                 </button>
-                <button onClick={openAdd} className="rounded-xl bg-cyan-500 px-4 py-2 text-sm font-black text-slate-950 hover:bg-cyan-400">
+                <button
+                  onClick={openAdd}
+                  className="rounded-xl bg-cyan-500 px-4 py-2 text-sm font-black text-slate-950 hover:bg-cyan-400"
+                >
                   <Plus className="mr-1 inline h-4 w-4" /> {t('org.add')}
                 </button>
               </>
@@ -225,7 +249,9 @@ export function OrgStructurePage({
           </div>
         </div>
 
-        {!embedded && !canManageScoped && !canUpdate && <p className="mt-3 text-xs text-amber-300">{t('org.noPerm')}</p>}
+        {!embedded && !canManageScoped && !canUpdate && (
+          <p className="mt-3 text-xs text-amber-300">{t('org.noPerm')}</p>
+        )}
         {isAssemblyScope && (
           <p className={`text-xs text-cyan-200/90 ${embedded ? '' : 'mt-3'}`}>{t('org.assemblyWorkforceHint')}</p>
         )}
@@ -239,11 +265,21 @@ export function OrgStructurePage({
         </div>
       </div>
 
-      {success && <div className="rounded-xl border border-emerald-500/30 bg-emerald-500/10 p-3 text-sm text-emerald-200">{success}</div>}
-      {(actionError || error) && <div className="rounded-xl border border-red-500/30 bg-red-500/10 p-3 text-sm text-red-200">{actionError || error}</div>}
+      {success && (
+        <div className="rounded-xl border border-emerald-500/30 bg-emerald-500/10 p-3 text-sm text-emerald-200">
+          {success}
+        </div>
+      )}
+      {(actionError || error) && (
+        <div className="rounded-xl border border-red-500/30 bg-red-500/10 p-3 text-sm text-red-200">
+          {actionError || error}
+        </div>
+      )}
 
       <div className="card-industrial overflow-hidden">
-        <div className="border-b border-slate-800 px-4 py-3 text-sm text-slate-400">{t('org.count', { n: filtered.length })}</div>
+        <div className="border-b border-slate-800 px-4 py-3 text-sm text-slate-400">
+          {t('org.count', { n: filtered.length })}
+        </div>
         {view === 'table' && (
           <ExportableTable filename="employees" title={t('org.title')} rowCount={filtered.length}>
             <EmployeeTable
@@ -262,9 +298,7 @@ export function OrgStructurePage({
 
         {loading && <div className="p-8 text-center text-slate-400">{t('common.loading')}</div>}
         {!loading && filtered.length === 0 && (
-          <div className="p-8 text-center text-slate-400">
-            {isFormerRoster ? t('org.formerEmpty') : t('org.empty')}
-          </div>
+          <div className="p-8 text-center text-slate-400">{isFormerRoster ? t('org.formerEmpty') : t('org.empty')}</div>
         )}
       </div>
 
@@ -304,7 +338,11 @@ export function OrgStructurePage({
             <button onClick={() => setToggleTarget(null)} className="rounded-xl bg-slate-800 px-4 py-2 font-bold">
               {t('common.cancel')}
             </button>
-            <button onClick={() => void confirmToggle()} disabled={saving} className="rounded-xl bg-cyan-500 px-4 py-2 font-black text-slate-950">
+            <button
+              onClick={() => void confirmToggle()}
+              disabled={saving}
+              className="rounded-xl bg-cyan-500 px-4 py-2 font-black text-slate-950"
+            >
               {t('common.confirm')}
             </button>
           </>
@@ -319,10 +357,19 @@ export function OrgStructurePage({
               <>
                 <p className="text-amber-200">{t('permissions.suspendConfirm')}</p>
                 <Field label={t('permissions.blockReason')} required>
-                  <textarea className={inputCls()} rows={3} value={suspendReason} onChange={e => setSuspendReason(e.target.value)} />
+                  <textarea
+                    className={inputCls()}
+                    rows={3}
+                    value={suspendReason}
+                    onChange={e => setSuspendReason(e.target.value)}
+                  />
                 </Field>
                 <label className="flex items-center gap-2">
-                  <input type="checkbox" checked={blockLinkedUser} onChange={e => setBlockLinkedUser(e.target.checked)} />
+                  <input
+                    type="checkbox"
+                    checked={blockLinkedUser}
+                    onChange={e => setBlockLinkedUser(e.target.checked)}
+                  />
                   {t('permissions.blockLinkedUser')}
                 </label>
               </>
@@ -351,7 +398,11 @@ export function OrgStructurePage({
             >
               {t('common.cancel')}
             </button>
-            <button onClick={() => void confirmLeave()} disabled={saving} className="rounded-xl bg-violet-500 px-4 py-2 font-black text-slate-950">
+            <button
+              onClick={() => void confirmLeave()}
+              disabled={saving}
+              className="rounded-xl bg-violet-500 px-4 py-2 font-black text-slate-950"
+            >
               {t('common.confirm')}
             </button>
           </>
@@ -364,7 +415,12 @@ export function OrgStructurePage({
             </p>
             <p className="text-violet-200">{t('org.leaveWorkConfirm')}</p>
             <Field label={t('org.leaveWorkReason')} required>
-              <textarea className={inputCls()} rows={3} value={leaveReason} onChange={e => setLeaveReason(e.target.value)} />
+              <textarea
+                className={inputCls()}
+                rows={3}
+                value={leaveReason}
+                onChange={e => setLeaveReason(e.target.value)}
+              />
             </Field>
             <label className="flex items-center gap-2">
               <input type="checkbox" checked={blockLinkedUser} onChange={e => setBlockLinkedUser(e.target.checked)} />

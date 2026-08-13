@@ -23,9 +23,7 @@ type Props = {
 
 function formatHardware(op: StationOperationDetail): string {
   if (op.hardware.length === 0) return '—'
-  return op.hardware
-    .map(h => `${h.hardwareName}${h.hardwareQty != null ? ` ×${h.hardwareQty}` : ''}`)
-    .join(' · ')
+  return op.hardware.map(h => `${h.hardwareName}${h.hardwareQty != null ? ` ×${h.hardwareQty}` : ''}`).join(' · ')
 }
 
 function formatSecInt(seconds: number | null, minutes: number | null): string {
@@ -39,7 +37,15 @@ function formatMin(minutes: number | null): string {
   return Number.isInteger(minutes) ? String(minutes) : minutes.toFixed(2)
 }
 
-export function OperationsDataTable({ rows, contextLine, canManage, compact = false, onEdit, onDelete, onMove }: Props) {
+export function OperationsDataTable({
+  rows,
+  contextLine,
+  canManage,
+  compact = false,
+  onEdit,
+  onDelete,
+  onMove
+}: Props) {
   const { t } = useLang()
 
   if (rows.length === 0) {
@@ -52,28 +58,58 @@ export function OperationsDataTable({ rows, contextLine, canManage, compact = fa
         <thead className="bg-slate-950/90">
           <tr>
             {!compact && (
-              <th className="table-cell text-center font-black uppercase text-slate-400">{t('operations.cols.stationWorker')}</th>
+              <th className="table-cell text-center font-black uppercase text-slate-400">
+                {t('operations.cols.stationWorker')}
+              </th>
             )}
-            <th className="table-cell text-center font-black uppercase text-slate-400">{t('operations.cols.operationKind')}</th>
-            <th className="table-cell text-center font-black uppercase text-slate-400">{t('operations.cols.operation')}</th>
-            <th className="table-cell text-center font-black uppercase text-slate-400">{t('operations.cols.classification')}</th>
-            <th className="table-cell text-center font-black uppercase text-slate-400">{t('operations.cols.hardware')}</th>
-            <th className="table-cell text-center font-black uppercase text-slate-400">{t('operations.cols.techPosition')}</th>
-            <th className="table-cell text-center font-black uppercase text-slate-400">{t('operations.cols.taskPrecedence')}</th>
-            <th className="table-cell text-center font-black uppercase text-slate-400">{t('operations.cols.rankedWeight')}</th>
-            <th className="table-cell text-center font-black uppercase text-slate-400">{t('operations.cols.zoning')}</th>
-            <th className="table-cell text-center font-black uppercase text-slate-400">{t('operations.cols.timeSec')}</th>
-            <th className="table-cell text-center font-black uppercase text-slate-400">{t('operations.cols.timeMin')}</th>
+            <th className="table-cell text-center font-black uppercase text-slate-400">
+              {t('operations.cols.operationKind')}
+            </th>
+            <th className="table-cell text-center font-black uppercase text-slate-400">
+              {t('operations.cols.operation')}
+            </th>
+            <th className="table-cell text-center font-black uppercase text-slate-400">
+              {t('operations.cols.classification')}
+            </th>
+            <th className="table-cell text-center font-black uppercase text-slate-400">
+              {t('operations.cols.hardware')}
+            </th>
+            <th className="table-cell text-center font-black uppercase text-slate-400">
+              {t('operations.cols.techPosition')}
+            </th>
+            <th className="table-cell text-center font-black uppercase text-slate-400">
+              {t('operations.cols.taskPrecedence')}
+            </th>
+            <th className="table-cell text-center font-black uppercase text-slate-400">
+              {t('operations.cols.rankedWeight')}
+            </th>
+            <th className="table-cell text-center font-black uppercase text-slate-400">
+              {t('operations.cols.zoning')}
+            </th>
+            <th className="table-cell text-center font-black uppercase text-slate-400">
+              {t('operations.cols.timeSec')}
+            </th>
+            <th className="table-cell text-center font-black uppercase text-slate-400">
+              {t('operations.cols.timeMin')}
+            </th>
             {!compact && (
-              <th className="table-cell text-center font-black uppercase text-slate-400">{t('operations.cols.workerMin')}</th>
+              <th className="table-cell text-center font-black uppercase text-slate-400">
+                {t('operations.cols.workerMin')}
+              </th>
             )}
             {!compact && (
               <>
-                <th className="table-cell text-center font-black uppercase text-slate-400">{t('operations.cols.totalWorkers')}</th>
-                <th className="table-cell text-center font-black uppercase text-slate-400">{t('operations.cols.avgStationMin')}</th>
+                <th className="table-cell text-center font-black uppercase text-slate-400">
+                  {t('operations.cols.totalWorkers')}
+                </th>
+                <th className="table-cell text-center font-black uppercase text-slate-400">
+                  {t('operations.cols.avgStationMin')}
+                </th>
               </>
             )}
-            {canManage && <th className="table-cell text-center font-black uppercase text-slate-400">{t('common.actions')}</th>}
+            {canManage && (
+              <th className="table-cell text-center font-black uppercase text-slate-400">{t('common.actions')}</th>
+            )}
           </tr>
         </thead>
         <tbody className="divide-y divide-slate-800">
@@ -97,7 +133,9 @@ export function OperationsDataTable({ rows, contextLine, canManage, compact = fa
               <td className="table-cell text-center font-mono text-slate-300" dir="ltr">
                 {op.rankedPositionalWeight != null ? formatMin(op.rankedPositionalWeight) : '—'}
               </td>
-              <td className="table-cell max-w-[10rem] text-center text-slate-400">{op.zoningConstraints?.trim() || '—'}</td>
+              <td className="table-cell max-w-[10rem] text-center text-slate-400">
+                {op.zoningConstraints?.trim() || '—'}
+              </td>
               <td className="table-cell text-center font-mono text-orange-200" dir="ltr">
                 {formatSecInt(op.standardTimeSeconds, op.standardTimeMinutes)}
               </td>

@@ -1,12 +1,6 @@
 import { DEFAULT_PLANNED_WORK_HOURS } from '../Utils/workScheduleDefaults'
 
-export const PLAN_DAY_TYPES = [
-  'work',
-  'overtime',
-  'vacation',
-  'factory_vacation',
-  'substitute'
-] as const
+export const PLAN_DAY_TYPES = ['work', 'overtime', 'vacation', 'factory_vacation', 'substitute'] as const
 
 export type PlanDayType = (typeof PLAN_DAY_TYPES)[number]
 

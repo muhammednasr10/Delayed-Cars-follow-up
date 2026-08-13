@@ -109,11 +109,19 @@ export function ExcelColumnFilter({ column, label, baseFilters, selected, onAppl
         />
       </div>
       <div className="flex gap-1 border-b border-slate-800 px-2 py-1.5">
-        <button type="button" className="text-[10px] font-bold text-cyan-400 hover:underline" onClick={() => toggleAll(true)}>
+        <button
+          type="button"
+          className="text-[10px] font-bold text-cyan-400 hover:underline"
+          onClick={() => toggleAll(true)}
+        >
           {t('bom.excel.selectAll')}
         </button>
         <span className="text-slate-600">|</span>
-        <button type="button" className="text-[10px] font-bold text-slate-400 hover:underline" onClick={() => toggleAll(false)}>
+        <button
+          type="button"
+          className="text-[10px] font-bold text-slate-400 hover:underline"
+          onClick={() => toggleAll(false)}
+        >
           {t('bom.excel.clearAll')}
         </button>
       </div>
@@ -126,7 +134,10 @@ export function ExcelColumnFilter({ column, label, baseFilters, selected, onAppl
           options.map(v => (
             <label key={v} className="flex cursor-pointer items-center gap-2 rounded px-1 py-0.5 hover:bg-slate-800">
               <input type="checkbox" checked={draft.has(v)} onChange={() => toggleValue(v)} />
-              <span className="truncate text-xs text-slate-200" dir={column.includes('part') || column === 'station_code' ? 'ltr' : undefined}>
+              <span
+                className="truncate text-xs text-slate-200"
+                dir={column.includes('part') || column === 'station_code' ? 'ltr' : undefined}
+              >
                 {displayLabel(v)}
               </span>
             </label>
@@ -138,7 +149,11 @@ export function ExcelColumnFilter({ column, label, baseFilters, selected, onAppl
         <button type="button" className="rounded-lg bg-slate-800 px-3 py-1 text-xs font-bold" onClick={clearFilter}>
           {t('bom.excel.clearFilter')}
         </button>
-        <button type="button" className="rounded-lg bg-cyan-500 px-3 py-1 text-xs font-black text-slate-950" onClick={apply}>
+        <button
+          type="button"
+          className="rounded-lg bg-cyan-500 px-3 py-1 text-xs font-black text-slate-950"
+          onClick={apply}
+        >
           {t('common.confirm')}
         </button>
       </div>

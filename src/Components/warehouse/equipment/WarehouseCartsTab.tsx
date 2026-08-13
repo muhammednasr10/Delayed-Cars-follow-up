@@ -16,10 +16,7 @@ import { useEquipmentListState } from './useEquipmentListState'
 import { WarehouseEquipmentSectionHeader } from './WarehouseEquipmentSectionHeader'
 import { WarehouseEquipmentListCard } from './WarehouseEquipmentListCard'
 import { WarehouseEquipmentRowActions } from './WarehouseEquipmentRowActions'
-import {
-  WarehouseEquipmentCommonFields,
-  WarehouseEquipmentModalFooter
-} from './WarehouseEquipmentFormFields'
+import { WarehouseEquipmentCommonFields, WarehouseEquipmentModalFooter } from './WarehouseEquipmentFormFields'
 
 type Props = {
   warehouses: Warehouse[]
@@ -134,7 +131,11 @@ export function WarehouseCartsTab({ warehouses, canManage, notify }: Props) {
         searchPlaceholder={t('common.search')}
       />
 
-      <WarehouseEquipmentListCard loading={loading} isEmpty={filtered.length === 0} emptyTitle={t('warehouses.equipment.cartsEmpty')}>
+      <WarehouseEquipmentListCard
+        loading={loading}
+        isEmpty={filtered.length === 0}
+        emptyTitle={t('warehouses.equipment.cartsEmpty')}
+      >
         <div className="overflow-x-auto">
           <table className="w-full min-w-[640px]">
             <thead>
@@ -155,7 +156,9 @@ export function WarehouseCartsTab({ warehouses, canManage, notify }: Props) {
                     {row.code}
                   </td>
                   <td className={equipmentTd}>{row.name || '—'}</td>
-                  <td className={equipmentTd}>{row.warehouseCode ? `${row.warehouseCode} — ${row.warehouseName}` : '—'}</td>
+                  <td className={equipmentTd}>
+                    {row.warehouseCode ? `${row.warehouseCode} — ${row.warehouseName}` : '—'}
+                  </td>
                   <td className={equipmentTd}>{row.cartType || '—'}</td>
                   <td className={equipmentTd}>{row.capacity || '—'}</td>
                   <td className={equipmentTd}>{t(`warehouses.equipment.status.${row.status}`)}</td>
@@ -177,7 +180,9 @@ export function WarehouseCartsTab({ warehouses, canManage, notify }: Props) {
         icon={<ShoppingCart className="h-5 w-5" />}
         onClose={() => setFormOpen(false)}
         maxWidthClass="max-w-xl"
-        footer={<WarehouseEquipmentModalFooter busy={busy} onCancel={() => setFormOpen(false)} onSave={() => void submit()} />}
+        footer={
+          <WarehouseEquipmentModalFooter busy={busy} onCancel={() => setFormOpen(false)} onSave={() => void submit()} />
+        }
       >
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
           <WarehouseEquipmentCommonFields
@@ -192,7 +197,11 @@ export function WarehouseCartsTab({ warehouses, canManage, notify }: Props) {
           />
           <label className="block">
             <span className="mb-1 block text-xs text-slate-500">{t('warehouses.equipment.cols.cartType')}</span>
-            <input className={inputCls()} value={form.cartType} onChange={e => patchForm({ cartType: e.target.value })} />
+            <input
+              className={inputCls()}
+              value={form.cartType}
+              onChange={e => patchForm({ cartType: e.target.value })}
+            />
           </label>
         </div>
       </Modal>

@@ -146,8 +146,7 @@ export function TimeStudyMeasureCard({
 
         <div className="flex flex-wrap gap-4 text-sm text-slate-400">
           <span>
-            {t('engineering.timeStudy.readingsCount')}:{' '}
-            <strong className="text-cyan-200">{readings.length}</strong>
+            {t('engineering.timeStudy.readingsCount')}: <strong className="text-cyan-200">{readings.length}</strong>
           </span>
           {lastSeconds != null && (
             <span>

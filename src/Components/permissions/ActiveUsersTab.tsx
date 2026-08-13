@@ -45,7 +45,9 @@ export function ActiveUsersTab({ notify }: Props) {
           </div>
           <div>
             <h3 className="text-lg font-black text-white">{t('permissions.activeUsers.title')}</h3>
-            <p className="text-sm text-slate-400">{t('permissions.activeUsers.subtitle', { minutes: PRESENCE_ONLINE_MINUTES })}</p>
+            <p className="text-sm text-slate-400">
+              {t('permissions.activeUsers.subtitle', { minutes: PRESENCE_ONLINE_MINUTES })}
+            </p>
           </div>
         </div>
         <button
@@ -103,9 +105,7 @@ export function ActiveUsersTab({ notify }: Props) {
         )}
       </div>
 
-      <p className="text-xs text-slate-500">
-        {t('permissions.activeUsers.count', { n: rows.length })}
-      </p>
+      <p className="text-xs text-slate-500">{t('permissions.activeUsers.count', { n: rows.length })}</p>
     </div>
   )
 }

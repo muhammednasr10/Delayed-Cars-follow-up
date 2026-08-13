@@ -36,9 +36,4 @@ export type ManpowerAllocationLine = {
 }
 
 export type ManpowerWarningCode =
-  | 'absent'
-  | 'not_qualified'
-  | 'training_expired'
-  | 'in_training'
-  | 'level_too_low'
-  | 'understaffed'
+  'absent' | 'not_qualified' | 'training_expired' | 'in_training' | 'level_too_low' | 'understaffed'

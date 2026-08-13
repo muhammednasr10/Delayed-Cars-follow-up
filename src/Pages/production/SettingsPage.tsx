@@ -12,16 +12,22 @@ import { supabase } from '../../lib/supabase'
 import { ModelsHierarchySection } from '../../Components/ModelsHierarchySection'
 import { FactoryOrgHierarchySection } from '../../Components/FactoryOrgHierarchySection'
 import { StationsSection, type StationsSectionHandle } from '../../Components/StationsSection'
-import { SettingsColorsTab } from '../../Components/settings/SettingsLookupTabs'
+import {
+  SettingsColorsTab,
+  SettingsDepartmentsTab,
+  SettingsReasonsTab
+} from '../../Components/settings/SettingsLookupTabs'
+import { getMpDepartmentOptions, getMpReasonOptions } from '../../services/mpLookupService'
+import type { MpLookupOption } from '../../Types/mpLookup'
 import { useLang } from '../../i18n/LanguageContext'
 
-const crudTabs: SettingsTab[] = ['administrations', 'models', 'stations', 'colors']
+const crudTabs: SettingsTab[] = ['administrations', 'models', 'stations', 'colors', 'helperLists']
 
 export function SettingsPage() {
   const { t } = useLang()
   const { canAccess: canAccessSettings } = useCanAccessSettings()
   const stationsRef = useRef<StationsSectionHandle>(null)
-  const { settingsTab: activeTab, setSettingsTab } = useNavigation()
+  const { settingsTab: activeTab, settingsStationsSubTab, setSettingsTab } = useNavigation()
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const [success, setSuccess] = useState('')
@@ -29,6 +35,8 @@ export function SettingsPage() {
   const [models, setModels] = useState<VehicleModel[]>([])
   const [orgUnits, setOrgUnits] = useState<FactoryOrgUnit[]>([])
   const [colors, setColors] = useState<VehicleColor[]>([])
+  const [reasonOptions, setReasonOptions] = useState<MpLookupOption[]>([])
+  const [departmentOptions, setDepartmentOptions] = useState<MpLookupOption[]>([])
 
   useEffect(() => {
     if (!SETTINGS_TAB_ORDER.includes(activeTab)) {
@@ -44,14 +52,18 @@ export function SettingsPage() {
     setLoading(true)
     setError('')
     try {
-      const [modelsData, orgUnitsData, colorsData] = await Promise.all([
-        getVehicleModels(),
+      const [modelsData, orgUnitsData, colorsData, reasonsData, departmentsData] = await Promise.all([
+        getVehicleModels({ includeInactive: true }),
         getFactoryOrgUnits({ includeInactive: true }),
-        getAllVehicleColors()
+        getAllVehicleColors(),
+        getMpReasonOptions(false),
+        getMpDepartmentOptions(false)
       ])
       setModels(modelsData)
       setOrgUnits(orgUnitsData)
       setColors(colorsData)
+      setReasonOptions(reasonsData)
+      setDepartmentOptions(departmentsData)
     } catch (err) {
       setError(err instanceof Error ? err.message : t('common.error'))
     } finally {
@@ -86,9 +98,14 @@ export function SettingsPage() {
   }
 
   function refreshActiveTab() {
-    if (activeTab === 'stations') void stationsRef.current?.reload()
+    if (activeTab === 'stations' && settingsStationsSubTab === 'assemblyLine') void stationsRef.current?.reload()
     else void loadAll()
   }
+
+  const activeTabLabel =
+    activeTab === 'stations'
+      ? `${t('settings.tabs.stations')} — ${t(`settings.stationsSubTabs.${settingsStationsSubTab}`)}`
+      : t(`settings.tabs.${activeTab}`)
 
   if (!canAccessSettings) {
     return (
@@ -102,8 +119,14 @@ export function SettingsPage() {
   const feedback =
     crudTabs.includes(activeTab) && (error || success) ? (
       <>
-        {error && <div className="rounded-xl border border-red-500/30 bg-red-500/10 p-3 text-sm text-red-200">{error}</div>}
-        {success && <div className="rounded-xl border border-emerald-500/30 bg-emerald-500/10 p-3 text-sm text-emerald-200">{success}</div>}
+        {error && (
+          <div className="rounded-xl border border-red-500/30 bg-red-500/10 p-3 text-sm text-red-200">{error}</div>
+        )}
+        {success && (
+          <div className="rounded-xl border border-emerald-500/30 bg-emerald-500/10 p-3 text-sm text-emerald-200">
+            {success}
+          </div>
+        )}
       </>
     ) : null
 
@@ -118,7 +141,7 @@ export function SettingsPage() {
             <div>
               <h2 className="text-lg font-black text-white">{t('settings.title')}</h2>
               <p className="text-sm text-slate-400">
-                {t(`settings.tabs.${activeTab}`)} — {t('settings.subtitle')}
+                {activeTabLabel} — {t('settings.subtitle')}
               </p>
             </div>
           </div>
@@ -145,12 +168,31 @@ export function SettingsPage() {
         />
       )}
       {activeTab === 'models' && (
-        <ModelsHierarchySection models={models} busy={loading} onChanged={loadAll} onError={setError} onSuccess={showSuccess} />
+        <ModelsHierarchySection
+          models={models}
+          busy={loading}
+          onChanged={loadAll}
+          onError={setError}
+          onSuccess={showSuccess}
+        />
       )}
-      {activeTab === 'stations' && (
-        <StationsSection ref={stationsRef} canManage sectionTitle={t('settings.tabs.stations')} onError={setError} onSuccess={showSuccess} />
+      {activeTab === 'stations' && settingsStationsSubTab === 'assemblyLine' && (
+        <StationsSection
+          ref={stationsRef}
+          canManage
+          stationTypes={['main_line']}
+          sectionTitle={t('settings.stationsSubTabs.assemblyLine')}
+          onError={setError}
+          onSuccess={showSuccess}
+        />
       )}
       {activeTab === 'colors' && <SettingsColorsTab colors={colors} busy={loading} runAction={runAction} />}
+      {activeTab === 'helperLists' && (
+        <div className="space-y-4">
+          <SettingsReasonsTab reasonOptions={reasonOptions} busy={loading} runAction={runAction} />
+          <SettingsDepartmentsTab departmentOptions={departmentOptions} busy={loading} runAction={runAction} />
+        </div>
+      )}
       {activeTab === 'users' && (
         <UsersPermissionsPanel
           notify={(m, err) => {

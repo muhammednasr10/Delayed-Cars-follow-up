@@ -70,7 +70,9 @@ export function ScratchesRecordTab({ items, models, modelsLoading, loading, savi
       </div>
 
       {success && (
-        <div className="rounded-xl border border-emerald-500/30 bg-emerald-500/10 p-3 text-sm text-emerald-200">{success}</div>
+        <div className="rounded-xl border border-emerald-500/30 bg-emerald-500/10 p-3 text-sm text-emerald-200">
+          {success}
+        </div>
       )}
 
       <div className="card-industrial overflow-hidden">
@@ -114,8 +116,16 @@ export function ScratchesRecordTab({ items, models, modelsLoading, loading, savi
                       <td className={`${cell} text-slate-300`}>{formatDate(row.recordedAt)}</td>
                       <td className={cell}>
                         {row.imageUrl ? (
-                          <button type="button" onClick={() => setPreviewImage(row.imageUrl!)} className="mx-auto block">
-                            <img src={row.imageUrl} alt="" className="h-10 w-10 rounded-lg border border-slate-700 object-cover" />
+                          <button
+                            type="button"
+                            onClick={() => setPreviewImage(row.imageUrl!)}
+                            className="mx-auto block"
+                          >
+                            <img
+                              src={row.imageUrl}
+                              alt=""
+                              className="h-10 w-10 rounded-lg border border-slate-700 object-cover"
+                            />
                           </button>
                         ) : (
                           '—'

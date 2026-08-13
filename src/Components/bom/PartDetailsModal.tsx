@@ -5,6 +5,7 @@ import { Modal } from '../Modal'
 import { getPartById, getPartBomUsage } from '../../services/partsService'
 import type { BomItemDetail, Part } from '../../Types/bom'
 import { CategoryBadge } from './CategoryBadge'
+import { joinDistinctPartLabels } from '../../Utils/partDisplayNames'
 
 type Props = {
   partId: string | null
@@ -30,7 +31,13 @@ export function PartDetailsModal({ partId, open, onClose }: Props) {
   }, [open, partId])
 
   return (
-    <Modal open={open} title={t('bom.partDetails')} icon={<Package className="h-5 w-5" />} onClose={onClose} maxWidthClass="max-w-2xl">
+    <Modal
+      open={open}
+      title={t('bom.partDetails')}
+      icon={<Package className="h-5 w-5" />}
+      onClose={onClose}
+      maxWidthClass="max-w-2xl"
+    >
       {loading ? (
         <p className="text-sm text-slate-400">{t('common.loading')}</p>
       ) : part ? (
@@ -51,7 +58,9 @@ export function PartDetailsModal({ partId, open, onClose }: Props) {
           </div>
           <div>
             <p className="text-[10px] font-bold uppercase text-slate-500">{t('bom.partName')}</p>
-            <p className="text-white">{part.part_name_ar || part.part_name_en || '—'}</p>
+            <p className="text-white">
+              {joinDistinctPartLabels(part.part_name_ar, part.part_name_en, part.common_name) || '—'}
+            </p>
           </div>
           <div>
             <p className="mb-2 text-[10px] font-bold uppercase text-slate-500">{t('bom.usageTitle')}</p>
@@ -64,7 +73,9 @@ export function PartDetailsModal({ partId, open, onClose }: Props) {
                     </span>
                     <span className="text-slate-400">{u.vehicle_model_name || u.model_family || '—'}</span>
                     <CategoryBadge label={u.bom_classification || '—'} />
-                    <span className="text-orange-200">{u.quantity} {t('bom.qty')}</span>
+                    <span className="text-orange-200">
+                      {u.quantity} {t('bom.qty')}
+                    </span>
                   </div>
                   {u.source_sheet && (
                     <p className="mt-1 text-[10px] text-slate-500">

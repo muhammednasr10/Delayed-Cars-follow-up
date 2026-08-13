@@ -116,11 +116,7 @@ export async function seedAllocationFromRouting(
   const routes = await getModelRouting(vehicleModelId)
   if (routes.length === 0) return 0
 
-  const { data: existing } = await client()
-    .from('manpower_allocation_lines')
-    .select('id')
-    .eq('day_id', dayId)
-    .limit(1)
+  const { data: existing } = await client().from('manpower_allocation_lines').select('id').eq('day_id', dayId).limit(1)
 
   if (existing && existing.length > 0) {
     if (options?.replace) await clearAllocationLines(dayId)
@@ -282,14 +278,10 @@ export async function getUnderstaffedOperations(dayId: string): Promise<string[]
     if (l.assigned_employee_id) cur.assigned++
     byOp.set(l.operation_id, cur)
   }
-  return [...byOp.entries()]
-    .filter(([, v]) => v.assigned < v.required)
-    .map(([opId]) => opId)
+  return [...byOp.entries()].filter(([, v]) => v.assigned < v.required).map(([opId]) => opId)
 }
 
-export async function listActiveEmployees(): Promise<
-  { id: string; employee_code: string; full_name: string }[]
-> {
+export async function listActiveEmployees(): Promise<{ id: string; employee_code: string; full_name: string }[]> {
   const { data, error } = await client()
     .from('employees')
     .select('id, employee_code, full_name')

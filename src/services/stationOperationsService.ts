@@ -161,7 +161,7 @@ function appendWorkerToBuckets(
   const stNum = meta?.station_number ?? childOps[0]?.stationNumber ?? childId
   const parentId = meta?.parent_station_id ?? null
   const inferredCode = inferParentStationCode(stNum)
-  const parentMeta = parentId ? stationMeta.get(parentId) ?? null : null
+  const parentMeta = parentId ? (stationMeta.get(parentId) ?? null) : null
   const parentCode = parentMeta?.station_number ?? inferredCode ?? stNum
   const bucketKey = normalizeStationReferenceCode(
     parentMeta?.station_number ?? inferredCode ?? normalizeStationReferenceCode(stNum)
@@ -191,14 +191,10 @@ function findMasterStationMeta(baseCode: string, stationMeta: Map<string, Statio
   return null
 }
 
-function enrichWorkersForHeadcount(
-  group: ParentStationOperationsGroup,
-  stationMeta: Map<string, StationMeta>
-): void {
+function enrichWorkersForHeadcount(group: ParentStationOperationsGroup, stationMeta: Map<string, StationMeta>): void {
   const base = normalizeStationReferenceCode(group.stationNumber)
   const masterMeta = findMasterStationMeta(base, stationMeta)
-  const target =
-    masterMeta?.headcountWorkers ?? group.headcountWorkersOverride ?? group.totalWorkers ?? 0
+  const target = masterMeta?.headcountWorkers ?? group.headcountWorkersOverride ?? group.totalWorkers ?? 0
   if (target < 1) return
 
   if (masterMeta?.headcountWorkers != null) {
@@ -223,15 +219,15 @@ function enrichWorkersForHeadcount(
     known.add(idx)
   }
 
-  group.workers.sort(
-    (a, b) => a.sortOrder - b.sortOrder || (a.workerIndex ?? 99) - (b.workerIndex ?? 99)
-  )
+  group.workers.sort((a, b) => a.sortOrder - b.sortOrder || (a.workerIndex ?? 99) - (b.workerIndex ?? 99))
 }
 
 async function loadOperationsRows(): Promise<OpRow[]> {
   let res = await client()
     .from('station_operations')
-    .select('*, stations(station_number, station_name, worker1_operations_summary, sort_order, parent_station_id, line_name, work_areas(name))')
+    .select(
+      '*, stations(station_number, station_name, worker1_operations_summary, sort_order, parent_station_id, line_name, work_areas(name))'
+    )
     .eq('is_active', true)
     .order('sequence_no')
   if (res.error && String(res.error.message).includes('worker1_operations_summary')) {
@@ -249,7 +245,9 @@ async function loadOperationsRows(): Promise<OpRow[]> {
   } else if (res.error && String(res.error.message).includes('parent_model_id')) {
     res = await client()
       .from('station_operations')
-      .select('*, stations(station_number, station_name, worker1_operations_summary, sort_order, parent_station_id, line_name, work_areas(name))')
+      .select(
+        '*, stations(station_number, station_name, worker1_operations_summary, sort_order, parent_station_id, line_name, work_areas(name))'
+      )
       .eq('is_active', true)
       .order('sequence_no')
   }
@@ -260,12 +258,14 @@ async function loadOperationsRows(): Promise<OpRow[]> {
 async function loadStationMeta(): Promise<Map<string, StationMeta>> {
   const fullSelect =
     'id, station_number, station_name, parent_station_id, sort_order, line_name, work_area_id, worker1_operations_summary, headcount_workers, avg_station_time_minutes, work_areas(name)'
-  let rows: Record<string, unknown>[] = []
-  let { data, error } = await client().from('stations').select(fullSelect).eq('is_active', true)
+  let rows: Record<string, unknown>[]
+  const { data, error } = await client().from('stations').select(fullSelect).eq('is_active', true)
   if (error?.message.includes('worker1_operations_summary') || error?.message.includes('headcount_workers')) {
     const retry = await client()
       .from('stations')
-      .select('id, station_number, station_name, parent_station_id, sort_order, line_name, work_area_id, work_areas(name)')
+      .select(
+        'id, station_number, station_name, parent_station_id, sort_order, line_name, work_area_id, work_areas(name)'
+      )
       .eq('is_active', true)
     if (retry.error) throw new Error(retry.error.message)
     rows = (retry.data ?? []) as Record<string, unknown>[]
@@ -309,7 +309,7 @@ function buildHierarchy(
 ): ParentStationOperationsGroup[] {
   const byChild = new Map<string, StationOperationDetail[]>()
   for (const row of ops) {
-    const modelName = row.parent_model_id ? parentModelNames.get(row.parent_model_id) ?? null : null
+    const modelName = row.parent_model_id ? (parentModelNames.get(row.parent_model_id) ?? null) : null
     const op = mapOp(row, hwMap.get(row.id) ?? [], modelName)
     if (filterIds && !filterIds.has(op.id)) continue
     const list = byChild.get(row.station_id) ?? []
@@ -335,23 +335,19 @@ function buildHierarchy(
   const parents: ParentStationOperationsGroup[] = []
   for (const [, bucket] of parentBuckets) {
     const p = bucket.parent
-    const workers = bucket.workers.sort((a, b) => a.sortOrder - b.sortOrder || (a.workerIndex ?? 99) - (b.workerIndex ?? 99))
+    const workers = bucket.workers.sort(
+      (a, b) => a.sortOrder - b.sortOrder || (a.workerIndex ?? 99) - (b.workerIndex ?? 99)
+    )
     const workerMeta = workers[0] ? stationMeta.get(workers[0].stationId) : null
     const codeSource = p?.station_number ?? workerMeta?.station_number ?? bucket.parentCode
     const resolvedCode = normalizeStationReferenceCode(codeSource)
     const masterMeta = findMasterStationMeta(resolvedCode, stationMeta)
     const commonName =
-      p?.station_name?.trim() ||
-      masterMeta?.station_name?.trim() ||
-      workerMeta?.station_name?.trim() ||
-      resolvedCode
+      p?.station_name?.trim() || masterMeta?.station_name?.trim() || workerMeta?.station_name?.trim() || resolvedCode
     const workerTotals = workers.map(w => w.totalWorkerTimeMinutes).filter(t => t > 0)
     const computedWorkers = workers.length
-    const computedAvg = workerTotals.length
-      ? workerTotals.reduce((s, t) => s + t, 0) / workerTotals.length
-      : null
-    const headcount =
-      masterMeta?.headcountWorkers ?? p?.headcountWorkers ?? workerMeta?.headcountWorkers ?? null
+    const computedAvg = workerTotals.length ? workerTotals.reduce((s, t) => s + t, 0) / workerTotals.length : null
+    const headcount = masterMeta?.headcountWorkers ?? p?.headcountWorkers ?? workerMeta?.headcountWorkers ?? null
 
     const group: ParentStationOperationsGroup = {
       stationId: masterMeta?.id ?? p?.id ?? workerMeta?.id ?? null,
@@ -368,12 +364,17 @@ function buildHierarchy(
         p?.workAreaName ??
         masterMeta?.workAreaName ??
         workerMeta?.workAreaName ??
-        (workers[0] ? stationMeta.get(workers[0].stationId)?.workAreaName ?? null : null),
+        (workers[0] ? (stationMeta.get(workers[0].stationId)?.workAreaName ?? null) : null),
       lineName: p?.line_name ?? masterMeta?.line_name ?? workerMeta?.line_name ?? null,
       headcountWorkersOverride: headcount,
-      avgStationTimeOverride: p?.avgStationTimeMinutes ?? masterMeta?.avgStationTimeMinutes ?? workerMeta?.avgStationTimeMinutes ?? null,
+      avgStationTimeOverride:
+        p?.avgStationTimeMinutes ?? masterMeta?.avgStationTimeMinutes ?? workerMeta?.avgStationTimeMinutes ?? null,
       totalWorkers: headcount ?? computedWorkers,
-      avgStationTimeMinutes: p?.avgStationTimeMinutes ?? masterMeta?.avgStationTimeMinutes ?? workerMeta?.avgStationTimeMinutes ?? computedAvg,
+      avgStationTimeMinutes:
+        p?.avgStationTimeMinutes ??
+        masterMeta?.avgStationTimeMinutes ??
+        workerMeta?.avgStationTimeMinutes ??
+        computedAvg,
       sortOrder: p?.sort_order ?? masterMeta?.sort_order ?? workers[0]?.sortOrder ?? 0,
       workers
     }
@@ -560,43 +561,30 @@ async function replaceOperationHardware(operationId: string, hardware: Operation
   const rows = hardware.filter(h => h.hardwareName.trim())
   if (rows.length === 0) return
 
-  const { error } = await client().from('operation_hardware_requirements').insert(
-    rows.map((h, i) => ({
-      operation_id: operationId,
-      hardware_name: h.hardwareName.trim(),
-      hardware_qty: h.hardwareQty,
-      hardware_type: h.hardwareType?.trim() || null,
-      hardware_size: h.hardwareSize?.trim() || null,
-      sort_order: i
-    }))
-  )
+  const { error } = await client()
+    .from('operation_hardware_requirements')
+    .insert(
+      rows.map((h, i) => ({
+        operation_id: operationId,
+        hardware_name: h.hardwareName.trim(),
+        hardware_qty: h.hardwareQty,
+        hardware_type: h.hardwareType?.trim() || null,
+        hardware_size: h.hardwareSize?.trim() || null,
+        sort_order: i
+      }))
+    )
   if (error) throw new Error(error.message)
 }
 
 export async function updateStationOperation(id: string, input: StationOperationUpdate): Promise<void> {
-  let { error } = await client().from('station_operations').update({
-    tool_spec: input.toolSpec?.trim() || null,
-    operation_name_ar: input.operationNameAr.trim(),
-    operation_name_en: input.operationNameEn?.trim() || null,
-    operation_type: input.operationType,
-    parent_model_id: input.parentModelId || null,
-    technician_position: input.technicianPosition?.trim() || null,
-    task_precedence: input.taskPrecedence?.trim() || null,
-    ranked_positional_weight: input.rankedPositionalWeight,
-    zoning_constraints: input.zoningConstraints?.trim() || null,
-    standard_time_seconds: input.standardTimeSeconds,
-    standard_time_minutes: input.standardTimeMinutes,
-    worker_time_minutes: input.workerTimeMinutes,
-    required_manpower_count: input.requiredManpowerCount,
-    notes: input.notes?.trim() || null,
-    is_critical: input.isCritical
-  }).eq('id', id)
-  if (error && String(error.message).includes('parent_model_id')) {
-    ;({ error } = await client().from('station_operations').update({
+  let { error } = await client()
+    .from('station_operations')
+    .update({
       tool_spec: input.toolSpec?.trim() || null,
       operation_name_ar: input.operationNameAr.trim(),
       operation_name_en: input.operationNameEn?.trim() || null,
       operation_type: input.operationType,
+      parent_model_id: input.parentModelId || null,
       technician_position: input.technicianPosition?.trim() || null,
       task_precedence: input.taskPrecedence?.trim() || null,
       ranked_positional_weight: input.rankedPositionalWeight,
@@ -607,7 +595,28 @@ export async function updateStationOperation(id: string, input: StationOperation
       required_manpower_count: input.requiredManpowerCount,
       notes: input.notes?.trim() || null,
       is_critical: input.isCritical
-    }).eq('id', id))
+    })
+    .eq('id', id)
+  if (error && String(error.message).includes('parent_model_id')) {
+    ;({ error } = await client()
+      .from('station_operations')
+      .update({
+        tool_spec: input.toolSpec?.trim() || null,
+        operation_name_ar: input.operationNameAr.trim(),
+        operation_name_en: input.operationNameEn?.trim() || null,
+        operation_type: input.operationType,
+        technician_position: input.technicianPosition?.trim() || null,
+        task_precedence: input.taskPrecedence?.trim() || null,
+        ranked_positional_weight: input.rankedPositionalWeight,
+        zoning_constraints: input.zoningConstraints?.trim() || null,
+        standard_time_seconds: input.standardTimeSeconds,
+        standard_time_minutes: input.standardTimeMinutes,
+        worker_time_minutes: input.workerTimeMinutes,
+        required_manpower_count: input.requiredManpowerCount,
+        notes: input.notes?.trim() || null,
+        is_critical: input.isCritical
+      })
+      .eq('id', id))
   }
   if (error) throw new Error(error.message)
   await replaceOperationHardware(id, input.hardware)
@@ -819,9 +828,7 @@ export async function syncWorkerLinesToHeadcount(
   }
 
   return ensured.sort(
-    (a, b) =>
-      (workerIndexFromStationCode(a.station_number) ?? 0) -
-      (workerIndexFromStationCode(b.station_number) ?? 0)
+    (a, b) => (workerIndexFromStationCode(a.station_number) ?? 0) - (workerIndexFromStationCode(b.station_number) ?? 0)
   )
 }
 
@@ -899,7 +906,10 @@ export async function moveStationOperation(operationId: string, targetStationId:
   if (updErr) throw new Error(updErr.message)
 
   await client().from('operation_time_studies').update({ station_id: targetStationId }).eq('operation_id', operationId)
-  await client().from('vehicle_model_operations').update({ station_id: targetStationId }).eq('operation_id', operationId)
+  await client()
+    .from('vehicle_model_operations')
+    .update({ station_id: targetStationId })
+    .eq('operation_id', operationId)
 
   const { data: skill } = await client()
     .from('training_skills')
@@ -949,9 +959,7 @@ export async function deactivateStationWithWorkers(parentStationId: string, work
 }
 
 export function suggestNextWorkerCode(parentNumber: string, workers: WorkerOperationsGroup[]): string {
-  const indices = workers
-    .map(w => workerIndexFromStationCode(w.stationNumber))
-    .filter((n): n is number => n != null)
+  const indices = workers.map(w => workerIndexFromStationCode(w.stationNumber)).filter((n): n is number => n != null)
   const next = indices.length > 0 ? Math.max(...indices) + 1 : 1
   return `${parentNumber}-L${next}`
 }

@@ -66,9 +66,15 @@ export function QualityPage() {
 
   useEffect(() => {
     void load()
-    getStations().then(setStations).catch(() => setStations([]))
-    getVehicleModels().then(setModels).catch(() => setModels([]))
-    getQnCategoryOptions().then(setCategories).catch(() => setCategories([]))
+    getStations()
+      .then(setStations)
+      .catch(() => setStations([]))
+    getVehicleModels()
+      .then(setModels)
+      .catch(() => setModels([]))
+    getQnCategoryOptions()
+      .then(setCategories)
+      .catch(() => setCategories([]))
   }, [load])
 
   function notify(msg: string) {
@@ -135,7 +141,9 @@ export function QualityPage() {
         <div className="rounded-xl border border-red-500/30 bg-red-500/10 p-3 text-sm text-red-200">{error}</div>
       )}
       {success && (
-        <div className="rounded-xl border border-emerald-500/30 bg-emerald-500/10 p-3 text-sm text-emerald-200">{success}</div>
+        <div className="rounded-xl border border-emerald-500/30 bg-emerald-500/10 p-3 text-sm text-emerald-200">
+          {success}
+        </div>
       )}
 
       {tab === 'record' && (

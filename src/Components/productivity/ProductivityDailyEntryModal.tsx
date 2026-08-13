@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { LogIn, LogOut, Save, Wrench } from 'lucide-react'
-import { useAuth } from '../../Context/AuthContext'
+import { useCanManageProduction } from '../../hooks/useCanManageProduction'
 import { useLang } from '../../i18n/LanguageContext'
 import { Modal } from '../Modal'
 import { Field, inputCls } from '../FormField'
@@ -15,14 +15,8 @@ import {
   productivityModelRows,
   readDayQuantities
 } from '../../services/entryProductivityService'
-import {
-  bulkUpsertExitProductivity,
-  getExitProductivityMonth
-} from '../../services/exitProductivityService'
-import {
-  bulkUpsertRepairProductivity,
-  getRepairProductivityMonth
-} from '../../services/repairProductivityService'
+import { bulkUpsertExitProductivity, getExitProductivityMonth } from '../../services/exitProductivityService'
+import { bulkUpsertRepairProductivity, getRepairProductivityMonth } from '../../services/repairProductivityService'
 import { getProductionLineStops } from '../../services/productionStopService'
 import { getVehicleModels } from '../../services/settingsService'
 import type { ProductionLineStop } from '../../Types/productionStop'
@@ -46,8 +40,7 @@ function parseYm(workDate: string): { year: number; month: number } {
 
 export function ProductivityDailyEntryModal({ open, kind, workDate, onClose, onSaved }: Props) {
   const { t } = useLang()
-  const { hasRole } = useAuth()
-  const canManage = hasRole('admin', 'production')
+  const canManage = useCanManageProduction()
 
   const { year, month } = useMemo(() => parseYm(workDate), [workDate])
   const [models, setModels] = useState<VehicleModel[]>([])

@@ -7,15 +7,26 @@ function client() {
 }
 
 export async function getFamilies(): Promise<VehicleModelFamily[]> {
-  const { data, error } = await client().from('vehicle_model_families').select('*').eq('is_active', true).order('family_code')
+  const { data, error } = await client()
+    .from('vehicle_model_families')
+    .select('*')
+    .eq('is_active', true)
+    .order('family_code')
   if (error) throw new Error(error.message)
   return (data ?? []).map(r => ({
-    id: r.id, familyCode: r.family_code, nameAr: r.name_ar, nameEn: r.name_en, isActive: r.is_active
+    id: r.id,
+    familyCode: r.family_code,
+    nameAr: r.name_ar,
+    nameEn: r.name_en,
+    isActive: r.is_active
   }))
 }
 
 export async function getFamilyMembers(familyId: string): Promise<string[]> {
-  const { data, error } = await client().from('vehicle_model_family_members').select('vehicle_model_id').eq('family_id', familyId)
+  const { data, error } = await client()
+    .from('vehicle_model_family_members')
+    .select('vehicle_model_id')
+    .eq('family_id', familyId)
   if (error) throw new Error(error.message)
   return (data ?? []).map(r => r.vehicle_model_id as string)
 }
@@ -24,9 +35,9 @@ export async function setFamilyMembers(familyId: string, modelIds: string[]): Pr
   const { error: delErr } = await client().from('vehicle_model_family_members').delete().eq('family_id', familyId)
   if (delErr) throw new Error(delErr.message)
   if (modelIds.length === 0) return
-  const { error } = await client().from('vehicle_model_family_members').insert(
-    modelIds.map(vehicle_model_id => ({ family_id: familyId, vehicle_model_id }))
-  )
+  const { error } = await client()
+    .from('vehicle_model_family_members')
+    .insert(modelIds.map(vehicle_model_id => ({ family_id: familyId, vehicle_model_id })))
   if (error) throw new Error(error.message)
 }
 

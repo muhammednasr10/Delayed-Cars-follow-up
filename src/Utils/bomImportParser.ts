@@ -153,9 +153,7 @@ export function parseBomSpreadsheetRows(rows: string[][], sheetName?: string): B
     const qtyByModel = parseQtyByModel(qtyRaw)
 
     const modelsForRows =
-      applicableModels.length > 0
-        ? applicableModels
-        : qtyByModel.filter(q => q.model).map(q => q.model)
+      applicableModels.length > 0 ? applicableModels : qtyByModel.filter(q => q.model).map(q => q.model)
 
     const expandedModels = modelsForRows.length ? modelsForRows : ['']
 
@@ -190,11 +188,7 @@ export function parseBomSpreadsheetRows(rows: string[][], sheetName?: string): B
         partNumberNew: cell(row, col, 'part_number_new'),
         alternativePartNo: cell(row, col, 'alternative_part_no'),
         partNameAr: cell(row, col, 'part_name_ar'),
-        partNameEn: sanitizePartNameEn(
-          cell(row, col, 'part_name_ar'),
-          cell(row, col, 'part_name_en'),
-          raw
-        ),
+        partNameEn: sanitizePartNameEn(cell(row, col, 'part_name_ar'), cell(row, col, 'part_name_en'), raw),
         partKind: cell(row, col, 'part_kind'),
         bomClassification: cell(row, col, 'bom_classification'),
         qtyByModelRaw: qtyRaw,

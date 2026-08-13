@@ -1,9 +1,4 @@
-import type {
-  VehicleCompletionStatus,
-  VehicleDeliveryStatus,
-  VehicleProductionStatus,
-  VehicleQcStatus
-} from './enums'
+import type { VehicleCompletionStatus, VehicleDeliveryStatus, VehicleProductionStatus, VehicleQcStatus } from './enums'
 
 // Row shape returned by the `v_vehicle_overview` reporting view.
 export type VehicleOverview = {
@@ -24,6 +19,7 @@ export type VehicleOverview = {
   productionOrderId?: string | null
   productionOrderNumber: string
   factoryOrgUnitId?: string | null
+  deliveredAt?: string | null
   createdAt: string
   updatedAt: string
 }

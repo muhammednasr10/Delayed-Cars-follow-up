@@ -133,7 +133,7 @@ export function StationTrainingMatrixTab({ employees, stations, levels, canManag
   const quickVirtual = allVirtualColumns.find(c => `${c.stationId}:${c.levelTrack}` === quickVirtualKey) ?? null
   const quickLevel =
     quickEmployee && quickVirtual
-      ? levelMap.get(cellKey(quickEmployee.id, quickVirtual.stationId, quickVirtual.levelTrack))?.level ?? null
+      ? (levelMap.get(cellKey(quickEmployee.id, quickVirtual.stationId, quickVirtual.levelTrack))?.level ?? null)
       : null
 
   const summary = useMemo(() => {
@@ -234,12 +234,7 @@ export function StationTrainingMatrixTab({ employees, stations, levels, canManag
     }
   }
 
-  async function applyLevel(
-    employeeId: string,
-    stationId: string,
-    levelTrack: number,
-    target: TrainingLevel | null
-  ) {
+  async function applyLevel(employeeId: string, stationId: string, levelTrack: number, target: TrainingLevel | null) {
     if (!canManage) return
     const key = cellKey(employeeId, stationId, levelTrack)
     setBusyKey(key)
@@ -254,12 +249,7 @@ export function StationTrainingMatrixTab({ employees, stations, levels, canManag
     }
   }
 
-  function openPicker(
-    e: React.MouseEvent,
-    employeeId: string,
-    stationId: string,
-    levelTrack: number
-  ) {
+  function openPicker(e: React.MouseEvent, employeeId: string, stationId: string, levelTrack: number) {
     if (!canManage) return
     e.stopPropagation()
     const rect = (e.currentTarget as HTMLElement).getBoundingClientRect()
@@ -286,7 +276,7 @@ export function StationTrainingMatrixTab({ employees, stations, levels, canManag
   }
 
   const pickerCurrent = picker
-    ? levelMap.get(cellKey(picker.employeeId, picker.stationId, picker.levelTrack))?.level ?? null
+    ? (levelMap.get(cellKey(picker.employeeId, picker.stationId, picker.levelTrack))?.level ?? null)
     : null
 
   const pickerColumn = picker
@@ -379,7 +369,9 @@ export function StationTrainingMatrixTab({ employees, stations, levels, canManag
           </h4>
           <div className="grid grid-cols-1 gap-3 lg:grid-cols-3">
             <div ref={employeeBoxRef} className="relative">
-              <label className="mb-1 block text-xs text-slate-500">{t('training.stationMatrix.quickEdit.employee')}</label>
+              <label className="mb-1 block text-xs text-slate-500">
+                {t('training.stationMatrix.quickEdit.employee')}
+              </label>
               <div className="relative">
                 <Search className="pointer-events-none absolute start-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-500" />
                 <input
@@ -426,7 +418,9 @@ export function StationTrainingMatrixTab({ employees, stations, levels, canManag
             </div>
 
             <div>
-              <label className="mb-1 block text-xs text-slate-500">{t('training.stationMatrix.quickEdit.station')}</label>
+              <label className="mb-1 block text-xs text-slate-500">
+                {t('training.stationMatrix.quickEdit.station')}
+              </label>
               <select
                 className="input-dark"
                 value={quickVirtualKey}
@@ -479,8 +473,7 @@ export function StationTrainingMatrixTab({ employees, stations, levels, canManag
                 <p className="mt-2 text-xs text-slate-500">
                   {t('training.stationMatrix.quickEdit.current')}:{' '}
                   <span className="font-bold text-slate-300" dir="ltr">
-                    {quickVirtual.label}{' '}
-                    {quickLevel ? `→ ${t(`training.stationMatrix.lvl.${quickLevel}`)}` : '→ —'}
+                    {quickVirtual.label} {quickLevel ? `→ ${t(`training.stationMatrix.lvl.${quickLevel}`)}` : '→ —'}
                   </span>
                 </p>
               )}
@@ -490,7 +483,11 @@ export function StationTrainingMatrixTab({ employees, stations, levels, canManag
 
         <div className="mt-3">
           <label className="mb-1 block text-xs text-slate-500">{t('training.stationMatrix.tableStationFilter')}</label>
-          <select className="input-dark max-w-md" value={stationFilter} onChange={e => setStationFilter(e.target.value)}>
+          <select
+            className="input-dark max-w-md"
+            value={stationFilter}
+            onChange={e => setStationFilter(e.target.value)}
+          >
             <option value="">{t('training.stationMatrix.allStations')}</option>
             {allMasterStations.map(s => (
               <option key={s.id} value={s.id}>
@@ -555,8 +552,7 @@ export function StationTrainingMatrixTab({ employees, stations, levels, canManag
                         </span>
                       </td>
                       {matrixColumns.map(col => {
-                        const current =
-                          levelMap.get(cellKey(emp.id, col.stationId, col.levelTrack))?.level ?? null
+                        const current = levelMap.get(cellKey(emp.id, col.stationId, col.levelTrack))?.level ?? null
                         const busy = busyKey === cellKey(emp.id, col.stationId, col.levelTrack)
                         const tone = current ? LEVEL_TONE[current] : LEVEL_TONE.level_0
 

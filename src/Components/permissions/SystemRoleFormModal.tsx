@@ -103,7 +103,12 @@ export function SystemRoleFormModal({ open, role, onClose, onSaved }: Props) {
           <input className={inputCls()} value={roleNameEn} onChange={e => setRoleNameEn(e.target.value)} />
         </Field>
         <Field label={t('permissions.roleDescription')}>
-          <textarea className={inputCls()} rows={2} value={description} onChange={e => setDescription(e.target.value)} />
+          <textarea
+            className={inputCls()}
+            rows={2}
+            value={description}
+            onChange={e => setDescription(e.target.value)}
+          />
         </Field>
         {role?.is_system && <p className="text-xs text-slate-500">{t('permissions.systemRoleHint')}</p>}
       </div>

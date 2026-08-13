@@ -12,11 +12,13 @@ export type AppAuthSession = {
 }
 
 const EXPIRY_BUFFER_MS = 60_000
-const APP_AUTH_TIMEOUT_MS = 8_000
-const GOTRUE_REFRESH_TIMEOUT_MS = 8_000
+const APP_AUTH_TIMEOUT_MS = 15_000
+const GOTRUE_REFRESH_TIMEOUT_MS = 15_000
+const REFRESH_MAX_ATTEMPTS = 3
+const REFRESH_RETRY_DELAY_MS = 2_000
 
 let authFailureHandler: (() => void) | null = null
-let refreshInFlight: Promise<AppAuthSession | null> | null = null
+let refreshInFlight: Promise<RefreshAttempt> | null = null
 
 export function withTimeout<T>(promise: Promise<T>, ms: number, fallback: T): Promise<T> {
   return Promise.race([
@@ -25,6 +27,10 @@ export function withTimeout<T>(promise: Promise<T>, ms: number, fallback: T): Pr
       window.setTimeout(() => resolve(fallback), ms)
     })
   ])
+}
+
+function sleep(ms: number): Promise<void> {
+  return new Promise(resolve => window.setTimeout(resolve, ms))
 }
 
 export function registerAuthFailureHandler(handler: (() => void) | null): void {
@@ -46,8 +52,19 @@ export function sessionExpiryUnix(session: AppAuthSession): number {
   return typeof exp === 'number' ? exp : session.expires_at
 }
 
+export function refreshTokenExpiryUnix(session: AppAuthSession): number | null {
+  const exp = decodeJwtPayload<{ exp?: number }>(session.refresh_token)?.exp
+  return typeof exp === 'number' ? exp : null
+}
+
 export function isAccessTokenExpired(session: AppAuthSession): boolean {
   return sessionExpiryUnix(session) * 1000 <= Date.now() + EXPIRY_BUFFER_MS
+}
+
+export function isRefreshTokenExpired(session: AppAuthSession): boolean {
+  const exp = refreshTokenExpiryUnix(session)
+  if (exp == null) return false
+  return exp * 1000 <= Date.now() + EXPIRY_BUFFER_MS
 }
 
 export function isJwtExpiredMessage(message: string): boolean {
@@ -71,6 +88,12 @@ export function readRawSession(): AppAuthSession | null {
   }
 }
 
+/** True when a stored session can still be renewed (user should skip login). */
+export function hasRestorableSession(): boolean {
+  const raw = readRawSession()
+  return raw != null && !isRefreshTokenExpired(raw)
+}
+
 export function saveSession(session: AppAuthSession): void {
   localStorage.setItem(SESSION_KEY, JSON.stringify(session))
 }
@@ -85,6 +108,11 @@ export function clearSession(): void {
 export function applySession(session: AppAuthSession): void {
   setSupabaseAccessToken(session.access_token)
   saveSession(session)
+}
+
+function kickExpiredSession(): void {
+  clearSession()
+  authFailureHandler?.()
 }
 
 type LoginPayload = {
@@ -103,6 +131,16 @@ function sessionFromPayload(payload: LoginPayload): AppAuthSession | null {
     expires_at: payload.expires_at,
     user: payload.user
   }
+}
+
+function isAuthRefreshError(error: string): boolean {
+  const normalized = error.toLowerCase()
+  return (
+    normalized.includes('invalid or expired refresh') ||
+    normalized.includes('invalid refresh') ||
+    normalized.includes('blocked') ||
+    normalized.includes('inactive')
+  )
 }
 
 async function callAppAuth(body: Record<string, unknown>): Promise<LoginPayload | null> {
@@ -162,45 +200,73 @@ function isAppRefreshToken(token: string): boolean {
   return decodeJwtPayload<{ type?: string }>(token)?.type === 'refresh'
 }
 
-export async function refreshAppSession(session: AppAuthSession): Promise<AppAuthSession | null> {
-  const refresh = async (): Promise<AppAuthSession | null> => {
-    if (isAppRefreshToken(session.refresh_token)) {
-      const edgePayload = await callAppAuth({ action: 'refresh', refresh_token: session.refresh_token })
-      if (edgePayload?.error) return null
-      const edgeSession = edgePayload ? sessionFromPayload(edgePayload) : null
-      if (edgeSession) {
-        applySession(edgeSession)
-        return edgeSession
-      }
+type RefreshAttempt = { kind: 'ok'; session: AppAuthSession } | { kind: 'auth_failed' } | { kind: 'transient' }
+
+async function refreshAppSessionOnce(session: AppAuthSession): Promise<RefreshAttempt> {
+  if (isAppRefreshToken(session.refresh_token)) {
+    const edgePayload = await callAppAuth({ action: 'refresh', refresh_token: session.refresh_token })
+    if (edgePayload?.error) {
+      return isAuthRefreshError(edgePayload.error) ? { kind: 'auth_failed' } : { kind: 'transient' }
     }
-    return tryGoTrueRefresh(session)
+    const edgeSession = edgePayload ? sessionFromPayload(edgePayload) : null
+    if (edgeSession) {
+      applySession(edgeSession)
+      return { kind: 'ok', session: edgeSession }
+    }
+    return { kind: 'transient' }
   }
 
-  return withTimeout(refresh(), APP_AUTH_TIMEOUT_MS, null)
+  const gotrueSession = await tryGoTrueRefresh(session)
+  if (gotrueSession) return { kind: 'ok', session: gotrueSession }
+  return { kind: 'transient' }
 }
 
-export async function ensureFreshSession(): Promise<AppAuthSession | null> {
+async function refreshAppSessionWithRetry(session: AppAuthSession): Promise<RefreshAttempt> {
+  for (let attempt = 0; attempt < REFRESH_MAX_ATTEMPTS; attempt++) {
+    if (attempt > 0) await sleep(REFRESH_RETRY_DELAY_MS * attempt)
+
+    const result = await withTimeout(refreshAppSessionOnce(session), APP_AUTH_TIMEOUT_MS, {
+      kind: 'transient'
+    } as RefreshAttempt)
+    if (result.kind === 'ok') return result
+    if (result.kind === 'auth_failed') return result
+  }
+  return { kind: 'transient' }
+}
+
+export async function ensureFreshSession(options?: { kickOnFailure?: boolean }): Promise<AppAuthSession | null> {
+  const kickOnFailure = options?.kickOnFailure ?? false
   const current = readRawSession()
   if (!current) return null
+
   if (!isAccessTokenExpired(current)) {
     applySession(current)
     return current
   }
+
+  if (isRefreshTokenExpired(current)) {
+    if (kickOnFailure) kickExpiredSession()
+    return null
+  }
+
   if (!refreshInFlight) {
-    refreshInFlight = withTimeout(refreshAppSession(current), APP_AUTH_TIMEOUT_MS, null).finally(() => {
+    refreshInFlight = refreshAppSessionWithRetry(current).finally(() => {
       refreshInFlight = null
     })
   }
-  const refreshed = await refreshInFlight
-  if (refreshed) return refreshed
-  clearSession()
-  authFailureHandler?.()
+
+  const result = await refreshInFlight
+  if (result.kind === 'ok') return result.session
+  if (result.kind === 'auth_failed') {
+    if (kickOnFailure) kickExpiredSession()
+    return null
+  }
   return null
 }
 
 export async function handleAuthApiError(message: string): Promise<boolean> {
   if (!isJwtExpiredMessage(message)) return false
-  return Boolean(await ensureFreshSession())
+  return Boolean(await ensureFreshSession({ kickOnFailure: true }))
 }
 
 async function tryGoTrueLogin(
@@ -284,12 +350,42 @@ function payloadErrorAr(error: string): string {
 export async function restoreSessionFromStorage(): Promise<AppAuthSession | null> {
   const raw = readRawSession()
   if (!raw) return null
-  try {
-    const next = await withTimeout(ensureFreshSession(), APP_AUTH_TIMEOUT_MS, null)
-    if (!next && readRawSession()) clearSession()
-    return next
-  } catch {
+
+  if (isRefreshTokenExpired(raw)) {
     clearSession()
     return null
   }
+
+  try {
+    const next = await ensureFreshSession()
+    if (next) return next
+
+    if (readRawSession()) {
+      applySession(raw)
+      return raw
+    }
+    return null
+  } catch {
+    if (readRawSession() && !isRefreshTokenExpired(raw)) {
+      applySession(raw)
+      return raw
+    }
+    clearSession()
+    return null
+  }
+}
+
+/** Refresh when tab regains focus; kicks out only if refresh token is truly expired. */
+export async function refreshSessionOnWake(): Promise<AppAuthSession | null> {
+  const raw = readRawSession()
+  if (!raw) return null
+
+  if (isRefreshTokenExpired(raw)) {
+    kickExpiredSession()
+    return null
+  }
+
+  const next = await ensureFreshSession()
+  if (next) return next
+  return readRawSession() ? raw : null
 }

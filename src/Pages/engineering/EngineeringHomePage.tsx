@@ -49,7 +49,13 @@ export function EngineeringHomePage() {
         description: t('settings.tabs.stations'),
         icon: Wrench,
         tone: 'text-amber-300 bg-amber-500/15',
-        onClick: () => go({ department: 'production', productionArea: 'assembly', productionPage: 'settings', settingsTab: 'stations' })
+        onClick: () =>
+          go({
+            department: 'production',
+            productionArea: 'assembly',
+            productionPage: 'settings',
+            settingsTab: 'stations'
+          })
       },
       canLineBalancing && {
         key: 'lineBalancing',
@@ -57,7 +63,8 @@ export function EngineeringHomePage() {
         description: t('hub.engineering.lineBalancingDesc'),
         icon: Route,
         tone: 'text-violet-300 bg-violet-500/15',
-        onClick: () => go({ department: 'engineering', engineeringPage: 'lineBalancing', lineBalancingTab: 'operations' })
+        onClick: () =>
+          go({ department: 'engineering', engineeringPage: 'lineBalancing', lineBalancingTab: 'operations' })
       },
       canSop && {
         key: 'sop',
@@ -76,10 +83,20 @@ export function EngineeringHomePage() {
     cards: canIpl
       ? (
           [
-            { key: 'consolidated', tab: 'consolidated' as const, icon: Layers, tone: 'text-violet-300 bg-violet-500/15' },
+            {
+              key: 'consolidated',
+              tab: 'consolidated' as const,
+              icon: Layers,
+              tone: 'text-violet-300 bg-violet-500/15'
+            },
             { key: 'partList', tab: 'partList' as const, icon: ClipboardList, tone: 'text-cyan-300 bg-cyan-500/15' },
             { key: 'iplModels', tab: 'iplModels' as const, icon: Layers, tone: 'text-orange-300 bg-orange-500/15' },
-            { key: 'categories', tab: 'categories' as const, icon: Settings2, tone: 'text-emerald-300 bg-emerald-500/15' },
+            {
+              key: 'categories',
+              tab: 'categories' as const,
+              icon: Settings2,
+              tone: 'text-emerald-300 bg-emerald-500/15'
+            },
             { key: 'import', tab: 'import' as const, icon: FileUp, tone: 'text-amber-300 bg-amber-500/15' },
             { key: 'dashboard', tab: 'dashboard' as const, icon: BarChart3, tone: 'text-violet-300 bg-violet-500/15' }
           ] as const

@@ -34,7 +34,9 @@ function bump(
 }
 
 function toRows(map: Map<string, { label: string; code?: string; records: number; quantity: number }>) {
-  return [...map.values()].sort((a, b) => b.quantity - a.quantity || b.records - a.records || a.label.localeCompare(b.label, 'ar'))
+  return [...map.values()].sort(
+    (a, b) => b.quantity - a.quantity || b.records - a.records || a.label.localeCompare(b.label, 'ar')
+  )
 }
 
 export function buildDamagedPartSummary(items: DamagedPartRecord[], unknownCauserLabel = '—'): DamagedPartSummaryStats {

@@ -117,18 +117,18 @@ export function buildPagePermissionTree(allPermissions: SystemPermission[]): Per
 export function itemHasActions(item: PermissionControlItem): boolean {
   return Boolean(
     item.primaryActions.create ||
-      item.primaryActions.update ||
-      item.primaryActions.delete ||
-      item.otherActions.length > 0
+    item.primaryActions.update ||
+    item.primaryActions.delete ||
+    item.otherActions.length > 0
   )
 }
 
 export function controlItemHasAnyPermission(item: PermissionControlItem): boolean {
   return Boolean(
     item.pagePerm ||
-      item.primaryActions.create ||
-      item.primaryActions.update ||
-      item.primaryActions.delete ||
-      item.otherActions.length > 0
+    item.primaryActions.create ||
+    item.primaryActions.update ||
+    item.primaryActions.delete ||
+    item.otherActions.length > 0
   )
 }

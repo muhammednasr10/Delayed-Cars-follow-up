@@ -2,11 +2,7 @@ import { useMemo, useState } from 'react'
 import { Plus, X } from 'lucide-react'
 import { useLang } from '../i18n/LanguageContext'
 import { inputCls } from './FormField'
-import {
-  employeeLookupLabel,
-  findEmployeesByQuery,
-  findExactEmployee
-} from '../Utils/employeeLookup'
+import { employeeLookupLabel, findEmployeesByQuery, findExactEmployee } from '../Utils/employeeLookup'
 import type { Employee } from '../Types/employee'
 
 type Props = {
@@ -26,10 +22,7 @@ export function StationManpowerAssignCell({ employees, selectedIds, canManage, o
     [selectedIds, employees]
   )
 
-  const available = useMemo(
-    () => employees.filter(e => !selectedIds.includes(e.id)),
-    [employees, selectedIds]
-  )
+  const available = useMemo(() => employees.filter(e => !selectedIds.includes(e.id)), [employees, selectedIds])
 
   const matches = useMemo(() => findEmployeesByQuery(available, query), [available, query])
   const preview = useMemo(() => findExactEmployee(available, query), [available, query])

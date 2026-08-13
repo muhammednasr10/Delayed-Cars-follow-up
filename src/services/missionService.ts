@@ -29,7 +29,7 @@ type Row = {
 
 function relOne<T>(value: T | T[] | null | undefined): T | null {
   if (value == null) return null
-  return Array.isArray(value) ? value[0] ?? null : value
+  return Array.isArray(value) ? (value[0] ?? null) : value
 }
 
 function mapAssignees(rows: AssigneeRow[] | null | undefined): MissionPerson[] {
@@ -56,7 +56,10 @@ function mapRow(row: Row): TeamMission {
     assigneeName: primary?.name ?? emp?.full_name ?? '—',
     assigneeCode: primary?.code ?? emp?.employee_code ?? '—',
     assigneeIds: assignees.length > 0 ? assignees.map(a => a.id) : [row.assignee_id],
-    assignees: assignees.length > 0 ? assignees : [{ id: row.assignee_id, name: emp?.full_name ?? '—', code: emp?.employee_code ?? '—' }],
+    assignees:
+      assignees.length > 0
+        ? assignees
+        : [{ id: row.assignee_id, name: emp?.full_name ?? '—', code: emp?.employee_code ?? '—' }],
     status: row.status,
     priority: row.priority,
     dueDate: row.due_date,
@@ -117,7 +120,11 @@ export async function createTeamMission(input: TeamMissionInput): Promise<TeamMi
   if (error) throw new Error(error.message)
   const id = (data as { id: string }).id
   await syncAssignees(id, input.assigneeIds)
-  const { data: full, error: loadErr } = await requireClient().from('team_missions').select(SELECT).eq('id', id).single()
+  const { data: full, error: loadErr } = await requireClient()
+    .from('team_missions')
+    .select(SELECT)
+    .eq('id', id)
+    .single()
   if (loadErr) throw new Error(loadErr.message)
   return mapRow(full as Row)
 }

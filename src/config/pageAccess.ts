@@ -89,55 +89,334 @@ export type AppPageDef = {
 }
 
 export const APP_PAGE_DEFINITIONS: AppPageDef[] = [
-  { permKey: 'production_home', labelKey: 'nav.home', descKey: 'permissions.matrix.pageDesc.production_home', defaultVisible: true },
-  { permKey: 'production_home__missing', labelKey: 'modules.missingParts', descKey: 'permissions.matrix.pageDesc.home_card_missing', fallbackModule: 'missing_parts', defaultVisible: true },
-  { permKey: 'production_home__entry', labelKey: 'productivity.entryTitle', descKey: 'permissions.matrix.pageDesc.home_card_entry', fallbackModule: 'production', defaultVisible: true },
-  { permKey: 'production_home__exit', labelKey: 'productivity.exitTitle', descKey: 'permissions.matrix.pageDesc.home_card_exit', fallbackModule: 'production', defaultVisible: true },
-  { permKey: 'production_home__stops', labelKey: 'productivity.tabs.stops', descKey: 'permissions.matrix.pageDesc.home_card_stops', fallbackModule: 'production', defaultVisible: true },
-  { permKey: 'production_home__attendance', labelKey: 'home.attendanceTodayTitle', descKey: 'permissions.matrix.pageDesc.home_card_attendance', fallbackModule: 'training_matrix', defaultVisible: true },
-  { permKey: 'production_home__plan', labelKey: 'productionOrders.title', descKey: 'permissions.matrix.pageDesc.home_card_plan', fallbackModule: 'production', defaultVisible: true },
-  { permKey: 'production_home__orders', labelKey: 'productionOrders.ordersSection', descKey: 'permissions.matrix.pageDesc.home_card_orders', fallbackModule: 'production', defaultVisible: true },
-  { permKey: 'planning_plan', labelKey: 'productionOrders.title', descKey: 'permissions.matrix.pageDesc.planning_plan', fallbackModule: 'production', defaultVisible: true },
-  { permKey: 'planning_work_days', labelKey: 'productionOrders.tabs.workDays', descKey: 'permissions.matrix.pageDesc.planning_work_days', fallbackModule: 'production', defaultVisible: true },
-  { permKey: 'planning_tracking', labelKey: 'planning.tracking.tab', descKey: 'permissions.matrix.pageDesc.planning_tracking', fallbackModule: 'production', defaultVisible: true },
-  { permKey: 'planning_orders', labelKey: 'productionOrders.ordersSection', descKey: 'permissions.matrix.pageDesc.planning_orders', fallbackModule: 'production', defaultVisible: true },
-  { permKey: 'production_home__training', labelKey: 'modules.training', descKey: 'permissions.matrix.pageDesc.home_card_training', fallbackModule: 'training_matrix', defaultVisible: true },
-  { permKey: 'production_home__manpower', labelKey: 'training.tabs.manpower', descKey: 'permissions.matrix.pageDesc.home_card_manpower', fallbackModule: 'training_matrix', defaultVisible: true },
-  { permKey: 'production_home__damaged', labelKey: 'modules.damagedParts', descKey: 'permissions.matrix.pageDesc.home_card_damaged', fallbackModule: 'production', defaultVisible: true },
-  { permKey: 'production_home__missions', labelKey: 'modules.missions', descKey: 'permissions.matrix.pageDesc.home_card_missions', fallbackModule: 'production', defaultVisible: true },
-  { permKey: 'production_home__requests', labelKey: 'modules.requests', descKey: 'permissions.matrix.pageDesc.home_card_requests', fallbackModule: 'production', defaultVisible: true },
-  { permKey: 'production_home__scratches', labelKey: 'modules.scratches', descKey: 'permissions.matrix.pageDesc.home_card_scratches', fallbackModule: 'production', defaultVisible: true },
-  { permKey: 'production_home__equipment', labelKey: 'modules.equipment', descKey: 'permissions.matrix.pageDesc.home_card_equipment', fallbackModule: 'production', defaultVisible: true },
-  { permKey: 'production_home__feedback', labelKey: 'modules.feedback', descKey: 'permissions.matrix.pageDesc.home_card_feedback', fallbackModule: 'production', defaultVisible: true },
-  { permKey: 'production_home__profile', labelKey: 'myProfile.title', descKey: 'permissions.matrix.pageDesc.home_card_profile', fallbackModule: 'production', defaultVisible: true },
-  { permKey: 'production_home__settings', labelKey: 'modules.settings', descKey: 'permissions.matrix.pageDesc.home_card_settings', defaultVisible: true },
-  { permKey: 'production_home__ipl', labelKey: 'nav.ipl', descKey: 'permissions.matrix.pageDesc.home_card_ipl', fallbackModule: 'bom', defaultVisible: true },
-  { permKey: 'production_home__stations', labelKey: 'nav.stations', descKey: 'permissions.matrix.pageDesc.home_card_stations', fallbackModule: 'station_operations', defaultVisible: true },
-  { permKey: 'production_home__line_balancing', labelKey: 'nav.lineBalancing', descKey: 'permissions.matrix.pageDesc.home_card_line_balancing', fallbackModule: 'station_operations', defaultVisible: true },
-  { permKey: 'production_home__stock', labelKey: 'warehouses.tabs.currentStock', descKey: 'permissions.matrix.pageDesc.home_card_stock', fallbackModule: 'inventory', defaultVisible: true },
-  { permKey: 'production_home__feeding', labelKey: 'warehouses.tabs.feeding', descKey: 'permissions.matrix.pageDesc.home_card_feeding', fallbackModule: 'inventory', defaultVisible: true },
-  { permKey: 'production_home__feeding_plan', labelKey: 'warehouses.feeding.subTabs.plan', descKey: 'permissions.matrix.pageDesc.home_card_feeding_plan', fallbackModule: 'inventory', defaultVisible: true },
-  { permKey: 'production_missing', labelKey: 'nav.missingParts', descKey: 'permissions.matrix.pageDesc.production_missing', fallbackModule: 'missing_parts' },
-  { permKey: 'production_productivity', labelKey: 'nav.productivity', descKey: 'permissions.matrix.pageDesc.production_productivity', fallbackModule: 'production' },
-  { permKey: 'production_training', labelKey: 'nav.training', descKey: 'permissions.matrix.pageDesc.production_training', fallbackModule: 'training_matrix' },
-  { permKey: 'production_damaged_parts', labelKey: 'nav.damagedParts', descKey: 'permissions.matrix.pageDesc.production_damaged_parts', fallbackModule: 'production', defaultVisible: true },
-  { permKey: 'production_missions', labelKey: 'nav.missions', descKey: 'permissions.matrix.pageDesc.production_missions', fallbackModule: 'production', defaultVisible: true },
-  { permKey: 'production_requests', labelKey: 'nav.requests', descKey: 'permissions.matrix.pageDesc.production_requests', fallbackModule: 'production', defaultVisible: true },
-  { permKey: 'production_scratches', labelKey: 'nav.scratches', descKey: 'permissions.matrix.pageDesc.production_scratches', fallbackModule: 'production', defaultVisible: true },
-  { permKey: 'production_equipment', labelKey: 'nav.equipment', descKey: 'permissions.matrix.pageDesc.production_equipment', fallbackModule: 'production', defaultVisible: true },
-  { permKey: 'production_feedback', labelKey: 'nav.feedback', descKey: 'permissions.matrix.pageDesc.production_feedback', fallbackModule: 'production', defaultVisible: true },
-  { permKey: 'production_worker_profile', labelKey: 'myProfile.title', descKey: 'permissions.matrix.pageDesc.production_worker_profile', fallbackModule: 'production', defaultVisible: true },
-  { permKey: 'production_settings', labelKey: 'nav.settings', descKey: 'permissions.matrix.pageDesc.production_settings' },
-  { permKey: 'engineering_home', labelKey: 'nav.home', descKey: 'permissions.matrix.pageDesc.engineering_home', defaultVisible: true },
-  { permKey: 'engineering_ipl', labelKey: 'nav.ipl', descKey: 'permissions.matrix.pageDesc.engineering_ipl', fallbackModule: 'bom' },
-  { permKey: 'engineering_stations', labelKey: 'nav.stations', descKey: 'permissions.matrix.pageDesc.engineering_stations', fallbackModule: 'station_operations' },
-  { permKey: 'engineering_line_balancing', labelKey: 'nav.lineBalancing', descKey: 'permissions.matrix.pageDesc.engineering_line_balancing', fallbackModule: 'station_operations' },
-  { permKey: 'engineering_sop', labelKey: 'nav.sop', descKey: 'permissions.matrix.pageDesc.engineering_sop', fallbackModule: 'station_operations' },
-  { permKey: 'warehouses_home', labelKey: 'nav.home', descKey: 'permissions.matrix.pageDesc.warehouses_home', fallbackModule: 'inventory', defaultVisible: true },
-  { permKey: 'warehouses_stock', labelKey: 'warehouses.tabs.currentStock', descKey: 'permissions.matrix.pageDesc.warehouses_stock', fallbackModule: 'inventory' },
-  { permKey: 'warehouses_feeding', labelKey: 'warehouses.tabs.feeding', descKey: 'permissions.matrix.pageDesc.warehouses_feeding', fallbackModule: 'inventory' },
-  { permKey: 'warehouses_equipment', labelKey: 'warehouses.tabs.equipment', descKey: 'permissions.matrix.pageDesc.warehouses_equipment', fallbackModule: 'inventory' },
-  { permKey: 'quality_notes', labelKey: 'qualityNotes.title', descKey: 'permissions.matrix.pageDesc.quality_notes', fallbackModule: 'qc', defaultVisible: true }
+  {
+    permKey: 'production_home',
+    labelKey: 'nav.home',
+    descKey: 'permissions.matrix.pageDesc.production_home',
+    defaultVisible: true
+  },
+  {
+    permKey: 'production_home__missing',
+    labelKey: 'modules.missingParts',
+    descKey: 'permissions.matrix.pageDesc.home_card_missing',
+    fallbackModule: 'missing_parts',
+    defaultVisible: true
+  },
+  {
+    permKey: 'production_home__entry',
+    labelKey: 'productivity.entryTitle',
+    descKey: 'permissions.matrix.pageDesc.home_card_entry',
+    fallbackModule: 'production',
+    defaultVisible: true
+  },
+  {
+    permKey: 'production_home__exit',
+    labelKey: 'productivity.exitTitle',
+    descKey: 'permissions.matrix.pageDesc.home_card_exit',
+    fallbackModule: 'production',
+    defaultVisible: true
+  },
+  {
+    permKey: 'production_home__stops',
+    labelKey: 'productivity.tabs.stops',
+    descKey: 'permissions.matrix.pageDesc.home_card_stops',
+    fallbackModule: 'production',
+    defaultVisible: true
+  },
+  {
+    permKey: 'production_home__attendance',
+    labelKey: 'home.attendanceTodayTitle',
+    descKey: 'permissions.matrix.pageDesc.home_card_attendance',
+    fallbackModule: 'training_matrix',
+    defaultVisible: true
+  },
+  {
+    permKey: 'production_home__plan',
+    labelKey: 'productionOrders.title',
+    descKey: 'permissions.matrix.pageDesc.home_card_plan',
+    fallbackModule: 'production',
+    defaultVisible: true
+  },
+  {
+    permKey: 'production_home__orders',
+    labelKey: 'productionOrders.ordersSection',
+    descKey: 'permissions.matrix.pageDesc.home_card_orders',
+    fallbackModule: 'production',
+    defaultVisible: true
+  },
+  {
+    permKey: 'planning_plan',
+    labelKey: 'productionOrders.title',
+    descKey: 'permissions.matrix.pageDesc.planning_plan',
+    fallbackModule: 'production',
+    defaultVisible: true
+  },
+  {
+    permKey: 'planning_work_days',
+    labelKey: 'productionOrders.tabs.workDays',
+    descKey: 'permissions.matrix.pageDesc.planning_work_days',
+    fallbackModule: 'production',
+    defaultVisible: true
+  },
+  {
+    permKey: 'planning_tracking',
+    labelKey: 'planning.tracking.tab',
+    descKey: 'permissions.matrix.pageDesc.planning_tracking',
+    fallbackModule: 'production',
+    defaultVisible: true
+  },
+  {
+    permKey: 'planning_orders',
+    labelKey: 'productionOrders.ordersSection',
+    descKey: 'permissions.matrix.pageDesc.planning_orders',
+    fallbackModule: 'production',
+    defaultVisible: true
+  },
+  {
+    permKey: 'production_home__training',
+    labelKey: 'modules.training',
+    descKey: 'permissions.matrix.pageDesc.home_card_training',
+    fallbackModule: 'training_matrix',
+    defaultVisible: true
+  },
+  {
+    permKey: 'production_home__manpower',
+    labelKey: 'training.tabs.manpower',
+    descKey: 'permissions.matrix.pageDesc.home_card_manpower',
+    fallbackModule: 'training_matrix',
+    defaultVisible: true
+  },
+  {
+    permKey: 'production_home__damaged',
+    labelKey: 'modules.damagedParts',
+    descKey: 'permissions.matrix.pageDesc.home_card_damaged',
+    fallbackModule: 'production',
+    defaultVisible: true
+  },
+  {
+    permKey: 'production_home__missions',
+    labelKey: 'modules.missions',
+    descKey: 'permissions.matrix.pageDesc.home_card_missions',
+    fallbackModule: 'production',
+    defaultVisible: true
+  },
+  {
+    permKey: 'production_home__requests',
+    labelKey: 'modules.requests',
+    descKey: 'permissions.matrix.pageDesc.home_card_requests',
+    fallbackModule: 'production',
+    defaultVisible: true
+  },
+  {
+    permKey: 'production_home__scratches',
+    labelKey: 'modules.scratches',
+    descKey: 'permissions.matrix.pageDesc.home_card_scratches',
+    fallbackModule: 'production',
+    defaultVisible: true
+  },
+  {
+    permKey: 'production_home__equipment',
+    labelKey: 'modules.equipment',
+    descKey: 'permissions.matrix.pageDesc.home_card_equipment',
+    fallbackModule: 'production',
+    defaultVisible: true
+  },
+  {
+    permKey: 'production_home__feedback',
+    labelKey: 'modules.feedback',
+    descKey: 'permissions.matrix.pageDesc.home_card_feedback',
+    fallbackModule: 'production',
+    defaultVisible: true
+  },
+  {
+    permKey: 'production_home__profile',
+    labelKey: 'myProfile.title',
+    descKey: 'permissions.matrix.pageDesc.home_card_profile',
+    fallbackModule: 'production',
+    defaultVisible: true
+  },
+  {
+    permKey: 'production_home__settings',
+    labelKey: 'modules.settings',
+    descKey: 'permissions.matrix.pageDesc.home_card_settings',
+    defaultVisible: true
+  },
+  {
+    permKey: 'production_home__ipl',
+    labelKey: 'nav.ipl',
+    descKey: 'permissions.matrix.pageDesc.home_card_ipl',
+    fallbackModule: 'bom',
+    defaultVisible: true
+  },
+  {
+    permKey: 'production_home__stations',
+    labelKey: 'nav.stations',
+    descKey: 'permissions.matrix.pageDesc.home_card_stations',
+    fallbackModule: 'station_operations',
+    defaultVisible: true
+  },
+  {
+    permKey: 'production_home__line_balancing',
+    labelKey: 'nav.lineBalancing',
+    descKey: 'permissions.matrix.pageDesc.home_card_line_balancing',
+    fallbackModule: 'station_operations',
+    defaultVisible: true
+  },
+  {
+    permKey: 'production_home__stock',
+    labelKey: 'warehouses.tabs.currentStock',
+    descKey: 'permissions.matrix.pageDesc.home_card_stock',
+    fallbackModule: 'inventory',
+    defaultVisible: true
+  },
+  {
+    permKey: 'production_home__feeding',
+    labelKey: 'warehouses.tabs.feeding',
+    descKey: 'permissions.matrix.pageDesc.home_card_feeding',
+    fallbackModule: 'inventory',
+    defaultVisible: true
+  },
+  {
+    permKey: 'production_home__feeding_plan',
+    labelKey: 'warehouses.feeding.subTabs.plan',
+    descKey: 'permissions.matrix.pageDesc.home_card_feeding_plan',
+    fallbackModule: 'inventory',
+    defaultVisible: true
+  },
+  {
+    permKey: 'production_missing',
+    labelKey: 'nav.missingParts',
+    descKey: 'permissions.matrix.pageDesc.production_missing',
+    fallbackModule: 'missing_parts'
+  },
+  {
+    permKey: 'production_productivity',
+    labelKey: 'nav.productivity',
+    descKey: 'permissions.matrix.pageDesc.production_productivity',
+    fallbackModule: 'production'
+  },
+  {
+    permKey: 'production_training',
+    labelKey: 'nav.training',
+    descKey: 'permissions.matrix.pageDesc.production_training',
+    fallbackModule: 'training_matrix'
+  },
+  {
+    permKey: 'production_damaged_parts',
+    labelKey: 'nav.damagedParts',
+    descKey: 'permissions.matrix.pageDesc.production_damaged_parts',
+    fallbackModule: 'production',
+    defaultVisible: true
+  },
+  {
+    permKey: 'production_missions',
+    labelKey: 'nav.missions',
+    descKey: 'permissions.matrix.pageDesc.production_missions',
+    fallbackModule: 'production',
+    defaultVisible: true
+  },
+  {
+    permKey: 'production_requests',
+    labelKey: 'nav.requests',
+    descKey: 'permissions.matrix.pageDesc.production_requests',
+    fallbackModule: 'production',
+    defaultVisible: true
+  },
+  {
+    permKey: 'production_scratches',
+    labelKey: 'nav.scratches',
+    descKey: 'permissions.matrix.pageDesc.production_scratches',
+    fallbackModule: 'production',
+    defaultVisible: true
+  },
+  {
+    permKey: 'production_equipment',
+    labelKey: 'nav.equipment',
+    descKey: 'permissions.matrix.pageDesc.production_equipment',
+    fallbackModule: 'production',
+    defaultVisible: true
+  },
+  {
+    permKey: 'production_feedback',
+    labelKey: 'nav.feedback',
+    descKey: 'permissions.matrix.pageDesc.production_feedback',
+    fallbackModule: 'production',
+    defaultVisible: true
+  },
+  {
+    permKey: 'production_worker_profile',
+    labelKey: 'myProfile.title',
+    descKey: 'permissions.matrix.pageDesc.production_worker_profile',
+    fallbackModule: 'production',
+    defaultVisible: true
+  },
+  {
+    permKey: 'production_settings',
+    labelKey: 'nav.settings',
+    descKey: 'permissions.matrix.pageDesc.production_settings'
+  },
+  {
+    permKey: 'engineering_home',
+    labelKey: 'nav.home',
+    descKey: 'permissions.matrix.pageDesc.engineering_home',
+    defaultVisible: true
+  },
+  {
+    permKey: 'engineering_ipl',
+    labelKey: 'nav.ipl',
+    descKey: 'permissions.matrix.pageDesc.engineering_ipl',
+    fallbackModule: 'bom'
+  },
+  {
+    permKey: 'engineering_stations',
+    labelKey: 'nav.stations',
+    descKey: 'permissions.matrix.pageDesc.engineering_stations',
+    fallbackModule: 'station_operations'
+  },
+  {
+    permKey: 'engineering_line_balancing',
+    labelKey: 'nav.lineBalancing',
+    descKey: 'permissions.matrix.pageDesc.engineering_line_balancing',
+    fallbackModule: 'station_operations'
+  },
+  {
+    permKey: 'engineering_sop',
+    labelKey: 'nav.sop',
+    descKey: 'permissions.matrix.pageDesc.engineering_sop',
+    fallbackModule: 'station_operations'
+  },
+  {
+    permKey: 'warehouses_home',
+    labelKey: 'nav.home',
+    descKey: 'permissions.matrix.pageDesc.warehouses_home',
+    fallbackModule: 'inventory',
+    defaultVisible: true
+  },
+  {
+    permKey: 'warehouses_stock',
+    labelKey: 'warehouses.tabs.currentStock',
+    descKey: 'permissions.matrix.pageDesc.warehouses_stock',
+    fallbackModule: 'inventory'
+  },
+  {
+    permKey: 'warehouses_feeding',
+    labelKey: 'warehouses.tabs.feeding',
+    descKey: 'permissions.matrix.pageDesc.warehouses_feeding',
+    fallbackModule: 'inventory'
+  },
+  {
+    permKey: 'warehouses_equipment',
+    labelKey: 'warehouses.tabs.equipment',
+    descKey: 'permissions.matrix.pageDesc.warehouses_equipment',
+    fallbackModule: 'inventory'
+  },
+  {
+    permKey: 'quality_notes',
+    labelKey: 'qualityNotes.title',
+    descKey: 'permissions.matrix.pageDesc.quality_notes',
+    fallbackModule: 'qc',
+    defaultVisible: true
+  }
 ]
 
 const PAGE_BY_PRODUCTION: Record<string, AppPagePermissionKey> = {
@@ -191,6 +470,19 @@ export function pagePermForWarehouses(tab: string): AppPagePermissionKey | undef
 
 export function pagePermForPlanning(tab: string): AppPagePermissionKey | undefined {
   return PAGE_BY_PLANNING[tab]
+}
+
+export function pagePermForQuality(_tab?: string): AppPagePermissionKey {
+  return 'quality_notes'
+}
+
+export function canViewAnyWarehousesPage(canViewPage: (key: AppPagePermissionKey | undefined) => boolean): boolean {
+  return (
+    canViewPage(pagePermForWarehouses('home')) ||
+    canViewPage(pagePermForWarehouses('currentStock')) ||
+    canViewPage(pagePermForWarehouses('feeding')) ||
+    canViewPage(pagePermForWarehouses('equipment'))
+  )
 }
 
 export function pageDefByPermKey(key: AppPagePermissionKey): AppPageDef | undefined {

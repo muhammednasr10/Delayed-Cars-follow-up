@@ -36,9 +36,15 @@ export function MatrixGrid({ employees, skills, records, canManage, onCell }: Pr
       <table className="w-full border-collapse text-start text-sm">
         <thead className="bg-slate-950/90">
           <tr>
-            <th className="sticky start-0 z-10 bg-slate-950/90 px-3 py-2 text-start text-xs font-black uppercase text-slate-400">{t('training.rec.employee')}</th>
+            <th className="sticky start-0 z-10 bg-slate-950/90 px-3 py-2 text-start text-xs font-black uppercase text-slate-400">
+              {t('training.rec.employee')}
+            </th>
             {activeSkills.map(s => (
-              <th key={s.id} className="px-2 py-2 text-center text-[11px] font-bold text-slate-300" title={s.skillNameAr || s.skillNameEn || s.skillCode}>
+              <th
+                key={s.id}
+                className="px-2 py-2 text-center text-[11px] font-bold text-slate-300"
+                title={s.skillNameAr || s.skillNameEn || s.skillCode}
+              >
                 {s.skillCode}
               </th>
             ))}
@@ -49,7 +55,9 @@ export function MatrixGrid({ employees, skills, records, canManage, onCell }: Pr
             <tr key={emp.id} className="border-t border-slate-800">
               <td className="sticky start-0 z-10 bg-slate-900 px-3 py-2 font-bold text-slate-100">
                 <span className="block">{emp.fullName}</span>
-                <span className="block text-[10px] text-slate-500" dir="ltr">{emp.employeeCode}</span>
+                <span className="block text-[10px] text-slate-500" dir="ltr">
+                  {emp.employeeCode}
+                </span>
               </td>
               {activeSkills.map(s => {
                 const rec = map.get(`${emp.id}:${s.id}`) ?? null

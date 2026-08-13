@@ -49,14 +49,16 @@ export function buildWarehousesNavPages({
       key: 'feedingPlan',
       label: t('warehouses.feeding.subTabs.plan'),
       icon: CalendarDays,
-      visible: navLoading || (canViewPage(pagePermForWarehouses('feeding')) && tabVisible('warehouses_feeding', 'plan')),
+      visible:
+        navLoading || (canViewPage(pagePermForWarehouses('feeding')) && tabVisible('warehouses_feeding', 'plan')),
       onNavigate: () => navTo({ department: 'warehouses', warehousesTab: 'feeding', warehousesFeedingSubTab: 'plan' })
     },
     {
       key: 'feedingActual',
       label: t('warehouses.feeding.subTabs.actual'),
       icon: Truck,
-      visible: navLoading || (canViewPage(pagePermForWarehouses('feeding')) && tabVisible('warehouses_feeding', 'actual')),
+      visible:
+        navLoading || (canViewPage(pagePermForWarehouses('feeding')) && tabVisible('warehouses_feeding', 'actual')),
       onNavigate: () => navTo({ department: 'warehouses', warehousesTab: 'feeding', warehousesFeedingSubTab: 'actual' })
     },
     {
@@ -64,7 +66,8 @@ export function buildWarehousesNavPages({
       label: t('warehouses.tabs.equipment'),
       icon: Boxes,
       visible: canView('equipment'),
-      onNavigate: () => navTo({ department: 'warehouses', warehousesTab: 'equipment', warehousesEquipmentSubTab: 'racks' }),
+      onNavigate: () =>
+        navTo({ department: 'warehouses', warehousesTab: 'equipment', warehousesEquipmentSubTab: 'racks' }),
       children: (['racks', 'carts'] as const).map(key => ({
         key,
         label: t(`warehouses.equipment.subTabs.${key}`),

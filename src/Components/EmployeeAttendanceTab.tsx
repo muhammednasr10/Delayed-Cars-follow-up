@@ -7,7 +7,7 @@ import { inputCls } from './FormField'
 import {
   bulkUpsertAttendanceDays,
   getAttendanceDaysForMonth,
-  getMonthlyAttendanceSummaries,
+  getMonthlyAttendanceSummaries
 } from '../services/attendanceService'
 import { EmployeeMonthAttendanceModal } from './EmployeeMonthAttendanceModal'
 import { exportAttendanceMonthExcel, parseAttendanceImportFile } from '../Utils/attendanceExcel'
@@ -154,22 +154,40 @@ export function EmployeeAttendanceTab({ employees, canManage, refreshKey = 0 }: 
               }}
             />
           </label>
-          <button type="button" onClick={() => void load()} className="rounded-xl border border-slate-600 bg-slate-800 px-4 py-2 text-sm font-bold text-slate-200 hover:bg-slate-700">
+          <button
+            type="button"
+            onClick={() => void load()}
+            className="rounded-xl border border-slate-600 bg-slate-800 px-4 py-2 text-sm font-bold text-slate-200 hover:bg-slate-700"
+          >
             <RefreshCw className={`mr-1 inline h-4 w-4 ${loading ? 'animate-spin' : ''}`} /> {t('common.refresh')}
           </button>
-          <button type="button" onClick={() => void handleExport()} className="rounded-xl border border-cyan-500/40 bg-cyan-500/10 px-4 py-2 text-sm font-bold text-cyan-200 hover:bg-cyan-500/20">
+          <button
+            type="button"
+            onClick={() => void handleExport()}
+            className="rounded-xl border border-cyan-500/40 bg-cyan-500/10 px-4 py-2 text-sm font-bold text-cyan-200 hover:bg-cyan-500/20"
+          >
             <Download className="mr-1 inline h-4 w-4" /> {t('attendance.export')}
           </button>
           {canManage && (
-            <button type="button" onClick={() => setImportOpen(true)} className="rounded-xl border border-slate-600 bg-slate-800 px-4 py-2 text-sm font-bold text-slate-200 hover:bg-slate-700">
+            <button
+              type="button"
+              onClick={() => setImportOpen(true)}
+              className="rounded-xl border border-slate-600 bg-slate-800 px-4 py-2 text-sm font-bold text-slate-200 hover:bg-slate-700"
+            >
               <FileUp className="mr-1 inline h-4 w-4" /> {t('attendance.import')}
             </button>
           )}
         </div>
       </div>
 
-      {success && <div className="rounded-xl border border-emerald-500/30 bg-emerald-500/10 p-3 text-sm text-emerald-200">{success}</div>}
-      {error && <div className="rounded-xl border border-red-500/30 bg-red-500/10 p-3 text-sm text-red-200">{error}</div>}
+      {success && (
+        <div className="rounded-xl border border-emerald-500/30 bg-emerald-500/10 p-3 text-sm text-emerald-200">
+          {success}
+        </div>
+      )}
+      {error && (
+        <div className="rounded-xl border border-red-500/30 bg-red-500/10 p-3 text-sm text-red-200">{error}</div>
+      )}
 
       <p className="text-xs text-slate-500">{t('attendance.monthly.hint')}</p>
 
@@ -195,7 +213,9 @@ export function EmployeeAttendanceTab({ employees, canManage, refreshKey = 0 }: 
                   {t(`attendance.cols.${c}`)}
                 </th>
               ))}
-              {canManage && <th className="table-cell text-xs font-black uppercase text-slate-400">{t('common.actions')}</th>}
+              {canManage && (
+                <th className="table-cell text-xs font-black uppercase text-slate-400">{t('common.actions')}</th>
+              )}
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-800">
@@ -259,7 +279,12 @@ export function EmployeeAttendanceTab({ employees, canManage, refreshKey = 0 }: 
         }}
       />
 
-      <Modal open={importOpen} title={t('attendance.importTitle')} onClose={() => setImportOpen(false)} maxWidthClass="max-w-lg">
+      <Modal
+        open={importOpen}
+        title={t('attendance.importTitle')}
+        onClose={() => setImportOpen(false)}
+        maxWidthClass="max-w-lg"
+      >
         <p className="mb-3 text-sm text-slate-400">{t('attendance.importHint')}</p>
         <input
           ref={fileRef}

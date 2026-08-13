@@ -5,10 +5,7 @@ import { ATTENDANCE_STATUSES, type AttendanceDayStatus } from '../Types/attendan
 
 type Row = { status: AttendanceDayStatus }
 
-const STATUS_STYLE: Record<
-  AttendanceDayStatus,
-  { card: string; value: string; dot: string }
-> = {
+const STATUS_STYLE: Record<AttendanceDayStatus, { card: string; value: string; dot: string }> = {
   present: {
     card: 'border-emerald-500/25 bg-emerald-500/10',
     value: 'text-emerald-300',
@@ -50,10 +47,7 @@ export function TodayAttendanceSummary({ rows, loading }: Props) {
   const { t } = useLang()
 
   const counts = useMemo(() => {
-    const byStatus = Object.fromEntries(ATTENDANCE_STATUSES.map(s => [s, 0])) as Record<
-      AttendanceDayStatus,
-      number
-    >
+    const byStatus = Object.fromEntries(ATTENDANCE_STATUSES.map(s => [s, 0])) as Record<AttendanceDayStatus, number>
     for (const row of rows) {
       byStatus[row.status] = (byStatus[row.status] ?? 0) + 1
     }
@@ -100,7 +94,7 @@ export function TodayAttendanceSummary({ rows, loading }: Props) {
               className={`rounded-xl border px-3 py-2.5 ${
                 card.highlight
                   ? 'border-cyan-500/30 bg-cyan-500/10'
-                  : style?.card ?? 'border-slate-700 bg-slate-950/50'
+                  : (style?.card ?? 'border-slate-700 bg-slate-950/50')
               }`}
             >
               <p className="flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-wide text-slate-400">
@@ -109,7 +103,7 @@ export function TodayAttendanceSummary({ rows, loading }: Props) {
               </p>
               <p
                 className={`mt-1 text-2xl font-black tabular-nums ${
-                  card.highlight ? 'text-cyan-200' : style?.value ?? 'text-slate-100'
+                  card.highlight ? 'text-cyan-200' : (style?.value ?? 'text-slate-100')
                 }`}
               >
                 {loading ? '—' : card.value}

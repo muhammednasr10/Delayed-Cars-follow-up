@@ -18,9 +18,7 @@ export function BomStopperExclusionsModal({ item, open, onClose }: Props) {
   const { t } = useLang()
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
-  const [exclusions, setExclusions] = useState<
-    Awaited<ReturnType<typeof getStopperExclusions>>['exclusions']
-  >([])
+  const [exclusions, setExclusions] = useState<Awaited<ReturnType<typeof getStopperExclusions>>['exclusions']>([])
   const [zoningNote, setZoningNote] = useState<string | null>(null)
   const stopper = item ? effectiveBomStopperType(item) : 'non_stopper'
 
@@ -80,10 +78,7 @@ export function BomStopperExclusionsModal({ item, open, onClose }: Props) {
         {!loading && exclusions.length > 0 && (
           <ul className="max-h-64 space-y-2 overflow-y-auto rounded-lg border border-slate-800 p-2">
             {exclusions.map(ex => (
-              <li
-                key={`${ex.part_number}-${ex.station_code ?? ''}`}
-                className="rounded-lg bg-slate-900/60 px-3 py-2"
-              >
+              <li key={`${ex.part_number}-${ex.station_code ?? ''}`} className="rounded-lg bg-slate-900/60 px-3 py-2">
                 <p className="font-bold text-slate-100">{ex.part_name_ar || ex.part_number}</p>
                 <p className="font-mono text-xs text-cyan-300/90" dir="ltr">
                   {ex.part_number}

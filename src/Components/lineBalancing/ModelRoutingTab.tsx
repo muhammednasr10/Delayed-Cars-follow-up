@@ -17,9 +17,9 @@ export function ModelRoutingTab({ models, canManage, notify }: Props) {
   const { rows, loading, reload } = useModelRouting(modelId || null)
   const [busy, setBusy] = useState(false)
   const [addOpId, setAddOpId] = useState('')
-  const [ops, setOps] = useState<
-    { id: string; operation_name_ar: string; station_id: string; station_name: string }[]
-  >([])
+  const [ops, setOps] = useState<{ id: string; operation_name_ar: string; station_id: string; station_name: string }[]>(
+    []
+  )
 
   async function loadOps() {
     try {
@@ -59,11 +59,7 @@ export function ModelRoutingTab({ models, canManage, notify }: Props) {
     <div className="space-y-4">
       <div className="card-industrial p-4">
         <label className="mb-1 block text-xs font-bold text-slate-400">{t('engineering.routing.title')}</label>
-        <select
-          className="input-industrial w-full max-w-md"
-          value={modelId}
-          onChange={e => setModelId(e.target.value)}
-        >
+        <select className="input-industrial w-full max-w-md" value={modelId} onChange={e => setModelId(e.target.value)}>
           <option value="">{t('bom.selectModel')}</option>
           {models.map(m => (
             <option key={m.id} value={m.id}>
@@ -133,9 +129,7 @@ export function ModelRoutingTab({ models, canManage, notify }: Props) {
                       {r.standard_time_seconds != null ? `${r.standard_time_seconds}s` : '—'}
                     </td>
                     <td className="p-3 text-center">{r.required_manpower_count}</td>
-                    <td className="p-3 text-center">
-                      {r.takt_time_seconds != null ? `${r.takt_time_seconds}s` : '—'}
-                    </td>
+                    <td className="p-3 text-center">{r.takt_time_seconds != null ? `${r.takt_time_seconds}s` : '—'}</td>
                     {canManage && (
                       <td className="p-3 text-end">
                         <button

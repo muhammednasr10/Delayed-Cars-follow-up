@@ -6,10 +6,7 @@ export async function parseSpreadsheetFile(file: File, sheetName?: string): Prom
   if (name.endsWith('.xlsx') || name.endsWith('.xls')) {
     const buf = await file.arrayBuffer()
     const wb = XLSX.read(buf, { type: 'array' })
-    const sheet =
-      sheetName && wb.SheetNames.includes(sheetName)
-        ? wb.Sheets[sheetName]
-        : wb.Sheets[wb.SheetNames[0]]
+    const sheet = sheetName && wb.SheetNames.includes(sheetName) ? wb.Sheets[sheetName] : wb.Sheets[wb.SheetNames[0]]
     const rows = XLSX.utils.sheet_to_json<string[]>(sheet, { header: 1, defval: '' }) as string[][]
     return rows.map(r => r.map(c => String(c ?? '').trim()))
   }

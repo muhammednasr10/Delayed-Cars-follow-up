@@ -106,7 +106,11 @@ export function stationCodePrefix(stationNumber: string): 'ST' | 'PBS' {
 }
 
 /** L1، L2… للمحطة التالية بنفس الأساس */
-export function nextWorkerSuffix(existingStationNumbers: string[], base: string, excludeStationNumber?: string): string {
+export function nextWorkerSuffix(
+  existingStationNumbers: string[],
+  base: string,
+  excludeStationNumber?: string
+): string {
   const normBase = normalizeStationBaseCode(base)
   if (!normBase) return 'L1'
   let max = 0
@@ -122,12 +126,18 @@ export function nextWorkerSuffix(existingStationNumbers: string[], base: string,
 
 /** PBS1-L1 → PBS1 */
 export function inferParentStationCode(stationNumber: string): string | null {
-  const m = stationNumber.trim().toUpperCase().match(/^(.+)-(L\d+)$/i)
+  const m = stationNumber
+    .trim()
+    .toUpperCase()
+    .match(/^(.+)-(L\d+)$/i)
   return m ? m[1] : null
 }
 
 /** PBS1-L1 → 1 */
 export function workerIndexFromStationCode(stationNumber: string): number | null {
-  const m = stationNumber.trim().toUpperCase().match(/-L(\d+)$/i)
+  const m = stationNumber
+    .trim()
+    .toUpperCase()
+    .match(/-L(\d+)$/i)
   return m ? Number(m[1]) : null
 }

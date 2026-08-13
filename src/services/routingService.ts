@@ -100,9 +100,9 @@ export async function deactivateModelRouting(id: string): Promise<void> {
   if (error) throw new Error(error.message)
 }
 
-export async function listOperationsForRouting(search = ''): Promise<
-  { id: string; operation_name_ar: string; station_id: string; station_name: string }[]
-> {
+export async function listOperationsForRouting(
+  search = ''
+): Promise<{ id: string; operation_name_ar: string; station_id: string; station_name: string }[]> {
   let q = client()
     .from('station_operations')
     .select('id, operation_name_ar, station_id, stations(station_name)')

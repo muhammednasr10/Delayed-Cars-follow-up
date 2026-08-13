@@ -22,7 +22,9 @@ import {
   pagePermForEngineering,
   pagePermForPlanning,
   pagePermForProduction,
-  pagePermForWarehouses
+  pagePermForQuality,
+  pagePermForWarehouses,
+  canViewAnyWarehousesPage
 } from '../config/pageAccess'
 import { useNavigation } from '../Context/NavigationContext'
 import { DEPARTMENTS, departmentAccentClass } from '../config/departments'
@@ -43,7 +45,7 @@ type SidebarPage = {
 
 export function AppSidebar() {
   const { t } = useLang()
-  const { loading: permsLoading } = usePermissions()
+  const { loading: permsLoading, canViewModule } = usePermissions()
   const { canAccess: canAccessSettings } = useCanAccessSettings()
   const { canViewPage, loading: pagesLoading } = useCanViewPage()
   const { profile } = useAuth()
@@ -72,6 +74,9 @@ export function AppSidebar() {
   const canShowEngineeringIpl = canAccessSettings || canViewPage(pagePermForEngineering('ipl'))
   const canShowLineBalancing = navLoading || canViewPage(pagePermForEngineering('lineBalancing'))
   const canShowSop = navLoading || canViewPage(pagePermForEngineering('sop'))
+  const canViewQuality = navLoading || canViewPage(pagePermForQuality())
+  const canViewWarehouses = navLoading || canViewAnyWarehousesPage(canViewPage)
+  const canViewHr = navLoading || canViewModule('employees')
 
   const go = nav.navigate
 
@@ -109,7 +114,8 @@ export function AppSidebar() {
       key: 'vehicles',
       label: t('nav.productivity'),
       visible: navLoading || canViewPage(pagePermForProduction('vehicles')),
-      onNavigate: () => sidebarNav({ department: 'production', productionArea: 'assembly', productionPage: 'vehicles' }, true),
+      onNavigate: () =>
+        sidebarNav({ department: 'production', productionArea: 'assembly', productionPage: 'vehicles' }, true),
       children: [
         {
           key: 'productivity',
@@ -135,24 +141,32 @@ export function AppSidebar() {
         }
       ]
     },
-      {
-        key: 'training',
-        label: t('nav.training'),
-        visible: navLoading || canViewPage(pagePermForProduction('training')),
-        onNavigate: () => sidebarNav({ department: 'production', productionArea: 'assembly', productionPage: 'training' }, true),
-        children: (
-          ['org', 'attendance', 'manpower', 'operations', 'stationSkills', 'matrix', 'qualification', 'expiry'] as const
-        ).map(key => ({
-          key,
-          label: t(`training.tabs.${key}`),
-          onClick: () => sidebarNav({ department: 'production', productionArea: 'assembly', productionPage: 'training', trainingTab: key })
-        }))
-      },
-      {
-        key: 'damagedParts',
+    {
+      key: 'training',
+      label: t('nav.training'),
+      visible: navLoading || canViewPage(pagePermForProduction('training')),
+      onNavigate: () =>
+        sidebarNav({ department: 'production', productionArea: 'assembly', productionPage: 'training' }, true),
+      children: (
+        ['org', 'attendance', 'manpower', 'operations', 'stationSkills', 'matrix', 'qualification', 'expiry'] as const
+      ).map(key => ({
+        key,
+        label: t(`training.tabs.${key}`),
+        onClick: () =>
+          sidebarNav({
+            department: 'production',
+            productionArea: 'assembly',
+            productionPage: 'training',
+            trainingTab: key
+          })
+      }))
+    },
+    {
+      key: 'damagedParts',
       label: t('nav.damagedParts'),
       visible: navLoading || canViewPage(pagePermForProduction('damagedParts')),
-      onNavigate: () => sidebarNav({ department: 'production', productionArea: 'assembly', productionPage: 'damagedParts' })
+      onNavigate: () =>
+        sidebarNav({ department: 'production', productionArea: 'assembly', productionPage: 'damagedParts' })
     },
     {
       key: 'missions',
@@ -164,21 +178,23 @@ export function AppSidebar() {
       key: 'scratches',
       label: t('nav.scratches'),
       visible: navLoading || canViewPage(pagePermForProduction('scratches')),
-      onNavigate: () => sidebarNav({ department: 'production', productionArea: 'assembly', productionPage: 'scratches' })
+      onNavigate: () =>
+        sidebarNav({ department: 'production', productionArea: 'assembly', productionPage: 'scratches' })
     },
     {
       key: 'equipment',
       label: t('nav.equipment'),
       visible: navLoading || canViewPage(pagePermForProduction('equipment')),
-      onNavigate: () => sidebarNav({ department: 'production', productionArea: 'assembly', productionPage: 'equipment' })
+      onNavigate: () =>
+        sidebarNav({ department: 'production', productionArea: 'assembly', productionPage: 'equipment' })
     },
-      {
-        key: 'feedback',
-        label: t('nav.feedback'),
-        visible: navLoading || canViewPage(pagePermForProduction('feedback')),
-        onNavigate: () => sidebarNav({ department: 'production', productionArea: 'assembly', productionPage: 'feedback' })
-      }
-    ]
+    {
+      key: 'feedback',
+      label: t('nav.feedback'),
+      visible: navLoading || canViewPage(pagePermForProduction('feedback')),
+      onNavigate: () => sidebarNav({ department: 'production', productionArea: 'assembly', productionPage: 'feedback' })
+    }
+  ]
 
   const settingsSidebarPage: SidebarPage = {
     key: 'settings',
@@ -244,12 +260,11 @@ export function AppSidebar() {
       label: t('nav.lineBalancing'),
       visible: canShowLineBalancing,
       onNavigate: () => sidebarNav({ department: 'engineering', engineeringPage: 'lineBalancing' }, true),
-      children: (
-        ['operations', 'opParts', 'timeStudy', 'routing', 'manpower', 'import'] as const
-      ).map(key => ({
+      children: (['operations', 'opParts', 'timeStudy', 'routing', 'manpower', 'import'] as const).map(key => ({
         key,
         label: t(`lineBalancing.tabs.${key}`),
-        onClick: () => sidebarNav({ department: 'engineering', engineeringPage: 'lineBalancing', lineBalancingTab: key })
+        onClick: () =>
+          sidebarNav({ department: 'engineering', engineeringPage: 'lineBalancing', lineBalancingTab: key })
       }))
     },
     {
@@ -315,7 +330,7 @@ export function AppSidebar() {
     {
       key: 'employees',
       label: t('training.tabs.org'),
-      visible: navLoading || canViewPage(pagePermForProduction('training')),
+      visible: canViewHr,
       onNavigate: () => sidebarNav({ department: 'hr' })
     }
   ]
@@ -324,7 +339,7 @@ export function AppSidebar() {
     {
       key: 'notes',
       label: t('qualityNotes.title'),
-      visible: true,
+      visible: canViewQuality,
       onNavigate: () => sidebarNav({ department: 'quality', qualityTab: 'record' }),
       children: (['record', 'study'] as const).map(key => ({
         key,
@@ -354,21 +369,24 @@ export function AppSidebar() {
       label: t('warehouses.feeding.subTabs.plan'),
       icon: CalendarDays,
       visible: navLoading || canViewPage(pagePermForWarehouses('feeding')),
-      onNavigate: () => sidebarNav({ department: 'warehouses', warehousesTab: 'feeding', warehousesFeedingSubTab: 'plan' })
+      onNavigate: () =>
+        sidebarNav({ department: 'warehouses', warehousesTab: 'feeding', warehousesFeedingSubTab: 'plan' })
     },
     {
       key: 'feedingActual',
       label: t('warehouses.feeding.subTabs.actual'),
       icon: Truck,
       visible: navLoading || canViewPage(pagePermForWarehouses('feeding')),
-      onNavigate: () => sidebarNav({ department: 'warehouses', warehousesTab: 'feeding', warehousesFeedingSubTab: 'actual' })
+      onNavigate: () =>
+        sidebarNav({ department: 'warehouses', warehousesTab: 'feeding', warehousesFeedingSubTab: 'actual' })
     },
     {
       key: 'equipment',
       label: t('warehouses.tabs.equipment'),
       icon: Boxes,
       visible: navLoading || canViewPage(pagePermForWarehouses('equipment')),
-      onNavigate: () => sidebarNav({ department: 'warehouses', warehousesTab: 'equipment', warehousesEquipmentSubTab: 'racks' }, true),
+      onNavigate: () =>
+        sidebarNav({ department: 'warehouses', warehousesTab: 'equipment', warehousesEquipmentSubTab: 'racks' }, true),
       children: (['racks', 'carts'] as const).map(key => ({
         key,
         label: t(`warehouses.equipment.subTabs.${key}`),
@@ -379,11 +397,21 @@ export function AppSidebar() {
   ]
 
   function isProductionAreaActive(key: string) {
-    return !nav.showProfile && nav.department === 'production' && nav.productionArea === key && nav.productionPage !== 'settings'
+    return (
+      !nav.showProfile &&
+      nav.department === 'production' &&
+      nav.productionArea === key &&
+      nav.productionPage !== 'settings'
+    )
   }
 
   function isProductionActive(key: string) {
-    return !nav.showProfile && nav.department === 'production' && nav.productionArea === 'assembly' && nav.productionPage === key
+    return (
+      !nav.showProfile &&
+      nav.department === 'production' &&
+      nav.productionArea === 'assembly' &&
+      nav.productionPage === key
+    )
   }
 
   function isEngineeringActive(key: string) {
@@ -416,7 +444,9 @@ export function AppSidebar() {
                 >
                   <span className="flex min-w-0 items-center gap-2">
                     {page.icon && (
-                      <span className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-lg ${active ? 'bg-cyan-500/15 text-cyan-300' : 'bg-slate-900 text-slate-500'}`}>
+                      <span
+                        className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-lg ${active ? 'bg-cyan-500/15 text-cyan-300' : 'bg-slate-900 text-slate-500'}`}
+                      >
                         <page.icon className="h-4 w-4" />
                       </span>
                     )}
@@ -430,17 +460,19 @@ export function AppSidebar() {
                 </button>
                 {hasChildren && pageOpen && (
                   <ul className="mt-0.5 space-y-0.5 border-s border-slate-800 ps-2">
-                    {page.children!.filter(c => c.visible !== false).map(child => (
-                      <li key={child.key}>
-                        <button
-                          type="button"
-                          onClick={child.onClick}
-                          className="w-full rounded-lg px-3 py-1.5 text-start text-xs font-semibold text-slate-500 hover:bg-slate-800/80 hover:text-slate-300"
-                        >
-                          {child.label}
-                        </button>
-                      </li>
-                    ))}
+                    {page
+                      .children!.filter(c => c.visible !== false)
+                      .map(child => (
+                        <li key={child.key}>
+                          <button
+                            type="button"
+                            onClick={child.onClick}
+                            className="w-full rounded-lg px-3 py-1.5 text-start text-xs font-semibold text-slate-500 hover:bg-slate-800/80 hover:text-slate-300"
+                          >
+                            {child.label}
+                          </button>
+                        </li>
+                      ))}
                   </ul>
                 )}
               </li>
@@ -492,7 +524,12 @@ export function AppSidebar() {
             {t('myProfile.title')}
           </button>
 
-          {DEPARTMENTS.map(dept => {
+          {DEPARTMENTS.filter(dept => {
+            if (dept.id === 'quality') return canViewQuality
+            if (dept.id === 'hr') return canViewHr
+            if (dept.id === 'warehouses') return canViewWarehouses
+            return true
+          }).map(dept => {
             const Icon = dept.icon
             const deptSelected =
               !nav.showProfile &&
@@ -517,13 +554,14 @@ export function AppSidebar() {
                     <Icon className="h-4 w-4 shrink-0" />
                     {t(`departments.${dept.id}`)}
                   </span>
-                  <ChevronDown
-                    className={`h-4 w-4 shrink-0 transition-transform ${deptOpen ? 'rotate-180' : ''}`}
-                  />
+                  <ChevronDown className={`h-4 w-4 shrink-0 transition-transform ${deptOpen ? 'rotate-180' : ''}`} />
                 </button>
 
                 {deptOpen && isProduction && renderPages('production', productionAreaPages, isProductionAreaActive)}
-                {deptOpen && isProduction && nav.productionArea === 'assembly' && renderPages('production', productionPages, isProductionActive)}
+                {deptOpen &&
+                  isProduction &&
+                  nav.productionArea === 'assembly' &&
+                  renderPages('production', productionPages, isProductionActive)}
                 {deptOpen && isPlanning && renderPages('planning', planningPages, isPlanningActive)}
                 {deptOpen && isEngineering && renderPages('engineering', engineeringPages, isEngineeringActive)}
                 {deptOpen && isWarehouses && renderPages('warehouses', warehousesPages, isWarehousesActive)}

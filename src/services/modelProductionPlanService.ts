@@ -44,6 +44,21 @@ export async function getAnnualPlanTargets(year: number): Promise<ModelPlanTarge
   return getModelPlanTargets(year, ANNUAL_PLAN_MONTH)
 }
 
+/** أهداف الأشهر 1–12 فقط (بدون الخطة السنوية plan_month = 0) */
+export async function getYearMonthlyPlanTargets(year: number): Promise<ModelPlanTarget[]> {
+  const { data, error } = await requireClient()
+    .from('model_production_plan_targets')
+    .select('model_id, target_qty, plan_year, plan_month, wip_carryover_qty')
+    .eq('plan_year', year)
+    .gte('plan_month', 1)
+    .lte('plan_month', 12)
+    .order('plan_month')
+    .order('model_id')
+
+  if (error) throw new Error(error.message)
+  return ((data ?? []) as TargetRow[]).map(mapRow)
+}
+
 export async function saveModelPlanTargets(targets: ModelPlanTarget[]): Promise<void> {
   if (targets.length === 0) return
   const { error } = await requireClient()
@@ -79,10 +94,7 @@ export function wipCarryoverMap(dbTargets: ModelPlanTarget[]): Map<string, numbe
 }
 
 /** @deprecated استخدم planTargetsMap — البذرة من الأوامر لم تعد مناسبة لخطة شهرية */
-export function mergePlanTargets(
-  dbTargets: ModelPlanTarget[],
-  orders: ProductionOrder[]
-): Map<string, number> {
+export function mergePlanTargets(dbTargets: ModelPlanTarget[], orders: ProductionOrder[]): Map<string, number> {
   const map = new Map<string, number>()
   for (const order of orders) {
     if (!order.modelId) continue

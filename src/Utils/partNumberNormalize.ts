@@ -22,11 +22,7 @@ export function normalizeStationCode(raw: string): string {
 }
 
 /** Stable upsert key: one BOM line per part + station + vehicle model. */
-export function bomImportLineKey(parts: {
-  normalizedPart: string
-  stationCode: string
-  modelName: string
-}): string {
+export function bomImportLineKey(parts: { normalizedPart: string; stationCode: string; modelName: string }): string {
   return [
     parts.normalizedPart,
     normalizeStationCode(parts.stationCode) || '_',

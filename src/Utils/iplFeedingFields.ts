@@ -38,17 +38,7 @@ export function resolvePartDirection(
   position: string | null | undefined,
   raw?: Record<string, string> | null
 ): { kind: PartDirectionKind; raw: string } {
-  const fromRaw = pickRaw(
-    raw ?? undefined,
-    'side',
-    'direction',
-    'اتجاه',
-    'اتجاه_الجزء',
-    'rl',
-    'r/l',
-    'lh_rh',
-    'rh_lh'
-  )
+  const fromRaw = pickRaw(raw ?? undefined, 'side', 'direction', 'اتجاه', 'اتجاه_الجزء', 'rl', 'r/l', 'lh_rh', 'rh_lh')
   const s = (fromRaw || side || position || '').trim()
   if (!s) return { kind: 'either', raw: '' }
 
@@ -150,16 +140,15 @@ export function iplFieldsFromBomItem(
   stationCode: string
 } {
   const logistics = iplLogisticsFromBomItem(item)
-  const dir = resolvePartDirection(
-    logistics.part_direction || item.side,
-    item.position,
-    item.raw_data
-  )
-  let partDirectionLabel = ''
-  if (dir.kind === 'right') partDirectionLabel = t('warehouses.feeding.direction.right')
-  else if (dir.kind === 'left') partDirectionLabel = t('warehouses.feeding.direction.left')
-  else if (dir.kind === 'either') partDirectionLabel = t('warehouses.feeding.direction.either')
-  else partDirectionLabel = dir.raw || '—'
+  const dir = resolvePartDirection(logistics.part_direction || item.side, item.position, item.raw_data)
+  const partDirectionLabel =
+    dir.kind === 'right'
+      ? t('warehouses.feeding.direction.right')
+      : dir.kind === 'left'
+        ? t('warehouses.feeding.direction.left')
+        : dir.kind === 'either'
+          ? t('warehouses.feeding.direction.either')
+          : dir.raw || '—'
 
   const dimensions = formatPartDimensionsFromFields(logistics) || formatPartDimensions(item.raw_data)
   const weight = item.part_weight?.trim() || formatPartWeight(item.raw_data)

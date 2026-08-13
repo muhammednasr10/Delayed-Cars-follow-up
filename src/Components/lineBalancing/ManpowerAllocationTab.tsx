@@ -12,7 +12,12 @@ import {
   getUnderstaffedOperations,
   seedAllocationFromRouting
 } from '../../services/manpowerAllocationService'
-import type { AllocationShift, ManpowerAllocationDay, ManpowerAllocationLine, ManpowerWarningCode } from '../../Types/manpower'
+import type {
+  AllocationShift,
+  ManpowerAllocationDay,
+  ManpowerAllocationLine,
+  ManpowerWarningCode
+} from '../../Types/manpower'
 import type { VehicleModel } from '../../Types/settings'
 
 type Props = {
@@ -184,7 +189,11 @@ export function ManpowerAllocationTab({ models, canManage, notify }: Props) {
           </select>
         </label>
         <div className="flex flex-wrap items-end gap-2">
-          <button type="button" onClick={() => void loadDay()} className="rounded-xl bg-slate-800 px-3 py-2 text-sm font-bold text-slate-200">
+          <button
+            type="button"
+            onClick={() => void loadDay()}
+            className="rounded-xl bg-slate-800 px-3 py-2 text-sm font-bold text-slate-200"
+          >
             <RefreshCcw className="inline h-4 w-4" />
           </button>
           {canManage && modelId && (
@@ -245,9 +254,7 @@ export function ManpowerAllocationTab({ models, canManage, notify }: Props) {
                       {t('manpower.slots', { n: String(slots.length), req: String(head.required_manpower) })}
                     </span>
                   </div>
-                  {isUnder && (
-                    <p className="mb-2 text-xs text-amber-300">{t('manpower.warnings.understaffed')}</p>
-                  )}
+                  {isUnder && <p className="mb-2 text-xs text-amber-300">{t('manpower.warnings.understaffed')}</p>}
                   <div className="space-y-2">
                     {slots.map(line => (
                       <LineAssignRow
@@ -307,9 +314,7 @@ function LineAssignRow({
   onAssign: (employeeId: string) => void
 }) {
   const { t } = useLang()
-  const [candidates, setCandidates] = useState<
-    Awaited<ReturnType<typeof getQualifiedEmployeesForOperation>>
-  >([])
+  const [candidates, setCandidates] = useState<Awaited<ReturnType<typeof getQualifiedEmployeesForOperation>>>([])
 
   useEffect(() => {
     if (!canManage) return
@@ -330,8 +335,7 @@ function LineAssignRow({
           <option value="">{t('manpower.unassigned')}</option>
           {candidates.map(c => (
             <option key={c.id} value={c.id}>
-              {c.full_name} ({c.employee_code})
-              {c.warnings.length ? ` ⚠` : ''}
+              {c.full_name} ({c.employee_code}){c.warnings.length ? ` ⚠` : ''}
               {c.rating ? ` ★${c.rating}` : ''}
             </option>
           ))}

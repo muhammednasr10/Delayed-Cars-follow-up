@@ -49,12 +49,7 @@ export function StationNameAutocomplete({
       const code = formatStationReferenceCode(s.station_number).toLowerCase()
       const raw = s.station_number.toLowerCase()
       const area = workAreas.find(a => a.id === s.work_area_id)?.name?.toLowerCase() ?? ''
-      return (
-        code.includes(q) ||
-        raw.includes(q) ||
-        s.station_name.toLowerCase().includes(q) ||
-        area.includes(q)
-      )
+      return code.includes(q) || raw.includes(q) || s.station_name.toLowerCase().includes(q) || area.includes(q)
     })
   }, [stations, excluded, value, workAreas])
 

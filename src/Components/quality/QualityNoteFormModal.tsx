@@ -208,7 +208,11 @@ export function QualityNoteFormModal({
       maxWidthClass="max-w-xl"
       footer={
         <div className="flex justify-end gap-2">
-          <button type="button" onClick={onClose} className="rounded-xl bg-slate-800 px-4 py-2 text-sm font-bold text-slate-200 hover:bg-slate-700">
+          <button
+            type="button"
+            onClick={onClose}
+            className="rounded-xl bg-slate-800 px-4 py-2 text-sm font-bold text-slate-200 hover:bg-slate-700"
+          >
             {t('common.cancel')}
           </button>
           <button
@@ -223,7 +227,9 @@ export function QualityNoteFormModal({
       }
     >
       <div className="space-y-4 p-5">
-        {error && <div className="rounded-xl border border-red-500/30 bg-red-500/10 p-3 text-sm text-red-200">{error}</div>}
+        {error && (
+          <div className="rounded-xl border border-red-500/30 bg-red-500/10 p-3 text-sm text-red-200">{error}</div>
+        )}
 
         <Field label={t('qualityNotes.cols.model')} required>
           <VehicleModelMultiSelect

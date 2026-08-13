@@ -2,7 +2,12 @@ import { createContext, useContext, useEffect, useMemo, useState, type ReactNode
 import { supabase } from '../lib/supabase'
 import { initialDelayedCars } from '../Data/mockCars'
 import type { DelayedCar, DelayedCarInput, DelayStatus } from '../Types/car'
-import { createDelayedCar, getDelayedCars, updateDelayedCar, updateDelayedCarStatus } from '../services/delayedCarsService'
+import {
+  createDelayedCar,
+  getDelayedCars,
+  updateDelayedCar,
+  updateDelayedCarStatus
+} from '../services/delayedCarsService'
 
 type DelayedCarsContextValue = {
   cars: DelayedCar[]
@@ -88,9 +93,7 @@ export function DelayedCarsProvider({ children }: { children: ReactNode }) {
     const now = new Date().toISOString()
     const resolvedAt = status === 'received_installed' || status === 'closed' ? now : null
 
-    setCars(prev =>
-      prev.map(car => (car.id === id ? { ...car, status, updatedAt: now, resolvedAt } : car))
-    )
+    setCars(prev => prev.map(car => (car.id === id ? { ...car, status, updatedAt: now, resolvedAt } : car)))
 
     if (supabase) {
       try {
@@ -103,9 +106,7 @@ export function DelayedCarsProvider({ children }: { children: ReactNode }) {
 
   async function updateCar(id: string, patch: Partial<DelayedCar>) {
     const now = new Date().toISOString()
-    setCars(prev =>
-      prev.map(car => (car.id === id ? { ...car, ...patch, updatedAt: now } : car))
-    )
+    setCars(prev => prev.map(car => (car.id === id ? { ...car, ...patch, updatedAt: now } : car)))
 
     if (supabase) {
       try {

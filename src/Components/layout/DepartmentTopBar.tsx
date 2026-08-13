@@ -3,16 +3,11 @@ import { useLang } from '../../i18n/LanguageContext'
 import { useNavigation } from '../../Context/NavigationContext'
 import { useDepartmentNavPages, type NavPageItem } from '../../hooks/useDepartmentNavPages'
 import type { DepartmentId } from '../../Types/navigation'
+import { SETTINGS_STATIONS_SUB_TAB_ORDER } from '../../Types/navigation'
 import { NavTabButton } from './NavTabButton'
 
 /** أقسام تظهر صفحاتها في الشريط العلوي — التخطيط له تبويبات داخل الصفحة فلا يُكرَّر هنا */
-const IMPLEMENTED_DEPARTMENTS = new Set<DepartmentId>([
-  'production',
-  'engineering',
-  'warehouses',
-  'quality',
-  'hr'
-])
+const IMPLEMENTED_DEPARTMENTS = new Set<DepartmentId>(['production', 'engineering', 'warehouses', 'quality', 'hr'])
 
 export function DepartmentTopBar() {
   const { t } = useLang()
@@ -29,7 +24,8 @@ export function DepartmentTopBar() {
   } = useDepartmentNavPages()
 
   const isGlobalHomeActive = !showProfile && nav.showGlobalHome
-  const isSettingsActive = !showProfile && !nav.showGlobalHome && nav.department === 'production' && nav.productionPage === 'settings'
+  const isSettingsActive =
+    !showProfile && !nav.showGlobalHome && nav.department === 'production' && nav.productionPage === 'settings'
   const sectionPages = pagesForDepartment(currentDepartment).filter(p => p.visible)
   const areaTabs = productionAreaTabs.filter(p => p.visible)
   const isProduction = currentDepartment === 'production'
@@ -40,10 +36,10 @@ export function DepartmentTopBar() {
     !isSettingsActive &&
     IMPLEMENTED_DEPARTMENTS.has(currentDepartment) &&
     ((isProduction && areaTabs.length > 0) || (!isProduction && sectionPages.length > 0))
-  const settingsTabs = settingsPage.visible ? settingsPage.children ?? [] : []
+  const settingsTabs = settingsPage.visible ? (settingsPage.children ?? []) : []
 
   const activePageWithChildren = useMemo(() => {
-    if (!hasSectionPages || isProduction && !showAssemblyPages) return null
+    if (!hasSectionPages || (isProduction && !showAssemblyPages)) return null
     return sectionPages.find(p => p.children?.length && isPageActive(currentDepartment, p.key)) ?? null
   }, [hasSectionPages, isProduction, showAssemblyPages, sectionPages, currentDepartment, isPageActive])
 
@@ -54,9 +50,7 @@ export function DepartmentTopBar() {
     if (!page.children?.length) return null
     return (
       <div className="border-t border-slate-800/80 pt-2">
-        <p className="mb-1.5 px-1 text-[10px] font-black uppercase tracking-widest text-cyan-400/70">
-          {page.label}
-        </p>
+        <p className="mb-1.5 px-1 text-[10px] font-black uppercase tracking-widest text-cyan-400/70">{page.label}</p>
         <div className="flex gap-1.5 overflow-x-auto pb-0.5 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
           {page.children.map(child => (
             <NavTabButton
@@ -78,7 +72,9 @@ export function DepartmentTopBar() {
       <div className="space-y-2">
         {isSettingsActive && settingsTabs.length > 0 && (
           <div>
-            <p className="mb-1.5 px-1 text-[10px] font-black uppercase tracking-widest text-slate-500">{t('nav.settings')}</p>
+            <p className="mb-1.5 px-1 text-[10px] font-black uppercase tracking-widest text-slate-500">
+              {t('nav.settings')}
+            </p>
             <div className="flex gap-1.5 overflow-x-auto pb-0.5 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
               {settingsTabs.map(tab => (
                 <NavTabButton
@@ -87,6 +83,25 @@ export function DepartmentTopBar() {
                   icon={tab.icon}
                   active={nav.settingsTab === tab.key}
                   onClick={tab.onClick}
+                />
+              ))}
+            </div>
+          </div>
+        )}
+
+        {isSettingsActive && nav.settingsTab === 'stations' && (
+          <div className="border-t border-slate-800/80 pt-2">
+            <p className="mb-1.5 px-1 text-[10px] font-black uppercase tracking-widest text-cyan-400/70">
+              {t('settings.tabs.stations')}
+            </p>
+            <div className="flex gap-1.5 overflow-x-auto pb-0.5 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+              {SETTINGS_STATIONS_SUB_TAB_ORDER.map(key => (
+                <NavTabButton
+                  key={key}
+                  label={t(`settings.stationsSubTabs.${key}`)}
+                  compact
+                  active={nav.settingsStationsSubTab === key}
+                  onClick={() => nav.setSettingsStationsSubTab(key)}
                 />
               ))}
             </div>

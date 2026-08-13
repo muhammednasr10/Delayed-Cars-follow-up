@@ -7,9 +7,7 @@ export function familiesForModelLine(models: VehicleModel[], modelLine?: ModelLi
   const { groups } = buildModelFamilyGroups(models)
   const families = groups.map(g => g.family).filter(f => f.is_active)
   if (!modelLine) return families.sort((a, b) => a.name.localeCompare(b.name))
-  return families
-    .filter(f => modelBelongsToLine(f.name, modelLine))
-    .sort((a, b) => a.name.localeCompare(b.name))
+  return families.filter(f => modelBelongsToLine(f.name, modelLine)).sort((a, b) => a.name.localeCompare(b.name))
 }
 
 export function variantsForFamily(models: VehicleModel[], familyId: string): VehicleModel[] {
@@ -18,16 +16,16 @@ export function variantsForFamily(models: VehicleModel[], familyId: string): Veh
   const fromGroup = (group?.variants ?? []).filter(isAssignableModel).filter(v => v.is_active)
   if (fromGroup.length > 0) return fromGroup
 
-  const direct = models.filter(
-    m => m.parent_model_id === familyId && m.model_kind !== 'family' && m.is_active
-  )
+  const direct = models.filter(m => m.parent_model_id === familyId && m.model_kind !== 'family' && m.is_active)
   if (direct.length > 0) return direct
 
   return orphanVariants.filter(isAssignableModel).filter(v => v.is_active)
 }
 
 export function variantNamesForFamily(models: VehicleModel[], familyId: string): string[] {
-  return variantsForFamily(models, familyId).map(v => v.name.trim()).filter(Boolean)
+  return variantsForFamily(models, familyId)
+    .map(v => v.name.trim())
+    .filter(Boolean)
 }
 
 export type VariantPickerGroup = {
@@ -37,10 +35,7 @@ export type VariantPickerGroup = {
 }
 
 /** كل المتغيرات القابلة للاختيار — مع تجميع حسب العائلة (اختيار عبر T4 و T8 معاً) */
-export function variantGroupsForPicker(
-  models: VehicleModel[],
-  modelLine?: ModelLine | null
-): VariantPickerGroup[] {
+export function variantGroupsForPicker(models: VehicleModel[], modelLine?: ModelLine | null): VariantPickerGroup[] {
   const { groups, orphanVariants } = buildModelFamilyGroups(models)
   const result: VariantPickerGroup[] = []
 

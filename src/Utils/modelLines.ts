@@ -21,7 +21,16 @@ export type ModelLineScope = ModelLine | 'common' | 'other'
 /** Per-line colors for tabs, cards, and legend */
 export const MODEL_LINE_STYLES: Record<
   ModelLine,
-  { tabActive: string; tabIdle: string; cardBorder: string; cardBg: string; badge: string; legendDot: string; ring: string; titleText: string }
+  {
+    tabActive: string
+    tabIdle: string
+    cardBorder: string
+    cardBg: string
+    badge: string
+    legendDot: string
+    ring: string
+    titleText: string
+  }
 > = {
   T4: {
     tabActive: 'bg-cyan-500 text-slate-950',

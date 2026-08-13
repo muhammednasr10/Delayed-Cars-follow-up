@@ -1,10 +1,4 @@
-import type {
-  MissingPartReason,
-  MissingPartStatus,
-  PriorityLevel,
-  ResponsibleDepartment,
-  StopperType
-} from './enums'
+import type { MissingPartReason, MissingPartStatus, PriorityLevel, ResponsibleDepartment, StopperType } from './enums'
 
 // Row shape from the `v_missing_parts_detail` view.
 export type MissingPartDetail = {
@@ -38,6 +32,8 @@ export type MissingPartDetail = {
   createdAt: string
   updatedAt: string
   shortageResolvedAt: string | null
+  /** Set when closed via «ترحيل» (workflow done, shortage not physically resolved). */
+  transferredAt: string | null
   reportGroupId: string | null
   stationId: string | null
   factoryOrgUnitId: string | null
@@ -111,9 +107,11 @@ export type ReportMissingPartsBatchInput = {
   factoryOrgUnitId?: string | null
   reason: MissingPartReason
   department: ResponsibleDepartment
-  priority: PriorityLevel
-  stopperType: StopperType
+  priority?: PriorityLevel
+  stopperType?: StopperType
   notes?: string
+  /** Attach new lines to an existing multi-chassis report group. */
+  reportGroupId?: string | null
 }
 
 export type ReportMissingPartsBatchResult = {
@@ -124,9 +122,10 @@ export type ReportMissingPartsBatchResult = {
 
 export type MissingPartFilters = {
   search: string
-  stationNumbers: string[]
   modelNames: string[]
   departments: string[]
+  /** Archive month key `YYYY-MM` from shortageResolvedAt; null = all months. */
+  resolvedMonth: string | null
 }
 
 export type DepartmentVehicleCount = {

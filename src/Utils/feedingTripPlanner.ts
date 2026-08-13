@@ -115,7 +115,13 @@ type TripAcc = {
   warnings: string[]
 }
 
-function canAdd(acc: TripAcc, part: FeedingTripPart, maxLoad: number, maxSlots: number, doll: PartDimsCm): string | null {
+function canAdd(
+  acc: TripAcc,
+  part: FeedingTripPart,
+  maxLoad: number,
+  maxSlots: number,
+  doll: PartDimsCm
+): string | null {
   if (part.tripWeightKg > maxLoad) return 'overMaxLoad'
   if (acc.totalWeightKg + part.tripWeightKg > maxLoad) return 'tripWeight'
   if (acc.parts.length >= maxSlots) return 'tripSlots'

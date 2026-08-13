@@ -67,7 +67,12 @@ export function StationAutocomplete({ value, onSelect, canCreate = false }: Prop
             <MapPin className="h-4 w-4 text-cyan-300" />
             <span className="font-black text-slate-100">{value.station_name}</span>
           </div>
-          <button type="button" onClick={clear} className="rounded-lg p-1 text-slate-400 hover:bg-slate-800 hover:text-slate-100" title={t('station.clear')}>
+          <button
+            type="button"
+            onClick={clear}
+            className="rounded-lg p-1 text-slate-400 hover:bg-slate-800 hover:text-slate-100"
+            title={t('station.clear')}
+          >
             <X className="h-4 w-4" />
           </button>
         </div>
@@ -75,7 +80,10 @@ export function StationAutocomplete({ value, onSelect, canCreate = false }: Prop
           <Meta label={t('station.code')} value={value.station_number} />
           <Meta label={t('station.area')} value={value.work_areas?.name} />
           <Meta label={t('station.line')} value={value.line_name} />
-          <Meta label={t('station.department')} value={value.responsible_department ? t(`department.${value.responsible_department}`) : null} />
+          <Meta
+            label={t('station.department')}
+            value={value.responsible_department ? t(`department.${value.responsible_department}`) : null}
+          />
           <Meta label={t('station.person')} value={value.responsible_person} />
         </dl>
       </div>
@@ -90,7 +98,10 @@ export function StationAutocomplete({ value, onSelect, canCreate = false }: Prop
           className="input-dark ltr:pl-9 rtl:pr-9"
           value={query}
           placeholder={t('station.search')}
-          onChange={e => { setQuery(e.target.value); setOpen(true) }}
+          onChange={e => {
+            setQuery(e.target.value)
+            setOpen(true)
+          }}
           onFocus={() => setOpen(true)}
         />
       </div>
@@ -103,28 +114,35 @@ export function StationAutocomplete({ value, onSelect, canCreate = false }: Prop
             </div>
           )}
 
-          {!loading && error && (
-            <div className="px-3 py-3 text-sm text-red-300">{error}</div>
-          )}
+          {!loading && error && <div className="px-3 py-3 text-sm text-red-300">{error}</div>}
 
-          {!loading && !error && results.length > 0 && results.map(s => (
-            <button
-              key={s.id}
-              type="button"
-              onClick={() => pick(s)}
-              className="flex w-full items-center justify-between gap-2 px-3 py-2 text-start hover:bg-slate-800"
-            >
-              <span className="font-bold text-slate-100">{s.station_name}</span>
-              <span className="text-xs text-slate-400">
-                {s.station_number}{s.line_name ? ` · ${s.line_name}` : ''}
-              </span>
-            </button>
-          ))}
+          {!loading &&
+            !error &&
+            results.length > 0 &&
+            results.map(s => (
+              <button
+                key={s.id}
+                type="button"
+                onClick={() => pick(s)}
+                className="flex w-full items-center justify-between gap-2 px-3 py-2 text-start hover:bg-slate-800"
+              >
+                <span className="font-bold text-slate-100">{s.station_name}</span>
+                <span className="text-xs text-slate-400">
+                  {s.station_number}
+                  {s.line_name ? ` · ${s.line_name}` : ''}
+                </span>
+              </button>
+            ))}
 
           {!loading && !error && results.length === 0 && (
             <div className="px-3 py-3 text-sm">
               {canCreate ? (
-                <button type="button" onClick={create} disabled={creating} className="flex w-full items-center gap-2 rounded-lg bg-cyan-500/15 px-3 py-2 font-bold text-cyan-200 hover:bg-cyan-500/25 disabled:opacity-50">
+                <button
+                  type="button"
+                  onClick={create}
+                  disabled={creating}
+                  className="flex w-full items-center gap-2 rounded-lg bg-cyan-500/15 px-3 py-2 font-bold text-cyan-200 hover:bg-cyan-500/25 disabled:opacity-50"
+                >
                   {creating ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4" />}
                   {t('station.create')}: “{query.trim()}”
                 </button>

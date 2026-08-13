@@ -149,7 +149,10 @@ export function CrudSection<T>({
           </div>
         </div>
         {canManage && (
-          <button onClick={openAdd} className="rounded-xl bg-cyan-500 px-4 py-2 text-sm font-black text-slate-950 hover:bg-cyan-400">
+          <button
+            onClick={openAdd}
+            className="rounded-xl bg-cyan-500 px-4 py-2 text-sm font-black text-slate-950 hover:bg-cyan-400"
+          >
             <Plus className="mr-1 inline h-4 w-4" /> {t('common.add')}
           </button>
         )}
@@ -166,12 +169,17 @@ export function CrudSection<T>({
           <thead className="bg-slate-950">
             <tr>
               {columns.map(col => (
-                <th key={col.header} className={`table-cell text-xs font-black uppercase text-slate-400 ${col.className ?? ''}`}>
+                <th
+                  key={col.header}
+                  className={`table-cell text-xs font-black uppercase text-slate-400 ${col.className ?? ''}`}
+                >
                   {col.header}
                 </th>
               ))}
               {canManage && (
-                <th data-export-skip className="table-cell text-center text-xs font-black uppercase text-slate-400">{t('common.actions')}</th>
+                <th data-export-skip className="table-cell text-center text-xs font-black uppercase text-slate-400">
+                  {t('common.actions')}
+                </th>
               )}
             </tr>
           </thead>
@@ -297,7 +305,9 @@ export function CrudSection<T>({
                 )
               })}
               {formError && (
-                <div className="rounded-xl border border-red-500/30 bg-red-500/10 p-3 text-sm text-red-200">{formError}</div>
+                <div className="rounded-xl border border-red-500/30 bg-red-500/10 p-3 text-sm text-red-200">
+                  {formError}
+                </div>
               )}
             </div>
           </Modal>

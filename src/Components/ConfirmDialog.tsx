@@ -26,9 +26,7 @@ export function ConfirmDialog({
   onCancel
 }: ConfirmDialogProps) {
   const confirmClasses =
-    tone === 'danger'
-      ? 'bg-red-500 text-white hover:bg-red-400'
-      : 'bg-cyan-500 text-slate-950 hover:bg-cyan-400'
+    tone === 'danger' ? 'bg-red-500 text-white hover:bg-red-400' : 'bg-cyan-500 text-slate-950 hover:bg-cyan-400'
 
   return (
     <Modal
@@ -39,7 +37,10 @@ export function ConfirmDialog({
       maxWidthClass="max-w-md"
       footer={
         <>
-          <button onClick={onCancel} className="rounded-xl bg-slate-800 px-4 py-2 font-bold text-slate-200 hover:bg-slate-700">
+          <button
+            onClick={onCancel}
+            className="rounded-xl bg-slate-800 px-4 py-2 font-bold text-slate-200 hover:bg-slate-700"
+          >
             {cancelLabel}
           </button>
           <button

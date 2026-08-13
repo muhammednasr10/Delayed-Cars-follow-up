@@ -61,7 +61,9 @@ export function WorkerProfileAttendanceTab() {
   }
 
   if (!profile) {
-    return <div className="card-industrial p-6 text-center text-sm text-amber-200">{t('workerProfile.noEmployeeLink')}</div>
+    return (
+      <div className="card-industrial p-6 text-center text-sm text-amber-200">{t('workerProfile.noEmployeeLink')}</div>
+    )
   }
 
   const todayHasTimes = today ? attendanceStatusHasTimes(today.status) : false
@@ -71,7 +73,9 @@ export function WorkerProfileAttendanceTab() {
       <section className="card-industrial space-y-3 p-5">
         <div className="flex items-center gap-2 text-cyan-300">
           <User className="h-5 w-5" />
-          <h3 className="text-sm font-black uppercase tracking-wide text-slate-400">{t('workerProfile.attendanceEmployee')}</h3>
+          <h3 className="text-sm font-black uppercase tracking-wide text-slate-400">
+            {t('workerProfile.attendanceEmployee')}
+          </h3>
         </div>
         <div className="flex flex-wrap items-center gap-3">
           <p className="font-mono text-lg font-black text-white" dir="ltr">
@@ -129,7 +133,9 @@ export function WorkerProfileAttendanceTab() {
         <section className="card-industrial space-y-3 p-5">
           <div className="flex items-center gap-2 text-violet-300">
             <CalendarClock className="h-5 w-5" />
-            <h3 className="text-sm font-black uppercase tracking-wide text-slate-400">{t('workerProfile.attendanceMonthlySummary')}</h3>
+            <h3 className="text-sm font-black uppercase tracking-wide text-slate-400">
+              {t('workerProfile.attendanceMonthlySummary')}
+            </h3>
           </div>
           <div className="grid grid-cols-2 gap-2 text-sm sm:grid-cols-4 lg:grid-cols-7">
             {(

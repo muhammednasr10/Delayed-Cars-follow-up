@@ -13,8 +13,12 @@ export function Dashboard() {
   const resolvedToday = cars.filter(car => car.resolvedAt && new Date(car.resolvedAt).toDateString() === today)
 
   const priorityCars = [...openCars].sort((a, b) => {
-    const criticalWeight = (carCriticality: string) => (carCriticality === 'critical' ? 3 : carCriticality === 'medium' ? 2 : 1)
-    return criticalWeight(b.criticality) - criticalWeight(a.criticality) || new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()
+    const criticalWeight = (carCriticality: string) =>
+      carCriticality === 'critical' ? 3 : carCriticality === 'medium' ? 2 : 1
+    return (
+      criticalWeight(b.criticality) - criticalWeight(a.criticality) ||
+      new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()
+    )
   })
 
   return (
@@ -67,15 +71,25 @@ export function Dashboard() {
                   <div>
                     <p className="text-xs text-slate-500">{car.stationNumber}</p>
                     <h3 className="text-lg font-black text-white">{car.chassisNumber}</h3>
-                    <p className="text-sm text-slate-400">{car.model} • {car.missingPart}</p>
+                    <p className="text-sm text-slate-400">
+                      {car.model} • {car.missingPart}
+                    </p>
                   </div>
                   <CriticalityBadge level={car.criticality} />
                 </div>
                 <div className="mt-4 flex flex-wrap items-center gap-2">
                   <StatusBadge status={car.status} />
-                  {car.isDrItem && <span className="rounded-full bg-purple-500/15 px-3 py-1 text-xs font-bold text-purple-200 ring-1 ring-purple-400/30">DR Item</span>}
-                  <span className="rounded-full bg-slate-800 px-3 py-1 text-xs text-slate-300">Delay: {getDelayHours(car.createdAt)}h</span>
-                  <span className="rounded-full bg-slate-800 px-3 py-1 text-xs text-slate-300">Since {formatDateTime(car.createdAt)}</span>
+                  {car.isDrItem && (
+                    <span className="rounded-full bg-purple-500/15 px-3 py-1 text-xs font-bold text-purple-200 ring-1 ring-purple-400/30">
+                      DR Item
+                    </span>
+                  )}
+                  <span className="rounded-full bg-slate-800 px-3 py-1 text-xs text-slate-300">
+                    Delay: {getDelayHours(car.createdAt)}h
+                  </span>
+                  <span className="rounded-full bg-slate-800 px-3 py-1 text-xs text-slate-300">
+                    Since {formatDateTime(car.createdAt)}
+                  </span>
                 </div>
               </div>
             ))

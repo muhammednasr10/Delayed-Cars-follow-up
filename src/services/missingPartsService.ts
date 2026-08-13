@@ -1,4 +1,5 @@
 import { supabase } from '../lib/supabase'
+import { normalizeChassisVin } from '../Utils/vinValidation'
 import type {
   MissingPartDetail,
   ReportMissingPartInput,
@@ -43,6 +44,7 @@ type DetailRow = {
   created_at: string
   updated_at: string
   shortage_resolved_at: string | null
+  transferred_at?: string | null
   report_group_id: string | null
   station_id: string | null
   factory_org_unit_id: string | null
@@ -80,6 +82,7 @@ function mapDetail(row: DetailRow): MissingPartDetail {
     createdAt: row.created_at,
     updatedAt: row.updated_at,
     shortageResolvedAt: row.shortage_resolved_at,
+    transferredAt: row.transferred_at ?? null,
     reportGroupId: row.report_group_id,
     stationId: row.station_id,
     factoryOrgUnitId: row.factory_org_unit_id
@@ -105,9 +108,87 @@ export async function deleteMissingPartRecord(id: string): Promise<void> {
   if (error) throw new Error(error.message)
 }
 
+/** Stamp open lines onto a shared report group (e.g. before adding more chassis). */
+export async function attachMissingPartsToReportGroup(ids: string[], reportGroupId: string): Promise<void> {
+  if (ids.length === 0) return
+  const { error } = await requireClient()
+    .from('missing_parts')
+    .update({ report_group_id: reportGroupId })
+    .in('id', ids)
+  if (error) throw new Error(error.message)
+}
+
 export async function completeVehicleShortage(vehicleId: string): Promise<void> {
   const { error } = await requireClient().rpc('complete_vehicle_shortage', { p_vehicle_id: vehicleId })
   if (error) throw new Error(error.message)
+}
+
+/** ترحيل سبب نقص واحد: يُغلق السطر ويُعلَّم transferred_at دون تركيب فعلي؛ إن لم يبقَ مفتوح تُأرشف السيارة. */
+export async function transferMissingPartIssue(
+  missingPartId: string,
+  options?: { vehicleId?: string; remainingOpenOnVehicle?: number }
+): Promise<{ vehicle_id: string; vehicle_archived: boolean }> {
+  const { data, error } = await requireClient().rpc('transfer_missing_part_issue', {
+    p_missing_part_id: missingPartId
+  })
+
+  if (!error) {
+    const row = (data ?? {}) as { vehicle_id?: string; vehicle_archived?: boolean }
+    return {
+      vehicle_id: row.vehicle_id ?? options?.vehicleId ?? '',
+      vehicle_archived: Boolean(row.vehicle_archived)
+    }
+  }
+
+  const missingFn =
+    error.message.includes('Could not find the function') || error.message.includes('schema cache')
+  if (!missingFn) throw new Error(error.message)
+
+  const vehicleId = options?.vehicleId
+  if (!vehicleId) {
+    throw new Error(
+      'دالة ترحيل السبب غير مفعّلة على Supabase. نفّذ supabase/scripts/apply_missing_part_transferred_at.sql'
+    )
+  }
+
+  const remainingOpen = options?.remainingOpenOnVehicle ?? 1
+  const { error: closeErr } = await requireClient()
+    .from('missing_parts')
+    .update({
+      status: 'closed',
+      qc_approved: true,
+      transferred_at: new Date().toISOString()
+    })
+    .eq('id', missingPartId)
+
+  if (closeErr) {
+    throw new Error(
+      'دالة ترحيل السبب غير مفعّلة على Supabase. نفّذ supabase/scripts/apply_missing_part_transferred_at.sql'
+    )
+  }
+
+  if (remainingOpen <= 1) {
+    await completeVehicleShortage(vehicleId)
+    return { vehicle_id: vehicleId, vehicle_archived: true }
+  }
+
+  return { vehicle_id: vehicleId, vehicle_archived: false }
+}
+
+/** VINs already registered on this model (vehicles table). */
+export async function findExistingVehicleVins(vins: string[], modelId: string): Promise<string[]> {
+  const normalized = [...new Set(vins.map(v => normalizeChassisVin(v).toUpperCase()).filter(v => /^\d{4}$/.test(v)))]
+  if (!normalized.length || !modelId) return []
+
+  const { data, error } = await requireClient()
+    .from('vehicles')
+    .select('vin')
+    .eq('model_id', modelId)
+    .eq('is_deleted', false)
+    .in('vin', normalized)
+
+  if (error) throw new Error(error.message)
+  return (data ?? []).map(row => String((row as { vin: string }).vin))
 }
 
 export async function getMissingParts(): Promise<MissingPartDetail[]> {
@@ -137,10 +218,7 @@ export async function bulkInstallVehiclesToFull(
   const vehicleSet = new Set(vehicleIds)
   const targets = pool.filter(
     p =>
-      vehicleSet.has(p.vehicleId) &&
-      p.status !== 'closed' &&
-      p.status !== 'cancelled' &&
-      p.installedQty < p.requiredQty
+      vehicleSet.has(p.vehicleId) && p.status !== 'closed' && p.status !== 'cancelled' && p.installedQty < p.requiredQty
   )
   for (const p of targets) {
     const delta = p.requiredQty - p.installedQty
@@ -207,7 +285,7 @@ export async function reportMissingPartsBatch(
     }))
     .filter(p => p.part_description)
 
-  const { data, error } = await requireClient().rpc('report_missing_parts_batch', {
+  const baseParams = {
     p_vins: vins,
     p_model_id: input.modelId,
     p_parts: parts,
@@ -215,13 +293,40 @@ export async function reportMissingPartsBatch(
     p_station_id: input.stationId || null,
     p_reason: input.reason,
     p_department: input.department,
-    p_priority: input.priority,
-    p_stopper_type: input.stopperType,
-    p_notes: input.notes || null,
-    p_factory_org_unit_id: input.factoryOrgUnitId || null
-  })
+    p_priority: input.priority ?? 'normal',
+    p_stopper_type: input.stopperType ?? 'car_stopper',
+    p_notes: input.notes || null
+  }
 
-  if (error) throw new Error(error.message)
+  const withOrg = input.factoryOrgUnitId
+    ? { ...baseParams, p_factory_org_unit_id: input.factoryOrgUnitId }
+    : baseParams
+  const withGroup = input.reportGroupId
+    ? { ...withOrg, p_report_group_id: input.reportGroupId }
+    : withOrg
+
+  let data: unknown
+  let error: { message: string } | null
+
+  ;({ data, error } = await requireClient().rpc('report_missing_parts_batch', withGroup))
+
+  if (error && error.message.includes('Could not find the function') && 'p_report_group_id' in withGroup) {
+    ;({ data, error } = await requireClient().rpc('report_missing_parts_batch', withOrg))
+  }
+
+  if (error && error.message.includes('Could not find the function') && 'p_factory_org_unit_id' in withOrg) {
+    ;({ data, error } = await requireClient().rpc('report_missing_parts_batch', baseParams))
+  }
+
+  if (error) {
+    if (error.message.includes('Could not find the function')) {
+      throw new Error(
+        'دالة تبليغ النواقص غير محدّثة على Supabase. نفّذ الملف supabase/migrations/0145_report_batch_attach_group.sql من SQL Editor.'
+      )
+    }
+    throw new Error(error.message)
+  }
+
   const row = data as ReportMissingPartsBatchResult
   return {
     vehicle_count: row.vehicle_count ?? vins.length,

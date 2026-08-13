@@ -1,11 +1,4 @@
-export type DepartmentId =
-  | 'production'
-  | 'warehouses'
-  | 'planning'
-  | 'engineering'
-  | 'maintenance'
-  | 'quality'
-  | 'hr'
+export type DepartmentId = 'production' | 'warehouses' | 'planning' | 'engineering' | 'maintenance' | 'quality' | 'hr'
 
 export type ProductionPage =
   | 'home'
@@ -31,13 +24,7 @@ export type ProductionArea = (typeof PRODUCTION_AREA_ORDER)[number]
 
 export type EngineeringPage = 'home' | 'ipl' | 'stations' | 'lineBalancing' | 'sop'
 
-export type BomTab =
-  | 'consolidated'
-  | 'partList'
-  | 'iplModels'
-  | 'categories'
-  | 'import'
-  | 'dashboard'
+export type BomTab = 'consolidated' | 'partList' | 'iplModels' | 'categories' | 'import' | 'dashboard'
 
 export const BOM_TAB_ORDER = [
   'consolidated',
@@ -65,18 +52,15 @@ export function bomTabPermissionKey(tab: BomTab): string {
 export type LineBalancingTab = 'operations' | 'opParts' | 'timeStudy' | 'routing' | 'manpower' | 'import'
 
 export type TrainingTab =
-  | 'org'
-  | 'attendance'
-  | 'manpower'
-  | 'operations'
-  | 'stationSkills'
-  | 'matrix'
-  | 'qualification'
-  | 'expiry'
+  'org' | 'attendance' | 'manpower' | 'operations' | 'stationSkills' | 'matrix' | 'qualification' | 'expiry'
 
-export const SETTINGS_TAB_ORDER = ['administrations', 'models', 'stations', 'colors', 'users'] as const
+export const SETTINGS_TAB_ORDER = ['administrations', 'models', 'stations', 'colors', 'helperLists', 'users'] as const
 
 export type SettingsTab = (typeof SETTINGS_TAB_ORDER)[number]
+
+export const SETTINGS_STATIONS_SUB_TAB_ORDER = ['assemblyLine'] as const
+
+export type SettingsStationsSubTab = (typeof SETTINGS_STATIONS_SUB_TAB_ORDER)[number]
 
 export type ProductivityTab = 'productivity' | 'stops'
 
@@ -88,6 +72,11 @@ export type AttendanceSubTab = 'monthly' | 'yearly' | 'today'
 export const PLANNING_TAB_ORDER = ['plan', 'workDays', 'tracking', 'orders'] as const
 
 export type PlanningTab = (typeof PLANNING_TAB_ORDER)[number]
+
+/** مستوى عرض خطة الإنتاج داخل تبويب plan */
+export const PLAN_SCOPE_ORDER = ['hub', 'monthly', 'annual'] as const
+
+export type PlanScope = (typeof PLAN_SCOPE_ORDER)[number]
 
 export type WarehousesTab = 'home' | 'currentStock' | 'feeding' | 'equipment'
 

@@ -11,8 +11,7 @@ import { isEmployeeCodeTaken } from '../Utils/employeeCode'
 import { orgPathFromLeaf, orgPathLeaf } from '../Utils/employeeOrgPicker'
 
 export type EmployeeFormSubmitResult =
-  | { ok: true }
-  | { ok: false; fieldErrors?: Partial<Record<'employeeCode', string>> }
+  { ok: true } | { ok: false; fieldErrors?: Partial<Record<'employeeCode', string>> }
 
 type Props = {
   open: boolean
@@ -57,7 +56,7 @@ function fromEmployee(e: Employee): FormState {
     fullName: e.fullName,
     jobRole: e.jobRole,
     orgPath: orgPathFromLeaf(e.factoryOrgUnitId, []),
-    directManagerIds: e.directManagerIds.length > 0 ? e.directManagerIds : (e.directManagerId ? [e.directManagerId] : []),
+    directManagerIds: e.directManagerIds.length > 0 ? e.directManagerIds : e.directManagerId ? [e.directManagerId] : [],
     phone: e.phone ?? '',
     email: e.email ?? '',
     notes: e.notes ?? '',
@@ -187,8 +186,18 @@ export function EmployeeForm({ open, editing, employees, orgUnits, defaultOrgPat
       maxWidthClass="max-w-3xl"
       footer={
         <>
-          <button disabled={busy} onClick={onClose} className="rounded-xl bg-slate-800 px-4 py-2 font-bold text-slate-200 hover:bg-slate-700 disabled:opacity-50">{t('common.cancel')}</button>
-          <button disabled={busy} onClick={submit} className="rounded-xl bg-cyan-500 px-5 py-2 font-black text-slate-950 hover:bg-cyan-400 disabled:opacity-50">
+          <button
+            disabled={busy}
+            onClick={onClose}
+            className="rounded-xl bg-slate-800 px-4 py-2 font-bold text-slate-200 hover:bg-slate-700 disabled:opacity-50"
+          >
+            {t('common.cancel')}
+          </button>
+          <button
+            disabled={busy}
+            onClick={submit}
+            className="rounded-xl bg-cyan-500 px-5 py-2 font-black text-slate-950 hover:bg-cyan-400 disabled:opacity-50"
+          >
             {busy ? t('common.saving') : editing ? t('common.saveEdit') : t('org.add')}
           </button>
         </>
@@ -197,29 +206,58 @@ export function EmployeeForm({ open, editing, employees, orgUnits, defaultOrgPat
       <div className="space-y-5">
         <Section title={t('org.steps.basic')}>
           <Field label={t('org.f.code')} required error={errors.employeeCode}>
-            <input className={cls(errors.employeeCode)} value={form.employeeCode} placeholder="EMP-001" onChange={e => set('employeeCode', e.target.value)} />
+            <input
+              className={cls(errors.employeeCode)}
+              value={form.employeeCode}
+              placeholder="EMP-001"
+              onChange={e => set('employeeCode', e.target.value)}
+            />
           </Field>
           <Field label={t('org.f.name')} required error={errors.fullName}>
-            <input className={cls(errors.fullName)} value={form.fullName} onChange={e => set('fullName', e.target.value)} />
+            <input
+              className={cls(errors.fullName)}
+              value={form.fullName}
+              onChange={e => set('fullName', e.target.value)}
+            />
           </Field>
           <Field label={t('org.f.role')} required error={errors.jobRole}>
             <select className={cls(errors.jobRole)} value={form.jobRole} onChange={e => set('jobRole', e.target.value)}>
               <option value="">—</option>
-              {JOB_ROLES.map(r => <option key={r} value={r}>{t(`jobRole.${r}`)}</option>)}
+              {JOB_ROLES.map(r => (
+                <option key={r} value={r}>
+                  {t(`jobRole.${r}`)}
+                </option>
+              ))}
             </select>
           </Field>
           <Field label={t('org.f.assignmentStatus')} hint={t('org.f.assignmentStatusHint')} hintAfter>
-            <select className={cls()} value={form.assignmentStatus} onChange={e => set('assignmentStatus', e.target.value)}>
+            <select
+              className={cls()}
+              value={form.assignmentStatus}
+              onChange={e => set('assignmentStatus', e.target.value)}
+            >
               <option value="">—</option>
               {ASSIGNMENT_STATUSES.map(s => (
-                <option key={s} value={s}>{t(`org.assignmentStatus.${s}`)}</option>
+                <option key={s} value={s}>
+                  {t(`org.assignmentStatus.${s}`)}
+                </option>
               ))}
             </select>
           </Field>
           <Field label={t('org.f.recordActive')}>
             <div className="flex gap-2">
-              <Toggle active={form.isActive} label={t('org.f.active')} onClick={() => set('isActive', true)} tone="emerald" />
-              <Toggle active={!form.isActive} label={t('org.f.inactive')} onClick={() => set('isActive', false)} tone="slate" />
+              <Toggle
+                active={form.isActive}
+                label={t('org.f.active')}
+                onClick={() => set('isActive', true)}
+                tone="emerald"
+              />
+              <Toggle
+                active={!form.isActive}
+                label={t('org.f.inactive')}
+                onClick={() => set('isActive', false)}
+                tone="slate"
+              />
             </div>
           </Field>
         </Section>
@@ -240,7 +278,9 @@ export function EmployeeForm({ open, editing, employees, orgUnits, defaultOrgPat
           </div>
           <div className="sm:col-span-2">
             <Field label={t('org.f.managers')} error={errors.directManagerId} hint={t('org.f.managersHint')}>
-              <div className={`max-h-44 overflow-y-auto rounded-xl border bg-slate-900/50 p-2 space-y-1 ${errors.directManagerId ? 'border-red-500/60' : 'border-slate-700'}`}>
+              <div
+                className={`max-h-44 overflow-y-auto rounded-xl border bg-slate-900/50 p-2 space-y-1 ${errors.directManagerId ? 'border-red-500/60' : 'border-slate-700'}`}
+              >
                 {managerOptions.length === 0 ? (
                   <p className="px-2 py-1.5 text-sm text-slate-500">{t('org.f.noManager')}</p>
                 ) : (
@@ -257,7 +297,9 @@ export function EmployeeForm({ open, editing, employees, orgUnits, defaultOrgPat
                           checked={checked}
                           onChange={() => toggleManager(m.id)}
                         />
-                        <span>{m.fullName} — {t(`jobRole.${m.jobRole}`)}</span>
+                        <span>
+                          {m.fullName} — {t(`jobRole.${m.jobRole}`)}
+                        </span>
                       </label>
                     )
                   })
@@ -272,11 +314,20 @@ export function EmployeeForm({ open, editing, employees, orgUnits, defaultOrgPat
             <input className={cls()} value={form.phone} onChange={e => set('phone', e.target.value)} dir="ltr" />
           </Field>
           <Field label={t('org.f.email')} error={errors.email}>
-            <input className={cls(errors.email)} value={form.email} onChange={e => set('email', e.target.value)} dir="ltr" />
+            <input
+              className={cls(errors.email)}
+              value={form.email}
+              onChange={e => set('email', e.target.value)}
+              dir="ltr"
+            />
           </Field>
           <div className="sm:col-span-2">
             <Field label={t('org.f.notes')}>
-              <textarea className={`${cls()} min-h-20`} value={form.notes} onChange={e => set('notes', e.target.value)} />
+              <textarea
+                className={`${cls()} min-h-20`}
+                value={form.notes}
+                onChange={e => set('notes', e.target.value)}
+              />
             </Field>
           </div>
         </Section>
@@ -298,10 +349,27 @@ function Section({ title, children }: { title: string; children: ReactNode }) {
   )
 }
 
-function Field({ label, required, error, hint, hintAfter, children }: { label: string; required?: boolean; error?: string; hint?: string; hintAfter?: boolean; children: ReactNode }) {
+function Field({
+  label,
+  required,
+  error,
+  hint,
+  hintAfter,
+  children
+}: {
+  label: string
+  required?: boolean
+  error?: string
+  hint?: string
+  hintAfter?: boolean
+  children: ReactNode
+}) {
   return (
     <label className="block space-y-1.5">
-      <span className="text-sm font-bold text-slate-300">{label}{required && <span className="text-red-400"> *</span>}</span>
+      <span className="text-sm font-bold text-slate-300">
+        {label}
+        {required && <span className="text-red-400"> *</span>}
+      </span>
       {hint && !hintAfter && <span className="block text-xs text-slate-500">{hint}</span>}
       {children}
       {hint && hintAfter && <span className="block text-xs text-slate-500">{hint}</span>}
@@ -310,10 +378,27 @@ function Field({ label, required, error, hint, hintAfter, children }: { label: s
   )
 }
 
-function Toggle({ active, label, onClick, tone }: { active: boolean; label: string; onClick: () => void; tone: 'emerald' | 'slate' }) {
-  const activeCls = tone === 'emerald' ? 'border-emerald-500 bg-emerald-500/15 text-emerald-100' : 'border-slate-500 bg-slate-500/15 text-slate-100'
+function Toggle({
+  active,
+  label,
+  onClick,
+  tone
+}: {
+  active: boolean
+  label: string
+  onClick: () => void
+  tone: 'emerald' | 'slate'
+}) {
+  const activeCls =
+    tone === 'emerald'
+      ? 'border-emerald-500 bg-emerald-500/15 text-emerald-100'
+      : 'border-slate-500 bg-slate-500/15 text-slate-100'
   return (
-    <button type="button" onClick={onClick} className={`flex-1 rounded-xl border px-4 py-2.5 text-sm font-bold transition ${active ? activeCls : 'border-slate-700 bg-slate-800 text-slate-400 hover:bg-slate-700'}`}>
+    <button
+      type="button"
+      onClick={onClick}
+      className={`flex-1 rounded-xl border px-4 py-2.5 text-sm font-bold transition ${active ? activeCls : 'border-slate-700 bg-slate-800 text-slate-400 hover:bg-slate-700'}`}
+    >
       {label}
     </button>
   )

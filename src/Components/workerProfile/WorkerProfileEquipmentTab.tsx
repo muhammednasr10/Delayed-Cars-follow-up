@@ -5,7 +5,12 @@ import { getLineEquipment } from '../../services/equipmentService'
 import { fetchMyEmployeeProfile } from '../../services/workerProfileService'
 import type { LineEquipment } from '../../Types/equipment'
 
-function matchesLocation(item: LineEquipment, stationNumber: string | null, stationName: string | null, lineName: string | null): boolean {
+function matchesLocation(
+  item: LineEquipment,
+  stationNumber: string | null,
+  stationName: string | null,
+  lineName: string | null
+): boolean {
   const loc = (item.location ?? '').toLowerCase()
   if (!loc) return false
   const tokens = [stationNumber, stationName, lineName].filter(Boolean).map(s => s!.toLowerCase())
@@ -52,7 +57,9 @@ export function WorkerProfileEquipmentTab() {
     <section className="card-industrial space-y-4 p-5">
       <div className="flex items-center gap-2 text-sky-300">
         <Wrench className="h-5 w-5" />
-        <h3 className="text-sm font-black uppercase tracking-wide text-slate-400">{t('workerProfile.tabs.equipment')}</h3>
+        <h3 className="text-sm font-black uppercase tracking-wide text-slate-400">
+          {t('workerProfile.tabs.equipment')}
+        </h3>
       </div>
       <p className="text-xs text-slate-500">{t('workerProfile.equipmentHint')}</p>
 

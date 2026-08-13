@@ -34,10 +34,7 @@ export function BomStopperExclusionsEditor({ stopperType, exclusions, onChange }
 
   function addPart(p: { id: string; part_number: string; part_name_ar: string | null }) {
     if (exclusions.some(e => e.part_id === p.id)) return
-    onChange([
-      ...exclusions,
-      { part_id: p.id, part_number: p.part_number, part_name_ar: p.part_name_ar }
-    ])
+    onChange([...exclusions, { part_id: p.id, part_number: p.part_number, part_name_ar: p.part_name_ar }])
     setSearch('')
     setHits([])
   }
@@ -47,9 +44,7 @@ export function BomStopperExclusionsEditor({ stopperType, exclusions, onChange }
   }
 
   const hint =
-    stopperType === 'line_stopper'
-      ? t('bom.stopperExclusionsEditLineHint')
-      : t('bom.stopperExclusionsEditCarHint')
+    stopperType === 'line_stopper' ? t('bom.stopperExclusionsEditLineHint') : t('bom.stopperExclusionsEditCarHint')
 
   return (
     <div className="rounded-xl border border-amber-500/30 bg-amber-500/5 p-4">

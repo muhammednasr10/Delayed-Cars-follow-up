@@ -96,7 +96,11 @@ export function RequestsMyTab() {
       <div className="card-industrial flex flex-col gap-3 p-4 sm:flex-row sm:items-center sm:justify-between">
         <p className="text-sm text-slate-400">{t('requests.myHint')}</p>
         <div className="flex gap-2">
-          <button type="button" onClick={() => void load()} className="rounded-xl bg-slate-800 px-3 py-2 text-slate-200 hover:bg-slate-700">
+          <button
+            type="button"
+            onClick={() => void load()}
+            className="rounded-xl bg-slate-800 px-3 py-2 text-slate-200 hover:bg-slate-700"
+          >
             <RefreshCcw className="h-4 w-4" />
           </button>
           <button
@@ -117,8 +121,14 @@ export function RequestsMyTab() {
         </div>
       )}
 
-      {success && <div className="rounded-xl border border-emerald-500/30 bg-emerald-500/10 p-3 text-sm text-emerald-200">{success}</div>}
-      {error && !setupRequired && <div className="rounded-xl border border-red-500/30 bg-red-500/10 p-3 text-sm text-red-200">{error}</div>}
+      {success && (
+        <div className="rounded-xl border border-emerald-500/30 bg-emerald-500/10 p-3 text-sm text-emerald-200">
+          {success}
+        </div>
+      )}
+      {error && !setupRequired && (
+        <div className="rounded-xl border border-red-500/30 bg-red-500/10 p-3 text-sm text-red-200">{error}</div>
+      )}
 
       <div className="card-industrial overflow-x-auto">
         <table className="w-full text-center text-sm">
@@ -151,7 +161,9 @@ export function RequestsMyTab() {
                   <td className={cell}>
                     <p className="font-bold text-slate-200">{formatPeopleList(row.managers)}</p>
                     {row.managers.length > 1 && (
-                      <p className="text-xs text-slate-500">{t('requests.selectedManagers', { n: row.managers.length })}</p>
+                      <p className="text-xs text-slate-500">
+                        {t('requests.selectedManagers', { n: row.managers.length })}
+                      </p>
                     )}
                   </td>
                   <td className={`${cell} max-w-[14rem] text-start`}>
@@ -159,7 +171,9 @@ export function RequestsMyTab() {
                     {row.description && <p className="mt-0.5 text-xs text-slate-500">{row.description}</p>}
                   </td>
                   <td className={cell}>
-                    <span className={`inline-block rounded-lg border px-2 py-0.5 text-xs font-bold ${STATUS_TONES[row.status]}`}>
+                    <span
+                      className={`inline-block rounded-lg border px-2 py-0.5 text-xs font-bold ${STATUS_TONES[row.status]}`}
+                    >
                       {t(`requests.status.${row.status}`)}
                     </span>
                   </td>
@@ -171,7 +185,13 @@ export function RequestsMyTab() {
         </table>
       </div>
 
-      <TeamRequestFormModal open={formOpen} managers={managers} onClose={() => setFormOpen(false)} onSave={handleSave} saving={saving} />
+      <TeamRequestFormModal
+        open={formOpen}
+        managers={managers}
+        onClose={() => setFormOpen(false)}
+        onSave={handleSave}
+        saving={saving}
+      />
     </div>
   )
 }

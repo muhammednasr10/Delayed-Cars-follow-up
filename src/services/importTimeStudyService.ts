@@ -65,7 +65,9 @@ export async function buildImportDiff(parse: ParseResult): Promise<{ label: stri
     diffs.push({
       key,
       action: ex ? 'update' : 'create',
-      label: ex ? `Update op ${op.operationNameAr} @ ${op.stationCode}` : `Create op ${op.operationNameAr} @ ${op.stationCode}`
+      label: ex
+        ? `Update op ${op.operationNameAr} @ ${op.stationCode}`
+        : `Create op ${op.operationNameAr} @ ${op.stationCode}`
     })
   }
   return diffs
@@ -97,7 +99,8 @@ export async function runTimeStudyImport(
   summary.batchId = batch.id
 
   const tiggo8Id = await getTiggo8FamilyId()
-  const familyModelIds = options.tiggo8ModelIds.length > 0 ? options.tiggo8ModelIds : (tiggo8Id ? await getFamilyMembers(tiggo8Id) : [])
+  const familyModelIds =
+    options.tiggo8ModelIds.length > 0 ? options.tiggo8ModelIds : tiggo8Id ? await getFamilyMembers(tiggo8Id) : []
   const allModels = await getVehicleModels()
   const modelByName = new Map(allModels.map(m => [m.name.toLowerCase(), m.id]))
 
@@ -112,7 +115,7 @@ export async function runTimeStudyImport(
       line_name: s.lineName,
       sort_order: s.sortOrder,
       is_active: true,
-      parent_station_id: s.parentCode ? parentIds.get(s.parentCode) ?? null : null
+      parent_station_id: s.parentCode ? (parentIds.get(s.parentCode) ?? null) : null
     }
     const ex = stationMap.get(s.code)
     if (ex) {
@@ -121,7 +124,10 @@ export async function runTimeStudyImport(
       parentIds.set(s.code, ex.id)
     } else {
       const { data, error } = await client().from('stations').insert(payload).select('id, station_number').single()
-      if (error) { summary.errors.push(`Station ${s.code}: ${error.message}`); continue }
+      if (error) {
+        summary.errors.push(`Station ${s.code}: ${error.message}`)
+        continue
+      }
       stationMap.set(s.code, data as StationRow)
       parentIds.set(s.code, data.id)
       summary.stationsCreated++
@@ -129,11 +135,14 @@ export async function runTimeStudyImport(
   }
 
   stationMap = await loadExistingStations()
-  let existingOps = await loadExistingOps()
+  const existingOps = await loadExistingOps()
 
   for (const op of parse.operations) {
     const st = stationMap.get(op.stationCode)
-    if (!st) { summary.errors.push(`Missing station ${op.stationCode} for ${op.operationNameAr}`); continue }
+    if (!st) {
+      summary.errors.push(`Missing station ${op.stationCode} for ${op.operationNameAr}`)
+      continue
+    }
 
     const isCommon = op.operationType === 'common'
     const opPayload = {
@@ -168,9 +177,17 @@ export async function runTimeStudyImport(
       summary.operationsUpdated++
     } else {
       const { data, error } = await client().from('station_operations').insert(opPayload).select('id').single()
-      if (error) { summary.errors.push(`Op ${op.operationNameAr}: ${error.message}`); continue }
+      if (error) {
+        summary.errors.push(`Op ${op.operationNameAr}: ${error.message}`)
+        continue
+      }
       operationId = data.id
-      existingOps.set(opKey, { id: operationId, station_id: st.id, operation_code: opPayload.operation_code, operation_name_ar: op.operationNameAr })
+      existingOps.set(opKey, {
+        id: operationId,
+        station_id: st.id,
+        operation_code: opPayload.operation_code,
+        operation_name_ar: op.operationNameAr
+      })
       summary.operationsCreated++
     }
 
@@ -178,91 +195,111 @@ export async function runTimeStudyImport(
       await client().from('operation_hardware_requirements').delete().eq('operation_id', operationId)
     }
     if (op.hardware.length > 0) {
-      const { error: hwErr } = await client().from('operation_hardware_requirements').insert(
-        op.hardware.map((h, i) => ({
-          operation_id: operationId,
-          hardware_name: h.hardwareName,
-          hardware_qty: h.hardwareQty,
-          hardware_type: h.hardwareType,
-          hardware_size: h.hardwareSize,
-          sort_order: i
-        }))
-      )
+      const { error: hwErr } = await client()
+        .from('operation_hardware_requirements')
+        .insert(
+          op.hardware.map((h, i) => ({
+            operation_id: operationId,
+            hardware_name: h.hardwareName,
+            hardware_qty: h.hardwareQty,
+            hardware_type: h.hardwareType,
+            hardware_size: h.hardwareSize,
+            sort_order: i
+          }))
+        )
       if (!hwErr) summary.hardwareRows += op.hardware.length
     }
 
     await client().from('operation_time_studies').delete().eq('operation_id', operationId)
-    await client().from('operation_time_studies').insert({
-      operation_id: operationId,
-      station_id: st.id,
-      standard_time_seconds: op.standardTimeSeconds,
-      operation_time_minutes: op.standardTimeMinutes,
-      worker_time_minutes: op.workerTimeMinutes,
-      station_time_minutes: op.stationTimeMinutes,
-      total_workers_at_station: op.requiredManpowerCount,
-      average_station_time_per_worker: op.averageStationTimePerWorker,
-      ranked_positional_weight: op.rankedPositionalWeight,
-      zoning_constraints: op.zoningConstraints,
-      task_precedence: op.taskPrecedence,
-      source_row_number: op.rowNumbers[0] ?? null
-    })
+    await client()
+      .from('operation_time_studies')
+      .insert({
+        operation_id: operationId,
+        station_id: st.id,
+        standard_time_seconds: op.standardTimeSeconds,
+        operation_time_minutes: op.standardTimeMinutes,
+        worker_time_minutes: op.workerTimeMinutes,
+        station_time_minutes: op.stationTimeMinutes,
+        total_workers_at_station: op.requiredManpowerCount,
+        average_station_time_per_worker: op.averageStationTimePerWorker,
+        ranked_positional_weight: op.rankedPositionalWeight,
+        zoning_constraints: op.zoningConstraints,
+        task_precedence: op.taskPrecedence,
+        source_row_number: op.rowNumbers[0] ?? null
+      })
 
     if (isCommon && tiggo8Id) {
       for (const modelId of familyModelIds) {
-        const { error: rErr } = await client().from('vehicle_model_operations').upsert({
-          vehicle_model_id: modelId,
-          model_family_id: null,
-          station_id: st.id,
-          operation_id: operationId,
-          sequence_no: op.sequenceNo,
-          operation_type: 'common',
-          standard_time_seconds: op.standardTimeSeconds,
-          is_required: true,
-          is_active: true
-        }, { onConflict: 'vehicle_model_id,operation_id', ignoreDuplicates: true })
+        const { error: rErr } = await client().from('vehicle_model_operations').upsert(
+          {
+            vehicle_model_id: modelId,
+            model_family_id: null,
+            station_id: st.id,
+            operation_id: operationId,
+            sequence_no: op.sequenceNo,
+            operation_type: 'common',
+            standard_time_seconds: op.standardTimeSeconds,
+            is_required: true,
+            is_active: true
+          },
+          { onConflict: 'vehicle_model_id,operation_id', ignoreDuplicates: true }
+        )
         if (!rErr) summary.routesCreated++
       }
       if (familyModelIds.length === 0) {
-        await client().from('vehicle_model_operations').upsert({
-          vehicle_model_id: null,
-          model_family_id: tiggo8Id,
-          station_id: st.id,
-          operation_id: operationId,
-          sequence_no: op.sequenceNo,
-          operation_type: 'common',
-          is_required: true,
-          is_active: true
-        }, { onConflict: 'model_family_id,operation_id', ignoreDuplicates: true })
+        await client().from('vehicle_model_operations').upsert(
+          {
+            vehicle_model_id: null,
+            model_family_id: tiggo8Id,
+            station_id: st.id,
+            operation_id: operationId,
+            sequence_no: op.sequenceNo,
+            operation_type: 'common',
+            is_required: true,
+            is_active: true
+          },
+          { onConflict: 'model_family_id,operation_id', ignoreDuplicates: true }
+        )
         summary.routesCreated++
       }
     } else if (op.vehicleModelName) {
-      const modelId = modelByName.get(op.vehicleModelName.toLowerCase()) ?? modelByName.get(op.operationType.toLowerCase())
+      const modelId =
+        modelByName.get(op.vehicleModelName.toLowerCase()) ?? modelByName.get(op.operationType.toLowerCase())
       if (modelId) {
-        await client().from('vehicle_model_operations').upsert({
-          vehicle_model_id: modelId,
-          station_id: st.id,
-          operation_id: operationId,
-          sequence_no: op.sequenceNo,
-          operation_type: op.operationType,
-          is_required: true,
-          is_active: true
-        }, { onConflict: 'vehicle_model_id,operation_id', ignoreDuplicates: true })
+        await client().from('vehicle_model_operations').upsert(
+          {
+            vehicle_model_id: modelId,
+            station_id: st.id,
+            operation_id: operationId,
+            sequence_no: op.sequenceNo,
+            operation_type: op.operationType,
+            is_required: true,
+            is_active: true
+          },
+          { onConflict: 'vehicle_model_id,operation_id', ignoreDuplicates: true }
+        )
         summary.routesCreated++
       }
     }
 
     const skillCode = opPayload.operation_code
-    const { data: skillEx } = await client().from('training_skills').select('id').eq('station_operation_id', operationId).maybeSingle()
+    const { data: skillEx } = await client()
+      .from('training_skills')
+      .select('id')
+      .eq('station_operation_id', operationId)
+      .maybeSingle()
     if (!skillEx) {
-      const { error: skErr } = await client().from('training_skills').insert({
-        skill_code: skillCode,
-        skill_name_ar: op.operationNameAr,
-        station_id: st.id,
-        station_operation_id: operationId,
-        standard_time_minutes: op.standardTimeMinutes,
-        required_manpower_count: op.requiredManpowerCount ?? 1,
-        is_active: true
-      })
+      const { error: skErr } = await client()
+        .from('training_skills')
+        .insert({
+          skill_code: skillCode,
+          skill_name_ar: op.operationNameAr,
+          station_id: st.id,
+          station_operation_id: operationId,
+          standard_time_minutes: op.standardTimeMinutes,
+          required_manpower_count: op.requiredManpowerCount ?? 1,
+          is_active: true
+        })
       if (!skErr) summary.skillsLinked++
     }
 
@@ -283,9 +320,7 @@ export async function runTimeStudyImport(
         })
         if (studyId) summary.timeStudiesDrafted++
       } catch (e) {
-        summary.errors.push(
-          `Time study draft ${op.operationNameAr}: ${e instanceof Error ? e.message : 'error'}`
-        )
+        summary.errors.push(`Time study draft ${op.operationNameAr}: ${e instanceof Error ? e.message : 'error'}`)
       }
     }
   }

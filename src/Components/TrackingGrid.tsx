@@ -36,10 +36,7 @@ export function TrackingGrid() {
       .filter(car => {
         const q = filters.search.trim().toLowerCase()
         if (!q) return true
-        return [car.chassisNumber, car.model, car.missingPart, car.assignedEngineer]
-          .join(' ')
-          .toLowerCase()
-          .includes(q)
+        return [car.chassisNumber, car.model, car.missingPart, car.assignedEngineer].join(' ').toLowerCase().includes(q)
       })
       .sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime())
   }, [cars, filters])
@@ -83,12 +80,18 @@ export function TrackingGrid() {
             onChange={event => setFilters(prev => ({ ...prev, stationNumber: event.target.value }))}
           >
             <option value="">كل المحطات</option>
-            {stationOptions.map(station => <option key={station} value={station}>{station}</option>)}
+            {stationOptions.map(station => (
+              <option key={station} value={station}>
+                {station}
+              </option>
+            ))}
           </select>
           <select
             className="input-dark"
             value={filters.criticality}
-            onChange={event => setFilters(prev => ({ ...prev, criticality: event.target.value as '' | CriticalityLevel }))}
+            onChange={event =>
+              setFilters(prev => ({ ...prev, criticality: event.target.value as '' | CriticalityLevel }))
+            }
           >
             <option value="">كل درجات الأهمية</option>
             <option value="critical">حرج جداً</option>
@@ -127,10 +130,20 @@ export function TrackingGrid() {
                 <td className="table-cell">{car.model}</td>
                 <td className="table-cell">{car.stationNumber}</td>
                 <td className="table-cell">{car.missingPart}</td>
-                <td className="table-cell"><CriticalityBadge level={car.criticality} /></td>
-                <td className="table-cell">{car.isDrItem ? <span className="font-black text-purple-300">YES</span> : <span className="text-slate-500">NO</span>}</td>
+                <td className="table-cell">
+                  <CriticalityBadge level={car.criticality} />
+                </td>
+                <td className="table-cell">
+                  {car.isDrItem ? (
+                    <span className="font-black text-purple-300">YES</span>
+                  ) : (
+                    <span className="text-slate-500">NO</span>
+                  )}
+                </td>
                 <td className="table-cell">{car.assignedEngineer}</td>
-                <td className="table-cell"><StatusBadge status={car.status} /></td>
+                <td className="table-cell">
+                  <StatusBadge status={car.status} />
+                </td>
                 <td className="table-cell">
                   <div className="font-bold text-white">{getDelayHours(car.createdAt)}h</div>
                   <div className="text-xs text-slate-500">{formatDateTime(car.createdAt)}</div>
@@ -171,10 +184,21 @@ export function TrackingGrid() {
         <div className="fixed inset-0 z-50 grid place-items-center bg-black/70 p-4">
           <div className="w-full max-w-lg rounded-2xl border border-slate-700 bg-slate-900 p-5 shadow-2xl">
             <h3 className="text-lg font-black text-white">إضافة ملاحظة - {noteCar.chassisNumber}</h3>
-            <textarea className="input-dark mt-4 min-h-28" value={noteText} onChange={event => setNoteText(event.target.value)} />
+            <textarea
+              className="input-dark mt-4 min-h-28"
+              value={noteText}
+              onChange={event => setNoteText(event.target.value)}
+            />
             <div className="mt-4 flex justify-end gap-2">
-              <button onClick={() => setNoteCar(null)} className="rounded-xl bg-slate-800 px-4 py-2 font-bold text-slate-200">إلغاء</button>
-              <button onClick={handleSaveNote} className="rounded-xl bg-cyan-500 px-4 py-2 font-black text-slate-950">حفظ</button>
+              <button
+                onClick={() => setNoteCar(null)}
+                className="rounded-xl bg-slate-800 px-4 py-2 font-bold text-slate-200"
+              >
+                إلغاء
+              </button>
+              <button onClick={handleSaveNote} className="rounded-xl bg-cyan-500 px-4 py-2 font-black text-slate-950">
+                حفظ
+              </button>
             </div>
           </div>
         </div>
@@ -185,19 +209,48 @@ export function TrackingGrid() {
           <div className="w-full max-w-xl rounded-2xl border border-slate-700 bg-slate-900 p-5 shadow-2xl">
             <h3 className="text-lg font-black text-white">تعديل بيانات السيارة</h3>
             <div className="mt-4 grid gap-3 sm:grid-cols-2">
-              <input className="input-dark" value={editingCar.chassisNumber} onChange={event => setEditingCar({ ...editingCar, chassisNumber: event.target.value })} />
-              <input className="input-dark" value={editingCar.missingPart} onChange={event => setEditingCar({ ...editingCar, missingPart: event.target.value })} />
-              <input className="input-dark" value={editingCar.stationNumber} onChange={event => setEditingCar({ ...editingCar, stationNumber: event.target.value })} />
-              <select className="input-dark" value={editingCar.criticality} onChange={event => setEditingCar({ ...editingCar, criticality: event.target.value as CriticalityLevel })}>
+              <input
+                className="input-dark"
+                value={editingCar.chassisNumber}
+                onChange={event => setEditingCar({ ...editingCar, chassisNumber: event.target.value })}
+              />
+              <input
+                className="input-dark"
+                value={editingCar.missingPart}
+                onChange={event => setEditingCar({ ...editingCar, missingPart: event.target.value })}
+              />
+              <input
+                className="input-dark"
+                value={editingCar.stationNumber}
+                onChange={event => setEditingCar({ ...editingCar, stationNumber: event.target.value })}
+              />
+              <select
+                className="input-dark"
+                value={editingCar.criticality}
+                onChange={event =>
+                  setEditingCar({ ...editingCar, criticality: event.target.value as CriticalityLevel })
+                }
+              >
                 <option value="critical">{criticalityLabel.critical}</option>
                 <option value="medium">{criticalityLabel.medium}</option>
                 <option value="low">{criticalityLabel.low}</option>
               </select>
-              <textarea className="input-dark min-h-28 sm:col-span-2" value={editingCar.notes} onChange={event => setEditingCar({ ...editingCar, notes: event.target.value })} />
+              <textarea
+                className="input-dark min-h-28 sm:col-span-2"
+                value={editingCar.notes}
+                onChange={event => setEditingCar({ ...editingCar, notes: event.target.value })}
+              />
             </div>
             <div className="mt-4 flex justify-end gap-2">
-              <button onClick={() => setEditingCar(null)} className="rounded-xl bg-slate-800 px-4 py-2 font-bold text-slate-200">إلغاء</button>
-              <button onClick={handleSaveEdit} className="rounded-xl bg-orange-500 px-4 py-2 font-black text-slate-950">حفظ التعديل</button>
+              <button
+                onClick={() => setEditingCar(null)}
+                className="rounded-xl bg-slate-800 px-4 py-2 font-bold text-slate-200"
+              >
+                إلغاء
+              </button>
+              <button onClick={handleSaveEdit} className="rounded-xl bg-orange-500 px-4 py-2 font-black text-slate-950">
+                حفظ التعديل
+              </button>
             </div>
           </div>
         </div>

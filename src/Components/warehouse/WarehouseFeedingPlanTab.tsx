@@ -131,10 +131,7 @@ export function WarehouseFeedingPlanTab({ warehouses, models, stations, canManag
     }
   }
 
-  const canSubmit =
-    form.variantId &&
-    form.iplRows.some(r => r.included) &&
-    !form.iplLoading
+  const canSubmit = form.variantId && form.iplRows.some(r => r.included) && !form.iplLoading
 
   return (
     <div className="space-y-4">
@@ -228,90 +225,90 @@ export function WarehouseFeedingPlanTab({ warehouses, models, stations, canManag
       )}
 
       {planSubTab === 'ipl' && (
-      <div className="card-industrial overflow-hidden">
-        <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-800 px-4 py-3">
-          <h3 className="text-sm font-black text-white">{t('warehouses.feeding.planList')}</h3>
-          {modelOptionGroups.length > 0 && (
-            <select
-              className="input-dark min-w-[12rem] text-sm"
-              value={form.variantId}
-              onChange={e => form.setVariantId(e.target.value)}
-              dir="ltr"
-            >
-              <option value="">{t('warehouses.feeding.pickModel')}</option>
-              {modelOptionGroups.map(g => (
-                <optgroup key={g.label} label={g.label}>
-                  {g.models.map(m => (
-                    <option key={m.id} value={m.id}>
-                      {m.name}
-                    </option>
-                  ))}
-                </optgroup>
+        <div className="card-industrial overflow-hidden">
+          <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-800 px-4 py-3">
+            <h3 className="text-sm font-black text-white">{t('warehouses.feeding.planList')}</h3>
+            {modelOptionGroups.length > 0 && (
+              <select
+                className="input-dark min-w-[12rem] text-sm"
+                value={form.variantId}
+                onChange={e => form.setVariantId(e.target.value)}
+                dir="ltr"
+              >
+                <option value="">{t('warehouses.feeding.pickModel')}</option>
+                {modelOptionGroups.map(g => (
+                  <optgroup key={g.label} label={g.label}>
+                    {g.models.map(m => (
+                      <option key={m.id} value={m.id}>
+                        {m.name}
+                      </option>
+                    ))}
+                  </optgroup>
+                ))}
+              </select>
+            )}
+          </div>
+          {loading ? (
+            <p className="p-8 text-center text-slate-400">{t('common.loading')}</p>
+          ) : !form.variantId ? (
+            <p className="p-8 text-center text-sm text-slate-500">{t('warehouses.feeding.pickModelForPlans')}</p>
+          ) : modelPlans.length === 0 ? (
+            <EmptyState title={t('warehouses.feeding.planEmptyForModel', { model: selectedModelName })} />
+          ) : (
+            <div className="divide-y divide-slate-800">
+              {modelPlans.map(p => (
+                <div key={p.id} className="p-4">
+                  <div className="flex flex-wrap items-center gap-2 text-sm">
+                    <span className="font-black text-violet-200" dir="ltr">
+                      {p.plannedDate}
+                    </span>
+                    <span className="text-slate-400">{p.warehouseCode}</span>
+                    {p.stationNumber && (
+                      <span className="rounded bg-slate-800 px-2 py-0.5 text-xs text-slate-300" dir="ltr">
+                        {p.stationNumber}
+                      </span>
+                    )}
+                    <span className={`rounded-full px-2 py-0.5 text-[10px] font-bold ${STATUS_TONE[p.status]}`}>
+                      {t(`warehouses.feeding.planStatus.${p.status}`)}
+                    </span>
+                  </div>
+                  {p.notes && <p className="mt-1 text-xs text-slate-500">{p.notes}</p>}
+                  <ul className="mt-2 space-y-1">
+                    {p.lines.map(l => (
+                      <li key={l.id} className="flex flex-wrap gap-2 text-xs text-slate-400">
+                        <span className="font-mono text-cyan-200/80" dir="ltr">
+                          {l.partNumber}
+                        </span>
+                        <span>× {l.quantity}</span>
+                      </li>
+                    ))}
+                  </ul>
+                  {canManage && p.status === 'planned' && (
+                    <div className="mt-3 flex flex-wrap gap-2">
+                      <button
+                        type="button"
+                        disabled={busy}
+                        onClick={() => executePlan(p.id)}
+                        className="flex items-center gap-1 rounded-lg bg-emerald-500/20 px-3 py-1.5 text-xs font-bold text-emerald-200 hover:bg-emerald-500/30"
+                      >
+                        <Play className="h-3 w-3" />
+                        {t('warehouses.feeding.executePlan')}
+                      </button>
+                      <button
+                        type="button"
+                        disabled={busy}
+                        onClick={() => cancelPlan(p.id)}
+                        className="rounded-lg bg-slate-800 px-3 py-1.5 text-xs font-bold text-slate-400 hover:bg-slate-700"
+                      >
+                        {t('common.cancel')}
+                      </button>
+                    </div>
+                  )}
+                </div>
               ))}
-            </select>
+            </div>
           )}
         </div>
-        {loading ? (
-          <p className="p-8 text-center text-slate-400">{t('common.loading')}</p>
-        ) : !form.variantId ? (
-          <p className="p-8 text-center text-sm text-slate-500">{t('warehouses.feeding.pickModelForPlans')}</p>
-        ) : modelPlans.length === 0 ? (
-          <EmptyState title={t('warehouses.feeding.planEmptyForModel', { model: selectedModelName })} />
-        ) : (
-          <div className="divide-y divide-slate-800">
-            {modelPlans.map(p => (
-              <div key={p.id} className="p-4">
-                <div className="flex flex-wrap items-center gap-2 text-sm">
-                  <span className="font-black text-violet-200" dir="ltr">
-                    {p.plannedDate}
-                  </span>
-                  <span className="text-slate-400">{p.warehouseCode}</span>
-                  {p.stationNumber && (
-                    <span className="rounded bg-slate-800 px-2 py-0.5 text-xs text-slate-300" dir="ltr">
-                      {p.stationNumber}
-                    </span>
-                  )}
-                  <span className={`rounded-full px-2 py-0.5 text-[10px] font-bold ${STATUS_TONE[p.status]}`}>
-                    {t(`warehouses.feeding.planStatus.${p.status}`)}
-                  </span>
-                </div>
-                {p.notes && <p className="mt-1 text-xs text-slate-500">{p.notes}</p>}
-                <ul className="mt-2 space-y-1">
-                  {p.lines.map(l => (
-                    <li key={l.id} className="flex flex-wrap gap-2 text-xs text-slate-400">
-                      <span className="font-mono text-cyan-200/80" dir="ltr">
-                        {l.partNumber}
-                      </span>
-                      <span>× {l.quantity}</span>
-                    </li>
-                  ))}
-                </ul>
-                {canManage && p.status === 'planned' && (
-                  <div className="mt-3 flex flex-wrap gap-2">
-                    <button
-                      type="button"
-                      disabled={busy}
-                      onClick={() => executePlan(p.id)}
-                      className="flex items-center gap-1 rounded-lg bg-emerald-500/20 px-3 py-1.5 text-xs font-bold text-emerald-200 hover:bg-emerald-500/30"
-                    >
-                      <Play className="h-3 w-3" />
-                      {t('warehouses.feeding.executePlan')}
-                    </button>
-                    <button
-                      type="button"
-                      disabled={busy}
-                      onClick={() => cancelPlan(p.id)}
-                      className="rounded-lg bg-slate-800 px-3 py-1.5 text-xs font-bold text-slate-400 hover:bg-slate-700"
-                    >
-                      {t('common.cancel')}
-                    </button>
-                  </div>
-                )}
-              </div>
-            ))}
-          </div>
-        )}
-      </div>
       )}
     </div>
   )

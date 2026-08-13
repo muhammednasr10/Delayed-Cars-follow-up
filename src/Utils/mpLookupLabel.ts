@@ -18,3 +18,9 @@ export function defaultReasonCode(options: MpLookupOption[]): string {
 export function defaultDepartmentCode(options: MpLookupOption[]): string {
   return options[0]?.code ?? 'warehouse'
 }
+
+export const MP_STOCK_SHORTAGE_CODE = 'stock_shortage'
+
+export function isStockShortageReason(code: string): boolean {
+  return code === MP_STOCK_SHORTAGE_CODE
+}

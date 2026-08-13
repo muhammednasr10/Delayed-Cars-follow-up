@@ -51,9 +51,7 @@ export function OperationClassificationPicker({
 
   const selectedLabels = useMemo(() => {
     if (isCommon) return t('operations.classificationAllBranches', { line: familyName })
-    const codes = allNames.filter(n =>
-      selectedVariantNames.some(s => s.toUpperCase() === n.toUpperCase())
-    )
+    const codes = allNames.filter(n => selectedVariantNames.some(s => s.toUpperCase() === n.toUpperCase()))
     return codes.join(' + ') || selectedVariantNames.join(' + ')
   }, [isCommon, selectedVariantNames, allNames, familyName, t])
 
@@ -91,11 +89,7 @@ export function OperationClassificationPicker({
     <div className="space-y-3 sm:col-span-2">
       <div className="flex flex-wrap items-center gap-2">
         <span className="text-sm font-bold text-slate-300">{t('operations.opType')}</span>
-        <span
-          className={`rounded-lg px-2.5 py-0.5 text-xs font-black ${lineStyle.tabActive}`}
-        >
-          {familyName}
-        </span>
+        <span className={`rounded-lg px-2.5 py-0.5 text-xs font-black ${lineStyle.tabActive}`}>{familyName}</span>
       </div>
 
       <div className="flex flex-wrap gap-2">

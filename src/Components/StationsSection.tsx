@@ -6,9 +6,18 @@ import { StationWizardModal } from './StationWizardModal'
 import { formatStationReferenceCode, composeStationNumber, parseStationNumberParts } from '../Utils/stationHierarchy'
 import { createStationWizardDefaults, parseHeadcountWorkers, stationToWizardValues } from '../Utils/stationFormValues'
 import { dedupeMasterStationsForDisplay } from '../Utils/stationMaster'
-import { createStation, deleteStation, getAllStationNumbers, getStations, getWorkAreas, removeDuplicateMasterStations, updateStation } from '../services/settingsService'
+import {
+  createStation,
+  deleteStation,
+  getAllStationNumbers,
+  getStations,
+  getWorkAreas,
+  removeDuplicateMasterStations,
+  updateStation
+} from '../services/settingsService'
 import type { Station, WorkArea } from '../Types/settings'
 import { supabase } from '../lib/supabase'
+import type { StationType } from '../Types/enums'
 import { normalizeStationType, stationTypeLabel } from '../Utils/stationDisplay'
 
 type Props = {
@@ -17,6 +26,8 @@ type Props = {
   sectionTitle?: string
   sectionHint?: string
   showRefresh?: boolean
+  /** عرض وإدارة أنواع محددة فقط (مثل محطات خط التجميع) */
+  stationTypes?: StationType[]
   onError?: (message: string) => void
   onSuccess?: (message: string) => void
 }
@@ -24,7 +35,7 @@ type Props = {
 export type StationsSectionHandle = { reload: () => Promise<void> }
 
 export const StationsSection = forwardRef<StationsSectionHandle, Props>(function StationsSection(
-  { canManage, readOnly = false, sectionTitle, sectionHint, showRefresh = false, onError, onSuccess },
+  { canManage, readOnly = false, sectionTitle, sectionHint, showRefresh = false, stationTypes, onError, onSuccess },
   ref
 ) {
   const { t } = useLang()
@@ -60,18 +71,7 @@ export const StationsSection = forwardRef<StationsSectionHandle, Props>(function
         getWorkAreas(),
         getAllStationNumbers()
       ])
-      if (manage) {
-        const removed = await removeDuplicateMasterStations(stationsData)
-        if (removed > 0) {
-          const refreshed = await getStations()
-          setStations(refreshed)
-          showSuccess(t('settings.stationsDeduped', { n: removed }))
-        } else {
-          setStations(stationsData)
-        }
-      } else {
-        setStations(stationsData)
-      }
+      setStations(stationsData)
       setWorkAreas(areasData)
       setAllStationNumbers(numbers)
     } catch (err) {
@@ -82,9 +82,37 @@ export const StationsSection = forwardRef<StationsSectionHandle, Props>(function
     } finally {
       setLoading(false)
     }
-  }, [manage, onError, onSuccess, t])
+  }, [onError, t])
+
+  async function dedupeDuplicates() {
+    if (!manage) return
+    setLoading(true)
+    setLocalError('')
+    try {
+      const removed = await removeDuplicateMasterStations(stations)
+      if (removed <= 0) {
+        setLocalError(t('settings.stationsDedupeNone'))
+        return
+      }
+      await load()
+      showSuccess(t('settings.stationsDeduped', { n: removed }))
+    } catch (err) {
+      const raw = err instanceof Error ? err.message : t('common.error')
+      setLocalError(raw)
+      onError?.(raw)
+    } finally {
+      setLoading(false)
+    }
+  }
 
   const displayStations = useMemo(() => dedupeMasterStationsForDisplay(stations), [stations])
+
+  const visibleStations = useMemo(() => {
+    if (!stationTypes?.length) return displayStations
+    return displayStations.filter(s => stationTypes.includes(normalizeStationType(s.station_type)))
+  }, [displayStations, stationTypes])
+
+  const lockedStationType = stationTypes?.length === 1 ? stationTypes[0] : null
 
   useEffect(() => {
     void load()
@@ -131,19 +159,32 @@ export const StationsSection = forwardRef<StationsSectionHandle, Props>(function
         <div className="rounded-xl border border-red-500/30 bg-red-500/10 p-3 text-sm text-red-200">{localError}</div>
       )}
       {notifyLocally && localSuccess && (
-        <div className="rounded-xl border border-emerald-500/30 bg-emerald-500/10 p-3 text-sm text-emerald-200">{localSuccess}</div>
+        <div className="rounded-xl border border-emerald-500/30 bg-emerald-500/10 p-3 text-sm text-emerald-200">
+          {localSuccess}
+        </div>
       )}
 
       {hint && (
-        <div className="rounded-xl border border-cyan-500/25 bg-cyan-500/10 p-3 text-sm text-cyan-100">
-          {hint}
+        <div className="rounded-xl border border-cyan-500/25 bg-cyan-500/10 p-3 text-sm text-cyan-100">{hint}</div>
+      )}
+
+      {manage && (
+        <div className="flex justify-end">
+          <button
+            type="button"
+            disabled={loading}
+            onClick={() => void dedupeDuplicates()}
+            className="rounded-xl border border-amber-500/30 bg-amber-500/10 px-4 py-2 text-sm font-bold text-amber-200 hover:bg-amber-500/20 disabled:opacity-50"
+          >
+            {t('settings.dedupeStations')}
+          </button>
         </div>
       )}
 
       <CrudSection
         title={title}
         icon={<MapPin className="h-5 w-5" />}
-        items={displayStations}
+        items={visibleStations}
         busy={loading}
         canManage={manage}
         getId={s => s.id}
@@ -152,7 +193,11 @@ export const StationsSection = forwardRef<StationsSectionHandle, Props>(function
           { key: 'sort_order', label: t('settings.fields.sortOrder'), defaultValue: '0' },
           { key: 'station_base', label: t('settings.cols.stationName'), required: true, placeholder: 'PBS01' },
           { key: 'station_name', label: t('settings.fields.commonName'), required: true },
-          { key: 'station_type', label: t('settings.fields.stationType'), defaultValue: 'main_line' },
+          {
+            key: 'station_type',
+            label: t('settings.fields.stationType'),
+            defaultValue: lockedStationType ?? 'main_line'
+          },
           { key: 'is_active', label: t('settings.wizard.activeStatus'), defaultValue: 'true' }
         ]}
         columns={[
@@ -171,7 +216,11 @@ export const StationsSection = forwardRef<StationsSectionHandle, Props>(function
             render: s => <span className="font-bold text-slate-100">{s.station_name}</span>
           },
           { header: t('settings.cols.workArea'), className: 'text-center', render: s => s.work_areas?.name || '—' },
-          { header: t('settings.fields.stationType'), className: 'text-center', render: s => stationTypeLabel(t, s.station_type) }
+          {
+            header: t('settings.fields.stationType'),
+            className: 'text-center',
+            render: s => stationTypeLabel(t, s.station_type)
+          }
         ]}
         toValues={stationToWizardValues}
         getCreateValues={items => createStationWizardDefaults(items, allStationNumbers)}
@@ -180,7 +229,7 @@ export const StationsSection = forwardRef<StationsSectionHandle, Props>(function
             await createStation({
               station_number: v.station_number,
               station_name: v.station_name,
-              station_type: normalizeStationType(v.station_type),
+              station_type: normalizeStationType(lockedStationType ?? v.station_type),
               sort_order: v.sort_order ? Number(v.sort_order) : 0,
               work_area_id: v.work_area_id || null,
               is_active: v.is_active !== 'false',
@@ -199,7 +248,7 @@ export const StationsSection = forwardRef<StationsSectionHandle, Props>(function
             await updateStation(id, {
               station_number,
               station_name: v.station_name,
-              station_type: normalizeStationType(v.station_type),
+              station_type: normalizeStationType(lockedStationType ?? v.station_type),
               sort_order: v.sort_order ? Number(v.sort_order) : 0,
               work_area_id: v.work_area_id || null,
               is_active: v.is_active !== 'false',

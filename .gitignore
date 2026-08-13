@@ -30,6 +30,9 @@ pnpm-debug.log*
 # Vite cache
 node_modules/.vite/
 
+# Tooling artifacts
+eslint-report.json
+
 # OS files
 Thumbs.db
 .vercel

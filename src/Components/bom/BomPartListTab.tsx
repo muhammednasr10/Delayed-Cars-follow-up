@@ -3,15 +3,17 @@ import { ClipboardList, Pencil, Plus, RefreshCcw, Search, Trash2 } from 'lucide-
 import { useLang } from '../../i18n/LanguageContext'
 import { usePermissions } from '../../Context/PermissionsContext'
 import { useAuth } from '../../Context/AuthContext'
-import { createPartMaster, deletePart, listParts, updatePartMaster } from '../../services/partsService'
-import { getVehicleModels } from '../../services/settingsService'
-import { isAssignableModel } from '../../Utils/vehicleModelHierarchy'
+import { deletePart, listParts } from '../../services/partsService'
+import { savePartMasterFromListForm } from '../../services/bomService'
+import { DEFAULT_PART_KIND, DEFAULT_SUPPLY_SOURCE } from '../../Utils/bomDefaults'
+import { labelForPartKindValue, labelForSupplySourceValue } from '../../Utils/bomPresetOptions'
 import { inputCls } from '../FormField'
 import { ExportableTable } from '../ExportableTable'
 import { ConfirmDialog } from '../ConfirmDialog'
-import { BomPartListFormModal, type PartListFormState } from './BomPartListFormModal'
-import { parseApplicableModelNames } from '../../Utils/bomQtyByModel'
+import { BomPartListFormModal, type PartListFormState, type PartListSavePayload } from './BomPartListFormModal'
 import type { PartListRow } from '../../Types/bom'
+import { displayCommonName } from '../../Utils/partDisplayNames'
+import { PartModelCountBadge } from './PartModelCountBadge'
 
 const PAGE_SIZE = 80
 
@@ -20,7 +22,8 @@ const emptyForm = (): PartListFormState => ({
   part_name_ar: '',
   part_name_en: '',
   common_name: '',
-  model_names: []
+  part_type: DEFAULT_PART_KIND,
+  common_supply_source: DEFAULT_SUPPLY_SOURCE
 })
 
 type Props = {
@@ -45,36 +48,6 @@ export function BomPartListTab({ notify }: Props) {
   const [form, setForm] = useState<PartListFormState>(emptyForm)
   const [busy, setBusy] = useState(false)
   const [deleteId, setDeleteId] = useState<string | null>(null)
-  const [allModelNames, setAllModelNames] = useState<string[]>([])
-  const [formModelsSeeded, setFormModelsSeeded] = useState(false)
-
-  useEffect(() => {
-    void getVehicleModels()
-      .then(models =>
-        setAllModelNames(
-          models
-            .filter(isAssignableModel)
-            .map(m => m.name)
-            .sort((a, b) => a.localeCompare(b))
-        )
-      )
-      .catch(() => setAllModelNames([]))
-  }, [])
-
-  useEffect(() => {
-    if (!formOpen) {
-      setFormModelsSeeded(false)
-      return
-    }
-    if (formModelsSeeded || allModelNames.length === 0 || form.model_names.length > 0) return
-    setForm(prev => ({ ...prev, model_names: [...allModelNames] }))
-    setFormModelsSeeded(true)
-  }, [formOpen, formModelsSeeded, allModelNames, form.model_names.length])
-
-  function displayModelNames(part: PartListRow): string[] {
-    const stored = parseApplicableModelNames(part.applicable_models_text)
-    return stored.length > 0 ? stored : allModelNames
-  }
 
   const load = useCallback(async () => {
     setLoading(true)
@@ -95,45 +68,36 @@ export function BomPartListTab({ notify }: Props) {
 
   function openCreate() {
     setEditId(null)
-    setFormModelsSeeded(allModelNames.length > 0)
-    setForm({
-      ...emptyForm(),
-      model_names: [...allModelNames]
-    })
+    setForm(emptyForm())
     setFormOpen(true)
   }
 
   function openEdit(part: PartListRow) {
-    const stored = parseApplicableModelNames(part.applicable_models_text)
-    setFormModelsSeeded(true)
     setEditId(part.id)
     setForm({
       common_station: part.common_station ?? '',
       part_name_ar: part.part_name_ar ?? '',
       part_name_en: part.part_name_en ?? '',
       common_name: part.common_name ?? part.part_name_ar ?? part.part_name_en ?? '',
-      model_names: stored.length > 0 ? stored : [...allModelNames]
+      part_type: part.part_type ?? DEFAULT_PART_KIND,
+      common_supply_source: part.common_supply_source ?? DEFAULT_SUPPLY_SOURCE
     })
     setFormOpen(true)
   }
 
-  async function submitForm() {
+  async function submitForm(payload: PartListSavePayload) {
     setBusy(true)
     try {
-      const payload = {
+      const master = {
         common_station: form.common_station,
         part_name_ar: form.part_name_ar,
         part_name_en: form.part_name_en,
         common_name: form.common_name,
-        model_names: form.model_names
+        part_type: form.part_type,
+        common_supply_source: form.common_supply_source
       }
-      if (editId) {
-        await updatePartMaster(editId, payload)
-        notify(t('settings.updated'))
-      } else {
-        await createPartMaster(payload)
-        notify(t('settings.added'))
-      }
+      await savePartMasterFromListForm(editId, master, payload.cards, payload.models)
+      notify(editId ? t('settings.updated') : t('settings.added'))
       setFormOpen(false)
       await load()
     } catch (e) {
@@ -159,7 +123,7 @@ export function BomPartListTab({ notify }: Props) {
   }
 
   const pageCount = Math.max(1, Math.ceil(total / PAGE_SIZE))
-  const colCount = 5 + (canManage ? 1 : 0)
+  const colCount = 6 + (canManage ? 1 : 0)
 
   return (
     <div className="space-y-4">
@@ -220,7 +184,8 @@ export function BomPartListTab({ notify }: Props) {
                 <th className="px-3 py-2 text-center">{t('bom.col.part_name_ar')}</th>
                 <th className="px-3 py-2 text-center">{t('bom.col.part_name_en')}</th>
                 <th className="px-3 py-2 text-center">{t('bom.col.common_name')}</th>
-                <th className="px-3 py-2 text-center">{t('bom.col.used_in_models')}</th>
+                <th className="px-3 py-2 text-center">{t('bom.col.part_kind')}</th>
+                <th className="px-3 py-2 text-center">{t('bom.col.common_supply_source')}</th>
                 {canManage && <th className="px-3 py-2 text-center">{t('common.actions')}</th>}
               </tr>
             </thead>
@@ -238,22 +203,29 @@ export function BomPartListTab({ notify }: Props) {
                   </td>
                 </tr>
               ) : (
-                items.map(part => {
-                  const models = displayModelNames(part)
-                  return (
+                items.map(part => (
                   <tr key={part.id} className="border-b border-slate-800/60 hover:bg-slate-900/40">
                     <td className="px-3 py-2 text-center">{part.common_station || '—'}</td>
-                    <td className="px-3 py-2 text-center">{part.part_name_ar || '—'}</td>
+                    <td className="px-3 py-2 text-center">
+                      <span className="inline-flex items-center justify-center gap-1.5">
+                        <span>{part.part_name_ar || '—'}</span>
+                        <PartModelCountBadge
+                          count={part.model_count ?? 0}
+                          title={t('bom.partListModelCountTitle', { n: part.model_count ?? 0 })}
+                        />
+                      </span>
+                    </td>
                     <td className="px-3 py-2 text-center" dir="ltr">
                       {part.part_name_en || '—'}
                     </td>
-                    <td className="px-3 py-2 text-center font-medium text-white">{part.common_name || '—'}</td>
-                    <td className="max-w-[14rem] px-3 py-2 text-center text-xs text-slate-300" title={models.join(', ')}>
-                      {models.length > 0 ? (
-                        <span className="line-clamp-2">{models.join('، ')}</span>
-                      ) : (
-                        '—'
-                      )}
+                    <td className="px-3 py-2 text-center font-medium text-white">
+                      {displayCommonName(part) || '—'}
+                    </td>
+                    <td className="px-3 py-2 text-center text-xs text-slate-300">
+                      {labelForPartKindValue(part.part_type ?? DEFAULT_PART_KIND, t)}
+                    </td>
+                    <td className="px-3 py-2 text-center text-xs text-slate-300">
+                      {labelForSupplySourceValue(part.common_supply_source ?? DEFAULT_SUPPLY_SOURCE, t)}
                     </td>
                     {canManage && (
                       <td className="px-3 py-2 text-center">
@@ -280,8 +252,7 @@ export function BomPartListTab({ notify }: Props) {
                       </td>
                     )}
                   </tr>
-                  )
-                })
+                ))
               )}
             </tbody>
           </table>
@@ -317,9 +288,8 @@ export function BomPartListTab({ notify }: Props) {
         editId={editId}
         form={form}
         busy={busy}
-        defaultModelNames={allModelNames}
         onClose={() => setFormOpen(false)}
-        onSave={() => void submitForm()}
+        onSave={payload => void submitForm(payload)}
         onChange={setForm}
       />
 

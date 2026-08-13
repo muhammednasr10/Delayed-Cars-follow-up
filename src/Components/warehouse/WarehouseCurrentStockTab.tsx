@@ -148,7 +148,9 @@ export function WarehouseCurrentStockTab({ warehouses, models }: Props) {
         </div>
       </div>
 
-      {error && <div className="rounded-xl border border-red-500/30 bg-red-500/10 p-3 text-sm text-red-200">{error}</div>}
+      {error && (
+        <div className="rounded-xl border border-red-500/30 bg-red-500/10 p-3 text-sm text-red-200">{error}</div>
+      )}
 
       <div className="card-industrial overflow-hidden">
         {loading ? (
@@ -157,51 +159,53 @@ export function WarehouseCurrentStockTab({ warehouses, models }: Props) {
           <EmptyState title={t('warehouses.stock.empty')} hint={t('warehouses.stock.emptyHint')} />
         ) : (
           <ExportableTable filename="warehouse-stock" title={t('warehouses.tabs.currentStock')} rowCount={rows.length}>
-          <div className="overflow-x-auto">
-            <table className="w-full min-w-[900px] text-start text-sm">
-              <thead className="bg-slate-950/90">
-                <tr>
-                  {['model', 'part', 'name', 'perCar', 'onHand', 'reserved', 'available', 'cars'].map(col => (
-                    <th key={col} className="table-cell text-xs font-black uppercase text-slate-400">
-                      {t(`warehouses.stock.cols.${col}`)}
-                    </th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-800">
-                {rows.map(r => (
-                  <tr key={`${r.vehicleModelId}:${r.partId}`} className="hover:bg-slate-800/30">
-                    <td className="table-cell font-bold text-slate-200">{r.modelName}</td>
-                    <td className="table-cell font-mono text-xs text-cyan-200" dir="ltr">
-                      {r.partNumber}
-                    </td>
-                    <td className="table-cell text-slate-300">{r.partName}</td>
-                    <td className="table-cell text-center text-slate-400" dir="ltr">
-                      {fmtQty(r.qtyPerVehicle)}
-                    </td>
-                    <td className="table-cell text-center" dir="ltr">
-                      {r.itemId ? (
-                        <span className={r.qtyOnHand > 0 ? 'text-emerald-300' : 'text-red-300'}>{fmtQty(r.qtyOnHand)}</span>
-                      ) : (
-                        <span className="text-xs text-amber-400">{t('warehouses.stock.noItemLink')}</span>
-                      )}
-                    </td>
-                    <td className="table-cell text-center text-slate-400" dir="ltr">
-                      {fmtQty(r.qtyReserved)}
-                    </td>
-                    <td className="table-cell text-center font-bold" dir="ltr">
-                      <span className={r.qtyAvailable > 0 ? 'text-emerald-200' : 'text-red-300'}>
-                        {fmtQty(r.qtyAvailable)}
-                      </span>
-                    </td>
-                    <td className="table-cell text-center text-violet-300" dir="ltr">
-                      {r.vehiclesCoverable ?? '—'}
-                    </td>
+            <div className="overflow-x-auto">
+              <table className="w-full min-w-[900px] text-start text-sm">
+                <thead className="bg-slate-950/90">
+                  <tr>
+                    {['model', 'part', 'name', 'perCar', 'onHand', 'reserved', 'available', 'cars'].map(col => (
+                      <th key={col} className="table-cell text-xs font-black uppercase text-slate-400">
+                        {t(`warehouses.stock.cols.${col}`)}
+                      </th>
+                    ))}
                   </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+                </thead>
+                <tbody className="divide-y divide-slate-800">
+                  {rows.map(r => (
+                    <tr key={`${r.vehicleModelId}:${r.partId}`} className="hover:bg-slate-800/30">
+                      <td className="table-cell font-bold text-slate-200">{r.modelName}</td>
+                      <td className="table-cell font-mono text-xs text-cyan-200" dir="ltr">
+                        {r.partNumber}
+                      </td>
+                      <td className="table-cell text-slate-300">{r.partName}</td>
+                      <td className="table-cell text-center text-slate-400" dir="ltr">
+                        {fmtQty(r.qtyPerVehicle)}
+                      </td>
+                      <td className="table-cell text-center" dir="ltr">
+                        {r.itemId ? (
+                          <span className={r.qtyOnHand > 0 ? 'text-emerald-300' : 'text-red-300'}>
+                            {fmtQty(r.qtyOnHand)}
+                          </span>
+                        ) : (
+                          <span className="text-xs text-amber-400">{t('warehouses.stock.noItemLink')}</span>
+                        )}
+                      </td>
+                      <td className="table-cell text-center text-slate-400" dir="ltr">
+                        {fmtQty(r.qtyReserved)}
+                      </td>
+                      <td className="table-cell text-center font-bold" dir="ltr">
+                        <span className={r.qtyAvailable > 0 ? 'text-emerald-200' : 'text-red-300'}>
+                          {fmtQty(r.qtyAvailable)}
+                        </span>
+                      </td>
+                      <td className="table-cell text-center text-violet-300" dir="ltr">
+                        {r.vehiclesCoverable ?? '—'}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
           </ExportableTable>
         )}
       </div>

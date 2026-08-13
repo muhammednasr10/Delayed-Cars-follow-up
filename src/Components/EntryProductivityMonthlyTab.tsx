@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { CalendarDays } from 'lucide-react'
-import { useAuth } from '../Context/AuthContext'
+import { useCanManageProduction } from '../hooks/useCanManageProduction'
 import { useVehicles } from '../Context/VehiclesContext'
 import { useLang } from '../i18n/LanguageContext'
 import { useEmployees } from '../hooks/useEmployees'
@@ -37,11 +37,10 @@ function columnKey(col: ModelColumn): string {
 
 export function EntryProductivityMonthlyTab() {
   const { t } = useLang()
-  const { hasRole } = useAuth()
   const { vehicles } = useVehicles()
   const { employees } = useEmployees()
   const { filterRecords, isScopedView, scopeLabel } = useFactoryOrgScope(employees)
-  const canManage = hasRole('admin', 'production')
+  const canManage = useCanManageProduction()
   const scopedVehicles = useMemo(() => filterRecords(vehicles), [vehicles, filterRecords])
 
   const init = currentYm()
@@ -213,8 +212,14 @@ export function EntryProductivityMonthlyTab() {
           </div>
         </div>
 
-        {success && <div className="mb-3 rounded-xl border border-emerald-500/30 bg-emerald-500/10 p-3 text-sm text-emerald-200">{success}</div>}
-        {error && <div className="mb-3 rounded-xl border border-red-500/30 bg-red-500/10 p-3 text-sm text-red-200">{error}</div>}
+        {success && (
+          <div className="mb-3 rounded-xl border border-emerald-500/30 bg-emerald-500/10 p-3 text-sm text-emerald-200">
+            {success}
+          </div>
+        )}
+        {error && (
+          <div className="mb-3 rounded-xl border border-red-500/30 bg-red-500/10 p-3 text-sm text-red-200">{error}</div>
+        )}
         <p className="text-xs text-slate-500">{t('productivity.monthly.hint')}</p>
       </div>
 
@@ -225,7 +230,9 @@ export function EntryProductivityMonthlyTab() {
               <th className={`${stickyHead} min-w-[72px] text-xs font-black uppercase text-cyan-300`}>
                 {t('productivity.monthly.total')}
               </th>
-              <th className={`${stickyHead} start-[72px] min-w-[72px] border-s border-slate-800 text-xs font-black uppercase text-slate-400`}>
+              <th
+                className={`${stickyHead} start-[72px] min-w-[72px] border-s border-slate-800 text-xs font-black uppercase text-slate-400`}
+              >
                 {t('productivity.monthly.date')}
               </th>
               {columns.map(col => (
@@ -244,7 +251,9 @@ export function EntryProductivityMonthlyTab() {
               return (
                 <tr key={workDate} className="bg-slate-900/30 hover:bg-slate-800/40">
                   <td className={`${stickyCell} font-black text-cyan-300`}>{rowTotal || '—'}</td>
-                  <td className={`${stickyCell} start-[72px] border-s border-slate-800 font-mono font-bold text-slate-200`}>
+                  <td
+                    className={`${stickyCell} start-[72px] border-s border-slate-800 font-mono font-bold text-slate-200`}
+                  >
                     {workDate.slice(8)}
                   </td>
                   {columns.map(col => (

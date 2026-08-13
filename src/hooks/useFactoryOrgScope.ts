@@ -19,7 +19,7 @@ export function useFactoryOrgScope(employees: Employee[] = []) {
   const employeeId = profile?.employee_id ?? null
   const seesAll = profileIsAdmin(profile) || hasRole('admin', 'production')
   const viewer = useMemo(
-    () => (employeeId ? employees.find(e => e.id === employeeId) ?? null : null),
+    () => (employeeId ? (employees.find(e => e.id === employeeId) ?? null) : null),
     [employees, employeeId]
   )
   const scopeRootId = viewer?.factoryOrgUnitId ?? null

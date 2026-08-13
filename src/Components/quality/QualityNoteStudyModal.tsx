@@ -44,7 +44,11 @@ export function QualityNoteStudyModal({ open, note, onClose, onSave, saving }: P
       onClose={onClose}
       footer={
         <div className="flex justify-end gap-2">
-          <button type="button" onClick={onClose} className="rounded-xl bg-slate-800 px-4 py-2 text-sm font-bold text-slate-200 hover:bg-slate-700">
+          <button
+            type="button"
+            onClick={onClose}
+            className="rounded-xl bg-slate-800 px-4 py-2 text-sm font-bold text-slate-200 hover:bg-slate-700"
+          >
             {t('common.cancel')}
           </button>
           <button
