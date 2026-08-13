@@ -124,6 +124,8 @@ export type MissingPartFilters = {
   search: string
   modelNames: string[]
   departments: string[]
+  /** Archive month key `YYYY-MM` from shortageResolvedAt; null = all months. */
+  resolvedMonth: string | null
 }
 
 export type DepartmentVehicleCount = {

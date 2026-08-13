@@ -8,6 +8,7 @@ import {
   buildVariantVehicleSummaries,
   canCompleteVehicle,
   isSchemaMissing,
+  listResolvedMonths,
   openVehicleShortageLines,
   uniqueVehicleReps
 } from './missingPartPageUtils'
@@ -74,18 +75,36 @@ describe('applyFilters', () => {
   ]
 
   it('filters by model and department', () => {
-    const byModel = applyFilters(items, { search: '', modelNames: ['SEDAN-A'], departments: [] })
+    const byModel = applyFilters(items, { search: '', modelNames: ['SEDAN-A'], departments: [], resolvedMonth: null })
     expect(byModel).toHaveLength(3)
 
-    const byDept = applyFilters(items, { search: '', modelNames: [], departments: ['paint'] })
+    const byDept = applyFilters(items, { search: '', modelNames: [], departments: ['paint'], resolvedMonth: null })
     expect(byDept).toHaveLength(1)
     expect(byDept[0].vin).toBe('VIN002')
   })
 
   it('includes all vehicles in a report group when one member matches search', () => {
-    const filtered = applyFilters(items, { search: 'mirror', modelNames: [], departments: [] })
+    const filtered = applyFilters(items, { search: 'mirror', modelNames: [], departments: [], resolvedMonth: null })
     const vins = filtered.map(i => i.vin).sort()
     expect(vins).toEqual(['VIN003', 'VIN004'])
+  })
+
+  it('filters archive rows by resolved month', () => {
+    const archived = [
+      part({ id: 'a1', vehicleId: 'va1', vin: 'A001', shortageResolvedAt: '2026-08-10T12:00:00Z' }),
+      part({ id: 'a2', vehicleId: 'va2', vin: 'A002', shortageResolvedAt: '2026-07-05T08:00:00Z' }),
+      part({ id: 'a3', vehicleId: 'va3', vin: 'A003', shortageResolvedAt: '2026-08-01T00:00:00Z' })
+    ]
+    const august = applyFilters(archived, {
+      search: '',
+      modelNames: [],
+      departments: [],
+      resolvedMonth: '2026-08'
+    })
+    expect(august.map(i => i.vin).sort()).toEqual(['A001', 'A003'])
+
+    const months = listResolvedMonths(archived)
+    expect(months).toEqual(['2026-08', '2026-07'])
   })
 })
 

@@ -39,12 +39,50 @@ export function isSchemaMissing(message: string): boolean {
   return m.includes('schema cache') || m.includes('could not find the table') || m.includes('does not exist')
 }
 
+/** `YYYY-MM` from shortageResolvedAt (UTC calendar month). */
+export function resolvedMonthKey(iso: string | null | undefined): string | null {
+  if (!iso) return null
+  const d = new Date(iso)
+  if (Number.isNaN(d.getTime())) {
+    const raw = iso.slice(0, 7)
+    return /^\d{4}-\d{2}$/.test(raw) ? raw : null
+  }
+  const y = d.getUTCFullYear()
+  const m = String(d.getUTCMonth() + 1).padStart(2, '0')
+  return `${y}-${m}`
+}
+
+/** Distinct archive months from items, newest first. */
+export function listResolvedMonths(items: MissingPartDetail[]): string[] {
+  const set = new Set<string>()
+  for (const i of items) {
+    const key = resolvedMonthKey(i.shortageResolvedAt)
+    if (key) set.add(key)
+  }
+  return [...set].sort((a, b) => b.localeCompare(a))
+}
+
+export function formatResolvedMonthLabel(monthKey: string, lang: string): string {
+  const [ys, ms] = monthKey.split('-')
+  const y = Number(ys)
+  const m = Number(ms)
+  if (!y || !m || m < 1 || m > 12) return monthKey
+  const date = new Date(Date.UTC(y, m - 1, 1))
+  return new Intl.DateTimeFormat(lang === 'ar' ? 'ar' : 'en', {
+    month: 'long',
+    year: 'numeric',
+    timeZone: 'UTC'
+  }).format(date)
+}
+
 export function applyFilters(items: MissingPartDetail[], filters: MissingPartFilters) {
   const models = new Set(filters.modelNames)
   const departments = new Set(filters.departments)
+  const month = filters.resolvedMonth
   const base = items
     .filter(i => models.size === 0 || models.has(i.modelName))
     .filter(i => departments.size === 0 || (i.department != null && departments.has(i.department)))
+    .filter(i => !month || resolvedMonthKey(i.shortageResolvedAt) === month)
 
   const q = filters.search.trim().toLowerCase()
   if (!q) return base

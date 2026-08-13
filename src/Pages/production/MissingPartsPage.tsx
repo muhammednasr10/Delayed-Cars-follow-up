@@ -82,7 +82,8 @@ export function MissingPartsPage() {
   const [filters, setFilters] = useState<MissingPartFilters>({
     search: '',
     modelNames: [],
-    departments: []
+    departments: [],
+    resolvedMonth: null
   })
   const [showReport, setShowReport] = useState(false)
   const [updateVehicle, setUpdateVehicle] = useState<UpdateVehicleContext | null>(null)
@@ -217,8 +218,18 @@ export function MissingPartsPage() {
   const tabVehicleCount = useMemo(() => new Set(tabSource.map(i => i.vehicleId)).size, [tabSource])
   const filteredVehicleCount = useMemo(() => new Set(filtered.map(i => i.vehicleId)).size, [filtered])
   const hasActiveFilter = Boolean(
-    filters.search.trim() || filters.modelNames.length > 0 || filters.departments.length > 0
+    filters.search.trim() ||
+      filters.modelNames.length > 0 ||
+      filters.departments.length > 0 ||
+      filters.resolvedMonth
   )
+
+  function changeListTab(tab: ListTab) {
+    const leavingArchive =
+      (listTab === 'history' || listTab === 'historySummary') && tab !== 'history' && tab !== 'historySummary'
+    if (leavingArchive) setFilters(p => (p.resolvedMonth ? { ...p, resolvedMonth: null } : p))
+    setListTab(tab)
+  }
 
   // Keep the vehicle card in sync after actions like "ترحيل".
   useEffect(() => {
@@ -477,7 +488,7 @@ export function MissingPartsPage() {
           listTab={listTab}
           visibleTabs={visibleTabs}
           canUseFilters={canFilter}
-          onListTabChange={setListTab}
+          onListTabChange={changeListTab}
           activeCount={activeVehicleCount}
           historyCount={historyVehicleCount}
           searchPool={tabSource}

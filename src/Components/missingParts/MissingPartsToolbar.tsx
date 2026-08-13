@@ -7,6 +7,7 @@ import type { MissingPartDetail, MissingPartFilters } from '../../Types/missingP
 import { FilterMultiSelect } from '../FilterMultiSelect'
 import { MissingPartSearchAutocomplete } from './MissingPartSearchAutocomplete'
 import { MissingPartsModelSummaryTable } from './MissingPartsModelSummaryTable'
+import { formatResolvedMonthLabel, listResolvedMonths } from '../../Utils/missingPartPageUtils'
 
 export type ListTab = 'active' | 'byFamily' | 'summary' | 'history' | 'historySummary'
 export type CurrentShortageView = 'active' | 'byFamily'
@@ -60,6 +61,11 @@ export function MissingPartsToolbar({
   const departmentSelectOptions = useMemo(
     () => departmentFilterCodes.map(code => ({ value: code, label: mpLookupLabel(departments, code, lang) })),
     [departmentFilterCodes, departments, lang]
+  )
+  const isArchiveTab = listTab === 'history' || listTab === 'historySummary'
+  const monthOptions = useMemo(
+    () => (isArchiveTab ? listResolvedMonths(searchPool) : []),
+    [isArchiveTab, searchPool]
   )
 
   const showCurrentGroup = visibleTabs.includes('active') || visibleTabs.includes('byFamily')
@@ -197,8 +203,13 @@ export function MissingPartsToolbar({
         <MissingPartsModelSummaryTable items={summaryItems} />
       )}
 
-      {canUseFilters && (listTab === 'active' || listTab === 'byFamily' || listTab === 'history') && (
-        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
+      {canUseFilters &&
+        (listTab === 'active' || listTab === 'byFamily' || listTab === 'history' || listTab === 'historySummary') && (
+        <div
+          className={`grid grid-cols-1 gap-3 sm:grid-cols-2 ${
+            isArchiveTab ? 'lg:grid-cols-4' : 'lg:grid-cols-3'
+          }`}
+        >
           <MissingPartSearchAutocomplete
             items={searchPool}
             value={filters.search}
@@ -220,6 +231,22 @@ export function MissingPartsToolbar({
             selectedCountLabel={n => t('mp.filterSelectedCount', { n })}
             clearLabel={t('mp.filterClear')}
           />
+          {isArchiveTab && (
+            <select
+              className="input-dark"
+              value={filters.resolvedMonth ?? ''}
+              onChange={e => onFiltersChange({ resolvedMonth: e.target.value || null })}
+              aria-label={t('mp.filterMonthLabel')}
+              title={t('mp.filterMonthLabel')}
+            >
+              <option value="">{t('mp.filterMonth')}</option>
+              {monthOptions.map(key => (
+                <option key={key} value={key}>
+                  {formatResolvedMonthLabel(key, lang)}
+                </option>
+              ))}
+            </select>
+          )}
         </div>
       )}
     </div>
