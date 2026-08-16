@@ -72,24 +72,26 @@ export type BomIplFeedingCard = BomIplLogistics & {
 }
 
 export function emptyIplFeedingCard(): BomIplFeedingCard {
-  return withComputedVolumes({
-    part_length: '',
-    part_width: '',
-    part_height: '',
-    part_volume: '',
-    feeding_method: '',
-    packing: '',
-    part_direction: '',
-    carton_qty: '',
-    part_weight: '',
-    carton_weight: '',
-    rack_code: '',
-    rack_length: DEFAULT_RACK_LENGTH_CM,
-    rack_width: DEFAULT_RACK_WIDTH_CM,
-    rack_height: DEFAULT_RACK_HEIGHT_CM,
-    rack_size: '',
+  return {
+    ...withComputedVolumes({
+      part_length: '',
+      part_width: '',
+      part_height: '',
+      part_volume: '',
+      feeding_method: '',
+      packing: '',
+      part_direction: '',
+      carton_qty: '',
+      part_weight: '',
+      carton_weight: '',
+      rack_code: '',
+      rack_length: DEFAULT_RACK_LENGTH_CM,
+      rack_width: DEFAULT_RACK_WIDTH_CM,
+      rack_height: DEFAULT_RACK_HEIGHT_CM,
+      rack_size: ''
+    }),
     stopper_type: 'non_stopper'
-  })
+  }
 }
 
 export function iplFeedingHasContent(card: BomIplFeedingCard | undefined): boolean {

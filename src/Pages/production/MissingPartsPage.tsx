@@ -46,6 +46,7 @@ import { MissingPartsApprovalsTab } from '../../Components/missingParts/MissingP
 import { TransferToQualityModal } from '../../Components/missingParts/TransferToQualityModal'
 import { MissingPartsDailyJournalTab } from '../../Components/missingParts/MissingPartsDailyJournalTab'
 import { MissingPartsFamilyCardsTab } from '../../Components/missingParts/MissingPartsFamilyCardsTab'
+import { MissingPartsSummaryTab } from '../../Components/missingParts/MissingPartsSummaryTab'
 import {
   applyFilters,
   isSchemaMissing,

@@ -84,6 +84,7 @@ export function BomFormModal({ mode, itemId, editItemIds, open, defaultVehicleMo
                   part_number_new: '',
                   alternative_part_no: '',
                   qty: '1',
+                  notFitted: false,
                   part_kind: DEFAULT_PART_KIND,
                   supply_source: DEFAULT_SUPPLY_SOURCE,
                   station_id: '',
