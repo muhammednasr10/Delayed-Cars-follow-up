@@ -783,7 +783,7 @@ export async function syncPartMasterModelCards(
       })
       .eq('id', bomId)
     if (error) throw new Error(error.message)
-    if (iplFeedingHasContent(card.feeding)) await updateBomIplFeedingCard([bomId], card.feeding)
+    if (card.feeding && iplFeedingHasContent(card.feeding)) await updateBomIplFeedingCard([bomId], card.feeding)
   }
 
   for (const card of notFittedCards) {
