@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState, startTransition } from 'react'
 import { Plus, RefreshCcw, Search, X, Layers, Car } from 'lucide-react'
 import { useLang } from '../../i18n/LanguageContext'
 import { usePermissions } from '../../Context/PermissionsContext'
@@ -10,8 +10,8 @@ import {
   deactivateBomItemsForPartModel,
   getBomItemById,
   getBomItemsAll,
-  listIplModelViewRows,
-  listIplModelViewsByModels,
+  fetchIplBomAndMasters,
+  buildIplModelMergedRows,
   saveBomFromModelCards,
   savePartMasterFromListForm,
   updateBomIplFeedingCard,
@@ -29,6 +29,7 @@ import {
   type PartListStationOption
 } from '../../services/partsService'
 import { applicableModelsAfterRemoval } from '../../Utils/bomQtyByModel'
+import { isIplNotFittedForModel } from '../../Utils/iplFitStatus'
 import { isPendingBomItemId } from '../../Utils/iplModelParts'
 import {
   BOM_IPL_MODEL_ROW_COLUMNS,
@@ -136,6 +137,9 @@ export function BomByModelTab({
   const [partsCache, setPartsCache] = useState<Map<string, Part>>(new Map())
   const didInitModelTabs = useRef(false)
   const loadSeq = useRef(0)
+  const iplSourceRef = useRef<{ allBom: BomItemDetail[]; masters: Part[] } | null>(null)
+  const iplPaintedRef = useRef(false)
+  const [iplRefreshing, setIplRefreshing] = useState(false)
 
   const perModel = viewMode === 'perModel'
   const effectiveModelName = perModel ? activeModelTab : modelName
@@ -192,11 +196,47 @@ export function BomByModelTab({
   const activeExcelFilterCount = Object.values(excelFilters).filter(v => v && v.length > 0).length
 
   useEffect(() => {
-    const timer = window.setTimeout(() => setSearchDebounced(search.trim()), 350)
+    const timer = window.setTimeout(() => setSearchDebounced(search.trim()), perModel ? 180 : 350)
     return () => window.clearTimeout(timer)
-  }, [search])
+  }, [search, perModel])
 
-  const load = useCallback(async () => {
+  const applyIplFromSource = useCallback(
+    (source: { allBom: BomItemDetail[]; masters: Part[] }) => {
+      const filters = { search: searchDebounced, stationCode: stationCodeForLoad }
+      if (compareMode) {
+        const byModel = new Map<string, BomItemDetail[]>()
+        for (const name of openTabsActive) {
+          byModel.set(name, buildIplModelMergedRows(name, source.allBom, source.masters, filters))
+        }
+        const uniqueParts = new Set<string>()
+        for (const rows of byModel.values()) {
+          for (const row of rows) uniqueParts.add(row.part_id || row.id)
+        }
+        startTransition(() => {
+          setCompareItemsByModel(byModel)
+          setItems([])
+          setTotal(uniqueParts.size)
+          setFilteredCount(uniqueParts.size)
+        })
+        return
+      }
+
+      const merged = buildIplModelMergedRows(activeModelTab, source.allBom, source.masters, filters).filter(
+        row => !isIplNotFittedForModel(row, activeModelTab)
+      )
+      const from = (page - 1) * PAGE_SIZE
+      startTransition(() => {
+        setCompareItemsByModel(new Map())
+        setPartsCache(new Map())
+        setItems(merged.slice(from, from + PAGE_SIZE))
+        setTotal(merged.length)
+        setFilteredCount(merged.length)
+      })
+    },
+    [compareMode, openTabsActive, searchDebounced, stationCodeForLoad, activeModelTab, page]
+  )
+
+  const load = useCallback(async (opts?: { force?: boolean }) => {
     const seq = ++loadSeq.current
     if (perModel && openTabsActive.length === 0) {
       if (seq !== loadSeq.current) return
@@ -205,46 +245,39 @@ export function BomByModelTab({
       setFilteredCount(0)
       setCompareItemsByModel(new Map())
       setLoading(false)
+      setIplRefreshing(false)
       return
     }
     if (perModel && !compareMode && (!activeModelTab || !assignableModelNames.has(activeModelTab))) {
       if (seq !== loadSeq.current) return
       setLoading(false)
+      setIplRefreshing(false)
       return
     }
-    setLoading(true)
+
     try {
       if (perModel) {
-        if (compareMode) {
-          const byModel = await listIplModelViewsByModels(openTabsActive, {
-            search: searchDebounced,
-            stationCode: stationCodeForLoad
-          })
-          if (seq !== loadSeq.current) return
-          setCompareItemsByModel(byModel)
-          setItems([])
-          const uniqueParts = new Set<string>()
-          for (const rows of byModel.values()) {
-            for (const row of rows) uniqueParts.add(row.part_id || row.id)
+        const cached = !opts?.force ? iplSourceRef.current : null
+        if (cached) {
+          applyIplFromSource(cached)
+          iplPaintedRef.current = true
+          if (seq === loadSeq.current) {
+            setLoading(false)
+            setIplRefreshing(false)
           }
-          setTotal(uniqueParts.size)
-          setFilteredCount(uniqueParts.size)
-        } else {
-          const view = await listIplModelViewRows({
-            modelName: activeModelTab,
-            search: searchDebounced,
-            stationCode: stationCodeForLoad,
-            page,
-            pageSize: PAGE_SIZE
-          })
-          if (seq !== loadSeq.current) return
-          setCompareItemsByModel(new Map())
-          setPartsCache(new Map())
-          setItems(view.items)
-          setTotal(view.total)
-          setFilteredCount(view.total)
+          return
         }
+
+        if (iplPaintedRef.current) setIplRefreshing(true)
+        else setLoading(true)
+
+        const source = await fetchIplBomAndMasters()
+        if (seq !== loadSeq.current) return
+        iplSourceRef.current = source
+        applyIplFromSource(source)
+        iplPaintedRef.current = true
       } else {
+        setLoading(true)
         const list = await getBomItemsAll(baseFilters)
         if (seq !== loadSeq.current) return
         setItems(list.items)
@@ -256,7 +289,10 @@ export function BomByModelTab({
       if (seq !== loadSeq.current) return
       notify(e instanceof Error ? e.message : t('common.error'), true)
     } finally {
-      if (seq === loadSeq.current) setLoading(false)
+      if (seq === loadSeq.current) {
+        setLoading(false)
+        setIplRefreshing(false)
+      }
     }
   }, [
     baseFilters,
@@ -264,13 +300,10 @@ export function BomByModelTab({
     t,
     perModel,
     activeModelTab,
-    openTabsKey,
     compareMode,
-    searchDebounced,
-    stationCodeForLoad,
-    page,
     assignableModelNames,
-    openTabsActive
+    openTabsActive,
+    applyIplFromSource
   ])
 
   useEffect(() => {
@@ -323,10 +356,13 @@ export function BomByModelTab({
     setPage(1)
   }
 
-  function closeModelTab(name: string) {
+  function toggleFamilyTabs(variantNames: string[]) {
     setOpenModelTabs(prev => {
-      const next = prev.filter(n => n !== name)
-      setActiveModelTab(cur => (cur === name ? next[0] ?? '' : cur))
+      const allOn = variantNames.length > 0 && variantNames.every(n => prev.includes(n))
+      const next = allOn
+        ? prev.filter(n => !variantNames.includes(n))
+        : [...new Set([...prev, ...variantNames])].sort((a, b) => a.localeCompare(b))
+      setActiveModelTab(cur => (next.includes(cur) ? cur : next[0] ?? ''))
       return next
     })
     setPage(1)
@@ -340,7 +376,8 @@ export function BomByModelTab({
   }, [perModel])
 
   function reload(msg?: string) {
-    void load().then(() => {
+    iplSourceRef.current = null
+    void load({ force: true }).then(() => {
       if (msg) notify(msg)
     })
   }
@@ -452,8 +489,14 @@ export function BomByModelTab({
     }
   }
 
-  async function openPartEdit(group: BomDisplayGroup) {
-    const part = partsCache.get(group.primary.part_id) ?? (await getPartById(group.primary.part_id))
+  function openPartCreate() {
+    setPartEditId(null)
+    setPartForm(emptyPartForm())
+    setPartFormOpen(true)
+  }
+
+  async function openPartEditById(partId: string) {
+    const part = partsCache.get(partId) ?? (await getPartById(partId))
     if (!part) return
     setPartEditId(part.id)
     setPartForm({
@@ -467,12 +510,15 @@ export function BomByModelTab({
     setPartFormOpen(true)
   }
 
+  async function openPartEdit(group: BomDisplayGroup) {
+    await openPartEditById(group.primary.part_id)
+  }
+
   async function submitPartForm(payload: PartListSavePayload) {
-    if (!partEditId) return
     setPartFormBusy(true)
     try {
       await savePartMasterFromListForm(
-        partEditId,
+        payload.existingPartId ?? partEditId,
         {
           common_station: partForm.common_station,
           part_name_ar: partForm.part_name_ar,
@@ -485,9 +531,10 @@ export function BomByModelTab({
         payload.models
       )
       setPartFormOpen(false)
-      reload(t('settings.updated'))
+      reload(payload.existingPartId || partEditId ? t('settings.updated') : t('settings.added'))
     } catch (e) {
       notify(e instanceof Error ? e.message : t('common.error'), true)
+      throw e
     } finally {
       setPartFormBusy(false)
     }
@@ -647,17 +694,21 @@ export function BomByModelTab({
             >
               <RefreshCcw className="inline h-4 w-4" /> {t('common.refresh')}
             </button>
-            {canCreate && (
+            {(perModel ? canCreate || canUpdate : canCreate) && (
               <button
                 type="button"
                 onClick={() => {
+                  if (perModel) {
+                    openPartCreate()
+                    return
+                  }
                   setFormMode('create')
                   setEditId(null)
                   setEditIds([])
                 }}
                 className="rounded-xl bg-cyan-500 px-4 py-2 text-sm font-black text-slate-950 hover:bg-cyan-400"
               >
-                <Plus className="inline h-4 w-4" /> {t('bom.addRow')}
+                <Plus className="inline h-4 w-4" /> {perModel ? t('bom.partListAdd') : t('bom.addRow')}
               </button>
             )}
           </div>
@@ -667,14 +718,10 @@ export function BomByModelTab({
           <div className="mt-3 border-t border-slate-800/80 pt-3">
             <IplModelTabsBar
               models={assignableModels}
+              allModels={models}
               openTabs={openTabsActive}
-              activeTab={activeModelTab}
               onToggleModel={toggleModelTab}
-              onSelectTab={name => {
-                setActiveModelTab(name)
-                setPage(1)
-              }}
-              onCloseTab={closeModelTab}
+              onToggleFamily={toggleFamilyTabs}
             />
             <label className="mt-3 block max-w-xs">
               <span className="mb-1 block text-[10px] font-bold uppercase text-cyan-300">{t('bom.filterStation')}</span>
@@ -795,9 +842,20 @@ export function BomByModelTab({
         </p>
       </div>
 
-      <div className="card-industrial overflow-hidden">
+      <div className="card-industrial relative overflow-hidden">
+        {perModel && (loading || iplRefreshing) && (
+          <div className="pointer-events-none absolute inset-x-0 top-0 z-20 h-0.5 bg-slate-800">
+            <div className="h-full w-full animate-pulse bg-cyan-400/90" />
+          </div>
+        )}
         {perModel && compareMode ? (
-          <IplModelCompareTable openTabs={openTabsActive} itemsByModel={compareItemsByModel} loading={loading} />
+          <IplModelCompareTable
+            openTabs={openTabsActive}
+            itemsByModel={compareItemsByModel}
+            loading={loading && compareItemsByModel.size === 0}
+            canUpdate={canUpdate}
+            onEditPart={partId => void openPartEditById(partId)}
+          />
         ) : (
         <ExportableTable filename="bom-parts" title={t('bom.title')} rowCount={pagedGroups.length}>
           <table className="bom-parts-table">
@@ -841,7 +899,7 @@ export function BomByModelTab({
               </tr>
             </thead>
             <tbody>
-              {loading ? (
+              {loading && pagedGroups.length === 0 ? (
                 <tr>
                   <td colSpan={colCount} className="text-slate-400">
                     {t('common.loading')}
@@ -938,7 +996,7 @@ export function BomByModelTab({
         form={partForm}
         busy={partFormBusy}
         onClose={() => setPartFormOpen(false)}
-        onSave={payload => void submitPartForm(payload)}
+        onSave={submitPartForm}
         onChange={setPartForm}
       />
 

@@ -74,7 +74,7 @@ function LazyPage({ children }: { children: ReactNode }) {
 function Shell() {
   const { configured, loading, session, profile, signOut, displayRole } = useAuth()
   const { canAccess: canAccessSettings } = useCanAccessSettings()
-  const { loading: permsLoading, canViewModule } = usePermissions()
+  const { loading: permsLoading, canViewModule, loadError: permsLoadError, reload: reloadPermissions } = usePermissions()
   const { canViewPage, loading: pagesLoading } = useCanViewPage()
   const { t, lang, toggle } = useLang()
   const nav = useNavigation()
@@ -239,6 +239,19 @@ function Shell() {
           </header>
 
           <DepartmentTopBar />
+
+          {permsLoadError && (
+            <div className="flex flex-wrap items-center justify-between gap-2 rounded-2xl border border-amber-500/40 bg-amber-500/10 px-4 py-3 text-sm text-amber-100">
+              <p className="font-bold">{t('permissions.loadFailed')}</p>
+              <button
+                type="button"
+                onClick={() => void reloadPermissions()}
+                className="rounded-xl bg-amber-400 px-3 py-1.5 text-xs font-black text-slate-950 hover:bg-amber-300"
+              >
+                {t('permissions.retryLoad')}
+              </button>
+            </div>
+          )}
 
           {nav.showProfile && <MyProfilePage onBack={() => nav.closeProfile()} />}
 

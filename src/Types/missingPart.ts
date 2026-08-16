@@ -32,8 +32,12 @@ export type MissingPartDetail = {
   createdAt: string
   updatedAt: string
   shortageResolvedAt: string | null
+  /** Employee who archived/completed the vehicle shortage (المتمم). */
+  shortageResolvedByName: string | null
   /** Set when closed via «ترحيل» (workflow done, shortage not physically resolved). */
   transferredAt: string | null
+  pendingTransferRequestId: string | null
+  pendingRestoreRequestId: string | null
   reportGroupId: string | null
   stationId: string | null
   factoryOrgUnitId: string | null
@@ -126,6 +130,10 @@ export type MissingPartFilters = {
   departments: string[]
   /** Archive month key `YYYY-MM` from shortageResolvedAt; null = all months. */
   resolvedMonth: string | null
+  /** Local calendar day `YYYY-MM-DD`; empty = no lower bound. */
+  dateFrom: string
+  /** Local calendar day `YYYY-MM-DD`; empty = no upper bound. */
+  dateTo: string
 }
 
 export type DepartmentVehicleCount = {

@@ -35,6 +35,9 @@ function part(
     reportGroupId: null,
     stationId: null,
     factoryOrgUnitId: null,
+    shortageResolvedByName: null,
+    pendingTransferRequestId: null,
+    pendingRestoreRequestId: null,
     ...overrides
   }
 }

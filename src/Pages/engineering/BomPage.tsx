@@ -1,7 +1,6 @@
 import { useState } from 'react'
 import { useNavigation } from '../../Context/NavigationContext'
 import { BomByModelTab } from '../../Components/bom/BomByModelTab'
-import { BomPartListTab } from '../../Components/bom/BomPartListTab'
 import { PartCategoriesTab } from '../../Components/bom/PartCategoriesTab'
 import { BomImportTab } from '../../Components/bom/BomImportTab'
 import { BomDashboardTab } from '../../Components/bom/BomDashboardTab'
@@ -29,7 +28,6 @@ export function BomPage({ embedded = false }: { embedded?: boolean }) {
     <>
       {tab === 'consolidated' && <BomByModelTab notify={notify} lineScope="main" viewMode="consolidated" />}
       {tab === 'iplModels' && <BomByModelTab notify={notify} lineScope="main" viewMode="perModel" />}
-      {tab === 'partList' && <BomPartListTab notify={notify} />}
       {tab === 'categories' && <PartCategoriesTab notify={notify} />}
       {tab === 'import' && <BomImportTab notify={notify} />}
       {tab === 'dashboard' && <BomDashboardTab />}

@@ -27,25 +27,30 @@ export type EngineeringPage = 'home' | 'ipl' | 'stations' | 'lineBalancing' | 's
 export type BomTab = 'consolidated' | 'partList' | 'iplModels' | 'categories' | 'import' | 'dashboard'
 
 export const BOM_TAB_ORDER = [
-  'consolidated',
-  'partList',
   'iplModels',
   'categories',
   'import',
   'dashboard'
 ] as const satisfies readonly BomTab[]
 
-/** ترحيل المفتاح القديم `parts` → `consolidated` */
+/** ترحيل المفاتيح القديمة (مجمع / قائمة أجزاء / parts) → IPL */
 export function normalizeBomTab(tab: string | undefined): BomTab {
-  if (tab === 'parts' || tab === 'consolidated') return 'consolidated'
-  if (tab === 'partsGd' || tab === 'compare') return 'consolidated'
-  if (BOM_TAB_ORDER.includes(tab as BomTab)) return tab as BomTab
-  return 'consolidated'
+  if (
+    tab === 'parts' ||
+    tab === 'consolidated' ||
+    tab === 'partsGd' ||
+    tab === 'compare' ||
+    tab === 'partList'
+  ) {
+    return 'iplModels'
+  }
+  if (BOM_TAB_ORDER.includes(tab as (typeof BOM_TAB_ORDER)[number])) return tab as BomTab
+  return 'iplModels'
 }
 
-/** مفتاح صلاحية التبويب الفرعي (القديم parts = consolidated) */
+/** مفتاح صلاحية التبويب الفرعي (القديم parts = مجمع) */
 export function bomTabPermissionKey(tab: BomTab): string {
-  if (tab === 'consolidated') return 'parts'
+  if (tab === 'consolidated' || tab === 'partList') return 'iplModels'
   return tab
 }
 

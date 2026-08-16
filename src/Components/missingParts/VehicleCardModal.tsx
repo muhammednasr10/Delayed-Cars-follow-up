@@ -1,4 +1,4 @@
-import { Car } from 'lucide-react'
+import { Car, Undo2 } from 'lucide-react'
 import { useLang } from '../../i18n/LanguageContext'
 import { useMpLookups } from '../../hooks/useMpLookups'
 import { mpLookupLabel } from '../../Utils/mpLookupLabel'
@@ -11,8 +11,11 @@ type Props = {
   orgUnitLabel?: string
   completingVehicleId?: string | null
   transferringPartId?: string | null
+  restoringVehicleId?: string | null
   canTransferIssue?: boolean
+  canRestoreFromArchive?: boolean
   onTransferIssue?: (part: MissingPartDetail) => void | Promise<void>
+  onRestoreFromArchive?: (part: MissingPartDetail) => void
   onClose: () => void
 }
 
@@ -32,8 +35,11 @@ export function VehicleCardModal({
   orgUnitLabel,
   completingVehicleId,
   transferringPartId,
+  restoringVehicleId,
   canTransferIssue,
+  canRestoreFromArchive,
   onTransferIssue,
+  onRestoreFromArchive,
   onClose
 }: Props) {
   const { t, lang } = useLang()
@@ -42,6 +48,9 @@ export function VehicleCardModal({
   if (!parts?.length) return null
   const rep = parts[0]
   const transferred = parts.some(p => !!p.transferredAt)
+  const archived = Boolean(rep.shortageResolvedAt)
+  const pendingRestore = Boolean(rep.pendingRestoreRequestId)
+  const restoreBusy = restoringVehicleId === rep.vehicleId
 
   return (
     <Modal
@@ -51,6 +60,23 @@ export function VehicleCardModal({
       subtitle={rep.vin}
       icon={<Car className="h-5 w-5" />}
       maxWidthClass="max-w-lg"
+      footer={
+        archived && canRestoreFromArchive && onRestoreFromArchive ? (
+          <button
+            type="button"
+            disabled={restoreBusy || pendingRestore}
+            onClick={() => onRestoreFromArchive(rep)}
+            className="inline-flex items-center gap-2 rounded-xl border border-amber-400/40 bg-amber-500/15 px-4 py-2 text-sm font-black text-amber-100 hover:bg-amber-500/25 disabled:opacity-40"
+          >
+            <Undo2 className="h-4 w-4" />
+            {restoreBusy
+              ? '...'
+              : pendingRestore
+                ? t('mp.workflow.restorePending')
+                : t('mp.vehicleCard.restoreToCurrent')}
+          </button>
+        ) : undefined
+      }
     >
       <div className="space-y-5">
         {/* Vehicle header */}
@@ -62,6 +88,11 @@ export function VehicleCardModal({
             {transferred && (
               <span className="rounded-full bg-emerald-500/15 px-2 py-0.5 text-[11px] font-black text-emerald-200">
                 {t('mp.vehicleCard.archiveBadge')}
+              </span>
+            )}
+            {pendingRestore && (
+              <span className="rounded-full bg-amber-500/15 px-2 py-0.5 text-[11px] font-black text-amber-200">
+                {t('mp.workflow.restorePending')}
               </span>
             )}
           </div>
@@ -84,7 +115,7 @@ export function VehicleCardModal({
         </section>
 
         {/* Station & reporter */}
-        {(rep.stationNumber || rep.createdByName) && (
+        {(rep.stationNumber || rep.createdByName || rep.shortageResolvedByName) && (
           <section className="rounded-xl border border-slate-700 bg-slate-950/60 p-4">
             <h3 className="mb-3 text-xs font-black uppercase text-cyan-400">
               {t('mp.vehicleCard.section.station')} / {t('mp.vehicleCard.section.reporter')}
@@ -95,6 +126,9 @@ export function VehicleCardModal({
               )}
               {rep.createdByName && (
                 <Field label={t('mp.cols.createdBy')} value={rep.createdByName} />
+              )}
+              {rep.shortageResolvedByName && (
+                <Field label={t('mp.cols.completer')} value={rep.shortageResolvedByName} />
               )}
             </div>
           </section>
@@ -111,6 +145,7 @@ export function VehicleCardModal({
             {parts.map(p => {
               const { date, time } = formatDateTime(p.createdAt, lang)
               const issueOpen = p.status !== 'closed' && p.status !== 'cancelled' && !p.shortageResolvedAt
+              const transferPending = Boolean(p.pendingTransferRequestId)
               return (
                 <div
                   key={p.id}
@@ -124,7 +159,7 @@ export function VehicleCardModal({
                         <span className="text-slate-600">/</span>
                         <span>{p.requiredQty}</span>
                       </span>
-                      {canTransferIssue && onTransferIssue && issueOpen && (
+                      {canTransferIssue && onTransferIssue && issueOpen && !transferPending && (
                         <button
                           type="button"
                           disabled={Boolean(transferringPartId) || completingVehicleId === p.vehicleId}
@@ -133,6 +168,11 @@ export function VehicleCardModal({
                         >
                           {transferringPartId === p.id ? '...' : t('mp.vehicleCard.transferIssue')}
                         </button>
+                      )}
+                      {transferPending && (
+                        <span className="rounded-full bg-amber-500/15 px-2 py-0.5 text-[10px] font-black text-amber-200">
+                          {t('mp.workflow.transferPending')}
+                        </span>
                       )}
                       {!!p.transferredAt && (
                         <span className="rounded-full bg-emerald-500/15 px-2 py-0.5 text-[10px] font-black text-emerald-200">

@@ -11,7 +11,9 @@ const TAB_PAGE_KEYS: Record<ListTab, string> = {
   byFamily: 'active',
   summary: 'summary',
   history: 'history',
-  historySummary: 'historySummary'
+  historySummary: 'historySummary',
+  historyDiary: 'historyDiary',
+  approvals: 'approvals'
 }
 
 export function useMissingPartsUiPermissions() {
@@ -34,12 +36,34 @@ export function useMissingPartsUiPermissions() {
     [canViewTab]
   )
 
+  const canReviewWorkflow = resolveMissingPartAction(bits, 'approve', () => {
+    const elevated = bits.isAdmin || Boolean(permissions[permissionKey('users', 'manage')])
+    return (
+      elevated ||
+      bits.hasRole('admin') ||
+      bits.systemRoleCode === 'engineer' ||
+      bits.systemRoleCode === 'super_admin' ||
+      bits.systemRoleCode === 'admin'
+    )
+  })
+
   const visibleTabs = useMemo(() => {
-    const all: ListTab[] = ['active', 'byFamily', 'summary', 'history', 'historySummary']
-    if (permsLoading || pagesLoading) return all
-    const allowed = all.filter(canViewListTab)
-    return allowed.length > 0 ? allowed : all
-  }, [canViewListTab, permsLoading, pagesLoading])
+    const all: ListTab[] = [
+      'active',
+      'byFamily',
+      'summary',
+      'history',
+      'historySummary',
+      'historyDiary',
+      'approvals'
+    ]
+    if (permsLoading || pagesLoading) return all.filter(tab => tab !== 'approvals' || canReviewWorkflow)
+    const allowed = all.filter(tab => {
+      if (tab === 'approvals') return canViewListTab(tab) && canReviewWorkflow
+      return canViewListTab(tab)
+    })
+    return allowed.length > 0 ? allowed : all.filter(tab => tab !== 'approvals')
+  }, [canViewListTab, canReviewWorkflow, permsLoading, pagesLoading])
 
   const canReport = resolveMissingPartAction(bits, 'create', () =>
     hasRole('admin', 'production', 'warehouse', 'quality', 'purchasing')
@@ -127,6 +151,7 @@ export function useMissingPartsUiPermissions() {
     canEdit,
     canDelete,
     canComplete,
+    canReviewWorkflow,
     canBulkInstall,
     canBulkInstallAndUpdate: canBulkInstall && canUpdateStatus
   }

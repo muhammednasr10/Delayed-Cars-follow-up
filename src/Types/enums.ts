@@ -84,8 +84,8 @@ export function trainingLevelRank(level: TrainingLevel): number {
 }
 
 // Manpower / station operations
-export type StationType = 'main_line' | 'side_assembly' | 'offline_prep'
-export const STATION_TYPES: StationType[] = ['main_line', 'side_assembly', 'offline_prep']
+export type StationType = 'main_line' | 'side_assembly' | 'offline_prep' | 'quality'
+export const STATION_TYPES: StationType[] = ['main_line', 'side_assembly', 'offline_prep', 'quality']
 
 // ---- Display labels (Arabic UI, matching the existing app language) --------
 

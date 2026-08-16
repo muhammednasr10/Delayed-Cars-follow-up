@@ -216,6 +216,16 @@ export const PERMISSIONS_MATRIX_TREE: MatrixTreeNode[] = [
             id: 'mp_hist_summary',
             labelKey: 'mp.tabs.historySummary',
             pagePerm: 'production_missing__historySummary'
+          },
+          {
+            id: 'mp_hist_diary',
+            labelKey: 'mp.tabs.historyDiary',
+            pagePerm: 'production_missing__historyDiary'
+          },
+          {
+            id: 'mp_approvals',
+            labelKey: 'mp.tabs.approvals',
+            pagePerm: 'production_missing__approvals'
           }
         ]
       },
@@ -419,8 +429,6 @@ export const PERMISSIONS_MATRIX_TREE: MatrixTreeNode[] = [
         pagePerm: 'engineering_ipl',
         actionModules: [{ moduleKey: 'bom' }],
         children: [
-          { id: 'eng_bom_consolidated', labelKey: 'bom.tabs.consolidated', pagePerm: 'engineering_ipl__parts' },
-          { id: 'eng_bom_part_list', labelKey: 'bom.tabs.partList', pagePerm: 'engineering_ipl__partList' },
           { id: 'eng_bom_models', labelKey: 'bom.tabs.iplModels', pagePerm: 'engineering_ipl__iplModels' },
           { id: 'eng_bom_cat', labelKey: 'bom.tabs.categories', pagePerm: 'engineering_ipl__categories' },
           { id: 'eng_bom_imp', labelKey: 'bom.tabs.import', pagePerm: 'engineering_ipl__import' },

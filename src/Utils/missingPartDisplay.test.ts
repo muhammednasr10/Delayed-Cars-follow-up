@@ -42,6 +42,9 @@ function part(overrides: Partial<MissingPartDetail> & Pick<MissingPartDetail, 'i
     reportGroupId: null,
     stationId: null,
     factoryOrgUnitId: null,
+    shortageResolvedByName: null,
+    pendingTransferRequestId: null,
+    pendingRestoreRequestId: null,
     ...overrides
   }
 }
@@ -103,6 +106,32 @@ describe('missingPartDisplay', () => {
     })
     const archive = buildMissingPartTableRows([finishedOld, finishedNew], 'resolved-desc')
     expect(archive.map(r => (r.kind === 'single' ? r.item.id : ''))).toEqual(['4', '3'])
+  })
+
+  it('sorts current shortages by model then oldest date', () => {
+    const laterF10 = part({
+      id: '1',
+      vehicleId: 'v1',
+      vin: '1001',
+      modelName: 'F10',
+      createdAt: '2026-03-01T08:00:00Z'
+    })
+    const earlierT4 = part({
+      id: '2',
+      vehicleId: 'v2',
+      vin: '1002',
+      modelName: 'T4-PRO L',
+      createdAt: '2026-01-01T08:00:00Z'
+    })
+    const earlierF10 = part({
+      id: '3',
+      vehicleId: 'v3',
+      vin: '1003',
+      modelName: 'F10',
+      createdAt: '2026-02-01T08:00:00Z'
+    })
+    const rows = buildMissingPartTableRows([laterF10, earlierT4, earlierF10], 'created-asc')
+    expect(rows.map(r => (r.kind === 'single' ? r.item.id : ''))).toEqual(['3', '1', '2'])
   })
 
   it('aggregates install quantities and pending state', () => {

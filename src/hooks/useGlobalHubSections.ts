@@ -51,9 +51,10 @@ export function useGlobalHubSections(refreshKey = 0) {
   const { canAccess: canAccessSettings } = useCanAccessSettings()
   const { canReport } = useCanReportMissingPart()
   const { hasRole } = useAuth()
-  const { canViewModule, loading: permsLoading } = usePermissions()
+  const { canViewModule, loading: permsLoading, loadError } = usePermissions()
   const { canViewPage, loading: pagesLoading } = useCanViewPage()
   const loading = permsLoading || pagesLoading
+  const moduleAllowed = (moduleKey: string) => loadError || canViewModule(moduleKey)
   const [reportOpen, setReportOpen] = useState(false)
   const { activeVehicles, archiveVehicles, loading: countsLoading } = useMissingPartsVehicleCounts(refreshKey)
   const {
@@ -86,16 +87,16 @@ export function useGlobalHubSections(refreshKey = 0) {
 
   const canManageStops = hasRole('admin', 'production')
   const go = nav.navigate
-  const canLineBalancing = loading || canViewModule('station_operations')
+  const canLineBalancing = loading || moduleAllowed('station_operations')
   const showHomeCard = (card: Parameters<typeof canViewPage>[0], moduleOk = true) =>
-    loading || (canViewPage(card) && moduleOk)
+    loading || loadError || (canViewPage(card) && moduleOk)
 
   /** ترتيب تدفق العمل: تخطيط → إنتاج → جودة → عمالة → هندسة → دعم */
   const home: HubSection = {
     key: 'home',
     title: '',
     cards: [
-      showHomeCard('production_home__plan', canViewModule('production')) && {
+      showHomeCard('production_home__plan', moduleAllowed('production')) && {
         key: 'planOrders',
         title: t('productionOrders.title'),
         description: t('productionOrders.planSummary'),
@@ -115,7 +116,7 @@ export function useGlobalHubSections(refreshKey = 0) {
           }
         ]
       },
-      showHomeCard('production_home__orders', canViewModule('production')) && {
+      showHomeCard('production_home__orders', moduleAllowed('production')) && {
         key: 'productionOrders',
         title: t('productionOrders.ordersSection'),
         description: t('productionOrders.ordersSectionHint'),
@@ -125,7 +126,7 @@ export function useGlobalHubSections(refreshKey = 0) {
         onClick: () => go({ department: 'planning', planningTab: 'orders' }),
         stats: [{ label: t('home.ordersCountMonth'), value: monthStatsLoading ? '…' : String(ordersCount) }]
       },
-      showHomeCard('production_home__entry', canViewModule('production')) && {
+      showHomeCard('production_home__entry', moduleAllowed('production')) && {
         key: 'productivity',
         title: t('home.productivitiesTitle'),
         description: t('home.productivitiesDesc'),
@@ -154,7 +155,7 @@ export function useGlobalHubSections(refreshKey = 0) {
           }
         ]
       },
-      showHomeCard('production_home__stops', canViewModule('production')) && {
+      showHomeCard('production_home__stops', moduleAllowed('production')) && {
         key: 'stops',
         title: t('productivity.tabs.stops'),
         description: t('productivity.stops.subtitle'),
@@ -186,7 +187,7 @@ export function useGlobalHubSections(refreshKey = 0) {
             }
           : undefined
       },
-      showHomeCard('production_home__missing', canViewModule('missing_parts')) && {
+      showHomeCard('production_home__missing', moduleAllowed('missing_parts')) && {
         key: 'missing',
         title: t('modules.missingParts'),
         description: t('modules.missingPartsDesc'),
@@ -223,7 +224,7 @@ export function useGlobalHubSections(refreshKey = 0) {
         onClick: () => go({ department: 'production', productionArea: 'assembly', productionPage: 'scratches' }),
         stats: [{ label: t('home.scratchesMonth'), value: monthStatsLoading ? '…' : String(scratchesCount) }]
       },
-      showHomeCard('production_home__attendance', canViewModule('training_matrix')) && {
+      showHomeCard('production_home__attendance', moduleAllowed('training_matrix')) && {
         key: 'attendanceToday',
         title: t('home.attendanceTodayTitle'),
         description: t('home.attendanceTodayDesc'),
@@ -247,7 +248,7 @@ export function useGlobalHubSections(refreshKey = 0) {
           statusCounts
         })
       },
-      showHomeCard('production_home__training', canViewModule('training_matrix')) && {
+      showHomeCard('production_home__training', moduleAllowed('training_matrix')) && {
         key: 'training',
         title: t('modules.training'),
         description: t('modules.trainingDesc'),
@@ -257,7 +258,7 @@ export function useGlobalHubSections(refreshKey = 0) {
         onClick: () =>
           go({ department: 'production', productionArea: 'assembly', productionPage: 'training', trainingTab: 'org' })
       },
-      showHomeCard('production_home__manpower', canViewModule('training_matrix')) && {
+      showHomeCard('production_home__manpower', moduleAllowed('training_matrix')) && {
         key: 'manpower',
         title: t('training.tabs.manpower'),
         description: t('manpower.sectionSubtitle'),
@@ -281,14 +282,14 @@ export function useGlobalHubSections(refreshKey = 0) {
         accent: 'sky' as const,
         onClick: () => go({ department: 'production', productionArea: 'assembly', productionPage: 'equipment' })
       },
-      showHomeCard('production_home__ipl', canAccessSettings || canViewModule('bom')) && {
+      showHomeCard('production_home__ipl', canAccessSettings || moduleAllowed('bom')) && {
         key: 'ipl',
         title: t('nav.ipl'),
         description: t('hub.engineering.iplDesc'),
         icon: Layers,
         tone: 'text-orange-300 bg-orange-500/15',
         accent: 'orange' as const,
-        onClick: () => go({ department: 'engineering', engineeringPage: 'ipl', bomTab: 'consolidated' })
+        onClick: () => go({ department: 'engineering', engineeringPage: 'ipl', bomTab: 'iplModels' })
       },
       showHomeCard('production_home__line_balancing', canLineBalancing) && {
         key: 'lineBalancing',

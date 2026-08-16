@@ -4,7 +4,7 @@ type TFn = (key: string) => string
 
 /** Arabic/English label for the header role badge */
 export function formatRoleBadge(profile: Profile | null | undefined, displayRole: string, t: TFn): string {
-  if (!profile) return t('permissions.roleCodes.viewer')
+  if (!profile) return t('common.loading')
 
   if (profile.system_role_name_ar?.trim()) {
     return profile.system_role_name_ar.trim()

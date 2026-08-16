@@ -38,6 +38,9 @@ function part(overrides: Partial<MissingPartDetail> & Pick<MissingPartDetail, 'i
     reportGroupId: null,
     stationId: null,
     factoryOrgUnitId: null,
+    shortageResolvedByName: null,
+    pendingTransferRequestId: null,
+    pendingRestoreRequestId: null,
     ...overrides
   }
 }

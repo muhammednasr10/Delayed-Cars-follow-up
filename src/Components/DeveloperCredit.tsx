@@ -18,7 +18,7 @@ export function DeveloperCredit({ variant = 'footer', className = '' }: Props) {
       <div className={`flex flex-wrap items-center gap-x-4 gap-y-1 text-xs ${className}`}>
         <span className="inline-flex items-center gap-1.5 font-bold text-slate-300">
           <User className="h-3.5 w-3.5 shrink-0 text-cyan-400" />
-          {t('developer.name')}
+          {t('developer.credit')} · {t('developer.name')}
         </span>
         <span className="text-slate-500">{t('developer.title')}</span>
         <a

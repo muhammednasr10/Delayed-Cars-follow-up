@@ -248,7 +248,7 @@ export function AppSidebar() {
       key: 'ipl',
       label: t('nav.ipl'),
       visible: canShowEngineeringIpl,
-      onNavigate: () => sidebarNav({ department: 'engineering', engineeringPage: 'ipl', bomTab: 'consolidated' }, true),
+      onNavigate: () => sidebarNav({ department: 'engineering', engineeringPage: 'ipl', bomTab: 'iplModels' }, true),
       children: BOM_TAB_ORDER.map(key => ({
         key,
         label: t(`bom.tabs.${key}`),

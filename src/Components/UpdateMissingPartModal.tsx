@@ -17,6 +17,7 @@ type Props = {
   onClose: () => void
   onChanged: () => void
   onNotify?: (message: string) => void
+  onRequestTransfer?: (part: MissingPartDetail) => void
 }
 
 type LineDraft = {
@@ -24,7 +25,7 @@ type LineDraft = {
   target: number
 }
 
-export function UpdateMissingPartModal({ vehicle, onClose, onChanged, onNotify }: Props) {
+export function UpdateMissingPartModal({ vehicle, onClose, onChanged, onNotify, onRequestTransfer }: Props) {
   const { t, lang } = useLang()
   const { reasons, departments } = useMpLookups()
   const { canInstall, canUpdateStatus, canComplete } = useCanManageMissingPart()
@@ -90,7 +91,16 @@ export function UpdateMissingPartModal({ vehicle, onClose, onChanged, onNotify }
     }
   }
 
-  async function transferIssue(part: MissingPartDetail) {
+  function transferIssue(part: MissingPartDetail) {
+    if (!canComplete || transferringId || part.pendingTransferRequestId) return
+    if (onRequestTransfer) {
+      onRequestTransfer(part)
+      return
+    }
+    void transferIssueLegacy(part)
+  }
+
+  async function transferIssueLegacy(part: MissingPartDetail) {
     if (!canComplete || transferringId) return
     setTransferringId(part.id)
     setError('')
@@ -181,17 +191,22 @@ export function UpdateMissingPartModal({ vehicle, onClose, onChanged, onNotify }
                   </div>
                   <div className="flex shrink-0 flex-col items-end gap-2">
                     <MissingStatusChip status={part.status} />
-                    {canComplete && (
+                    {canComplete && !part.pendingTransferRequestId && (
                       <button
                         type="button"
                         disabled={busy || Boolean(transferringId)}
-                        onClick={() => void transferIssue(part)}
+                        onClick={() => transferIssue(part)}
                         className="inline-flex items-center gap-1.5 rounded-lg border border-emerald-500/40 bg-emerald-500/15 px-2.5 py-1 text-xs font-black text-emerald-200 hover:bg-emerald-500/25 disabled:cursor-not-allowed disabled:opacity-40"
                         title={t('mp.vehicleCard.transferIssue')}
                       >
                         <CheckCircle2 className="h-3.5 w-3.5" />
                         {transferring ? '...' : t('mp.vehicleCard.transferIssue')}
                       </button>
+                    )}
+                    {part.pendingTransferRequestId && (
+                      <span className="rounded-full bg-amber-500/15 px-2 py-0.5 text-[10px] font-black text-amber-200">
+                        {t('mp.workflow.transferPending')}
+                      </span>
                     )}
                   </div>
                 </div>

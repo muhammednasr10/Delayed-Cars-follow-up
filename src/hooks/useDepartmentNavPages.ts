@@ -283,7 +283,7 @@ export function useDepartmentNavPages() {
         label: t('nav.ipl'),
         icon: List,
         visible: canShowEngineeringIpl,
-        onNavigate: () => navTo({ department: 'engineering', engineeringPage: 'ipl', bomTab: 'consolidated' }),
+        onNavigate: () => navTo({ department: 'engineering', engineeringPage: 'ipl', bomTab: 'iplModels' }),
         children: BOM_TAB_ORDER.map(key => ({
           key,
           label: t(`bom.tabs.${key}`),

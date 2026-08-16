@@ -17,6 +17,7 @@ import {
   cell,
   formatDateTime,
   isMissingPartRowOpen,
+  completerNames,
   reporterNames,
   uniqueVehicleReps,
   uniqueIssueReps
@@ -355,6 +356,7 @@ function ReportGroupRow({
       }
       qty={qty}
       reporterLabel={reporterNames(displayRow.items)}
+      completerLabel={completerNames(displayRow.items)}
       reasonCell={
         multiIssues
           ? multiReasonButton(t, uniqueIssues.length, () =>
@@ -398,6 +400,7 @@ function VehicleRows({
       vinCell={<span dir="ltr">{primary.vin}</span>}
       qty={qty}
       reporterLabel={reporterNames(parts)}
+      completerLabel={completerNames(parts)}
       reasonCell={
         multi
           ? multiReasonButton(t, parts.length, () => onOpenIssuesList(parts, primary.vin, primary.modelName))
@@ -426,6 +429,7 @@ function SinglePartRow({ item, ...props }: RowProps & { item: MissingPartDetail 
       vinCell={<span dir="ltr">{item.vin}</span>}
       qty={{ installed: item.installedQty, required: item.requiredQty }}
       reporterLabel={reporterNames([item])}
+      completerLabel={completerNames([item])}
       deleteTargets={[item]}
       reasons={props.reasons}
       departments={props.departments}
@@ -444,6 +448,7 @@ function PartDataRow({
   vinCell,
   qty,
   reporterLabel,
+  completerLabel,
   reasonCell,
   reasonClassSummary,
   reasons,
@@ -480,6 +485,7 @@ function PartDataRow({
   vinCell: ReactNode
   qty: { installed: number; required: number }
   reporterLabel: string
+  completerLabel: string
   reasonCell?: ReactNode
   reasonClassSummary?: string
   lang: string
@@ -523,6 +529,16 @@ function PartDataRow({
           {rowScope.some(p => !!p.transferredAt) && (
             <span className="rounded-full bg-emerald-500/15 px-2 py-0.5 text-[11px] font-black text-emerald-200">
               {t('mp.vehicleCard.archiveBadge')}
+            </span>
+          )}
+          {rowScope.some(p => !!p.pendingTransferRequestId) && (
+            <span className="rounded-full bg-amber-500/15 px-2 py-0.5 text-[11px] font-black text-amber-200">
+              {t('mp.workflow.transferPending')}
+            </span>
+          )}
+          {rowScope.some(p => !!p.pendingRestoreRequestId) && (
+            <span className="rounded-full bg-amber-500/15 px-2 py-0.5 text-[11px] font-black text-amber-200">
+              {t('mp.workflow.restorePending')}
             </span>
           )}
         </span>
@@ -575,9 +591,14 @@ function PartDataRow({
         <DateTimeCell iso={item.createdAt} lang={lang} />
       </td>
       {listTab === 'history' && (
-        <td className={`${cell} text-emerald-300/80`}>
-          {item.shortageResolvedAt ? formatDateTime(item.shortageResolvedAt, lang).date : '-'}
-        </td>
+        <>
+          <td className={cell} title={completerLabel}>
+            <span className="mx-auto block max-w-[10rem] truncate text-slate-300">{completerLabel}</span>
+          </td>
+          <td className={`${cell} text-emerald-300/80`}>
+            {item.shortageResolvedAt ? formatDateTime(item.shortageResolvedAt, lang).date : '-'}
+          </td>
+        </>
       )}
       {(listTab === 'active' || listTab === 'history') && (
         <td data-export-skip className={actionsCell} style={{ insetInlineEnd: 0 }}>

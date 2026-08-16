@@ -12,10 +12,10 @@ export type AppAuthSession = {
 }
 
 const EXPIRY_BUFFER_MS = 60_000
-const APP_AUTH_TIMEOUT_MS = 15_000
-const GOTRUE_REFRESH_TIMEOUT_MS = 15_000
-const REFRESH_MAX_ATTEMPTS = 3
-const REFRESH_RETRY_DELAY_MS = 2_000
+const APP_AUTH_TIMEOUT_MS = 8_000
+const GOTRUE_REFRESH_TIMEOUT_MS = 8_000
+const REFRESH_MAX_ATTEMPTS = 2
+const REFRESH_RETRY_DELAY_MS = 1_000
 
 let authFailureHandler: (() => void) | null = null
 let refreshInFlight: Promise<RefreshAttempt> | null = null
@@ -138,6 +138,7 @@ function isAuthRefreshError(error: string): boolean {
   return (
     normalized.includes('invalid or expired refresh') ||
     normalized.includes('invalid refresh') ||
+    normalized.includes('jwt expired') ||
     normalized.includes('blocked') ||
     normalized.includes('inactive')
   )
@@ -257,10 +258,7 @@ export async function ensureFreshSession(options?: { kickOnFailure?: boolean }):
 
   const result = await refreshInFlight
   if (result.kind === 'ok') return result.session
-  if (result.kind === 'auth_failed') {
-    if (kickOnFailure) kickExpiredSession()
-    return null
-  }
+  if (kickOnFailure) kickExpiredSession()
   return null
 }
 
