@@ -140,6 +140,12 @@ function primaryVinForTableRow(row: MissingPartTableRow): string {
   return row.item.vin
 }
 
+function primaryModelName(parts: MissingPartDetail[]): string {
+  const names = [...new Set(parts.map(p => p.modelName?.trim()).filter(Boolean))]
+  names.sort((a, b) => a.localeCompare(b, undefined, { numeric: true, sensitivity: 'base' }))
+  return names[0] ?? ''
+}
+
 function earliestCreatedAt(parts: MissingPartDetail[]): string {
   return parts.reduce((min, p) => (p.createdAt < min ? p.createdAt : min), parts[0]?.createdAt ?? '')
 }
@@ -160,6 +166,11 @@ function sortMissingPartTableRows(rows: MissingPartTableRow[], sort: MissingPart
       if (resolvedCmp !== 0) return resolvedCmp
       return earliestCreatedAt(bParts).localeCompare(earliestCreatedAt(aParts))
     }
+    const modelCmp = primaryModelName(aParts).localeCompare(primaryModelName(bParts), undefined, {
+      numeric: true,
+      sensitivity: 'base'
+    })
+    if (modelCmp !== 0) return modelCmp
     const createdCmp = earliestCreatedAt(aParts).localeCompare(earliestCreatedAt(bParts))
     if (createdCmp !== 0) return createdCmp
     return primaryVinForTableRow(a).localeCompare(primaryVinForTableRow(b), undefined, { numeric: true })

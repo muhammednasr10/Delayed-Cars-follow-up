@@ -41,7 +41,7 @@ export function EngineeringHomePage() {
         description: t('hub.engineering.iplDesc'),
         icon: Layers,
         tone: 'text-orange-300 bg-orange-500/15',
-        onClick: () => go({ department: 'engineering', engineeringPage: 'ipl', bomTab: 'consolidated' })
+        onClick: () => go({ department: 'engineering', engineeringPage: 'ipl', bomTab: 'iplModels' })
       },
       canStations && {
         key: 'stations',
@@ -83,13 +83,6 @@ export function EngineeringHomePage() {
     cards: canIpl
       ? (
           [
-            {
-              key: 'consolidated',
-              tab: 'consolidated' as const,
-              icon: Layers,
-              tone: 'text-violet-300 bg-violet-500/15'
-            },
-            { key: 'partList', tab: 'partList' as const, icon: ClipboardList, tone: 'text-cyan-300 bg-cyan-500/15' },
             { key: 'iplModels', tab: 'iplModels' as const, icon: Layers, tone: 'text-orange-300 bg-orange-500/15' },
             {
               key: 'categories',

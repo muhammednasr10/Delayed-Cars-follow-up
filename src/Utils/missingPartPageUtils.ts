@@ -26,6 +26,7 @@ export const HISTORY_COLS = [
   'reasonClass',
   'department',
   'dateTime',
+  'completer',
   'resolvedAt',
   'actions'
 ] as const
@@ -75,14 +76,45 @@ export function formatResolvedMonthLabel(monthKey: string, lang: string): string
   }).format(date)
 }
 
+export function localDayKey(iso: string | null | undefined): string | null {
+  if (!iso) return null
+  const d = new Date(iso)
+  if (Number.isNaN(d.getTime())) {
+    const raw = iso.slice(0, 10)
+    return /^\d{4}-\d{2}-\d{2}$/.test(raw) ? raw : null
+  }
+  const y = d.getFullYear()
+  const m = String(d.getMonth() + 1).padStart(2, '0')
+  const day = String(d.getDate()).padStart(2, '0')
+  return `${y}-${m}-${day}`
+}
+
+export function todayLocalDayKey(): string {
+  const d = new Date()
+  const y = d.getFullYear()
+  const m = String(d.getMonth() + 1).padStart(2, '0')
+  const day = String(d.getDate()).padStart(2, '0')
+  return `${y}-${m}-${day}`
+}
+
 export function applyFilters(items: MissingPartDetail[], filters: MissingPartFilters) {
   const models = new Set(filters.modelNames)
   const departments = new Set(filters.departments)
   const month = filters.resolvedMonth
+  const dateFrom = filters.dateFrom?.trim() ?? ''
+  const dateTo = filters.dateTo?.trim() ?? ''
   const base = items
     .filter(i => models.size === 0 || models.has(i.modelName))
     .filter(i => departments.size === 0 || (i.department != null && departments.has(i.department)))
     .filter(i => !month || resolvedMonthKey(i.shortageResolvedAt) === month)
+    .filter(i => {
+      if (!dateFrom && !dateTo) return true
+      const day = localDayKey(i.createdAt)
+      if (!day) return false
+      if (dateFrom && day < dateFrom) return false
+      if (dateTo && day > dateTo) return false
+      return true
+    })
 
   const q = filters.search.trim().toLowerCase()
   if (!q) return base
@@ -108,6 +140,13 @@ export function canCompleteVehicle(vehicleId: string, parts: MissingPartDetail[]
 export function reporterNames(parts: MissingPartDetail[]): string {
   const names = [
     ...new Set(parts.map(p => p.createdByName?.trim()).filter((n): n is string => Boolean(n)))
+  ]
+  return names.length > 0 ? names.join(' · ') : '—'
+}
+
+export function completerNames(parts: MissingPartDetail[]): string {
+  const names = [
+    ...new Set(parts.map(p => p.shortageResolvedByName?.trim()).filter((n): n is string => Boolean(n)))
   ]
   return names.length > 0 ? names.join(' · ') : '—'
 }

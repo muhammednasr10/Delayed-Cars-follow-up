@@ -7,6 +7,7 @@ export const translations = {
     developer: {
       name: 'محمد نصر',
       title: 'مدير خط التجميع',
+      credit: 'تطوير النظام',
       phone: '01125526012',
       phoneRaw: '01125526012',
       bootLoading: 'صلي على النبي'
@@ -1665,6 +1666,9 @@ export const translations = {
       filterMonthLabel: 'الشهر',
       filterSelectedCount: '{n} محدد',
       filterClear: 'مسح الفلتر',
+      filterDateFrom: 'من',
+      filterDateTo: 'إلى',
+      filterToday: 'اليوم',
       filterVehicleCount: 'عدد السيارات: {n}',
       filterVehicleCountFiltered: 'نتيجة الفلتر: {n} سيارة من {total}',
       bulk: {
@@ -1697,7 +1701,9 @@ export const translations = {
         byFamily: 'الكروت',
         summary: 'ملخص النواقص',
         history: 'الأرشيف',
-        historySummary: 'ملخص الأرشيف'
+        historySummary: 'ملخص الأرشيف',
+        historyDiary: 'يوميات النواقص',
+        approvals: 'اعتماد الترحيل'
       },
       summary: {
         title: 'ملخص النواقص الحالية',
@@ -1727,6 +1733,18 @@ export const translations = {
         partByModelHint: 'الكميات المطلوبة لكل موديل حسب وصف السبب، مع عمود الإجمالي.',
         dimByModelHint: 'الكميات المطلوبة لكل موديل، مع عمود الإجمالي.'
       },
+      diary: {
+        title: 'يوميات النواقص',
+        hint: 'عدد سيارات النواقص في بداية كل يوم، والسيارات الجديدة، والسيارات التي اكتملت في نفس اليوم.',
+        empty: 'لا توجد أيام لعرضها في هذا الشهر.',
+        totals: 'إجمالي الشهر',
+        cols: {
+          date: 'التاريخ',
+          opening: 'نواقص بداية اليوم',
+          new: 'سيارات جديدة',
+          finished: 'سيارات اكتملت'
+        }
+      },
       actionsHint:
         'حدّد سيارات من عمود التحديد أو «تحديد الكل»، ثم نفّذ إجراءً جماعياً. بجانب الشاسيه: «انتهاء من السيارة» · عمود «إجراءات»: تعديل · تحديث · حذف.',
       complete: 'انتهاء من السيارة',
@@ -1754,7 +1772,38 @@ export const translations = {
         archiveBadge: 'تم ترحيلها',
         transferIssue: 'ترحيل',
         transferIssueSuccess: 'تم ترحيل السبب.',
-        transferIssueArchived: 'تم ترحيل السبب وأرشفة السيارة {vin}.'
+        transferIssueArchived: 'تم ترحيل السبب وأرشفة السيارة {vin}.',
+        restoreToCurrent: 'إرجاع للنواقص الحالية',
+        restoreConfirmTitle: 'إرجاع من الأرشيف؟',
+        restoreConfirm: 'ترجيع السيارة {vin} إلى النواقص الحالية؟ الأسباب المغلقة هتتفتح تاني.',
+        restoreSuccess: 'تم إرجاع السيارة {vin} إلى النواقص الحالية.'
+      },
+      workflow: {
+        transferTitle: 'ترحيل إلى محطة جودة',
+        transferHint: 'هيتسجل طلب ترحيل للسبب «{reason}» لمحطة الجودة. التنفيذ بعد اعتماد المهندس.',
+        submitTransfer: 'إرسال طلب الترحيل',
+        qualityStation: 'محطة الجودة',
+        noQualityStations: 'لا توجد محطات جودة. أضف محطة من الإعدادات واختر النوع «محطة جودة».',
+        transferRequested: 'تم إرسال طلب الترحيل — في انتظار اعتماد المهندس.',
+        transferPending: 'ترحيل معلّق',
+        restorePending: 'إرجاع معلّق',
+        restoreConfirmTitle: 'طلب إرجاع من الأرشيف؟',
+        restoreConfirm: 'هيتسجل طلب إرجاع السيارة {vin} للنواقص الحالية. التنفيذ بعد اعتماد المهندس.',
+        submitRestore: 'إرسال طلب الإرجاع',
+        restoreRequested: 'تم إرسال طلب إرجاع {vin} — في انتظار الاعتماد.',
+        approvalsTitle: 'اعتماد الترحيل والإرجاع',
+        approvalsHint: 'الطلبات المعلّقة: الترحيل ينقل السيارة لمحطة الجودة ويقفل السبب بعد الاعتماد.',
+        kind: 'نوع الطلب',
+        kindTransfer: 'ترحيل',
+        kindRestore: 'إرجاع',
+        fromStation: 'من محطة',
+        toStation: 'إلى محطة',
+        requestedBy: 'مقدّم الطلب',
+        approve: 'اعتماد',
+        reject: 'رفض',
+        approved: 'تم اعتماد الطلب وتنفيذه.',
+        rejected: 'تم رفض الطلب.',
+        empty: 'لا توجد طلبات معلّقة.'
       },
       edit: {
         title: 'تعديل سجل النقص',
@@ -1799,6 +1848,7 @@ export const translations = {
         createdBy: 'المبلّغ',
         createdAt: 'التاريخ',
         actions: '',
+        completer: 'المتمم',
         resolvedAt: 'تاريخ الإنهاء'
       },
       success: 'تم تسجيل النقص بنجاح.',
@@ -2013,7 +2063,8 @@ export const translations = {
     stationType: {
       main_line: 'محطة على الخط',
       side_assembly: 'محطة تجميع جانبي',
-      offline_prep: 'محطة تحضير'
+      offline_prep: 'محطة تحضير',
+      quality: 'محطة جودة'
     },
     trainingLevel: {
       level_0: 'غير مدرب',
@@ -2525,7 +2576,7 @@ export const translations = {
       tabs: {
         consolidated: 'مجمع',
         partList: 'قائمة الأجزاء',
-        iplModels: 'IPL موديلات',
+        iplModels: 'IPL',
         partsGd: 'قائمة GD',
         compare: 'مقارنة الأرقام',
         categories: 'التصنيفات',
@@ -2538,8 +2589,9 @@ export const translations = {
       iplPartNumberMissing: 'رقم مفقود',
       iplNeedPartNumberFirst: 'أدخل رقم الجزء أولاً ثم الكمية',
       iplNeedPartNumberAndQty: 'أدخل رقم الجزء والكمية أولاً قبل بيانات التغذية',
-      iplModelPick: 'اختر الموديلات',
-      iplModelTabsHint: 'اضغط على الموديل لفتح تبويب — اضغط مرة أخرى لإغلاقه · افتح أكثر من موديل للمقارنة',
+      iplModelPick: 'الموديلات الفرعية',
+      iplModelPickFamily: 'موديلات الأب',
+      iplModelTabsHint: 'اضغط الموديل الفرعي للتحديد أو الإلغاء · اضغط الأب لتحديد أو إلغاء كل فروعه',
       iplModelCompareOn: 'وضع المقارنة',
       iplModelCloseTab: 'إغلاق التبويب',
       iplModelCompareSummary: 'مقارنة {models} موديلات · {parts} جزء',
@@ -2549,10 +2601,16 @@ export const translations = {
       iplCompareStationDifferent: 'محطة مختلفة',
       iplCompareQtyShared: 'كمية مشتركة',
       iplCompareQtyDifferent: 'كمية مختلفة',
+      iplFitStatus: 'التركيب',
+      iplFitUnset: 'لم تُحدَّد',
+      iplFitYes: 'يركب',
+      iplFitNo: 'لا يركب',
       iplCompareDetailTitle: 'تفاصيل {field}',
       iplCompareDetailHint: 'قيمة كل موديل على حدة',
+      iplPartCardModels: 'بيانات الجزء حسب الموديل',
+      iplPartCardModel: 'الموديل',
       partListHint: 'أسماء موحّدة للأجزاء مع نوع الجزء والمورد الشائع — أدخل رقم الجزء لكل موديل هنا (المصدر الرسمي لمقارنة IPL)',
-      partListModelNumbersHint: 'رقم الجزء لكل موديل — ضع كمية أكبر من 0 للموديلات التي ينطبق عليها الجزء · المصدر الرسمي لمقارنة IPL',
+      partListModelNumbersHint: 'لكل موديل: يركب (رقم + كمية) · لا يركب · أو لم تُحدَّد بعد',
       partListQtyRequiredWithNumber: 'أدخل كمية أكبر من 0 لكل موديل له رقم جزء',
       partListModelCountTitle: '{n} موديل يستخدم هذا الجزء',
       partListSearchPh: 'بحث بالمحطة أو الاسم الشائع…',
@@ -2565,9 +2623,10 @@ export const translations = {
       partListTranslateHint: 'يُقترح ترجمة للإنجليزي — اضغط «استخدم الاقتراح» أو اكتب بنفسك · الاسم الشائع يتبع العربي ويمكن تعديله',
       partListCommonNameHint: 'افتراضياً = الاسم بالعربية — غيّره لو الاسم الشائع مختلف',
       partListUseSuggestion: 'استخدم: {s}',
-      partListDuplicateWarning: '«{name}» مسجّل من قبل في القائمة',
-      partListDuplicateTitle: 'اسم مكرر',
-      partListDuplicateConfirm: 'الاسم «{name}» مكتوب من قبل — هل أنت متأكد من الحفظ؟',
+      partListDuplicateWarning: '«{name}» مسجّل من قبل — احفظ لتحديث الجزء الموجود',
+      partListDuplicateTitle: 'جزء موجود',
+      partListDuplicateConfirm: '«{name}» مسجّل من قبل — تحديث الجزء الموجود بهذه البيانات؟',
+      partListDuplicateUpdate: 'تحديث الموجود',
       partListAutocompletePh: 'ابحث بالاسم العربي من قائمة الأجزاء…',
       partListAutocompleteEmpty: 'لا توجد مطابقة في قائمة الأجزاء',
       partListAutocompleteHint: 'اختر من القائمة لملء المحطة والإنجليزي ونوع الجزء والمورد تلقائياً',
@@ -2597,6 +2656,7 @@ export const translations = {
       modelCards: 'بيانات كل موديل',
       modelCardsQtyHint: 'كل موديلات العائلة تظهر هنا — ضع الكمية 0 للموديلات غير المستخدمة.',
       modelCardsPerModelHint: 'اختر أكثر من عائلة موديل — كل فرع يظهر في الجدول مع رقم جزء مستقل.',
+      modelCardsAllModelsHint: 'اضغط العائلة لفتح بياناتها — أيقونة الصندوق للتغذية لكل موديل.',
       partNumberPh: 'رقم الجزء',
       familyAllZero: 'غير مستخدم في هذا الجزء',
       breakdownNoActive: 'أدخل رقم جزء وكمية أكبر من صفر لموديل واحد على الأقل.',
@@ -2742,6 +2802,7 @@ export const translations = {
         title: 'بيانات التغذية والأبعاد (IPL)',
         modalTitle: 'كارت بيانات التغذية',
         openFeeding: 'بيانات التغذية والأبعاد',
+        feedingCol: 'تغذية',
         save: 'حفظ بيانات IPL',
         directionAny: '—',
         directionRight: 'ي (يمين)',
@@ -2804,6 +2865,8 @@ export const translations = {
       col: { station: 'المحطة', operation: 'العملية', type: 'التصنيف', time: 'الزمن (د)', hw: 'أدوات' }
     },
     permissions: {
+      loadFailed: 'تعذر تحميل الصلاحيات من السيرفر. الصفحة قد تظهر فاضية أو عرض فقط حتى يعود الاتصال.',
+      retryLoad: 'إعادة المحاولة',
       tabs: {
         users: 'المستخدمون',
         requests: 'طلبات المستخدمين',
@@ -3031,6 +3094,8 @@ export const translations = {
           production_missing__summary: 'تبويب ملخص النواقص',
           production_missing__history: 'تبويب الأرشيف',
           production_missing__historySummary: 'تبويب ملخص الأرشيف',
+          production_missing__historyDiary: 'تبويب يوميات النواقص',
+          production_missing__approvals: 'تبويب اعتماد الترحيل والإرجاع',
           production_productivity: 'صفحة الإنتاجية (دخول، خروج، توقفات، أيام العمل)',
           planning_plan: 'خطة الإنتاج المطلوبة والمحققة لكل موديل',
           planning_work_days: 'تسجيل أيام العمل والساعات والإنتاجية اليومية',
@@ -3243,6 +3308,7 @@ export const translations = {
     developer: {
       name: 'Mohammed Nasr',
       title: 'Assembly Line Manager',
+      credit: 'System development',
       phone: '01125526012',
       phoneRaw: '01125526012',
       bootLoading: 'Send blessings upon the Prophet ﷺ'
@@ -4900,6 +4966,9 @@ export const translations = {
       filterMonthLabel: 'Month',
       filterSelectedCount: '{n} selected',
       filterClear: 'Clear filter',
+      filterDateFrom: 'From',
+      filterDateTo: 'To',
+      filterToday: 'Today',
       filterVehicleCount: 'Vehicles: {n}',
       filterVehicleCountFiltered: 'Filter result: {n} of {total} vehicles',
       bulk: {
@@ -4933,7 +5002,9 @@ export const translations = {
         byFamily: 'Cards',
         summary: 'Shortages summary',
         history: 'Archive',
-        historySummary: 'Archive summary'
+        historySummary: 'Archive summary',
+        historyDiary: 'Shortage diary',
+        approvals: 'Transfer approvals'
       },
       summary: {
         title: 'Current shortages overview',
@@ -4963,6 +5034,18 @@ export const translations = {
         partByModelHint: 'Required quantities per model for each reason description, with a total column.',
         dimByModelHint: 'Required quantities per model, with a total column.'
       },
+      diary: {
+        title: 'Shortage diary',
+        hint: 'Vehicles already in shortage at the start of each day, newly reported vehicles, and vehicles completed that day.',
+        empty: 'No days to show for this month.',
+        totals: 'Month total',
+        cols: {
+          date: 'Date',
+          opening: 'Shortages at start of day',
+          new: 'New vehicles',
+          finished: 'Completed vehicles'
+        }
+      },
       actionsHint:
         'Next to VIN: «Complete vehicle». In «Actions»: Edit · Update · Delete. Use the Active tab, not Archive.',
       complete: 'Complete vehicle',
@@ -4990,7 +5073,38 @@ export const translations = {
         archiveBadge: 'Archived',
         transferIssue: 'Transfer',
         transferIssueSuccess: 'Shortage reason transferred.',
-        transferIssueArchived: 'Reason transferred and vehicle {vin} archived.'
+        transferIssueArchived: 'Reason transferred and vehicle {vin} archived.',
+        restoreToCurrent: 'Return to current shortages',
+        restoreConfirmTitle: 'Return from archive?',
+        restoreConfirm: 'Move vehicle {vin} back to current shortages? Closed reasons will be reopened.',
+        restoreSuccess: 'Vehicle {vin} returned to current shortages.'
+      },
+      workflow: {
+        transferTitle: 'Transfer to a quality station',
+        transferHint: 'A transfer request will be filed for «{reason}» to a quality station. It applies after engineer approval.',
+        submitTransfer: 'Submit transfer request',
+        qualityStation: 'Quality station',
+        noQualityStations: 'No quality stations. Add a station in Settings and set type to Quality station.',
+        transferRequested: 'Transfer request submitted — waiting for engineer approval.',
+        transferPending: 'Transfer pending',
+        restorePending: 'Restore pending',
+        restoreConfirmTitle: 'Request restore from archive?',
+        restoreConfirm: 'A request will be filed to return vehicle {vin} to current shortages. It applies after engineer approval.',
+        submitRestore: 'Submit restore request',
+        restoreRequested: 'Restore request for {vin} submitted — waiting for approval.',
+        approvalsTitle: 'Transfer and restore approvals',
+        approvalsHint: 'Pending requests: transfer moves the vehicle to the quality station and closes the reason after approval.',
+        kind: 'Request type',
+        kindTransfer: 'Transfer',
+        kindRestore: 'Restore',
+        fromStation: 'From station',
+        toStation: 'To station',
+        requestedBy: 'Requested by',
+        approve: 'Approve',
+        reject: 'Reject',
+        approved: 'Request approved and applied.',
+        rejected: 'Request rejected.',
+        empty: 'No pending requests.'
       },
       edit: {
         title: 'Edit shortage record',
@@ -5035,6 +5149,7 @@ export const translations = {
         createdBy: 'Reporter',
         createdAt: 'Date',
         actions: '',
+        completer: 'Completer',
         resolvedAt: 'Completed at'
       },
       f: {
@@ -5266,7 +5381,8 @@ export const translations = {
     stationType: {
       main_line: 'Main line',
       side_assembly: 'Side assembly',
-      offline_prep: 'Offline / prep'
+      offline_prep: 'Offline / prep',
+      quality: 'Quality station'
     },
     trainingLevel: {
       level_0: 'Not trained',
@@ -5777,7 +5893,7 @@ export const translations = {
       tabs: {
         consolidated: 'Consolidated',
         partList: 'Parts list',
-        iplModels: 'IPL models',
+        iplModels: 'IPL',
         partsGd: 'GD parts list',
         compare: 'Part comparison',
         categories: 'Categories',
@@ -5792,8 +5908,9 @@ export const translations = {
       iplPartNumberMissing: 'Missing number',
       iplNeedPartNumberFirst: 'Enter the part number first, then the quantity',
       iplNeedPartNumberAndQty: 'Enter part number and quantity before feeding logistics',
-      iplModelPick: 'Select models',
-      iplModelTabsHint: 'Click a model to open a tab — click again to close · open multiple models to compare',
+      iplModelPick: 'Sub-models',
+      iplModelPickFamily: 'Parent models',
+      iplModelTabsHint: 'Click a sub-model to toggle it · click a parent to select or clear all its variants',
       iplModelCompareOn: 'Compare mode',
       iplModelCloseTab: 'Close tab',
       iplModelCompareSummary: 'Comparing {models} models · {parts} parts',
@@ -5803,10 +5920,16 @@ export const translations = {
       iplCompareStationDifferent: 'Different station',
       iplCompareQtyShared: 'Shared qty',
       iplCompareQtyDifferent: 'Different qty',
+      iplFitStatus: 'Fit',
+      iplFitUnset: 'Not set',
+      iplFitYes: 'Fits',
+      iplFitNo: 'Does not fit',
       iplCompareDetailTitle: '{field} details',
       iplCompareDetailHint: 'Value per model',
+      iplPartCardModels: 'Part data by model',
+      iplPartCardModel: 'Model',
       partListHint: 'Unified part names with part type and common supplier — enter part number per model here (official source for IPL compare)',
-      partListModelNumbersHint: 'Part number per model — set qty greater than 0 for applicable models · official source for IPL compare',
+      partListModelNumbersHint: 'Per model: fits (number + qty), does not fit, or not set yet',
       partListQtyRequiredWithNumber: 'Enter qty greater than 0 for each model that has a part number',
       partListModelCountTitle: '{n} models use this part',
       partListSearchPh: 'Search by station or common name…',
@@ -5819,9 +5942,10 @@ export const translations = {
       partListTranslateHint: 'English translation is suggested — click «Use suggestion» or type your own · common name follows Arabic and is editable',
       partListCommonNameHint: 'Defaults to Arabic name — change if the common name differs',
       partListUseSuggestion: 'Use: {s}',
-      partListDuplicateWarning: '«{name}» is already in the list',
-      partListDuplicateTitle: 'Duplicate name',
-      partListDuplicateConfirm: 'The name «{name}» already exists — are you sure you want to save?',
+      partListDuplicateWarning: '«{name}» already exists — save to update the existing part',
+      partListDuplicateTitle: 'Part already exists',
+      partListDuplicateConfirm: '«{name}» already exists — update the existing part with this data?',
+      partListDuplicateUpdate: 'Update existing',
       partListAutocompletePh: 'Search Arabic name from parts list…',
       partListAutocompleteEmpty: 'No match in parts list',
       partListAutocompleteHint: 'Pick from the list to auto-fill station, English name, part type, and supplier',
@@ -5850,6 +5974,7 @@ export const translations = {
       modelCards: 'Per-model details',
       modelCardsQtyHint: 'All family variants are listed — set qty to 0 for models not used.',
       modelCardsPerModelHint: 'Select multiple model families — each variant gets its own part number column.',
+      modelCardsAllModelsHint: 'Open a family to edit its models — use the box icon for per-model feeding.',
       partNumberPh: 'Part number',
       familyAllZero: 'Not used on this part',
       breakdownNoActive: 'Enter a part number and qty > 0 for at least one model.',
@@ -5996,6 +6121,7 @@ export const translations = {
         title: 'Feeding & dimensions (IPL)',
         modalTitle: 'Feeding data card',
         openFeeding: 'Feeding & dimensions',
+        feedingCol: 'Feeding',
         save: 'Save IPL logistics',
         directionAny: '—',
         directionRight: 'R (right)',
@@ -6058,6 +6184,8 @@ export const translations = {
       col: { station: 'Station', operation: 'Operation', type: 'Class', time: 'Time (min)', hw: 'HW' }
     },
     permissions: {
+      loadFailed: 'Could not load permissions from the server. Pages may stay empty or view-only until the connection recovers.',
+      retryLoad: 'Retry',
       tabs: {
         users: 'Users',
         requests: 'User requests',
@@ -6287,6 +6415,8 @@ export const translations = {
           production_missing__summary: 'Shortages summary tab',
           production_missing__history: 'Archive tab',
           production_missing__historySummary: 'Archive summary tab',
+          production_missing__historyDiary: 'Shortage diary tab',
+          production_missing__approvals: 'Transfer and restore approvals tab',
           production_productivity: 'Productivity (entry, exit, stops, work days)',
           planning_plan: 'Required vs achieved production plan by model',
           planning_work_days: 'Working days, hours, and daily productivity',

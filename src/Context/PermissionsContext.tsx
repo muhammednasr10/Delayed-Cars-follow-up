@@ -15,7 +15,7 @@ type PermissionsContextValue = {
 const PermissionsContext = createContext<PermissionsContextValue | undefined>(undefined)
 
 export function PermissionsProvider({ children }: { children: ReactNode }) {
-  const { session, profile } = useAuth()
+  const { session, profile, loading: authLoading } = useAuth()
   const [permissions, setPermissions] = useState<PermissionMap>({})
   const [loading, setLoading] = useState(false)
   const [loadError, setLoadError] = useState(false)
@@ -23,6 +23,7 @@ export function PermissionsProvider({ children }: { children: ReactNode }) {
   const inflightRef = useRef<Promise<void> | null>(null)
 
   const reload = useCallback(async () => {
+    if (authLoading) return
     if (!session) {
       setPermissions({})
       setLoading(false)
@@ -46,9 +47,9 @@ export function PermissionsProvider({ children }: { children: ReactNode }) {
         setPermissions(next)
         setLoadError(false)
         loadedForRef.current = cacheKey
-      } catch {
+      } catch (err) {
+        console.error('Failed to load permissions:', err)
         setLoadError(true)
-        if (firstLoad) setPermissions({})
       } finally {
         if (firstLoad) setLoading(false)
       }
@@ -57,7 +58,7 @@ export function PermissionsProvider({ children }: { children: ReactNode }) {
     inflightRef.current = task
     await task
     inflightRef.current = null
-  }, [session, profile?.id])
+  }, [authLoading, session, profile?.id])
 
   useEffect(() => {
     void reload()

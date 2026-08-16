@@ -44,10 +44,14 @@ type DetailRow = {
   created_at: string
   updated_at: string
   shortage_resolved_at: string | null
+  shortage_resolved_by?: string | null
+  shortage_resolved_by_name?: string | null
   transferred_at?: string | null
   report_group_id: string | null
   station_id: string | null
   factory_org_unit_id: string | null
+  pending_transfer_request_id?: string | null
+  pending_restore_request_id?: string | null
 }
 
 function mapDetail(row: DetailRow): MissingPartDetail {
@@ -82,10 +86,13 @@ function mapDetail(row: DetailRow): MissingPartDetail {
     createdAt: row.created_at,
     updatedAt: row.updated_at,
     shortageResolvedAt: row.shortage_resolved_at,
+    shortageResolvedByName: row.shortage_resolved_by_name ?? null,
     transferredAt: row.transferred_at ?? null,
     reportGroupId: row.report_group_id,
     stationId: row.station_id,
-    factoryOrgUnitId: row.factory_org_unit_id
+    factoryOrgUnitId: row.factory_org_unit_id,
+    pendingTransferRequestId: row.pending_transfer_request_id ?? null,
+    pendingRestoreRequestId: row.pending_restore_request_id ?? null
   }
 }
 
@@ -121,6 +128,19 @@ export async function attachMissingPartsToReportGroup(ids: string[], reportGroup
 export async function completeVehicleShortage(vehicleId: string): Promise<void> {
   const { error } = await requireClient().rpc('complete_vehicle_shortage', { p_vehicle_id: vehicleId })
   if (error) throw new Error(error.message)
+}
+
+export async function restoreVehicleShortage(vehicleId: string): Promise<void> {
+  const { error } = await requireClient().rpc('restore_vehicle_shortage', { p_vehicle_id: vehicleId })
+  if (!error) return
+  const missingFn =
+    error.message.includes('Could not find the function') || error.message.includes('schema cache')
+  if (missingFn) {
+    throw new Error(
+      'دالة إرجاع السيارة من الأرشيف غير مفعّلة على Supabase. نفّذ supabase/scripts/apply_restore_vehicle_shortage.sql'
+    )
+  }
+  throw new Error(error.message)
 }
 
 /** ترحيل سبب نقص واحد: يُغلق السطر ويُعلَّم transferred_at دون تركيب فعلي؛ إن لم يبقَ مفتوح تُأرشف السيارة. */

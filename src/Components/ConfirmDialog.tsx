@@ -35,15 +35,18 @@ export function ConfirmDialog({
       icon={<AlertTriangle className="h-5 w-5" />}
       onClose={onCancel}
       maxWidthClass="max-w-md"
+      zIndexClass="z-[200]"
       footer={
         <>
           <button
+            type="button"
             onClick={onCancel}
             className="rounded-xl bg-slate-800 px-4 py-2 font-bold text-slate-200 hover:bg-slate-700"
           >
             {cancelLabel}
           </button>
           <button
+            type="button"
             disabled={busy}
             onClick={onConfirm}
             className={`rounded-xl px-5 py-2 font-black transition disabled:opacity-50 ${confirmClasses}`}

@@ -129,7 +129,7 @@ const initialState: NavState = {
   showProfile: false,
   profileTab: 'account',
   showGlobalHome: true,
-  bomTab: 'consolidated',
+  bomTab: 'iplModels',
   lineBalancingTab: 'operations',
   trainingTab: 'org',
   settingsTab: 'administrations',

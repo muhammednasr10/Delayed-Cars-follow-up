@@ -1,6 +1,8 @@
 import { DEFAULT_PART_KIND, DEFAULT_SUPPLY_SOURCE, effectivePartKind, effectiveSupplySource } from './bomDefaults'
 import { resolveSupplySource } from './bomDisplayFormat'
 import { formatQtyByModelRaw, maxModelQty, modelQtyFromBomRow, parseApplicableModelNames } from './bomQtyByModel'
+import { notFittedModelsFromBomRow } from './iplFitStatus'
+import { iplFeedingCardFromBomItem, type BomIplFeedingCard } from './iplBomLogistics'
 import { normalizeBomStationCodeText, findMasterStationByCode } from './bomStationCode'
 import { bomModelBreakdownFamilies, lineDraftFromBreakdown, type BomModelLineDraft } from './bomModelBreakdown'
 import { buildModelFamilyGroups, inferParentNameFromVariant, isAssignableModel } from './vehicleModelHierarchy'
@@ -15,12 +17,14 @@ export type ModelCardDraft = {
   part_number_new: string
   alternative_part_no: string
   qty: string
+  notFitted: boolean
   part_kind: string
   supply_source: string
   station_id: string
   station_code_text: string
   bom_classification: string
   station_category: string
+  feeding?: BomIplFeedingCard
 }
 
 export function emptyCard(model: VehicleModel, seed?: Partial<ModelCardDraft>): ModelCardDraft {
@@ -31,13 +35,50 @@ export function emptyCard(model: VehicleModel, seed?: Partial<ModelCardDraft>): 
     part_number_new: seed?.part_number_new ?? '',
     alternative_part_no: seed?.alternative_part_no ?? '',
     qty: seed?.qty ?? '1',
+    notFitted: seed?.notFitted ?? false,
     part_kind: seed?.part_kind ?? DEFAULT_PART_KIND,
     supply_source: seed?.supply_source ?? DEFAULT_SUPPLY_SOURCE,
     station_id: seed?.station_id ?? '',
     station_code_text: seed?.station_code_text ?? '',
     bom_classification: seed?.bom_classification ?? '',
-    station_category: seed?.station_category ?? ''
+    station_category: seed?.station_category ?? '',
+    feeding: seed?.feeding
   }
+}
+
+export type ModelCardFitUi = 'unset' | 'fitted' | 'notFitted'
+
+export function modelCardFitUi(card: Pick<ModelCardDraft, 'notFitted' | 'qty'>): ModelCardFitUi {
+  if (card.notFitted) return 'notFitted'
+  if (Number(card.qty) > 0) return 'fitted'
+  return 'unset'
+}
+
+export function patchForFitUi(card: ModelCardDraft, next: ModelCardFitUi): Partial<ModelCardDraft> {
+  if (next === 'notFitted') return { notFitted: true, qty: '0', part_number: '' }
+  if (next === 'fitted') return { notFitted: false, qty: Number(card.qty) > 0 ? card.qty : '1' }
+  return { notFitted: false, qty: '0' }
+}
+
+export function partitionIplModelCards(cards: ModelCardDraft[]) {
+  return {
+    fitted: cards.filter(c => {
+      const q = Number(c.qty)
+      return !c.notFitted && c.part_number.trim() && c.modelId && Number.isFinite(q) && q > 0
+    }),
+    notFitted: cards.filter(c => c.notFitted && c.modelId)
+  }
+}
+
+/** Overlay filled incoming rows onto an existing part's cards; leave untouched models as they were. */
+export function mergeIncomingModelCards(incoming: ModelCardDraft[], existing: ModelCardDraft[]): ModelCardDraft[] {
+  const byId = new Map(existing.map(c => [c.modelId, c]))
+  for (const card of incoming) {
+    if (!card.modelId || modelCardFitUi(card) === 'unset') continue
+    byId.set(card.modelId, { ...byId.get(card.modelId), ...card })
+  }
+  const leftover = incoming.filter(c => c.modelId && !byId.has(c.modelId))
+  return [...byId.values(), ...leftover]
 }
 
 export function cardsFromBomRow(
@@ -299,10 +340,23 @@ export function consolidatedPayload(
   }
 }
 
+export function allAssignableVariants(models: VehicleModel[]): VehicleModel[] {
+  const { groups, orphanVariants } = buildModelFamilyGroups(models)
+  const out: VehicleModel[] = []
+  for (const g of groups) out.push(...g.variants.filter(isAssignableModel))
+  out.push(...orphanVariants.filter(isAssignableModel))
+  const seen = new Set<string>()
+  return out.filter(m => {
+    if (seen.has(m.id)) return false
+    seen.add(m.id)
+    return true
+  })
+}
+
 export function variantsForFamilies(models: VehicleModel[], familyIds: string[]): VehicleModel[] {
   const picker = buildModelFamilyGroups(models)
   if (familyIds.length === 0) {
-    return models.filter(isAssignableModel).sort((a, b) => a.name.localeCompare(b.name))
+    return allAssignableVariants(models)
   }
   const out: VehicleModel[] = []
   for (const fid of familyIds) {
@@ -322,6 +376,40 @@ export function familyOptions(models: VehicleModel[]) {
   return picker.groups.map(g => g.family)
 }
 
+export type ModelCardFamilyGroup = {
+  familyId: string
+  familyName: string
+  cards: ModelCardDraft[]
+}
+
+export function groupModelCardsByFamily(models: VehicleModel[], cards: ModelCardDraft[]): ModelCardFamilyGroup[] {
+  const { groups } = buildModelFamilyGroups(models)
+  const byId = new Map(cards.map(c => [c.modelId, c]))
+  const out: ModelCardFamilyGroup[] = []
+  for (const g of groups) {
+    const familyCards = g.variants.map(v => byId.get(v.id)).filter((c): c is ModelCardDraft => Boolean(c))
+    if (familyCards.length > 0) out.push({ familyId: g.family.id, familyName: g.family.name, cards: familyCards })
+  }
+  const groupedIds = new Set(out.flatMap(g => g.cards.map(c => c.modelId)))
+  const leftover = cards.filter(c => !groupedIds.has(c.modelId))
+  if (leftover.length > 0) {
+    out.push({ familyId: '__other__', familyName: '', cards: leftover })
+  }
+  return out
+}
+
+function findModelForBomCard(models: VehicleModel[], row: BomItemDetail, modelName: string): VehicleModel | undefined {
+  const byId = row.vehicle_model_id ? models.find(x => x.id === row.vehicle_model_id) : undefined
+  if (byId && isAssignableModel(byId)) return byId
+  const upper = modelName.trim().toUpperCase()
+  if (!upper) return byId
+  return (
+    models.find(x => isAssignableModel(x) && x.name.trim().toUpperCase() === upper) ??
+    models.find(x => x.name.trim().toUpperCase() === upper) ??
+    byId
+  )
+}
+
 /** Rebuild model-card editor state from all BOM lines of a parts-list master. */
 export function bomRowsToModelCards(
   models: VehicleModel[],
@@ -332,16 +420,42 @@ export function bomRowsToModelCards(
   const seenModel = new Set<string>()
 
   for (const row of rows) {
+    const notFittedNames = notFittedModelsFromBomRow(row)
+    if (notFittedNames.length > 0) {
+      for (const modelName of notFittedNames) {
+        const m = findModelForBomCard(models, row, modelName)
+        if (!m || seenModel.has(m.id)) continue
+        seenModel.add(m.id)
+        if (m.parent_model_id && !familyIds.includes(m.parent_model_id)) familyIds.push(m.parent_model_id)
+        cards.push(
+          emptyCard(m, {
+            part_number: '',
+            qty: '0',
+            notFitted: true,
+            part_kind: effectivePartKind(row.part_type),
+            supply_source: effectiveSupplySource(row.supply_source ?? resolveSupplySource(row)),
+            station_id: row.station_id ?? '',
+            station_code_text: row.station_code_text ? normalizeBomStationCodeText(row.station_code_text) : '',
+            feeding: iplFeedingCardFromBomItem(row)
+          })
+        )
+      }
+      continue
+    }
+
     let qtyEntries = modelQtyFromBomRow(row)
     if (qtyEntries.length === 0 && row.vehicle_model_name?.trim()) {
       qtyEntries = [{ modelName: row.vehicle_model_name.trim(), qty: Number(row.quantity) || 1 }]
     }
+    if (qtyEntries.length === 0 && row.vehicle_model_id) {
+      const byId = models.find(x => x.id === row.vehicle_model_id)
+      if (byId) qtyEntries = [{ modelName: byId.name, qty: Number(row.quantity) || 1 }]
+    }
 
     for (const { modelName, qty } of qtyEntries) {
-      if (!modelName || seenModel.has(modelName)) continue
-      const m = models.find(x => x.name === modelName)
-      if (!m) continue
-      seenModel.add(modelName)
+      const m = findModelForBomCard(models, row, modelName)
+      if (!m || seenModel.has(m.id)) continue
+      seenModel.add(m.id)
       if (m.parent_model_id && !familyIds.includes(m.parent_model_id)) familyIds.push(m.parent_model_id)
       cards.push(
         emptyCard(m, {
@@ -349,16 +463,24 @@ export function bomRowsToModelCards(
           part_number_new: row.part_number_new ?? '',
           alternative_part_no: row.alternative_part_no ?? '',
           qty: String(qty),
+          notFitted: false,
           part_kind: effectivePartKind(row.part_type),
           supply_source: effectiveSupplySource(row.supply_source ?? resolveSupplySource(row)),
           station_id: row.station_id ?? '',
           station_code_text: row.station_code_text ? normalizeBomStationCodeText(row.station_code_text) : '',
           bom_classification: row.bom_classification ?? '',
-          station_category: row.station_category ?? ''
+          station_category: row.station_category ?? '',
+          feeding: iplFeedingCardFromBomItem(row)
         })
       )
     }
   }
 
-  return { familyIds, cards: syncModelCardsWithFamilies(models, familyIds, cards) }
+  const synced = syncModelCardsWithFamilies(models, [], cards)
+  const nextFamilyIds = [...familyIds]
+  for (const card of synced) {
+    const m = models.find(x => x.id === card.modelId)
+    if (m?.parent_model_id && !nextFamilyIds.includes(m.parent_model_id)) nextFamilyIds.push(m.parent_model_id)
+  }
+  return { familyIds: nextFamilyIds, cards: synced }
 }

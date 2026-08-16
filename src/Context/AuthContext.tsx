@@ -5,6 +5,7 @@ import {
   applySession,
   clearSession,
   ensureFreshSession,
+  isAccessTokenExpired,
   isRefreshTokenExpired,
   loginWithEmailPassword,
   readRawSession,
@@ -141,14 +142,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const { data: rpcData, error: rpcErr } = await supabase.rpc('get_my_profile')
       if (!rpcErr && rpcData && typeof rpcData === 'object') {
         const mapped = mapProfileRow(rpcData as Record<string, unknown>)
-        if (!profileAccessOk(mapped)) {
-          if (!mapped.is_active || mapped.is_blocked) return kickSession(BLOCKED_MSG_AR, 'blocked')
-          return kickSession(EMPLOYEE_STOPPED_MSG_AR, 'employee_inactive')
+        const roleIncomplete = Boolean(mapped.system_role_id && !mapped.system_role_code && !mapped.system_role_name_ar)
+        if (!roleIncomplete) {
+          if (!profileAccessOk(mapped)) {
+            if (!mapped.is_active || mapped.is_blocked) return kickSession(BLOCKED_MSG_AR, 'blocked')
+            return kickSession(EMPLOYEE_STOPPED_MSG_AR, 'employee_inactive')
+          }
+          setAccessDeniedMessage(null)
+          setProfile(mapped)
+          profileLoadedUidRef.current = userId
+          return 'ok'
         }
-        setAccessDeniedMessage(null)
-        setProfile(mapped)
-        profileLoadedUidRef.current = userId
-        return 'ok'
       }
 
       const { data, error } = await supabase
@@ -224,7 +228,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     const gen = ++bootGenRef.current
     setLoading(true)
-    const REFRESH_BOOT_TIMEOUT_MS = 25_000
+        const REFRESH_BOOT_TIMEOUT_MS = 12_000
 
     void (async () => {
       try {
@@ -233,27 +237,42 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
         if (isRefreshTokenExpired(raw)) {
           clearSession()
+          setAccessDeniedMessage(SESSION_EXPIRED_MSG_AR)
           return
         }
 
-        // Enter the app immediately; refresh tokens in the background.
-        applySession(raw)
+        const refreshed = await withTimeout(
+          ensureFreshSession({ kickOnFailure: true }),
+          REFRESH_BOOT_TIMEOUT_MS,
+          null
+        )
         if (bootGenRef.current !== gen) return
-        setSession(raw)
-        setAccessDeniedMessage(null)
 
-        const profileTask = loadProfile(raw.user.id)
-        const refreshed = await withTimeout(ensureFreshSession(), REFRESH_BOOT_TIMEOUT_MS, null)
-        if (bootGenRef.current !== gen) return
-        if (refreshed) setSession(refreshed)
-        await profileTask
+        const next = refreshed ?? readRawSession()
+        if (!next || isAccessTokenExpired(next)) {
+          clearSession()
+          setSession(null)
+          setProfile(null)
+          setAccessDeniedMessage(SESSION_EXPIRED_MSG_AR)
+          return
+        }
+
+        applySession(next)
+        setSession(next)
+        setAccessDeniedMessage(null)
+        await loadProfile(next.user.id, true)
       } catch (err) {
         console.error('Auth boot failed:', err)
-        const raw = readRawSession()
-        if (raw && !isRefreshTokenExpired(raw) && bootGenRef.current === gen) {
-          applySession(raw)
-          setSession(raw)
-          void loadProfile(raw.user.id)
+        const rawAfter = readRawSession()
+        if (rawAfter && !isAccessTokenExpired(rawAfter) && bootGenRef.current === gen) {
+          applySession(rawAfter)
+          setSession(rawAfter)
+          void loadProfile(rawAfter.user.id, true)
+        } else if (bootGenRef.current === gen) {
+          clearSession()
+          setSession(null)
+          setProfile(null)
+          setAccessDeniedMessage(SESSION_EXPIRED_MSG_AR)
         }
       } finally {
         if (bootGenRef.current === gen) setLoading(false)

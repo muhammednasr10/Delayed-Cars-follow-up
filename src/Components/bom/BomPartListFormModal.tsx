@@ -16,8 +16,7 @@ import { isMostlyArabic, translateArabicPartName, translateEnglishPartName } fro
 import { displayBomStationCode, findMasterStationByCode, normalizeBomStationCodeText } from '../../Utils/bomStationCode'
 import { DEFAULT_PART_KIND, DEFAULT_SUPPLY_SOURCE } from '../../Utils/bomDefaults'
 import { partKindPresetOptions, supplySourcePresetOptions } from '../../Utils/bomPresetOptions'
-import { syncModelCardsWithFamilies, type ModelCardDraft } from '../../Utils/bomModelCards'
-import { selectableVehicleModels } from '../../Utils/vehicleModelHierarchy'
+import { mergeIncomingModelCards, syncModelCardsWithFamilies, type ModelCardDraft } from '../../Utils/bomModelCards'
 import type { Station, VehicleModel } from '../../Types/settings'
 import { BomPresetSelect } from './BomPresetSelect'
 import { PartListAutocomplete } from './PartListAutocomplete'
@@ -35,6 +34,7 @@ export type PartListFormState = {
 export type PartListSavePayload = {
   cards: ModelCardDraft[]
   models: VehicleModel[]
+  existingPartId?: string
 }
 
 type Props = {
@@ -43,7 +43,7 @@ type Props = {
   form: PartListFormState
   busy: boolean
   onClose: () => void
-  onSave: (payload: PartListSavePayload) => void
+  onSave: (payload: PartListSavePayload) => void | Promise<void>
   onChange: (form: PartListFormState) => void
 }
 
@@ -69,6 +69,7 @@ function buildDefaultCards(models: VehicleModel[], form: PartListFormState, stat
       part_number_new: '',
       alternative_part_no: '',
       qty: '0',
+      notFitted: false,
       part_kind: seed.part_kind ?? DEFAULT_PART_KIND,
       supply_source: seed.supply_source ?? DEFAULT_SUPPLY_SOURCE,
       station_id: seed.station_id ?? '',
@@ -92,7 +93,6 @@ export function BomPartListFormModal({ open, editId, form, busy, onClose, onSave
   const [confirmDuplicateOpen, setConfirmDuplicateOpen] = useState(false)
   const autoCommon = useRef(true)
   const duplicateCheckRef = useRef<number | null>(null)
-  const pendingSave = useRef<PartListSavePayload | null>(null)
 
   const partKindOptions = useMemo(() => partKindPresetOptions(t), [t])
   const supplyOptions = useMemo(() => supplySourcePresetOptions(t), [t])
@@ -129,17 +129,15 @@ export function BomPartListFormModal({ open, editId, form, busy, onClose, onSave
     setDuplicateHit(null)
     setConfirmDuplicateOpen(false)
     setFormError('')
-    pendingSave.current = null
     setCardsLoading(true)
     const snapshot = form
 
     void Promise.all([getT4cIplStationOptions(), getVehicleModels(), getStations()])
       .then(async ([stationOpts, allModels, st]) => {
         setStationOptions(stationOpts)
-        const assignable = selectableVehicleModels(allModels)
-        setModels(assignable)
+        setModels(allModels)
         setStations(st)
-        await loadModelCards(editId, assignable, st, snapshot)
+        await loadModelCards(editId, allModels, st, snapshot)
       })
       .catch(() => {
         setModels([])
@@ -230,6 +228,7 @@ export function BomPartListFormModal({ open, editId, form, busy, onClose, onSave
       return t('bom.partListCommonNameRequired')
     }
     for (const card of cards) {
+      if (card.notFitted) continue
       const q = Number(card.qty)
       const hasPn = Boolean(card.part_number.trim())
       const hasQty = Number.isFinite(q) && q > 0
@@ -239,14 +238,18 @@ export function BomPartListFormModal({ open, editId, form, busy, onClose, onSave
     return null
   }
 
-  function commitSave() {
+  async function commitSave(payload: PartListSavePayload = { cards, models }) {
     const err = validateSave()
     if (err) {
       setFormError(err)
       return
     }
     setFormError('')
-    onSave({ cards, models })
+    try {
+      await onSave(payload)
+    } catch (e) {
+      setFormError(e instanceof Error ? e.message : t('common.error'))
+    }
   }
 
   function handleSaveClick() {
@@ -255,12 +258,34 @@ export function BomPartListFormModal({ open, editId, form, busy, onClose, onSave
       setFormError(err)
       return
     }
-    if (duplicateHit) {
-      pendingSave.current = { cards, models }
+    if (duplicateHit && !editId) {
       setConfirmDuplicateOpen(true)
       return
     }
-    commitSave()
+    void commitSave()
+  }
+
+  async function confirmUpdateExisting() {
+    if (!duplicateHit) {
+      await commitSave()
+      return
+    }
+    const err = validateSave()
+    if (err) {
+      setFormError(err)
+      setConfirmDuplicateOpen(false)
+      return
+    }
+    setFormError('')
+    try {
+      const loaded = await fetchBomCardsForPartMaster(duplicateHit.id, models)
+      const merged = mergeIncomingModelCards(cards, loaded.cards)
+      await onSave({ cards: merged, models, existingPartId: duplicateHit.id })
+      setConfirmDuplicateOpen(false)
+    } catch (e) {
+      setConfirmDuplicateOpen(false)
+      setFormError(e instanceof Error ? e.message : t('common.error'))
+    }
   }
 
   return (
@@ -270,7 +295,7 @@ export function BomPartListFormModal({ open, editId, form, busy, onClose, onSave
         title={editId ? t('bom.partListEdit') : t('bom.partListAdd')}
         icon={<ClipboardList className="h-5 w-5" />}
         onClose={onClose}
-        maxWidthClass="max-w-4xl"
+        maxWidthClass="max-w-5xl"
         footer={
           <>
             <button
@@ -395,6 +420,7 @@ export function BomPartListFormModal({ open, editId, form, busy, onClose, onSave
               familyIds={familyIds}
               cards={cards}
               masterSeed={cardMasterSeed}
+              showAllVariants
               onFamilyIdsChange={setFamilyIds}
               onCardsChange={setCards}
             />
@@ -406,15 +432,11 @@ export function BomPartListFormModal({ open, editId, form, busy, onClose, onSave
         open={confirmDuplicateOpen}
         title={t('bom.partListDuplicateTitle')}
         message={t('bom.partListDuplicateConfirm', { name: form.part_name_ar.trim() })}
-        confirmLabel={t('common.save')}
+        confirmLabel={t('bom.partListDuplicateUpdate')}
         cancelLabel={t('common.cancel')}
         tone="default"
         busy={busy}
-        onConfirm={() => {
-          setConfirmDuplicateOpen(false)
-          if (pendingSave.current) onSave(pendingSave.current)
-          else commitSave()
-        }}
+        onConfirm={() => void confirmUpdateExisting()}
         onCancel={() => setConfirmDuplicateOpen(false)}
       />
     </>

@@ -180,7 +180,6 @@ export function SettingsPage() {
         <StationsSection
           ref={stationsRef}
           canManage
-          stationTypes={['main_line']}
           sectionTitle={t('settings.stationsSubTabs.assemblyLine')}
           onError={setError}
           onSuccess={showSuccess}

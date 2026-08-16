@@ -1,5 +1,5 @@
 import { useMemo } from 'react'
-import { AlertTriangle, Archive, BarChart3, LayoutGrid, List, PlusCircle } from 'lucide-react'
+import { AlertTriangle, Archive, BarChart3, CalendarDays, ClipboardCheck, LayoutGrid, List, PlusCircle } from 'lucide-react'
 import { useLang } from '../../i18n/LanguageContext'
 import { mpLookupLabel } from '../../Utils/mpLookupLabel'
 import type { MpLookupOption } from '../../Types/mpLookup'
@@ -7,12 +7,12 @@ import type { MissingPartDetail, MissingPartFilters } from '../../Types/missingP
 import { FilterMultiSelect } from '../FilterMultiSelect'
 import { MissingPartSearchAutocomplete } from './MissingPartSearchAutocomplete'
 import { MissingPartsModelSummaryTable } from './MissingPartsModelSummaryTable'
-import { formatResolvedMonthLabel, listResolvedMonths } from '../../Utils/missingPartPageUtils'
+import { formatResolvedMonthLabel, listResolvedMonths, todayLocalDayKey } from '../../Utils/missingPartPageUtils'
 
-export type ListTab = 'active' | 'byFamily' | 'summary' | 'history' | 'historySummary'
+export type ListTab = 'active' | 'byFamily' | 'summary' | 'history' | 'historySummary' | 'historyDiary' | 'approvals'
 export type CurrentShortageView = 'active' | 'byFamily'
 
-type TopTabKey = 'current' | 'summary' | 'history' | 'historySummary'
+type TopTabKey = 'current' | 'summary' | 'history' | 'historySummary' | 'historyDiary' | 'approvals'
 
 type Props = {
   listTab: ListTab
@@ -21,6 +21,7 @@ type Props = {
   onListTabChange: (tab: ListTab) => void
   activeCount: number
   historyCount: number
+  approvalsCount?: number
   searchPool: MissingPartDetail[]
   filters: MissingPartFilters
   onFiltersChange: (patch: Partial<MissingPartFilters>) => void
@@ -44,6 +45,7 @@ export function MissingPartsToolbar({
   onListTabChange,
   activeCount,
   historyCount,
+  approvalsCount = 0,
   searchPool,
   filters,
   onFiltersChange,
@@ -63,6 +65,8 @@ export function MissingPartsToolbar({
     [departmentFilterCodes, departments, lang]
   )
   const isArchiveTab = listTab === 'history' || listTab === 'historySummary'
+  const todayKey = todayLocalDayKey()
+  const todayActive = filters.dateFrom === todayKey && filters.dateTo === todayKey
   const monthOptions = useMemo(
     () => (isArchiveTab ? listResolvedMonths(searchPool) : []),
     [isArchiveTab, searchPool]
@@ -101,6 +105,19 @@ export function MissingPartsToolbar({
       className: active => (active ? 'bg-amber-600 text-white' : 'bg-slate-800 text-slate-300 hover:bg-slate-700'),
       icon: BarChart3,
       visible: visibleTabs.includes('historySummary')
+    },
+    {
+      key: 'historyDiary',
+      className: active => (active ? 'bg-sky-600 text-white' : 'bg-slate-800 text-slate-300 hover:bg-slate-700'),
+      icon: CalendarDays,
+      visible: visibleTabs.includes('historyDiary')
+    },
+    {
+      key: 'approvals',
+      className: active => (active ? 'bg-rose-600 text-white' : 'bg-slate-800 text-slate-300 hover:bg-slate-700'),
+      icon: ClipboardCheck,
+      count: approvalsCount,
+      visible: visibleTabs.includes('approvals')
     }
   ]
 
@@ -204,36 +221,41 @@ export function MissingPartsToolbar({
       )}
 
       {canUseFilters &&
-        (listTab === 'active' || listTab === 'byFamily' || listTab === 'history' || listTab === 'historySummary') && (
-        <div
-          className={`grid grid-cols-1 gap-3 sm:grid-cols-2 ${
-            isArchiveTab ? 'lg:grid-cols-4' : 'lg:grid-cols-3'
-          }`}
-        >
-          <MissingPartSearchAutocomplete
-            items={searchPool}
-            value={filters.search}
-            onChange={search => onFiltersChange({ search })}
-          />
-          <FilterMultiSelect
-            options={modelSelectOptions}
-            value={filters.modelNames}
-            onChange={modelNames => onFiltersChange({ modelNames })}
-            allLabel={t('mp.filterModel')}
-            selectedCountLabel={n => t('mp.filterSelectedCount', { n })}
-            clearLabel={t('mp.filterClear')}
-          />
-          <FilterMultiSelect
-            options={departmentSelectOptions}
-            value={filters.departments}
-            onChange={departments => onFiltersChange({ departments })}
-            allLabel={t('mp.filterDepartment')}
-            selectedCountLabel={n => t('mp.filterSelectedCount', { n })}
-            clearLabel={t('mp.filterClear')}
-          />
+        (listTab === 'active' ||
+          listTab === 'byFamily' ||
+          listTab === 'history' ||
+          listTab === 'historySummary') && (
+        <div className="flex flex-wrap items-end gap-3">
+          <div className="min-w-[12rem] flex-1">
+            <MissingPartSearchAutocomplete
+              items={searchPool}
+              value={filters.search}
+              onChange={search => onFiltersChange({ search })}
+            />
+          </div>
+          <div className="min-w-[10rem] flex-1">
+            <FilterMultiSelect
+              options={modelSelectOptions}
+              value={filters.modelNames}
+              onChange={modelNames => onFiltersChange({ modelNames })}
+              allLabel={t('mp.filterModel')}
+              selectedCountLabel={n => t('mp.filterSelectedCount', { n })}
+              clearLabel={t('mp.filterClear')}
+            />
+          </div>
+          <div className="min-w-[10rem] flex-1">
+            <FilterMultiSelect
+              options={departmentSelectOptions}
+              value={filters.departments}
+              onChange={departments => onFiltersChange({ departments })}
+              allLabel={t('mp.filterDepartment')}
+              selectedCountLabel={n => t('mp.filterSelectedCount', { n })}
+              clearLabel={t('mp.filterClear')}
+            />
+          </div>
           {isArchiveTab && (
             <select
-              className="input-dark"
+              className="input-dark min-w-[9rem]"
               value={filters.resolvedMonth ?? ''}
               onChange={e => onFiltersChange({ resolvedMonth: e.target.value || null })}
               aria-label={t('mp.filterMonthLabel')}
@@ -247,6 +269,47 @@ export function MissingPartsToolbar({
               ))}
             </select>
           )}
+          <label className="flex min-w-[9.5rem] flex-col gap-1">
+            <span className="text-xs font-bold text-slate-400">{t('mp.filterDateFrom')}</span>
+            <input
+              type="date"
+              className="input-dark"
+              value={filters.dateFrom}
+              max={filters.dateTo || undefined}
+              onChange={e => {
+                const dateFrom = e.target.value
+                const dateTo = filters.dateTo && dateFrom && dateFrom > filters.dateTo ? dateFrom : filters.dateTo
+                onFiltersChange({ dateFrom, dateTo })
+              }}
+              aria-label={t('mp.filterDateFrom')}
+            />
+          </label>
+          <label className="flex min-w-[9.5rem] flex-col gap-1">
+            <span className="text-xs font-bold text-slate-400">{t('mp.filterDateTo')}</span>
+            <input
+              type="date"
+              className="input-dark"
+              value={filters.dateTo}
+              min={filters.dateFrom || undefined}
+              onChange={e => {
+                const dateTo = e.target.value
+                const dateFrom = filters.dateFrom && dateTo && dateTo < filters.dateFrom ? dateTo : filters.dateFrom
+                onFiltersChange({ dateFrom, dateTo })
+              }}
+              aria-label={t('mp.filterDateTo')}
+            />
+          </label>
+          <button
+            type="button"
+            onClick={() => {
+              onFiltersChange(todayActive ? { dateFrom: '', dateTo: '' } : { dateFrom: todayKey, dateTo: todayKey })
+            }}
+            className={`mb-0.5 rounded-xl px-3 py-2.5 text-sm font-black ${
+              todayActive ? 'bg-cyan-500 text-slate-950' : 'bg-slate-800 text-slate-200 hover:bg-slate-700'
+            }`}
+          >
+            {t('mp.filterToday')}
+          </button>
         </div>
       )}
     </div>

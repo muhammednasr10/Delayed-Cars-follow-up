@@ -30,13 +30,21 @@ import {
   bulkInstallVehiclesToFull,
   completeVehicleShortage,
   deleteMissingPartRecord,
-  getMissingParts,
-  transferMissingPartIssue
+  getMissingParts
 } from '../../services/missingPartsService'
+import {
+  listMissingPartWorkflowRequests,
+  requestMissingPartTransfer,
+  requestVehicleShortageRestore,
+  reviewMissingPartWorkflowRequest
+} from '../../services/missingPartWorkflowService'
+import type { MissingPartWorkflowRequest } from '../../Types/missingPartWorkflow'
 import type { MissingPartDetail, MissingPartFilters } from '../../Types/missingPart'
 import { MissingPartsToolbar, type ListTab } from '../../Components/missingParts/MissingPartsToolbar'
 import { MissingPartsTable } from '../../Components/missingParts/MissingPartsTable'
-import { MissingPartsSummaryTab } from '../../Components/missingParts/MissingPartsSummaryTab'
+import { MissingPartsApprovalsTab } from '../../Components/missingParts/MissingPartsApprovalsTab'
+import { TransferToQualityModal } from '../../Components/missingParts/TransferToQualityModal'
+import { MissingPartsDailyJournalTab } from '../../Components/missingParts/MissingPartsDailyJournalTab'
 import { MissingPartsFamilyCardsTab } from '../../Components/missingParts/MissingPartsFamilyCardsTab'
 import {
   applyFilters,
@@ -62,6 +70,7 @@ export function MissingPartsPage() {
     canEdit,
     canDelete,
     canComplete,
+    canReviewWorkflow,
     canBulkInstallAndUpdate
   } = useMissingPartsUiPermissions()
   const formatError = useFormatError()
@@ -83,7 +92,9 @@ export function MissingPartsPage() {
     search: '',
     modelNames: [],
     departments: [],
-    resolvedMonth: null
+    resolvedMonth: null,
+    dateFrom: '',
+    dateTo: ''
   })
   const [showReport, setShowReport] = useState(false)
   const [updateVehicle, setUpdateVehicle] = useState<UpdateVehicleContext | null>(null)
@@ -102,7 +113,12 @@ export function MissingPartsPage() {
   const [bulkActionBusy, setBulkActionBusy] = useState(false)
   const [completeTarget, setCompleteTarget] = useState<MissingPartDetail | null>(null)
   const [completeAllTargets, setCompleteAllTargets] = useState<MissingPartDetail[] | null>(null)
+  const [restoreTarget, setRestoreTarget] = useState<MissingPartDetail | null>(null)
+  const [restoringVehicleId, setRestoringVehicleId] = useState<string | null>(null)
   const [transferringPartId, setTransferringPartId] = useState<string | null>(null)
+  const [transferPart, setTransferPart] = useState<MissingPartDetail | null>(null)
+  const [workflowRequests, setWorkflowRequests] = useState<MissingPartWorkflowRequest[]>([])
+  const [reviewingRequestId, setReviewingRequestId] = useState<string | null>(null)
 
   const canBulkSelectForTab = useMemo(() => {
     if (listTab === 'history') return canBulkSelectArchive
@@ -176,6 +192,11 @@ export function MissingPartsPage() {
     try {
       setItems(await getMissingParts())
       setSetupRequired(false)
+      try {
+        setWorkflowRequests(await listMissingPartWorkflowRequests('pending'))
+      } catch {
+        setWorkflowRequests([])
+      }
     } catch (err) {
       const message = formatError(err)
       setSetupRequired(isSchemaMissing(message))
@@ -401,27 +422,19 @@ export function MissingPartsPage() {
     setCompleteTarget(row)
   }
 
-  async function transferIssueFromCard(part: MissingPartDetail) {
+  function openTransferRequest(part: MissingPartDetail) {
+    if (!canComplete || part.pendingTransferRequestId) return
+    setTransferPart(part)
+  }
+
+  async function submitTransferRequest(part: MissingPartDetail, stationId: string) {
     if (!canComplete || transferringPartId) return
     setTransferringPartId(part.id)
     setError('')
     try {
-      const openOnVehicle = (vehicleCardParts ?? items).filter(
-        p =>
-          p.vehicleId === part.vehicleId &&
-          p.status !== 'closed' &&
-          p.status !== 'cancelled' &&
-          !p.shortageResolvedAt
-      ).length
-      const result = await transferMissingPartIssue(part.id, {
-        vehicleId: part.vehicleId,
-        remainingOpenOnVehicle: openOnVehicle
-      })
-      showSuccess(
-        result.vehicle_archived
-          ? t('mp.vehicleCard.transferIssueArchived', { vin: part.vin })
-          : t('mp.vehicleCard.transferIssueSuccess')
-      )
+      await requestMissingPartTransfer(part.id, stationId)
+      setTransferPart(null)
+      showSuccess(t('mp.workflow.transferRequested'))
       void load()
     } catch (err) {
       setError(formatError(err))
@@ -475,6 +488,38 @@ export function MissingPartsPage() {
     }
   }
 
+  async function confirmRestoreVehicle() {
+    if (!restoreTarget) return
+    setRestoringVehicleId(restoreTarget.vehicleId)
+    setError('')
+    try {
+      await requestVehicleShortageRestore(restoreTarget.vehicleId)
+      setRestoreTarget(null)
+      setVehicleCardParts(null)
+      showSuccess(t('mp.workflow.restoreRequested', { vin: restoreTarget.vin }))
+      void load()
+    } catch (err) {
+      setError(formatError(err))
+    } finally {
+      setRestoringVehicleId(null)
+    }
+  }
+
+  async function reviewRequest(request: MissingPartWorkflowRequest, approve: boolean) {
+    if (!canReviewWorkflow || reviewingRequestId) return
+    setReviewingRequestId(request.id)
+    setError('')
+    try {
+      await reviewMissingPartWorkflowRequest(request.id, approve)
+      showSuccess(approve ? t('mp.workflow.approved') : t('mp.workflow.rejected'))
+      void load()
+    } catch (err) {
+      setError(formatError(err))
+    } finally {
+      setReviewingRequestId(null)
+    }
+  }
+
   const completeRemaining = completeTarget
     ? remainingInstallLineCount(openVehicleShortageLines(completeTarget.vehicleId, items))
     : 0
@@ -491,6 +536,7 @@ export function MissingPartsPage() {
           onListTabChange={changeListTab}
           activeCount={activeVehicleCount}
           historyCount={historyVehicleCount}
+          approvalsCount={workflowRequests.length}
           searchPool={tabSource}
           filters={filters}
           onFiltersChange={patch => setFilters(p => ({ ...p, ...patch }))}
@@ -593,6 +639,17 @@ export function MissingPartsPage() {
             onDeleteParts={parts => void removeParts(parts)}
             onComplete={requestCompleteVehicle}
           />
+        ) : listTab === 'approvals' ? (
+          <MissingPartsApprovalsTab
+            requests={workflowRequests}
+            loading={loading}
+            reviewingId={reviewingRequestId}
+            canReview={canReviewWorkflow}
+            onApprove={req => void reviewRequest(req, true)}
+            onReject={req => void reviewRequest(req, false)}
+          />
+        ) : listTab === 'historyDiary' ? (
+          <MissingPartsDailyJournalTab items={scopedItems} loading={loading} canExport={canExport} />
         ) : listTab === 'summary' || listTab === 'historySummary' ? (
           <MissingPartsSummaryTab
             items={filtered}
@@ -654,6 +711,7 @@ export function MissingPartsPage() {
         onClose={() => setUpdateVehicle(null)}
         onChanged={load}
         onNotify={showSuccess}
+        onRequestTransfer={openTransferRequest}
       />
       <EditMissingPartModal
         vehicle={editVehicle}
@@ -687,8 +745,11 @@ export function MissingPartsPage() {
         orgUnitLabel={vehicleCardParts?.[0] ? orgUnitLabelFor(vehicleCardParts[0].factoryOrgUnitId) : undefined}
         completingVehicleId={completingVehicleId}
         transferringPartId={transferringPartId}
+        restoringVehicleId={restoringVehicleId}
         canTransferIssue={canComplete}
-        onTransferIssue={part => void transferIssueFromCard(part)}
+        canRestoreFromArchive={canComplete}
+        onTransferIssue={openTransferRequest}
+        onRestoreFromArchive={part => setRestoreTarget(part)}
         onClose={() => setVehicleCardParts(null)}
       />
       <VehicleNotesModal target={notesTarget} onClose={() => setNotesTarget(null)} />
@@ -732,6 +793,23 @@ export function MissingPartsPage() {
           setCompleteTarget(null)
           setCompleteAllTargets(null)
         }}
+      />
+      <TransferToQualityModal
+        part={transferPart}
+        busy={Boolean(transferringPartId)}
+        onConfirm={(part, stationId) => void submitTransferRequest(part, stationId)}
+        onClose={() => setTransferPart(null)}
+      />
+      <ConfirmDialog
+        open={Boolean(restoreTarget)}
+        title={t('mp.workflow.restoreConfirmTitle')}
+        message={restoreTarget ? t('mp.workflow.restoreConfirm', { vin: restoreTarget.vin }) : ''}
+        confirmLabel={t('mp.workflow.submitRestore')}
+        cancelLabel={t('common.cancel')}
+        tone="default"
+        busy={Boolean(restoringVehicleId)}
+        onConfirm={() => void confirmRestoreVehicle()}
+        onCancel={() => setRestoreTarget(null)}
       />
     </section>
   )

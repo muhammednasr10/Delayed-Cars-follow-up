@@ -96,12 +96,13 @@ export function BomPartListTab({ notify }: Props) {
         part_type: form.part_type,
         common_supply_source: form.common_supply_source
       }
-      await savePartMasterFromListForm(editId, master, payload.cards, payload.models)
-      notify(editId ? t('settings.updated') : t('settings.added'))
+      await savePartMasterFromListForm(payload.existingPartId ?? editId, master, payload.cards, payload.models)
+      notify(payload.existingPartId || editId ? t('settings.updated') : t('settings.added'))
       setFormOpen(false)
       await load()
     } catch (e) {
       notify(e instanceof Error ? e.message : t('common.error'), true)
+      throw e
     } finally {
       setBusy(false)
     }
@@ -289,7 +290,7 @@ export function BomPartListTab({ notify }: Props) {
         form={form}
         busy={busy}
         onClose={() => setFormOpen(false)}
-        onSave={payload => void submitForm(payload)}
+        onSave={submitForm}
         onChange={setForm}
       />
 

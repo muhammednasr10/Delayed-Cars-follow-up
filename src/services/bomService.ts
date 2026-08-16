@@ -1,9 +1,13 @@
 import { supabase } from '../lib/supabase'
 import type { BomDashboardStats, BomItemCreateInput, BomItemDetail, BomItemUpdateInput, Part } from '../Types/bom'
-import type { BomIplLogisticsInput, BomIplFeedingCard } from '../Utils/iplBomLogistics'
-import { extractIplLogisticsFromRaw } from '../Utils/iplBomLogistics'
+import {
+  extractIplLogisticsFromRaw,
+  iplFeedingHasContent,
+  type BomIplLogisticsInput,
+  type BomIplFeedingCard
+} from '../Utils/iplBomLogistics'
 import type { VehicleModel } from '../Types/settings'
-import { cardsCanConsolidate, consolidatedPayload, bomRowsToModelCards, type ModelCardDraft } from '../Utils/bomModelCards'
+import { cardsCanConsolidate, consolidatedPayload, bomRowsToModelCards, partitionIplModelCards, type ModelCardDraft } from '../Utils/bomModelCards'
 import { effectivePartKind, effectiveSupplySource } from '../Utils/bomDefaults'
 import { bomImportLineKey, classificationToCategoryCode, normalizePartNumber } from '../Utils/partNumberNormalize'
 import { BOM_FILTER_DB_FIELD, type BomFilterColumn } from '../Utils/bomFilterFields'
@@ -23,39 +27,68 @@ import {
   upsertPart,
   type PartMasterInput
 } from './partsService'
-import { bomRowAppliesToModel, parseApplicableModelNames } from '../Utils/bomQtyByModel'
+import {
+  bomRowAppliesToModel,
+  parseApplicableModelNames
+} from '../Utils/bomQtyByModel'
+import {
+  bomRowAssignedToIplModel,
+  IPL_NOT_FITTED_PN,
+  IPL_NOT_FITTED_QTY,
+  IPL_NOT_FITTED_SHEET
+} from '../Utils/iplFitStatus'
 
 function client() {
   if (!supabase) throw new Error('Supabase is not configured')
   return supabase
 }
 
-function logisticsPayload(input: BomIplLogisticsInput): Record<string, string | null> {
+const IPL_CORE_LOGISTICS_FIELDS = [
+  'part_length',
+  'part_width',
+  'part_height',
+  'part_volume',
+  'feeding_method',
+  'packing',
+  'part_direction',
+  'rack_code',
+  'rack_size'
+] as const
+
+const IPL_OPTIONAL_LOGISTICS_FIELDS = [
+  'carton_qty',
+  'part_weight',
+  'carton_weight',
+  'rack_length',
+  'rack_width',
+  'rack_height'
+] as const
+
+function pickLogisticsFields(
+  input: BomIplLogisticsInput,
+  fields: readonly (keyof BomIplLogisticsInput)[],
+  onlyNonEmpty = false
+): Record<string, string | null> {
   const out: Record<string, string | null> = {}
-  const fields = [
-    'part_length',
-    'part_width',
-    'part_height',
-    'part_volume',
-    'feeding_method',
-    'packing',
-    'part_direction',
-    'carton_qty',
-    'part_weight',
-    'carton_weight',
-    'rack_code',
-    'rack_size',
-    'rack_length',
-    'rack_width',
-    'rack_height'
-  ] as const
   for (const f of fields) {
-    if (input[f] !== undefined) out[f] = input[f]?.trim() || null
+    if (input[f] === undefined) continue
+    const v = input[f]?.trim() || null
+    if (onlyNonEmpty && !v) continue
+    out[f] = v
   }
+  return out
+}
+
+function logisticsPayload(input: BomIplLogisticsInput): Record<string, string | null> {
+  const out = pickLogisticsFields(input, IPL_CORE_LOGISTICS_FIELDS)
   if (input.part_direction !== undefined) {
     out.side = input.part_direction?.trim() || null
   }
   return out
+}
+
+function isMissingColumnError(message: string): boolean {
+  return /schema cache|could not find the '.+' column/i.test(message)
 }
 
 /** Excel-style multi-select per column (empty / undefined = no filter on column). */
@@ -567,6 +600,13 @@ export async function updateBomIplFeedingCard(itemIds: string[], card: BomIplFee
   }
   const { error } = await client().from('bom_items').update(payload).in('id', realIds)
   if (error) throw new Error(error.message)
+
+  const extra = pickLogisticsFields(card, IPL_OPTIONAL_LOGISTICS_FIELDS, true)
+  if (Object.keys(extra).length === 0) return
+  const extraRes = await client().from('bom_items').update(extra).in('id', realIds)
+  if (extraRes.error && !isMissingColumnError(extraRes.error.message)) {
+    throw new Error(extraRes.error.message)
+  }
 }
 
 export async function updateIplModelLine(
@@ -713,14 +753,10 @@ export async function syncPartMasterModelCards(
   const part = await getPartById(partId)
   if (!part) throw new Error('Part not found')
 
-  const activeCards = cards.filter(c => {
-    const q = Number(c.qty)
-    return c.part_number.trim() && c.modelId && Number.isFinite(q) && q > 0
-  })
-
+  const { fitted: fittedCards, notFitted: notFittedCards } = partitionIplModelCards(cards)
   await deactivateAllBomItemsForPart(partId)
 
-  for (const card of activeCards) {
+  for (const card of fittedCards) {
     const vehicleModel = models.find(m => m.id === card.modelId)
     if (!vehicleModel) continue
     const stationCode = normalizeBomStationCodeText(
@@ -730,20 +766,30 @@ export async function syncPartMasterModelCards(
       part_number: card.part_number.trim(),
       quantity: Number(card.qty)
     })
-    await updateBomItem(bomId, {
-      part_number: card.part_number.trim(),
-      quantity: Number(card.qty),
-      part_name_ar: master.part_name_ar?.trim() || undefined,
-      part_name_en: master.part_name_en?.trim() || undefined,
-      vehicle_model_id: vehicleModel.id,
-      station_code_text: stationCode || null,
-      station_id: card.station_id || null,
-      part_kind: effectivePartKind(card.part_kind),
-      supply_source: effectiveSupplySource(card.supply_source),
-      applicable_models_text: card.modelName,
-      qty_by_model_raw: `${card.modelName}=${card.qty}`,
-      needs_review: !stationCode
-    })
+    const { error } = await client()
+      .from('bom_items')
+      .update({
+        part_number: card.part_number.trim(),
+        quantity: Number(card.qty),
+        part_name: master.part_name_ar?.trim() || master.part_name_en?.trim() || null,
+        vehicle_model_id: vehicleModel.id,
+        station_code_text: stationCode || null,
+        station_id: card.station_id || null,
+        supply_source: effectiveSupplySource(card.supply_source),
+        applicable_models_text: card.modelName,
+        qty_by_model_raw: `${card.modelName}=${card.qty}`,
+        needs_review: !stationCode,
+        is_active: true
+      })
+      .eq('id', bomId)
+    if (error) throw new Error(error.message)
+    if (iplFeedingHasContent(card.feeding)) await updateBomIplFeedingCard([bomId], card.feeding)
+  }
+
+  for (const card of notFittedCards) {
+    const vehicleModel = models.find(m => m.id === card.modelId)
+    if (!vehicleModel) continue
+    await ensureIplNotFittedLine(part, card.modelName, vehicleModel.id)
   }
 }
 
@@ -754,15 +800,12 @@ export async function savePartMasterFromListForm(
   cards: ModelCardDraft[],
   models: VehicleModel[]
 ): Promise<string> {
-  const activeCards = cards.filter(c => {
-    const q = Number(c.qty)
-    return c.part_number.trim() && c.modelId && Number.isFinite(q) && q > 0
-  })
+  const { fitted: fittedCards, notFitted: notFittedCards } = partitionIplModelCards(cards)
 
   let partId = editId
   const payload: PartMasterInput = {
     ...master,
-    model_names: activeCards.map(c => c.modelName)
+    model_names: fittedCards.map(c => c.modelName)
   }
 
   if (partId) {
@@ -772,7 +815,7 @@ export async function savePartMasterFromListForm(
     partId = res.id
   }
 
-  if (activeCards.length > 0) {
+  if (fittedCards.length > 0 || notFittedCards.length > 0) {
     await syncPartMasterModelCards(partId, master, cards, models)
   } else {
     await deactivateAllBomItemsForPart(partId)
@@ -795,7 +838,7 @@ async function appendApplicableModel(
   if (error) throw new Error(error.message)
 }
 
-function buildIplModelMergedRows(
+export function buildIplModelMergedRows(
   modelName: string,
   allBom: BomItemDetail[],
   masters: Part[],
@@ -804,7 +847,7 @@ function buildIplModelMergedRows(
   const target = modelName.trim().toUpperCase()
   const bomByPart = new Map<string, BomItemDetail>()
   for (const row of allBom) {
-    if (!bomRowMatchesModel(row, modelName)) continue
+    if (!bomRowAssignedToIplModel(row, modelName)) continue
     const existing = bomByPart.get(row.part_id)
     if (!existing) {
       bomByPart.set(row.part_id, row)
@@ -852,7 +895,7 @@ function buildIplModelMergedRows(
   return merged
 }
 
-async function fetchIplBomAndMasters(search?: string): Promise<{ allBom: BomItemDetail[]; masters: Part[] }> {
+export async function fetchIplBomAndMasters(search?: string): Promise<{ allBom: BomItemDetail[]; masters: Part[] }> {
   const [bomRes, masters] = await Promise.all([
     client().from('v_bom_items_detail').select('*').eq('is_active', true).limit(8000),
     listPartMastersLite({ search })
@@ -943,7 +986,8 @@ export async function ensureBomLineForPart(
     stopper_type: 'non_stopper' as const
   }
 
-  const { data: dup } = await client().from('bom_items').select('id').eq('import_line_key', lineKey).maybeSingle()
+  const { data: dups } = await client().from('bom_items').select('id').eq('import_line_key', lineKey).limit(1)
+  const dup = dups?.[0]
   if (dup?.id) {
     const { error } = await client()
       .from('bom_items')
@@ -955,8 +999,63 @@ export async function ensureBomLineForPart(
   }
 
   const { data, error } = await client().from('bom_items').insert(payload).select('id').single()
-  if (error) throw new Error(error.message)
+  if (error) {
+    const { data: again } = await client().from('bom_items').select('id').eq('import_line_key', lineKey).limit(1)
+    const existing = again?.[0]
+    if (existing?.id) {
+      const { error: updErr } = await client()
+        .from('bom_items')
+        .update({ ...payload, is_active: true })
+        .eq('id', existing.id)
+      if (updErr) throw new Error(updErr.message)
+      await appendApplicableModel(part.id, modelName, part.applicable_models_text)
+      return existing.id as string
+    }
+    throw new Error(error.message)
+  }
   await appendApplicableModel(part.id, modelName, part.applicable_models_text)
+  return data.id as string
+}
+
+async function ensureIplNotFittedLine(
+  part: Pick<Part, 'id' | 'part_number'>,
+  modelName: string,
+  vehicleModelId: string
+): Promise<string> {
+  const lineKey = bomImportLineKey({
+    normalizedPart: `NF-${part.id}`,
+    stationCode: '_',
+    modelName
+  })
+  const payload = {
+    part_id: part.id,
+    part_number: IPL_NOT_FITTED_PN,
+    part_name: null as string | null,
+    quantity: 0,
+    vehicle_model_id: vehicleModelId,
+    station_code_text: null as string | null,
+    applicable_models_text: modelName,
+    qty_by_model_raw: `${modelName}=${IPL_NOT_FITTED_QTY}`,
+    import_line_key: lineKey,
+    needs_review: false,
+    source_sheet: IPL_NOT_FITTED_SHEET,
+    is_active: true,
+    stopper_type: 'non_stopper' as const
+  }
+
+  const { data: nfDups } = await client().from('bom_items').select('id').eq('import_line_key', lineKey).limit(1)
+  const dup = nfDups?.[0]
+  if (dup?.id) {
+    const { error } = await client()
+      .from('bom_items')
+      .update({ ...payload, is_active: true })
+      .eq('id', dup.id)
+    if (error) throw new Error(error.message)
+    return dup.id as string
+  }
+
+  const { data, error } = await client().from('bom_items').insert(payload).select('id').single()
+  if (error) throw new Error(error.message)
   return data.id as string
 }
 

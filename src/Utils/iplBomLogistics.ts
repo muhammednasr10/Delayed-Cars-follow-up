@@ -71,6 +71,54 @@ export type BomIplFeedingCard = BomIplLogistics & {
   stopper_type: 'line_stopper' | 'car_stopper' | 'non_stopper'
 }
 
+export function emptyIplFeedingCard(): BomIplFeedingCard {
+  return withComputedVolumes({
+    part_length: '',
+    part_width: '',
+    part_height: '',
+    part_volume: '',
+    feeding_method: '',
+    packing: '',
+    part_direction: '',
+    carton_qty: '',
+    part_weight: '',
+    carton_weight: '',
+    rack_code: '',
+    rack_length: DEFAULT_RACK_LENGTH_CM,
+    rack_width: DEFAULT_RACK_WIDTH_CM,
+    rack_height: DEFAULT_RACK_HEIGHT_CM,
+    rack_size: '',
+    stopper_type: 'non_stopper'
+  })
+}
+
+export function iplFeedingHasContent(card: BomIplFeedingCard | undefined): boolean {
+  if (!card) return false
+  return [
+    card.feeding_method,
+    card.packing,
+    card.part_direction,
+    card.carton_qty,
+    card.part_length,
+    card.part_width,
+    card.part_height,
+    card.part_weight,
+    card.carton_weight,
+    card.rack_code
+  ].some(v => String(v ?? '').trim().length > 0)
+}
+
+export function pickRichestBomItemForFeeding(items: BomItemDetail[]): BomItemDetail | null {
+  if (items.length === 0) return null
+  return [...items].sort((a, b) => {
+    const score = (x: BomItemDetail) =>
+      [x.feeding_method, x.packing, x.part_length, x.part_weight, x.rack_code, x.carton_qty, x.part_number].filter(v =>
+        String(v ?? '').trim()
+      ).length
+    return score(b) - score(a)
+  })[0]
+}
+
 export function iplFeedingCardFromBomItem(
   item: Pick<BomItemDetail, keyof BomIplLogistics | 'side' | 'position' | 'stopper_type'>
 ): BomIplFeedingCard {

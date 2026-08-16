@@ -10,7 +10,8 @@ import {
   isSchemaMissing,
   listResolvedMonths,
   openVehicleShortageLines,
-  uniqueVehicleReps
+  uniqueVehicleReps,
+  completerNames
 } from './missingPartPageUtils'
 
 function part(overrides: Partial<MissingPartDetail> & Pick<MissingPartDetail, 'id' | 'vehicleId' | 'vin'>): MissingPartDetail {
@@ -46,6 +47,9 @@ function part(overrides: Partial<MissingPartDetail> & Pick<MissingPartDetail, 'i
     reportGroupId: null,
     stationId: null,
     factoryOrgUnitId: null,
+    shortageResolvedByName: null,
+    pendingTransferRequestId: null,
+    pendingRestoreRequestId: null,
     ...overrides
   }
 }
@@ -75,16 +79,37 @@ describe('applyFilters', () => {
   ]
 
   it('filters by model and department', () => {
-    const byModel = applyFilters(items, { search: '', modelNames: ['SEDAN-A'], departments: [], resolvedMonth: null })
+    const byModel = applyFilters(items, {
+      search: '',
+      modelNames: ['SEDAN-A'],
+      departments: [],
+      resolvedMonth: null,
+      dateFrom: '',
+      dateTo: ''
+    })
     expect(byModel).toHaveLength(3)
 
-    const byDept = applyFilters(items, { search: '', modelNames: [], departments: ['paint'], resolvedMonth: null })
+    const byDept = applyFilters(items, {
+      search: '',
+      modelNames: [],
+      departments: ['paint'],
+      resolvedMonth: null,
+      dateFrom: '',
+      dateTo: ''
+    })
     expect(byDept).toHaveLength(1)
     expect(byDept[0].vin).toBe('VIN002')
   })
 
   it('includes all vehicles in a report group when one member matches search', () => {
-    const filtered = applyFilters(items, { search: 'mirror', modelNames: [], departments: [], resolvedMonth: null })
+    const filtered = applyFilters(items, {
+      search: 'mirror',
+      modelNames: [],
+      departments: [],
+      resolvedMonth: null,
+      dateFrom: '',
+      dateTo: ''
+    })
     const vins = filtered.map(i => i.vin).sort()
     expect(vins).toEqual(['VIN003', 'VIN004'])
   })
@@ -99,12 +124,41 @@ describe('applyFilters', () => {
       search: '',
       modelNames: [],
       departments: [],
-      resolvedMonth: '2026-08'
+      resolvedMonth: '2026-08',
+      dateFrom: '',
+      dateTo: ''
     })
     expect(august.map(i => i.vin).sort()).toEqual(['A001', 'A003'])
 
     const months = listResolvedMonths(archived)
     expect(months).toEqual(['2026-08', '2026-07'])
+  })
+
+  it('filters by createdAt local date range', () => {
+    const dated = [
+      part({ id: 'd1', vehicleId: 'vd1', vin: 'D001', createdAt: '2026-08-10T12:00:00Z' }),
+      part({ id: 'd2', vehicleId: 'vd2', vin: 'D002', createdAt: '2026-08-16T08:00:00Z' }),
+      part({ id: 'd3', vehicleId: 'vd3', vin: 'D003', createdAt: '2026-08-20T00:00:00Z' })
+    ]
+    const mid = applyFilters(dated, {
+      search: '',
+      modelNames: [],
+      departments: [],
+      resolvedMonth: null,
+      dateFrom: '2026-08-16',
+      dateTo: '2026-08-16'
+    })
+    expect(mid.map(i => i.vin)).toEqual(['D002'])
+
+    const range = applyFilters(dated, {
+      search: '',
+      modelNames: [],
+      departments: [],
+      resolvedMonth: null,
+      dateFrom: '2026-08-10',
+      dateTo: '2026-08-16'
+    })
+    expect(range.map(i => i.vin).sort()).toEqual(['D001', 'D002'])
   })
 })
 
@@ -180,6 +234,21 @@ describe('model and family counts', () => {
     expect(summaries).toHaveLength(1)
     expect(summaries[0].vin).toBe('VIN001')
     expect(summaries[0].parts).toHaveLength(2)
+  })
+})
+
+describe('completerNames', () => {
+  it('joins unique completer names', () => {
+    expect(
+      completerNames([
+        part({ id: '1', vehicleId: 'v1', vin: '1', shortageResolvedByName: 'أحمد' }),
+        part({ id: '2', vehicleId: 'v1', vin: '1', shortageResolvedByName: ' أحمد ' })
+      ])
+    ).toBe('أحمد')
+  })
+
+  it('shows dash when no completer is stored', () => {
+    expect(completerNames([part({ id: '1', vehicleId: 'v1', vin: '1' })])).toBe('—')
   })
 })
 

@@ -5,6 +5,7 @@ import {
   DEFAULT_RACK_HEIGHT_CM,
   DEFAULT_RACK_LENGTH_CM,
   DEFAULT_RACK_WIDTH_CM,
+  emptyIplFeedingCard,
   iplFeedingCardFromBomItem,
   PACKING_TYPES,
   type BomIplFeedingCard,
@@ -16,13 +17,17 @@ import { BomStopperExclusionsModal } from './BomStopperExclusionsModal'
 import { StopperChip } from '../StatusChips'
 import type { StopperType } from '../../Types/enums'
 import { getWarehouseRacks } from '../../services/warehouseEquipmentService'
+import { isPendingBomItemId } from '../../Utils/iplModelParts'
 import type { WarehouseRack } from '../../Types/warehouse'
 
 type Props = {
-  group: BomDisplayGroup
+  group?: BomDisplayGroup | null
   canUpdate: boolean
   saving?: boolean
-  onSave: (itemIds: string[], card: BomIplFeedingCard) => Promise<void>
+  onSave?: (itemIds: string[], card: BomIplFeedingCard) => Promise<void>
+  value?: BomIplFeedingCard
+  onChange?: (card: BomIplFeedingCard) => void
+  hideSave?: boolean
 }
 
 const DIRECTION_OPTIONS = [
@@ -48,21 +53,35 @@ function fieldLabel(t: (k: string) => string, key: string, unit?: string): strin
   return unit ? `${base} (${unit})` : base
 }
 
-export function BomIplLogisticsPanel({ group, canUpdate, saving, onSave }: Props) {
+export function BomIplLogisticsPanel({
+  group,
+  canUpdate,
+  saving,
+  onSave,
+  value,
+  onChange,
+  hideSave
+}: Props) {
   const { t } = useLang()
-  const [draft, setDraft] = useState<BomIplFeedingCard>(() => iplFeedingCardFromBomItem(group.primary))
+  const [localDraft, setLocalDraft] = useState<BomIplFeedingCard>(
+    () => value ?? (group ? iplFeedingCardFromBomItem(group.primary) : emptyIplFeedingCard())
+  )
+  const draft = value ?? localDraft
   const [error, setError] = useState('')
   const [exclusionsOpen, setExclusionsOpen] = useState(false)
   const [racks, setRacks] = useState<WarehouseRack[]>([])
 
-  const itemIds = [group.primary.id, ...group.variants.map(v => v.id).filter((id): id is string => Boolean(id))].filter(
-    (id, i, arr) => arr.indexOf(id) === i
-  )
+  const itemIds = group
+    ? [group.primary.id, ...group.variants.map(v => v.id).filter((id): id is string => Boolean(id))].filter(
+        (id, i, arr) => arr.indexOf(id) === i
+      )
+    : []
 
   useEffect(() => {
-    setDraft(iplFeedingCardFromBomItem(group.primary))
+    if (value) return
+    setLocalDraft(group ? iplFeedingCardFromBomItem(group.primary) : emptyIplFeedingCard())
     setError('')
-  }, [group.key, group.primary])
+  }, [value, group?.key, group?.primary])
 
   useEffect(() => {
     void getWarehouseRacks()
@@ -71,15 +90,18 @@ export function BomIplLogisticsPanel({ group, canUpdate, saving, onSave }: Props
   }, [])
 
   function patch(partial: Partial<BomIplFeedingCard>) {
-    setDraft(prev => ({
-      ...withComputedVolumes({ ...prev, ...partial }),
-      stopper_type: partial.stopper_type ?? prev.stopper_type
-    }))
+    const next: BomIplFeedingCard = {
+      ...withComputedVolumes({ ...draft, ...partial }),
+      stopper_type: partial.stopper_type ?? draft.stopper_type
+    }
+    onChange?.(next)
+    if (!value) setLocalDraft(next)
   }
 
   const showPartDims = Boolean(draft.packing)
 
   async function save() {
+    if (!onSave) return
     setError('')
     try {
       const payload: BomIplFeedingCard = {
@@ -125,13 +147,15 @@ export function BomIplLogisticsPanel({ group, canUpdate, saving, onSave }: Props
           {draft.stopper_type !== 'non_stopper' && (
             <>
               <StopperChip type={draft.stopper_type as StopperType} />
-              <button
-                type="button"
-                className="text-xs font-bold text-cyan-300 hover:text-cyan-200"
-                onClick={() => setExclusionsOpen(true)}
-              >
-                {t('bom.stopperExclusionsClick')}
-              </button>
+              {group && !isPendingBomItemId(group.primary.id) && (
+                <button
+                  type="button"
+                  className="text-xs font-bold text-cyan-300 hover:text-cyan-200"
+                  onClick={() => setExclusionsOpen(true)}
+                >
+                  {t('bom.stopperExclusionsClick')}
+                </button>
+              )}
             </>
           )}
         </div>
@@ -367,7 +391,7 @@ export function BomIplLogisticsPanel({ group, canUpdate, saving, onSave }: Props
         </div>
       </div>
 
-      {canUpdate && (
+      {canUpdate && !hideSave && onSave && (
         <div className="mt-3 flex justify-end">
           <button
             type="button"
@@ -380,7 +404,9 @@ export function BomIplLogisticsPanel({ group, canUpdate, saving, onSave }: Props
         </div>
       )}
 
-      <BomStopperExclusionsModal item={group.primary} open={exclusionsOpen} onClose={() => setExclusionsOpen(false)} />
+      {group && !isPendingBomItemId(group.primary.id) && (
+        <BomStopperExclusionsModal item={group.primary} open={exclusionsOpen} onClose={() => setExclusionsOpen(false)} />
+      )}
     </div>
   )
 }
