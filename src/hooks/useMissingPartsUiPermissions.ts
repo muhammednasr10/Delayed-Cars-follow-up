@@ -109,7 +109,9 @@ export function useMissingPartsUiPermissions() {
     const productionLike =
       bits.hasRole('admin', 'production', 'quality') ||
       (bits.systemRoleCode !== null &&
-        ['supervisor', 'production_manager', 'general_manager', 'engineer'].includes(bits.systemRoleCode))
+        ['supervisor', 'data_entry', 'production_manager', 'general_manager', 'engineer'].includes(
+          bits.systemRoleCode
+        ))
     return elevated || productionLike || bits.hasRole('warehouse', 'purchasing')
   })
 
@@ -120,7 +122,9 @@ export function useMissingPartsUiPermissions() {
     const productionLike =
       bits.hasRole('admin', 'production', 'quality') ||
       (bits.systemRoleCode !== null &&
-        ['supervisor', 'production_manager', 'general_manager', 'engineer'].includes(bits.systemRoleCode))
+        ['supervisor', 'data_entry', 'production_manager', 'general_manager', 'engineer'].includes(
+          bits.systemRoleCode
+        ))
     return (
       elevated ||
       productionLike ||

@@ -12,8 +12,6 @@ export const ACTIVE_COLS = [
   'createdBy',
   'qty',
   'reason',
-  'reasonClass',
-  'department',
   'dateTime',
   'actions'
 ] as const
@@ -25,8 +23,6 @@ export const HISTORY_COLS = [
   'createdBy',
   'qty',
   'reason',
-  'reasonClass',
-  'department',
   'dateTime',
   'completer',
   'resolvedAt',
@@ -99,13 +95,37 @@ export function todayLocalDayKey(): string {
   return `${y}-${m}-${day}`
 }
 
+function matchesDepartmentFilter(
+  rowDept: string | null | undefined,
+  filterDeptIds: string[],
+  orgUnits: FactoryOrgUnit[]
+): boolean {
+  if (filterDeptIds.length === 0) return true
+  if (!rowDept) return false
+  return filterDeptIds.some(
+    d => d === rowDept || (orgUnits.length > 0 && employeeMatchesOrgFilter(rowDept, d, orgUnits))
+  )
+}
+
+export function hasActiveMissingPartFilters(filters: MissingPartFilters): boolean {
+  return Boolean(
+    filters.search.trim() ||
+      filters.modelNames.length > 0 ||
+      filters.departments.length > 0 ||
+      filters.completingDepartments.length > 0 ||
+      filters.followUpEmployeeId ||
+      filters.resolvedMonth ||
+      filters.dateFrom ||
+      filters.dateTo
+  )
+}
+
 export function applyFilters(
   items: MissingPartDetail[],
   filters: MissingPartFilters,
   options?: { dateField?: 'created' | 'resolved'; orgUnits?: FactoryOrgUnit[] }
 ) {
   const models = new Set(filters.modelNames)
-  const departments = [...filters.departments]
   const orgUnits = options?.orgUnits ?? []
   const month = filters.resolvedMonth
   const dateFrom = filters.dateFrom?.trim() ?? ''
@@ -113,13 +133,9 @@ export function applyFilters(
   const dateField = options?.dateField ?? 'created'
   const base = items
     .filter(i => models.size === 0 || models.has(i.modelName))
-    .filter(i => {
-      if (departments.length === 0) return true
-      if (!i.department) return false
-      return departments.some(
-        d => d === i.department || (orgUnits.length > 0 && employeeMatchesOrgFilter(i.department, d, orgUnits))
-      )
-    })
+    .filter(i => matchesDepartmentFilter(i.department, filters.departments, orgUnits))
+    .filter(i => matchesDepartmentFilter(i.completingDepartment, filters.completingDepartments, orgUnits))
+    .filter(i => !filters.followUpEmployeeId || i.followUpEmployeeId === filters.followUpEmployeeId)
     .filter(i => !month || resolvedMonthKey(i.shortageResolvedAt) === month)
     .filter(i => {
       if (!dateFrom && !dateTo) return true
@@ -153,7 +169,11 @@ export function canCompleteVehicle(vehicleId: string, parts: MissingPartDetail[]
 
 export function reporterNames(parts: MissingPartDetail[]): string {
   const names = [
-    ...new Set(parts.map(p => p.createdByName?.trim()).filter((n): n is string => Boolean(n)))
+    ...new Set(
+      parts
+        .map(p => p.createdByName?.trim() || p.createdByEmail?.trim())
+        .filter((n): n is string => Boolean(n))
+    )
   ]
   return names.length > 0 ? names.join(' · ') : '—'
 }

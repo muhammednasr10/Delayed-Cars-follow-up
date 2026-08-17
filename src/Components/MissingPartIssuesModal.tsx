@@ -18,11 +18,13 @@ export function MissingPartIssuesModal({ parts, vin, modelName, reasons, departm
   const { t, lang } = useLang()
   if (!parts?.length) return null
 
+  const single = parts.length === 1
+
   return (
     <Modal
       open={Boolean(parts?.length)}
-      title={t('mp.issuesListModal.title')}
-      subtitle={t('mp.issuesListModal.subtitle', { n: parts.length })}
+      title={single ? parts[0].partDescription : t('mp.issuesListModal.title')}
+      subtitle={single ? t('mp.issuesListModal.cardSubtitle') : t('mp.issuesListModal.subtitle', { n: parts.length })}
       icon={<AlertTriangle className="h-5 w-5" />}
       onClose={onClose}
       maxWidthClass="max-w-lg"
@@ -38,43 +40,48 @@ export function MissingPartIssuesModal({ parts, vin, modelName, reasons, departm
         </div>
       )}
 
-      <div className="max-h-[min(60vh,420px)] space-y-2 overflow-y-auto pe-1">
+      <div className="max-h-[min(60vh,420px)] space-y-3 overflow-y-auto pe-1">
         {parts.map((part, i) => (
-          <div key={part.id} className="rounded-xl border border-amber-500/25 bg-amber-500/5 px-4 py-3 text-start">
-            <p className="text-[10px] font-bold uppercase text-slate-500">{i + 1}</p>
-            <p className="mt-1 text-sm font-bold text-white">{part.partDescription}</p>
-            <div className="mt-2 flex flex-wrap gap-x-3 gap-y-1 text-xs text-slate-400">
-              <span>
-                {t('mp.cols.reasonClass')}:{' '}
-                <span className="text-cyan-200">{mpLookupLabel(reasons, part.reason, lang)}</span>
-              </span>
-              <span>
-                {t('mp.cols.department')}:{' '}
-                <span className="text-slate-200">{mpLookupLabel(departments, part.department, lang)}</span>
-              </span>
-              {part.completingDepartment && (
-                <span>
-                  {t('mp.cols.completingDepartment')}:{' '}
-                  <span className="text-slate-200">
-                    {mpLookupLabel(departments, part.completingDepartment, lang)}
-                  </span>
-                </span>
-              )}
-              {part.followUpEmployeeName && (
-                <span>
-                  {t('mp.cols.followUpEmployee')}: <span className="text-slate-200">{part.followUpEmployeeName}</span>
-                </span>
-              )}
-              <span>
-                {t('mp.issuesListModal.qty')}:{' '}
-                <span className="font-mono text-slate-200">
-                  {part.installedQty}/{part.requiredQty}
-                </span>
-              </span>
-            </div>
-          </div>
+          <article
+            key={part.id}
+            className="rounded-xl border border-amber-500/25 bg-amber-500/5 px-4 py-3 text-start"
+          >
+            {!single && (
+              <>
+                <p className="text-[10px] font-bold uppercase text-slate-500">{i + 1}</p>
+                <p className="mt-1 text-sm font-bold text-white">{part.partDescription}</p>
+              </>
+            )}
+            <dl className={`grid grid-cols-1 gap-2 sm:grid-cols-2 ${single ? '' : 'mt-3'}`}>
+              <Field
+                label={t('mp.cols.reasonClass')}
+                value={mpLookupLabel(reasons, part.reason, lang)}
+              />
+              <Field
+                label={t('mp.cols.causingDepartment')}
+                value={mpLookupLabel(departments, part.department, lang)}
+              />
+              <Field
+                label={t('mp.cols.followUpEmployee')}
+                value={part.followUpEmployeeName?.trim() || '—'}
+              />
+              <Field
+                label={t('mp.cols.completingDepartment')}
+                value={mpLookupLabel(departments, part.completingDepartment ?? '', lang)}
+              />
+            </dl>
+          </article>
         ))}
       </div>
     </Modal>
+  )
+}
+
+function Field({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="rounded-lg border border-slate-800 bg-slate-950/70 px-3 py-2">
+      <dt className="text-[11px] font-bold text-slate-500">{label}</dt>
+      <dd className="mt-0.5 text-sm font-medium text-slate-100">{value}</dd>
+    </div>
   )
 }

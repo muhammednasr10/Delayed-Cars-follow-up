@@ -7,12 +7,14 @@ import {
   buildModelVehicleCounts,
   buildVariantVehicleSummaries,
   canCompleteVehicle,
+  hasActiveMissingPartFilters,
   isSchemaMissing,
   listResolvedMonths,
   openVehicleShortageLines,
   uniqueVehicleReps,
   completerNames
 } from './missingPartPageUtils'
+import type { MissingPartFilters } from '../Types/missingPart'
 
 function part(overrides: Partial<MissingPartDetail> & Pick<MissingPartDetail, 'id' | 'vehicleId' | 'vin'>): MissingPartDetail {
   return {
@@ -58,6 +60,20 @@ function part(overrides: Partial<MissingPartDetail> & Pick<MissingPartDetail, 'i
   }
 }
 
+function emptyFilters(overrides: Partial<MissingPartFilters> = {}): MissingPartFilters {
+  return {
+    search: '',
+    modelNames: [],
+    departments: [],
+    completingDepartments: [],
+    followUpEmployeeId: '',
+    resolvedMonth: null,
+    dateFrom: '',
+    dateTo: '',
+    ...overrides
+  }
+}
+
 describe('applyFilters', () => {
   const items = [
     part({ id: '1', vehicleId: 'v1', vin: 'VIN001', modelName: 'SEDAN-A', department: 'body' }),
@@ -83,37 +99,45 @@ describe('applyFilters', () => {
   ]
 
   it('filters by model and department', () => {
-    const byModel = applyFilters(items, {
-      search: '',
-      modelNames: ['SEDAN-A'],
-      departments: [],
-      resolvedMonth: null,
-      dateFrom: '',
-      dateTo: ''
-    })
+    const byModel = applyFilters(items, emptyFilters({ modelNames: ['SEDAN-A'] }))
     expect(byModel).toHaveLength(3)
 
-    const byDept = applyFilters(items, {
-      search: '',
-      modelNames: [],
-      departments: ['paint'],
-      resolvedMonth: null,
-      dateFrom: '',
-      dateTo: ''
-    })
+    const byDept = applyFilters(items, emptyFilters({ departments: ['paint'] }))
     expect(byDept).toHaveLength(1)
     expect(byDept[0].vin).toBe('VIN002')
   })
 
+  it('filters by completing department and follow-up employee', () => {
+    const withMeta = [
+      part({
+        id: '1',
+        vehicleId: 'v1',
+        vin: 'VIN001',
+        completingDepartment: 'paint',
+        followUpEmployeeId: 'emp-1'
+      }),
+      part({
+        id: '2',
+        vehicleId: 'v2',
+        vin: 'VIN002',
+        completingDepartment: 'body',
+        followUpEmployeeId: 'emp-2'
+      }),
+      part({
+        id: '3',
+        vehicleId: 'v3',
+        vin: 'VIN003',
+        completingDepartment: 'paint',
+        followUpEmployeeId: 'emp-2'
+      })
+    ]
+    expect(applyFilters(withMeta, emptyFilters({ completingDepartments: ['paint'] }))).toHaveLength(2)
+    expect(applyFilters(withMeta, emptyFilters({ followUpEmployeeId: 'emp-1' }))).toHaveLength(1)
+    expect(applyFilters(withMeta, emptyFilters({ completingDepartments: ['paint'], followUpEmployeeId: 'emp-2' }))).toHaveLength(1)
+  })
+
   it('includes all vehicles in a report group when one member matches search', () => {
-    const filtered = applyFilters(items, {
-      search: 'mirror',
-      modelNames: [],
-      departments: [],
-      resolvedMonth: null,
-      dateFrom: '',
-      dateTo: ''
-    })
+    const filtered = applyFilters(items, emptyFilters({ search: 'mirror' }))
     const vins = filtered.map(i => i.vin).sort()
     expect(vins).toEqual(['VIN003', 'VIN004'])
   })
@@ -124,14 +148,7 @@ describe('applyFilters', () => {
       part({ id: 'a2', vehicleId: 'va2', vin: 'A002', shortageResolvedAt: '2026-07-05T08:00:00Z' }),
       part({ id: 'a3', vehicleId: 'va3', vin: 'A003', shortageResolvedAt: '2026-08-01T00:00:00Z' })
     ]
-    const august = applyFilters(archived, {
-      search: '',
-      modelNames: [],
-      departments: [],
-      resolvedMonth: '2026-08',
-      dateFrom: '',
-      dateTo: ''
-    })
+    const august = applyFilters(archived, emptyFilters({ resolvedMonth: '2026-08' }))
     expect(august.map(i => i.vin).sort()).toEqual(['A001', 'A003'])
 
     const months = listResolvedMonths(archived)
@@ -144,24 +161,10 @@ describe('applyFilters', () => {
       part({ id: 'd2', vehicleId: 'vd2', vin: 'D002', createdAt: '2026-08-16T08:00:00Z' }),
       part({ id: 'd3', vehicleId: 'vd3', vin: 'D003', createdAt: '2026-08-20T00:00:00Z' })
     ]
-    const mid = applyFilters(dated, {
-      search: '',
-      modelNames: [],
-      departments: [],
-      resolvedMonth: null,
-      dateFrom: '2026-08-16',
-      dateTo: '2026-08-16'
-    })
+    const mid = applyFilters(dated, emptyFilters({ dateFrom: '2026-08-16', dateTo: '2026-08-16' }))
     expect(mid.map(i => i.vin)).toEqual(['D002'])
 
-    const range = applyFilters(dated, {
-      search: '',
-      modelNames: [],
-      departments: [],
-      resolvedMonth: null,
-      dateFrom: '2026-08-10',
-      dateTo: '2026-08-16'
-    })
+    const range = applyFilters(dated, emptyFilters({ dateFrom: '2026-08-10', dateTo: '2026-08-16' }))
     expect(range.map(i => i.vin).sort()).toEqual(['D001', 'D002'])
   })
 
@@ -184,17 +187,19 @@ describe('applyFilters', () => {
     ]
     const today = applyFilters(
       archived,
-      {
-        search: '',
-        modelNames: [],
-        departments: [],
-        resolvedMonth: null,
-        dateFrom: '2026-08-16',
-        dateTo: '2026-08-16'
-      },
+      emptyFilters({ dateFrom: '2026-08-16', dateTo: '2026-08-16' }),
       { dateField: 'resolved' }
     )
     expect(today.map(i => i.vin)).toEqual(['D002'])
+  })
+})
+
+describe('hasActiveMissingPartFilters', () => {
+  it('detects active filters including new fields', () => {
+    expect(hasActiveMissingPartFilters(emptyFilters())).toBe(false)
+    expect(hasActiveMissingPartFilters(emptyFilters({ completingDepartments: ['body'] }))).toBe(true)
+    expect(hasActiveMissingPartFilters(emptyFilters({ followUpEmployeeId: 'emp-1' }))).toBe(true)
+    expect(hasActiveMissingPartFilters(emptyFilters({ dateFrom: '2026-08-01' }))).toBe(true)
   })
 })
 

@@ -1,4 +1,4 @@
-import { useMemo } from 'react'
+import { useMemo, type ReactNode } from 'react'
 import {
   AlertTriangle,
   Archive,
@@ -13,11 +13,13 @@ import { useLang } from '../../i18n/LanguageContext'
 import type { FactoryOrgUnit } from '../../Types/factoryOrg'
 import type { MissingPartDetail, MissingPartFilters, MissingPartsListTab } from '../../Types/missingPart'
 import { FilterMultiSelect } from '../FilterMultiSelect'
+import { EmployeeAutocomplete } from '../EmployeeAutocomplete'
 import { OrgUnitCascadeField } from '../OrgUnitCascadeField'
 import { MissingPartSearchAutocomplete } from './MissingPartSearchAutocomplete'
 import { MissingPartsModelSummaryTable } from './MissingPartsModelSummaryTable'
 import { formatResolvedMonthLabel, listResolvedMonths } from '../../Utils/missingPartPageUtils'
 import { MissingPartsDateFilters } from './MissingPartsDateFilters'
+import type { Employee } from '../../Types/employee'
 
 export type ListTab = MissingPartsListTab
 export type CurrentShortageView = 'active' | 'byFamily'
@@ -37,6 +39,7 @@ type Props = {
   onFiltersChange: (patch: Partial<MissingPartFilters>) => void
   modelOptions: string[]
   orgUnits: FactoryOrgUnit[]
+  employees: Employee[]
   canReport: boolean
   role: string
   onReport: () => void
@@ -60,6 +63,7 @@ export function MissingPartsToolbar({
   onFiltersChange,
   modelOptions,
   orgUnits,
+  employees,
   canReport,
   role,
   onReport,
@@ -71,6 +75,7 @@ export function MissingPartsToolbar({
   const isArchiveTab = listTab === 'history' || listTab === 'historySummary'
   const monthOptions = useMemo(() => (isArchiveTab ? listResolvedMonths(searchPool) : []), [isArchiveTab, searchPool])
   const departmentFilterValue = filters.departments[0] ?? ''
+  const completingDepartmentFilterValue = filters.completingDepartments[0] ?? ''
   const activeOrgUnits = useMemo(() => orgUnits.filter(u => u.isActive), [orgUnits])
 
   const showCurrentGroup = visibleTabs.includes('active') || visibleTabs.includes('byFamily')
@@ -223,56 +228,96 @@ export function MissingPartsToolbar({
 
       {canUseFilters &&
         (listTab === 'active' || listTab === 'byFamily' || listTab === 'history' || listTab === 'historySummary') && (
-          <div className="flex flex-wrap items-end gap-3">
-            <div className="min-w-[12rem] flex-1">
-              <MissingPartSearchAutocomplete
-                items={searchPool}
-                value={filters.search}
-                onChange={search => onFiltersChange({ search })}
+          <div className="space-y-3">
+            <div className="flex flex-wrap items-end gap-3">
+              <FilterField label={t('mp.filterSearch')} className="min-w-[12rem] flex-[2]">
+                <MissingPartSearchAutocomplete
+                  items={searchPool}
+                  value={filters.search}
+                  onChange={search => onFiltersChange({ search })}
+                />
+              </FilterField>
+              <FilterField label={t('mp.filterModelLabel')} className="min-w-[10rem] flex-1">
+                <FilterMultiSelect
+                  options={modelSelectOptions}
+                  value={filters.modelNames}
+                  onChange={modelNames => onFiltersChange({ modelNames })}
+                  allLabel={t('mp.filterModel')}
+                  selectedCountLabel={n => t('mp.filterSelectedCount', { n })}
+                  clearLabel={t('mp.filterClear')}
+                />
+              </FilterField>
+              <MissingPartsDateFilters
+                dateFrom={filters.dateFrom}
+                dateTo={filters.dateTo}
+                onChange={patch => onFiltersChange(patch)}
               />
+              {isArchiveTab && (
+                <FilterField label={t('mp.filterMonthLabel')} className="min-w-[9rem]">
+                  <select
+                    className="input-dark w-full"
+                    value={filters.resolvedMonth ?? ''}
+                    onChange={e => onFiltersChange({ resolvedMonth: e.target.value || null })}
+                    aria-label={t('mp.filterMonthLabel')}
+                  >
+                    <option value="">{t('mp.filterMonth')}</option>
+                    {monthOptions.map(key => (
+                      <option key={key} value={key}>
+                        {formatResolvedMonthLabel(key, lang)}
+                      </option>
+                    ))}
+                  </select>
+                </FilterField>
+              )}
             </div>
-            <div className="min-w-[10rem] flex-1">
-              <FilterMultiSelect
-                options={modelSelectOptions}
-                value={filters.modelNames}
-                onChange={modelNames => onFiltersChange({ modelNames })}
-                allLabel={t('mp.filterModel')}
-                selectedCountLabel={n => t('mp.filterSelectedCount', { n })}
-                clearLabel={t('mp.filterClear')}
-              />
+            <div className="flex flex-wrap items-end gap-3">
+              <FilterField label={t('mp.cols.causingDepartment')} className="min-w-[14rem] flex-1">
+                <OrgUnitCascadeField
+                  units={activeOrgUnits}
+                  value={departmentFilterValue}
+                  onChange={id => onFiltersChange({ departments: id ? [id] : [] })}
+                  emptyLabel={t('mp.filterCausingDepartmentAll')}
+                  showPathPreview={false}
+                />
+              </FilterField>
+              <FilterField label={t('mp.cols.completingDepartment')} className="min-w-[14rem] flex-1">
+                <OrgUnitCascadeField
+                  units={activeOrgUnits}
+                  value={completingDepartmentFilterValue}
+                  onChange={id => onFiltersChange({ completingDepartments: id ? [id] : [] })}
+                  emptyLabel={t('mp.filterCompletingDepartmentAll')}
+                  showPathPreview={false}
+                />
+              </FilterField>
+              <FilterField label={t('mp.cols.followUpEmployee')} className="min-w-[14rem] flex-1">
+                <EmployeeAutocomplete
+                  employees={employees}
+                  value={filters.followUpEmployeeId}
+                  onChange={followUpEmployeeId => onFiltersChange({ followUpEmployeeId })}
+                  placeholder={t('mp.filterFollowUpEmployeeAll')}
+                  activeOnly={false}
+                />
+              </FilterField>
             </div>
-            <div className="min-w-[14rem] flex-1">
-              <OrgUnitCascadeField
-                units={activeOrgUnits}
-                value={departmentFilterValue}
-                onChange={id => onFiltersChange({ departments: id ? [id] : [] })}
-                emptyLabel={t('mp.filterDepartment')}
-                showPathPreview={false}
-              />
-            </div>
-            {isArchiveTab && (
-              <select
-                className="input-dark min-w-[9rem]"
-                value={filters.resolvedMonth ?? ''}
-                onChange={e => onFiltersChange({ resolvedMonth: e.target.value || null })}
-                aria-label={t('mp.filterMonthLabel')}
-                title={t('mp.filterMonthLabel')}
-              >
-                <option value="">{t('mp.filterMonth')}</option>
-                {monthOptions.map(key => (
-                  <option key={key} value={key}>
-                    {formatResolvedMonthLabel(key, lang)}
-                  </option>
-                ))}
-              </select>
-            )}
-            <MissingPartsDateFilters
-              dateFrom={filters.dateFrom}
-              dateTo={filters.dateTo}
-              onChange={patch => onFiltersChange(patch)}
-            />
           </div>
         )}
     </div>
+  )
+}
+
+function FilterField({
+  label,
+  className,
+  children
+}: {
+  label: string
+  className?: string
+  children: ReactNode
+}) {
+  return (
+    <label className={`flex flex-col gap-1 ${className ?? ''}`}>
+      <span className="text-xs font-bold text-slate-400">{label}</span>
+      {children}
+    </label>
   )
 }

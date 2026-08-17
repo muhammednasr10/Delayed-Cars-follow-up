@@ -71,7 +71,7 @@ export function dimensionDepartment(row: MissingPartDetail) {
 }
 
 export function dimensionReporter(row: MissingPartDetail) {
-  return row.createdByName?.trim() || '—'
+  return row.createdByName?.trim() || row.createdByEmail?.trim() || '—'
 }
 
 export function dimensionStation(row: MissingPartDetail) {

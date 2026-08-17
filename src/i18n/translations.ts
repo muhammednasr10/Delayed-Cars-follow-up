@@ -1630,7 +1630,13 @@ export const translations = {
       vinCount: '{n} شاسيه',
       batchHintTotal: 'إجمالي سجلات النقص: {total}',
       vinListModal: { title: 'أرقام الشاسيه', subtitle: '{n} سيارة', open: 'عرض أرقام الشاسيه' },
-      issuesListModal: { title: 'أسباب النقص', subtitle: '{n} سبب', open: 'عرض أسباب النقص', qty: 'الكمية' },
+      issuesListModal: {
+        title: 'أسباب النقص',
+        subtitle: '{n} سبب',
+        cardSubtitle: 'تصنيف السبب والقسم وموظف المتابعة',
+        open: 'عرض أسباب النقص',
+        qty: 'الكمية'
+      },
       modelSummary: {
         total: 'إجمالي السيارات',
         variantsTitle: 'موديلات الفرع — {family}',
@@ -1700,8 +1706,13 @@ export const translations = {
       lookupNewPlaceholder: 'الاسم بالعربية',
       lookupLabelRequired: 'أدخل الاسم.',
       filterStation: 'كل المحطات',
+      filterSearch: 'بحث',
       filterModel: 'كل الموديلات',
+      filterModelLabel: 'الموديل',
       filterDepartment: 'كل الأقسام',
+      filterCausingDepartmentAll: 'كل الأقسام المتسببة',
+      filterCompletingDepartmentAll: 'كل الأقسام المتممة',
+      filterFollowUpEmployeeAll: 'كل موظفي المتابعة',
       filterMonth: 'كل الشهور',
       filterMonthLabel: 'الشهر',
       filterSelectedCount: '{n} محدد',
@@ -1806,6 +1817,8 @@ export const translations = {
       detail: { title: 'تفاصيل النقص', stopper: 'عند الإنهاء (نوع الإيقاف)' },
       vehicleCard: {
         title: 'بيانات السيارة',
+        vinCountSubtitle: '{n} شاسيه',
+        chassisList: 'أرقام الشاسيه ({n})',
         section: { vehicle: 'بيانات السيارة', issues: 'النواقص', station: 'المحطة', reporter: 'المبلّغ' },
         noIssues: 'لا توجد نواقص مسجّلة.',
         archiveAction: 'ترحيل',
@@ -4971,6 +4984,7 @@ export const translations = {
       issuesListModal: {
         title: 'Shortage reasons',
         subtitle: '{n} reasons',
+        cardSubtitle: 'Reason class, department, and follow-up',
         open: 'Show shortage reasons',
         qty: 'Qty'
       },
@@ -5043,8 +5057,13 @@ export const translations = {
       lookupNewPlaceholder: 'Arabic name',
       lookupLabelRequired: 'Enter a name.',
       filterStation: 'All stations',
+      filterSearch: 'Search',
       filterModel: 'All models',
+      filterModelLabel: 'Model',
       filterDepartment: 'All departments',
+      filterCausingDepartmentAll: 'All causing departments',
+      filterCompletingDepartmentAll: 'All completing departments',
+      filterFollowUpEmployeeAll: 'All follow-up employees',
       filterMonth: 'All months',
       filterMonthLabel: 'Month',
       filterSelectedCount: '{n} selected',
@@ -5150,6 +5169,8 @@ export const translations = {
       detail: { title: 'Shortage details', stopper: 'Stopper (line / car)' },
       vehicleCard: {
         title: 'Vehicle details',
+        vinCountSubtitle: '{n} chassis',
+        chassisList: 'Chassis numbers ({n})',
         section: { vehicle: 'Vehicle info', issues: 'Shortages', station: 'Station', reporter: 'Reporter' },
         noIssues: 'No shortages recorded.',
         archiveAction: 'Archive',

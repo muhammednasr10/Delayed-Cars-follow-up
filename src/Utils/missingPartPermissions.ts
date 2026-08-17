@@ -2,7 +2,13 @@ import type { UserRole } from '../Types/enums'
 import type { PermissionMap } from '../Types/permissions'
 import { permissionKey } from '../services/permissionsService'
 
-const PRODUCTION_SYSTEM_ROLES = new Set(['supervisor', 'production_manager', 'general_manager', 'engineer'])
+const PRODUCTION_SYSTEM_ROLES = new Set([
+  'supervisor',
+  'data_entry',
+  'production_manager',
+  'general_manager',
+  'engineer'
+])
 
 export type MissingPartsActionBits = {
   isAdmin: boolean

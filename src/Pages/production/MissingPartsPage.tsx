@@ -12,7 +12,6 @@ import { UpdateMissingPartModal, type UpdateVehicleContext } from '../../Compone
 import { EditMissingPartModal } from '../../Components/EditMissingPartModal'
 import { EditReportGroupModal } from '../../Components/EditReportGroupModal'
 import { VinListModal } from '../../Components/VinListModal'
-import { MissingPartIssuesModal } from '../../Components/MissingPartIssuesModal'
 import type { ReportGroupContext, VehicleIssuesContext } from '../../Types/missingPart'
 import {
   buildMissingPartTableRows,
@@ -52,6 +51,7 @@ import { MissingPartsFamilyCardsTab } from '../../Components/missingParts/Missin
 import { MissingPartsSummaryTab } from '../../Components/missingParts/MissingPartsSummaryTab'
 import {
   applyFilters,
+  hasActiveMissingPartFilters,
   isSchemaMissing,
   openVehicleShortageLines,
   remainingInstallLineCount,
@@ -98,6 +98,8 @@ export function MissingPartsPage() {
     search: '',
     modelNames: [],
     departments: [],
+    completingDepartments: [],
+    followUpEmployeeId: '',
     resolvedMonth: null,
     dateFrom: '',
     dateTo: ''
@@ -107,9 +109,6 @@ export function MissingPartsPage() {
   const [editVehicle, setEditVehicle] = useState<VehicleIssuesContext | null>(null)
   const [editGroup, setEditGroup] = useState<ReportGroupContext | null>(null)
   const [vinList, setVinList] = useState<{ vins: string[]; modelName: string; colorName: string | null } | null>(null)
-  const [issuesList, setIssuesList] = useState<{ parts: MissingPartDetail[]; vin?: string; modelName?: string } | null>(
-    null
-  )
   const [detailTarget, setDetailTarget] = useState<MissingPartDetail | null>(null)
   const [vehicleCardParts, setVehicleCardParts] = useState<MissingPartDetail[] | null>(null)
   const [notesTarget, setNotesTarget] = useState<VehicleNoteTarget | null>(null)
@@ -312,9 +311,7 @@ export function MissingPartsPage() {
   )
   const tabVehicleCount = useMemo(() => new Set(tabSource.map(i => i.vehicleId)).size, [tabSource])
   const filteredVehicleCount = useMemo(() => new Set(filtered.map(i => i.vehicleId)).size, [filtered])
-  const hasActiveFilter = Boolean(
-    filters.search.trim() || filters.modelNames.length > 0 || filters.departments.length > 0 || filters.resolvedMonth
-  )
+  const hasActiveFilter = hasActiveMissingPartFilters(filters)
 
   function changeListTab(tab: ListTab) {
     const leavingArchive =
@@ -609,6 +606,7 @@ export function MissingPartsPage() {
           onFiltersChange={patch => setFilters(p => ({ ...p, ...patch }))}
           modelOptions={modelOptions}
           orgUnits={orgUnits}
+          employees={employees}
           canReport={canReport}
           role={role}
           onReport={() => setShowReport(true)}
@@ -744,8 +742,6 @@ export function MissingPartsPage() {
             listTab={listTab === 'history' ? 'history' : 'active'}
             filtered={filtered}
             loading={loading}
-            reasons={reasons}
-            departments={departments}
             canBulkSelect={canBulkSelectForTab}
             canBulkInstall={canBulkInstall}
             canExport={canExport}
@@ -764,8 +760,6 @@ export function MissingPartsPage() {
             onToggleSelectAll={toggleSelectAllVisible}
             onToggleRowSelection={toggleRowSelection}
             onOpenVinList={(vins, modelName, colorName) => setVinList({ vins, modelName, colorName })}
-            onOpenIssuesList={(parts, vin, modelName) => setIssuesList({ parts, vin, modelName })}
-            onOpenDetail={setDetailTarget}
             onRowClick={setVehicleCardParts}
             onOpenNotes={row =>
               setNotesTarget({
@@ -812,18 +806,11 @@ export function MissingPartsPage() {
         colorName={vinList?.colorName}
         onClose={() => setVinList(null)}
       />
-      <MissingPartIssuesModal
-        parts={issuesList?.parts ?? null}
-        vin={issuesList?.vin}
-        modelName={issuesList?.modelName}
-        reasons={reasons}
-        departments={departments}
-        onClose={() => setIssuesList(null)}
-      />
       <MissingPartDetailModal part={detailTarget} onClose={() => setDetailTarget(null)} />
       <VehicleCardModal
         parts={vehicleCardParts}
         orgUnitLabel={vehicleCardParts?.[0] ? orgUnitLabelFor(vehicleCardParts[0].factoryOrgUnitId) : undefined}
+        orgUnitLabelFor={orgUnitLabelFor}
         completingVehicleId={completingVehicleId}
         transferringPartId={transferringPartId}
         restoringVehicleId={restoringVehicleId}

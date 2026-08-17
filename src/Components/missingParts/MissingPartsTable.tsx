@@ -1,6 +1,5 @@
 import { type MouseEvent, type ReactNode } from 'react'
 import { useLang } from '../../i18n/LanguageContext'
-import { mpLookupLabel } from '../../Utils/mpLookupLabel'
 import { formatVehicleColorLabel } from '../../Utils/vehicleColorLabel'
 import {
   aggregateQty,
@@ -26,7 +25,6 @@ import {
 import { MissingPartVehicleActions } from './MissingPartVehicleActions'
 import { notesCountForVehicleIds } from '../../services/vehicleNotesService'
 import type { MissingPartDetail } from '../../Types/missingPart'
-import type { MpLookupOption } from '../../Types/mpLookup'
 import { ExportableTable } from '../ExportableTable'
 export type ListTab = 'active' | 'history'
 
@@ -34,8 +32,6 @@ type Props = {
   listTab: ListTab
   filtered: MissingPartDetail[]
   loading: boolean
-  reasons: MpLookupOption[]
-  departments: MpLookupOption[]
   canBulkSelect: boolean
   canBulkInstall: boolean
   canExport: boolean
@@ -54,8 +50,6 @@ type Props = {
   onToggleSelectAll: () => void
   onToggleRowSelection: (row: MissingPartTableRow) => void
   onOpenVinList: (vins: string[], modelName: string, colorName: string | null) => void
-  onOpenIssuesList: (parts: MissingPartDetail[], vin?: string, modelName?: string) => void
-  onOpenDetail: (part: MissingPartDetail) => void
   onRowClick: (parts: MissingPartDetail[]) => void
   onOpenNotes: (part: MissingPartDetail) => void
   onEdit: (part: MissingPartDetail) => void
@@ -73,8 +67,6 @@ export function MissingPartsTable({
   listTab,
   filtered,
   loading,
-  reasons,
-  departments,
   canBulkSelect,
   canBulkInstall,
   canExport,
@@ -93,8 +85,6 @@ export function MissingPartsTable({
   onToggleSelectAll,
   onToggleRowSelection,
   onOpenVinList,
-  onOpenIssuesList,
-  onOpenDetail,
   onRowClick,
   onOpenNotes,
   onEdit,
@@ -166,8 +156,6 @@ export function MissingPartsTable({
                     displayRow={row.displayRow}
                     listTab={listTab}
                     filtered={filtered}
-                    reasons={reasons}
-                    departments={departments}
                     canBulkSelect={canBulkSelect}
                     canBulkInstall={canBulkInstall}
                     canEdit={canEdit}
@@ -182,8 +170,6 @@ export function MissingPartsTable({
                     rowSelectable={rowSelectable(row)}
                     onToggleRowSelection={() => onToggleRowSelection(row)}
                     onOpenVinList={onOpenVinList}
-                    onOpenIssuesList={onOpenIssuesList}
-                    onOpenDetail={onOpenDetail}
                     onRowClick={onRowClick}
                     onOpenNotes={onOpenNotes}
                     onEdit={onEdit}
@@ -208,8 +194,6 @@ export function MissingPartsTable({
                     qty={qty}
                     listTab={listTab}
                     filtered={filtered}
-                    reasons={reasons}
-                    departments={departments}
                     canBulkSelect={canBulkSelect}
                     canBulkInstall={canBulkInstall}
                     canEdit={canEdit}
@@ -223,8 +207,6 @@ export function MissingPartsTable({
                     rowChecked={rowChecked(row)}
                     rowSelectable={rowSelectable(row)}
                     onToggleRowSelection={() => onToggleRowSelection(row)}
-                    onOpenIssuesList={onOpenIssuesList}
-                    onOpenDetail={onOpenDetail}
                     onRowClick={onRowClick}
                     onOpenNotes={onOpenNotes}
                     onEdit={onEdit}
@@ -244,8 +226,6 @@ export function MissingPartsTable({
                   item={row.item}
                   listTab={listTab}
                   filtered={filtered}
-                  reasons={reasons}
-                  departments={departments}
                   canBulkSelect={canBulkSelect}
                   canBulkInstall={canBulkInstall}
                   canEdit={canEdit}
@@ -259,7 +239,6 @@ export function MissingPartsTable({
                   rowChecked={rowChecked(row)}
                   rowSelectable={rowSelectable(row)}
                   onToggleRowSelection={() => onToggleRowSelection(row)}
-                  onOpenDetail={onOpenDetail}
                   onRowClick={onRowClick}
                   onOpenNotes={onOpenNotes}
                   onEdit={onEdit}
@@ -288,8 +267,6 @@ export function MissingPartsTable({
 type RowProps = {
   listTab: ListTab
   filtered: MissingPartDetail[]
-  reasons: MpLookupOption[]
-  departments: MpLookupOption[]
   canBulkSelect: boolean
   canBulkInstall: boolean
   canEdit: boolean
@@ -303,7 +280,6 @@ type RowProps = {
   rowChecked: boolean
   rowSelectable: boolean
   onToggleRowSelection: () => void
-  onOpenDetail: (part: MissingPartDetail) => void
   onRowClick: (parts: MissingPartDetail[]) => void
   onOpenNotes: (part: MissingPartDetail) => void
   onEdit: (part: MissingPartDetail) => void
@@ -318,32 +294,13 @@ type RowProps = {
   ) => void
 }
 
-function multiReasonButton(
-  t: (key: string, vars?: Record<string, string | number>) => string,
-  count: number,
-  onClick: () => void
-) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      className="rounded-lg border border-amber-500/30 bg-amber-500/10 px-3 py-1.5 text-sm font-bold text-amber-200 transition hover:border-amber-400/50 hover:bg-amber-500/20"
-      title={t('mp.issuesListModal.open')}
-    >
-      {t('mp.multiReasonsSummary', { n: count })}
-    </button>
-  )
-}
-
 function ReportGroupRow({
   displayRow,
   onOpenVinList,
-  onOpenIssuesList,
   ...props
 }: RowProps & {
   displayRow: Extract<MissingPartDisplayRow, { kind: 'group' }>
   onOpenVinList: (vins: string[], modelName: string, colorName: string | null) => void
-  onOpenIssuesList: (parts: MissingPartDetail[], vin?: string, modelName?: string) => void
 }) {
   const { t, lang } = useLang()
   const i = primaryItem(displayRow)
@@ -378,16 +335,11 @@ function ReportGroupRow({
       reporterLabel={reporterNames(displayRow.items)}
       completerLabel={completerNames(displayRow.items)}
       reasonCell={
-        multiIssues
-          ? multiReasonButton(t, uniqueIssues.length, () =>
-              onOpenIssuesList(uniqueIssues, groupVins.length === 1 ? groupVins[0] : undefined, i.modelName)
-            )
-          : undefined
+        multiIssues ? (
+          <span className="text-sm font-bold text-amber-200">{t('mp.multiReasonsSummary', { n: uniqueIssues.length })}</span>
+        ) : undefined
       }
-      reasonClassSummary={multiIssues ? '—' : undefined}
       deleteTargets={displayRow.items}
-      reasons={props.reasons}
-      departments={props.departments}
       lang={lang}
       relatedParts={displayRow.items}
       completeRep={vehicleReps[0] ?? i}
@@ -400,13 +352,11 @@ function VehicleRows({
   parts,
   primary,
   qty,
-  onOpenIssuesList,
   ...props
 }: RowProps & {
   parts: MissingPartDetail[]
   primary: MissingPartDetail
   qty: { installed: number; required: number }
-  onOpenIssuesList: (parts: MissingPartDetail[], vin?: string, modelName?: string) => void
 }) {
   const { t, lang } = useLang()
   const multi = parts.length > 1
@@ -422,14 +372,11 @@ function VehicleRows({
       reporterLabel={reporterNames(parts)}
       completerLabel={completerNames(parts)}
       reasonCell={
-        multi
-          ? multiReasonButton(t, parts.length, () => onOpenIssuesList(parts, primary.vin, primary.modelName))
-          : undefined
+        multi ? (
+          <span className="text-sm font-bold text-amber-200">{t('mp.multiReasonsSummary', { n: parts.length })}</span>
+        ) : undefined
       }
-      reasonClassSummary={multi ? '—' : undefined}
       deleteTargets={parts}
-      reasons={props.reasons}
-      departments={props.departments}
       lang={lang}
       relatedParts={parts}
       completeRep={primary}
@@ -451,8 +398,6 @@ function SinglePartRow({ item, ...props }: RowProps & { item: MissingPartDetail 
       reporterLabel={reporterNames([item])}
       completerLabel={completerNames([item])}
       deleteTargets={[item]}
-      reasons={props.reasons}
-      departments={props.departments}
       lang={lang}
       completeRep={item}
     />
@@ -470,9 +415,6 @@ function PartDataRow({
   reporterLabel,
   completerLabel,
   reasonCell,
-  reasonClassSummary,
-  reasons,
-  departments,
   lang,
   canBulkSelect,
   canEdit,
@@ -485,7 +427,6 @@ function PartDataRow({
   rowChecked,
   rowSelectable,
   onToggleRowSelection,
-  onOpenDetail,
   onRowClick,
   onOpenNotes,
   onEdit,
@@ -509,7 +450,6 @@ function PartDataRow({
   reporterLabel: string
   completerLabel: string
   reasonCell?: ReactNode
-  reasonClassSummary?: string
   lang: string
   rowClassName?: string
   relatedParts?: MissingPartDetail[]
@@ -598,21 +538,6 @@ function PartDataRow({
           <span className="mx-auto block max-w-[140px] truncate text-slate-200">{item.partDescription}</span>
         )}
       </td>
-      <td className={cell}>
-        {reasonClassSummary ? (
-          <span className="text-slate-500">{reasonClassSummary}</span>
-        ) : (
-          <button
-            type="button"
-            onClick={() => onOpenDetail(item)}
-            className="mx-auto block max-w-[120px] truncate text-cyan-300 hover:text-cyan-200 hover:underline"
-            title={t('mp.detail.title')}
-          >
-            {mpLookupLabel(reasons, item.reason, lang)}
-          </button>
-        )}
-      </td>
-      <td className={cell}>{reasonClassSummary ? '—' : mpLookupLabel(departments, item.department, lang)}</td>
       <td className={`${cell} text-slate-400`}>
         <DateTimeCell iso={item.createdAt} lang={lang} />
       </td>

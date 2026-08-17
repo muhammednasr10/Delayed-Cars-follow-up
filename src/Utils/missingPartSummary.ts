@@ -111,7 +111,7 @@ export function buildMissingPartSummary(
     bump(byDepartment, row.department?.trim() || '—', row, pending)
     bump(byReason, row.reason?.trim() || '—', row, pending)
     bump(byPart, row.partDescription?.trim() || '—', row, pending)
-    bump(byReporter, row.createdByName?.trim() || '—', row, pending)
+    bump(byReporter, row.createdByName?.trim() || row.createdByEmail?.trim() || '—', row, pending)
     const station = row.stationNumber
       ? `${row.stationNumber}${row.stationName ? ` · ${row.stationName}` : ''}`
       : '—'
