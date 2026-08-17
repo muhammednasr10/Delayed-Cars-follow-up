@@ -17,6 +17,7 @@ type Props = {
   onTransferIssue?: (part: MissingPartDetail) => void | Promise<void>
   onRestoreFromArchive?: (part: MissingPartDetail) => void
   onClose: () => void
+  zIndexClass?: string
 }
 
 function Field({ label, value, dir, mono }: { label: string; value: string; dir?: string; mono?: boolean }) {
@@ -40,7 +41,8 @@ export function VehicleCardModal({
   canRestoreFromArchive,
   onTransferIssue,
   onRestoreFromArchive,
-  onClose
+  onClose,
+  zIndexClass
 }: Props) {
   const { t, lang } = useLang()
   const { reasons, departments } = useMpLookups()
@@ -60,6 +62,7 @@ export function VehicleCardModal({
       subtitle={rep.vin}
       icon={<Car className="h-5 w-5" />}
       maxWidthClass="max-w-lg"
+      zIndexClass={zIndexClass}
       footer={
         archived && canRestoreFromArchive && onRestoreFromArchive ? (
           <button
@@ -184,6 +187,16 @@ export function VehicleCardModal({
                   <div className="mt-1.5 flex flex-wrap gap-x-4 gap-y-1 text-xs text-slate-400">
                     <span>{mpLookupLabel(reasons, p.reason, lang)}</span>
                     <span>{mpLookupLabel(departments, p.department, lang)}</span>
+                    {p.completingDepartment && (
+                      <span>
+                        {t('mp.cols.completingDepartment')}: {mpLookupLabel(departments, p.completingDepartment, lang)}
+                      </span>
+                    )}
+                    {p.followUpEmployeeName && (
+                      <span>
+                        {t('mp.cols.followUpEmployee')}: {p.followUpEmployeeName}
+                      </span>
+                    )}
                     <span className="text-slate-500">{date} {time}</span>
                   </div>
                   {p.notes?.trim() && (

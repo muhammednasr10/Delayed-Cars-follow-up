@@ -5,14 +5,17 @@ import { useEmployees } from '../hooks/useEmployees'
 import { useFactoryOrgScope } from '../hooks/useFactoryOrgScope'
 import { Modal } from './Modal'
 import { ConfirmDialog } from './ConfirmDialog'
+import { VehicleCardModal } from './missingParts/VehicleCardModal'
 import { VehicleModelFamilyPicker, resolveFamilyIdForVariant } from './VehicleModelFamilyPicker'
-import { findExistingVehicleVins, reportMissingPartsBatch } from '../services/missingPartsService'
+import { findExistingVehicleVins, getMissingPartsByVins, reportMissingPartsBatch } from '../services/missingPartsService'
 import { getVehicleColors, getVehicleModels } from '../services/settingsService'
-import type { MissingPartBatchLineInput } from '../Types/missingPart'
+import type { MissingPartBatchLineInput, MissingPartDetail } from '../Types/missingPart'
 import type { VehicleColor, VehicleModel } from '../Types/settings'
 import { useFormatError } from '../hooks/useFormatError'
 import { useMpLookups } from '../hooks/useMpLookups'
-import { MpLookupCreatableSelect } from './MpLookupCreatableSelect'
+import { MpIssueLookupsFields } from './missingParts/MpIssueLookupsFields'
+import { MpIssueFollowUpButton } from './missingParts/MpIssueFollowUpButton'
+import { useMissingPartsUiPermissions } from '../hooks/useMissingPartsUiPermissions'
 import { defaultDepartmentCode, defaultReasonCode, isStockShortageReason } from '../Utils/mpLookupLabel'
 import { isValidVinLength, normalizeChassisVin } from '../Utils/vinValidation'
 
@@ -39,7 +42,9 @@ function newIssueLine(): IssueLineDraft {
     requiredQty: 1,
     reason: '',
     department: '',
-    stationId: null
+    stationId: null,
+    completingDepartment: null,
+    followUpEmployeeId: null
   }
 }
 
@@ -78,7 +83,8 @@ export function ReportMissingPartModal({ open, onClose, onReported }: Props) {
   const formatError = useFormatError()
   const { employees } = useEmployees()
   const { scopeRootId, scopeLabel } = useFactoryOrgScope(employees)
-  const { reasons, departments, addReason, addDepartment } = useMpLookups()
+  const { reasons, departments, orgUnits, addReason } = useMpLookups()
+  const { canAssignFollowUp } = useMissingPartsUiPermissions()
   const [models, setModels] = useState<VehicleModel[]>([])
   const [colors, setColors] = useState<VehicleColor[]>([])
   const [listsLoading, setListsLoading] = useState(false)
@@ -89,6 +95,9 @@ export function ReportMissingPartModal({ open, onClose, onReported }: Props) {
   const [submitting, setSubmitting] = useState(false)
   const [duplicatePrompt, setDuplicatePrompt] = useState<DuplicatePrompt | null>(null)
   const [confirmedExistingVins, setConfirmedExistingVins] = useState<Set<string>>(() => new Set())
+  const [existingVehicleParts, setExistingVehicleParts] = useState<MissingPartDetail[] | null>(null)
+  const [existingVehicleLoading, setExistingVehicleLoading] = useState(false)
+  const [existingViewError, setExistingViewError] = useState('')
   const issuesSectionRef = useRef<HTMLElement>(null)
 
   const selectedModelName = models.find(m => m.id === vehicle.modelId)?.name ?? ''
@@ -118,6 +127,8 @@ export function ReportMissingPartModal({ open, onClose, onReported }: Props) {
     setFormError('')
     setDuplicatePrompt(null)
     setConfirmedExistingVins(new Set())
+    setExistingVehicleParts(null)
+    setExistingViewError('')
     setListsLoading(true)
     Promise.all([getVehicleModels(), getVehicleColors()])
       .then(([m, c]) => {
@@ -239,12 +250,34 @@ export function ReportMissingPartModal({ open, onClose, onReported }: Props) {
     issuesSectionRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })
   }
 
+  async function viewExistingVehicle() {
+    if (!duplicatePrompt) return
+    setExistingVehicleLoading(true)
+    setExistingViewError('')
+    try {
+      const all = await getMissingPartsByVins(duplicatePrompt.vins)
+      const firstVin = duplicatePrompt.vins[0]?.toUpperCase() ?? ''
+      const parts = all.filter(p => p.vin.toUpperCase() === firstVin)
+      if (parts.length === 0) {
+        setExistingViewError(t('mp.duplicateVehicleNoParts'))
+        return
+      }
+      setExistingVehicleParts(parts)
+    } catch (err) {
+      setExistingViewError(formatError(err))
+    } finally {
+      setExistingVehicleLoading(false)
+    }
+  }
+
   function confirmAddToExisting() {
     if (!duplicatePrompt) return
     const normalized = duplicatePrompt.vins.map(v => v.toUpperCase())
     setConfirmedExistingVins(prev => new Set([...prev, ...normalized]))
     const pendingSubmit = duplicatePrompt.pendingSubmit
     setDuplicatePrompt(null)
+    setExistingVehicleParts(null)
+    setExistingViewError('')
     if (pendingSubmit) {
       void submit(true)
     } else {
@@ -257,6 +290,8 @@ export function ReportMissingPartModal({ open, onClose, onReported }: Props) {
       updateVehicleVin(duplicatePrompt.vinIndex, '')
     }
     setDuplicatePrompt(null)
+    setExistingVehicleParts(null)
+    setExistingViewError('')
   }
 
   function duplicateMessage(prompt: DuplicatePrompt) {
@@ -278,7 +313,9 @@ export function ReportMissingPartModal({ open, onClose, onReported }: Props) {
         requiredQty: 1,
         reason: line.reason,
         department: line.department,
-        stationId: null as string | null
+        stationId: null as string | null,
+        completingDepartment: line.completingDepartment || null,
+        followUpEmployeeId: line.followUpEmployeeId || null
       }))
     )
     if (expandedParts.length === 0) missing.push(t('mp.errOneIssue'))
@@ -496,36 +533,32 @@ export function ReportMissingPartModal({ open, onClose, onReported }: Props) {
               <div key={line.key} className="space-y-3 rounded-xl border border-slate-700/80 bg-slate-900/40 p-3">
                 <div className="flex items-center justify-between gap-2">
                   <p className="text-[10px] font-black uppercase text-cyan-400/80">{t('mp.issueN', { n: idx + 1 })}</p>
-                  <button
-                    type="button"
-                    disabled={issues.length <= 1}
-                    onClick={() => removeIssue(line.key)}
-                    className="rounded-lg bg-red-500/15 p-2 text-red-200 hover:bg-red-500/25 disabled:opacity-30"
-                    title={t('common.delete')}
-                  >
-                    <Trash2 className="h-4 w-4" />
-                  </button>
-                </div>
-
-                <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-                  <Field label={t('mp.cols.reasonClass')} required>
-                    <MpLookupCreatableSelect
-                      options={reasons}
-                      value={line.reason}
-                      onChange={code => patchIssueReason(line.key, code)}
-                      onCreate={addReason}
-                      addLabel={t('mp.addReasonOption')}
-                    />
-                  </Field>
-                  <Field label={t('mp.cols.department')} required>
-                    <MpLookupCreatableSelect
-                      options={departments}
-                      value={line.department}
-                      onChange={code => patchIssue(line.key, { department: code })}
-                      onCreate={addDepartment}
-                      addLabel={t('mp.addDepartmentOption')}
-                    />
-                  </Field>
+                  <div className="flex items-center gap-1">
+                    {canAssignFollowUp && (
+                      <MpIssueFollowUpButton
+                        assignment={{
+                          completingDepartment: line.completingDepartment ?? '',
+                          followUpEmployeeId: line.followUpEmployeeId ?? ''
+                        }}
+                        employees={employees}
+                        onSave={next =>
+                          patchIssue(line.key, {
+                            completingDepartment: next.completingDepartment || null,
+                            followUpEmployeeId: next.followUpEmployeeId || null
+                          })
+                        }
+                      />
+                    )}
+                    <button
+                      type="button"
+                      disabled={issues.length <= 1}
+                      onClick={() => removeIssue(line.key)}
+                      className="rounded-lg bg-red-500/15 p-2 text-red-200 hover:bg-red-500/25 disabled:opacity-30"
+                      title={t('common.delete')}
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </button>
+                  </div>
                 </div>
 
                 <ReasonItemsField
@@ -534,6 +567,16 @@ export function ReportMissingPartModal({ open, onClose, onReported }: Props) {
                   onUpdate={(index, value) => updatePartItem(line.key, index, value)}
                   onAdd={() => addPartItem(line.key)}
                   onRemove={index => removePartItem(line.key, index)}
+                />
+
+                <MpIssueLookupsFields
+                  department={line.department}
+                  reason={line.reason}
+                  orgUnits={orgUnits}
+                  reasons={reasons}
+                  onDepartmentChange={department => patchIssue(line.key, { department })}
+                  onReasonChange={code => patchIssueReason(line.key, code)}
+                  onCreateReason={addReason}
                 />
               </div>
             ))}
@@ -559,13 +602,26 @@ export function ReportMissingPartModal({ open, onClose, onReported }: Props) {
     <ConfirmDialog
       open={Boolean(duplicatePrompt)}
       title={t('mp.duplicateVehicleTitle')}
-      message={duplicatePrompt ? duplicateMessage(duplicatePrompt) : ''}
+      message={
+        duplicatePrompt
+          ? [duplicateMessage(duplicatePrompt), existingViewError].filter(Boolean).join('\n\n')
+          : ''
+      }
       confirmLabel={t('mp.duplicateVehicleYes')}
       cancelLabel={t('mp.duplicateVehicleNo')}
+      extraLabel={t('mp.duplicateVehicleView')}
+      extraBusy={existingVehicleLoading}
+      extraBusyLabel={t('common.loading')}
       tone="default"
       busy={submitting}
       onConfirm={confirmAddToExisting}
       onCancel={cancelAddToExisting}
+      onExtra={() => void viewExistingVehicle()}
+    />
+    <VehicleCardModal
+      parts={existingVehicleParts}
+      zIndexClass="z-[220]"
+      onClose={() => setExistingVehicleParts(null)}
     />
     </>
   )

@@ -30,7 +30,8 @@ import {
   bulkInstallVehiclesToFull,
   completeVehicleShortage,
   deleteMissingPartRecord,
-  getMissingParts
+  getMissingParts,
+  assignMissingPartFollowUp
 } from '../../services/missingPartsService'
 import {
   listMissingPartWorkflowRequests,
@@ -41,7 +42,9 @@ import {
 import type { MissingPartWorkflowRequest } from '../../Types/missingPartWorkflow'
 import type { MissingPartDetail, MissingPartFilters } from '../../Types/missingPart'
 import { MissingPartsToolbar, type ListTab } from '../../Components/missingParts/MissingPartsToolbar'
+import { useOpenMissingPartsTab } from '../../hooks/useOpenMissingPartsTab'
 import { MissingPartsTable } from '../../Components/missingParts/MissingPartsTable'
+import { MpIssueFollowUpButton } from '../../Components/missingParts/MpIssueFollowUpButton'
 import { MissingPartsApprovalsTab } from '../../Components/missingParts/MissingPartsApprovalsTab'
 import { TransferToQualityModal } from '../../Components/missingParts/TransferToQualityModal'
 import { MissingPartsDailyJournalTab } from '../../Components/missingParts/MissingPartsDailyJournalTab'
@@ -56,6 +59,7 @@ import {
 } from '../../Utils/missingPartPageUtils'
 import { scratchAreaLabel } from '../../Utils/scratchAreaOptions'
 import { ConfirmDialog } from '../../Components/ConfirmDialog'
+import { getVehicleNoteCounts } from '../../services/vehicleNotesService'
 
 export function MissingPartsPage() {
   const { t } = useLang()
@@ -71,6 +75,7 @@ export function MissingPartsPage() {
     canEdit,
     canDelete,
     canComplete,
+    canAssignFollowUp,
     canReviewWorkflow,
     canBulkInstallAndUpdate
   } = useMissingPartsUiPermissions()
@@ -82,7 +87,7 @@ export function MissingPartsPage() {
     [orgUnits]
   )
   const canBulkInstall = canBulkInstallAndUpdate
-  const canBulkSelectActive = canBulkInstall || canComplete || canDelete
+  const canBulkSelectActive = canBulkInstall || canComplete || canDelete || canAssignFollowUp
   const canBulkSelectArchive = canDelete
   const [items, setItems] = useState<MissingPartDetail[]>([])
   const [loading, setLoading] = useState(true)
@@ -108,6 +113,7 @@ export function MissingPartsPage() {
   const [detailTarget, setDetailTarget] = useState<MissingPartDetail | null>(null)
   const [vehicleCardParts, setVehicleCardParts] = useState<MissingPartDetail[] | null>(null)
   const [notesTarget, setNotesTarget] = useState<VehicleNoteTarget | null>(null)
+  const [noteCounts, setNoteCounts] = useState<Record<string, number>>({})
   const [success, setSuccess] = useState('')
   const [completingVehicleId, setCompletingVehicleId] = useState<string | null>(null)
   const [selectedVehicleIds, setSelectedVehicleIds] = useState<Set<string>>(new Set())
@@ -167,6 +173,57 @@ export function MissingPartsPage() {
     })
   }
 
+  function followUpPartsForRow(row: MissingPartDetail) {
+    const members = reportGroupMembers(row, filtered).filter(p => p.status !== 'closed' && p.status !== 'cancelled')
+    if (isReportGroup(row, filtered)) return members
+    return vehicleContext(row).parts.filter(p => p.status !== 'closed' && p.status !== 'cancelled')
+  }
+
+  async function applyFollowUp(
+    row: MissingPartDetail,
+    assignment: { completingDepartment: string; followUpEmployeeId: string }
+  ) {
+    const parts = followUpPartsForRow(row)
+    if (parts.length === 0) return
+    setError('')
+    try {
+      const n = await assignMissingPartFollowUp(
+        parts,
+        assignment.completingDepartment || null,
+        assignment.followUpEmployeeId || null
+      )
+      showSuccess(t('mp.followUp.applied', { n }))
+      void load()
+    } catch (err) {
+      setError(formatError(err))
+    }
+  }
+
+  async function applyFollowUpSelected(assignment: { completingDepartment: string; followUpEmployeeId: string }) {
+    const parts = filtered.filter(
+      p => selectedVehicleIds.has(p.vehicleId) && p.status !== 'closed' && p.status !== 'cancelled'
+    )
+    if (parts.length === 0) {
+      setError(t('mp.followUp.nothingSelected'))
+      return
+    }
+    setBulkActionBusy(true)
+    setError('')
+    try {
+      const n = await assignMissingPartFollowUp(
+        parts,
+        assignment.completingDepartment || null,
+        assignment.followUpEmployeeId || null
+      )
+      showSuccess(t('mp.followUp.applied', { n }))
+      void load()
+    } catch (err) {
+      setError(formatError(err))
+    } finally {
+      setBulkActionBusy(false)
+    }
+  }
+
   function openEdit(row: MissingPartDetail) {
     const members = editableMembers(row)
     if (members.length === 0) return
@@ -211,19 +268,28 @@ export function MissingPartsPage() {
     void load()
   }, [])
 
+  useOpenMissingPartsTab(setListTab)
+
   useEffect(() => {
     setSelectedVehicleIds(new Set())
   }, [listTab, filters])
 
   const modelOptions = useMemo(() => Array.from(new Set(items.map(i => i.modelName).filter(Boolean))).sort(), [items])
-  const departmentFilterCodes = useMemo(() => {
-    const codes = new Set<string>()
-    for (const d of departments) codes.add(d.code)
-    for (const i of items) if (i.department) codes.add(i.department)
-    return Array.from(codes).sort()
-  }, [departments, items])
 
   const scopedItems = useMemo(() => filterRecords(items), [items, filterRecords])
+
+  const loadNoteCounts = useCallback(async (parts: MissingPartDetail[]) => {
+    const ids = [...new Set(parts.map(p => p.vehicleId))]
+    try {
+      setNoteCounts(await getVehicleNoteCounts(ids))
+    } catch {
+      setNoteCounts({})
+    }
+  }, [])
+
+  useEffect(() => {
+    void loadNoteCounts(scopedItems)
+  }, [scopedItems, loadNoteCounts])
   const activeItems = useMemo(() => scopedItems.filter(i => !i.shortageResolvedAt), [scopedItems])
   const historyItems = useMemo(() => scopedItems.filter(i => !!i.shortageResolvedAt), [scopedItems])
   const activeVehicleCount = useMemo(() => new Set(activeItems.map(i => i.vehicleId)).size, [activeItems])
@@ -232,7 +298,14 @@ export function MissingPartsPage() {
     if (listTab === 'history' || listTab === 'historySummary') return historyItems
     return activeItems
   }, [listTab, historyItems, activeItems])
-  const filtered = useMemo(() => applyFilters(tabSource, filters), [tabSource, filters])
+  const filtered = useMemo(
+    () =>
+      applyFilters(tabSource, filters, {
+        dateField: listTab === 'history' || listTab === 'historySummary' ? 'resolved' : 'created',
+        orgUnits
+      }),
+    [tabSource, filters, listTab, orgUnits]
+  )
   const tableRows = useMemo(
     () => buildMissingPartTableRows(filtered, listTab === 'history' ? 'resolved-desc' : 'created-asc'),
     [filtered, listTab]
@@ -240,10 +313,7 @@ export function MissingPartsPage() {
   const tabVehicleCount = useMemo(() => new Set(tabSource.map(i => i.vehicleId)).size, [tabSource])
   const filteredVehicleCount = useMemo(() => new Set(filtered.map(i => i.vehicleId)).size, [filtered])
   const hasActiveFilter = Boolean(
-    filters.search.trim() ||
-      filters.modelNames.length > 0 ||
-      filters.departments.length > 0 ||
-      filters.resolvedMonth
+    filters.search.trim() || filters.modelNames.length > 0 || filters.departments.length > 0 || filters.resolvedMonth
   )
 
   function changeListTab(tab: ListTab) {
@@ -266,11 +336,7 @@ export function MissingPartsPage() {
     if (!updateVehicle) return
     const vehicleIds = new Set(updateVehicle.parts.map(p => p.vehicleId))
     const nextParts = items.filter(
-      p =>
-        vehicleIds.has(p.vehicleId) &&
-        p.status !== 'closed' &&
-        p.status !== 'cancelled' &&
-        !p.shortageResolvedAt
+      p => vehicleIds.has(p.vehicleId) && p.status !== 'closed' && p.status !== 'cancelled' && !p.shortageResolvedAt
     )
     if (nextParts.length === 0) {
       setUpdateVehicle(null)
@@ -542,8 +608,7 @@ export function MissingPartsPage() {
           filters={filters}
           onFiltersChange={patch => setFilters(p => ({ ...p, ...patch }))}
           modelOptions={modelOptions}
-          departmentFilterCodes={departmentFilterCodes}
-          departments={departments}
+          orgUnits={orgUnits}
           canReport={canReport}
           role={role}
           onReport={() => setShowReport(true)}
@@ -591,6 +656,17 @@ export function MissingPartsPage() {
                 {t('mp.bulk.completeSelected')}
               </button>
             )}
+            {listTab === 'active' && canAssignFollowUp && (
+              <MpIssueFollowUpButton
+                assignment={{ completingDepartment: '', followUpEmployeeId: '' }}
+                employees={employees}
+                title={t('mp.followUp.bulk')}
+                label={t('mp.followUp.bulk')}
+                className="inline-flex items-center gap-2 rounded-xl bg-slate-800 px-4 py-2 text-sm font-black text-cyan-200 hover:bg-slate-700 disabled:opacity-50"
+                iconClassName="h-4 w-4"
+                onSave={next => void applyFollowUpSelected(next)}
+              />
+            )}
             {canDelete && (
               <button
                 type="button"
@@ -624,6 +700,7 @@ export function MissingPartsPage() {
             canEdit={canEdit}
             canDelete={canDelete}
             canComplete={canComplete}
+            noteCounts={noteCounts}
             completingVehicleId={completingVehicleId}
             onOpenNotes={row =>
               setNotesTarget({
@@ -637,6 +714,7 @@ export function MissingPartsPage() {
             onOpenDetail={setDetailTarget}
             onEdit={openEdit}
             onUpdate={openUpdate}
+            onAssignFollowUp={(row, assignment) => void applyFollowUp(row, assignment)}
             onDeleteParts={parts => void removeParts(parts)}
             onComplete={requestCompleteVehicle}
           />
@@ -676,6 +754,7 @@ export function MissingPartsPage() {
             canUpdateStatus={canUpdateStatus}
             canNotes={canNotes}
             canComplete={canComplete}
+            noteCounts={noteCounts}
             selectableVehicleIds={selectableVehicleIds}
             selectedVehicleIds={selectedVehicleIds}
             bulkInstalling={bulkActionBusy}
@@ -702,6 +781,7 @@ export function MissingPartsPage() {
             onDeleteParts={parts => void removeParts(parts)}
             onComplete={requestCompleteVehicle}
             onCompleteAll={requestCompleteAll}
+            onAssignFollowUp={(row, assignment) => void applyFollowUp(row, assignment)}
           />
         )}
       </div>
@@ -753,7 +833,13 @@ export function MissingPartsPage() {
         onRestoreFromArchive={part => setRestoreTarget(part)}
         onClose={() => setVehicleCardParts(null)}
       />
-      <VehicleNotesModal target={notesTarget} onClose={() => setNotesTarget(null)} />
+      <VehicleNotesModal
+        target={notesTarget}
+        onClose={() => {
+          setNotesTarget(null)
+          void loadNoteCounts(scopedItems)
+        }}
+      />
 
       <ConfirmDialog
         open={Boolean(completeTarget || completeAllTargets)}

@@ -1,5 +1,5 @@
 import { supabase } from '../lib/supabase'
-import type { MpLookupOption } from '../Types/mpLookup'
+import type { MpDepartmentReasonLink, MpLookupOption } from '../Types/mpLookup'
 
 function requireClient() {
   if (!supabase) throw new Error('Supabase غير مهيأ. تحقق من ملف .env')
@@ -130,5 +130,45 @@ export async function updateMpDepartmentOption(
 
 export async function deleteMpDepartmentOption(id: string): Promise<void> {
   const { error } = await requireClient().from('mp_department_options').delete().eq('id', id)
+  if (error) throw new Error(error.message)
+}
+
+type LinkRow = {
+  department_code: string
+  reason_code: string
+  sort_order: number
+}
+
+export async function getMpDepartmentReasonLinks(): Promise<MpDepartmentReasonLink[]> {
+  const { data, error } = await requireClient()
+    .from('mp_department_reason_options')
+    .select('department_code, reason_code, sort_order')
+    .order('sort_order')
+  if (error) throw new Error(error.message)
+  return ((data ?? []) as LinkRow[]).map(row => ({
+    departmentCode: row.department_code,
+    reasonCode: row.reason_code,
+    sortOrder: row.sort_order
+  }))
+}
+
+export async function linkMpDepartmentReason(
+  departmentCode: string,
+  reasonCode: string,
+  sortOrder = 0
+): Promise<void> {
+  const { error } = await requireClient().from('mp_department_reason_options').upsert(
+    { department_code: departmentCode, reason_code: reasonCode, sort_order: sortOrder },
+    { onConflict: 'department_code,reason_code' }
+  )
+  if (error) throw new Error(error.message)
+}
+
+export async function unlinkMpDepartmentReason(departmentCode: string, reasonCode: string): Promise<void> {
+  const { error } = await requireClient()
+    .from('mp_department_reason_options')
+    .delete()
+    .eq('department_code', departmentCode)
+    .eq('reason_code', reasonCode)
   if (error) throw new Error(error.message)
 }

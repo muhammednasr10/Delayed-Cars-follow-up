@@ -6,21 +6,12 @@ import { Field, inputCls } from '../FormField'
 import { IplPartAutocomplete } from './IplPartAutocomplete'
 import { MpLookupCreatableSelect } from '../MpLookupCreatableSelect'
 import { EmployeeAutocomplete } from '../EmployeeAutocomplete'
+import { OrgUnitCascadeField } from '../OrgUnitCascadeField'
 import { useDamagedPartsLookups } from '../../hooks/useDamagedPartsLookups'
+import { useMpLookups } from '../../hooks/useMpLookups'
 import type { DamagedPartInput, DamagedPartRecord } from '../../Types/damagedPart'
 import type { Employee } from '../../Types/employee'
 import type { VehicleModel } from '../../Types/settings'
-
-import type { ResponsibleDepartment } from '../../Types/enums'
-
-const CAUSING_DEPARTMENTS: ResponsibleDepartment[] = [
-  'warehouse',
-  'purchasing',
-  'production',
-  'quality',
-  'supplier',
-  'management'
-]
 
 type FormState = {
   vehicleModelId: string
@@ -84,6 +75,7 @@ type Props = {
 export function DamagedPartFormModal({ open, models, employees, editing, onClose, onSave, saving }: Props) {
   const { t } = useLang()
   const { reasons, decisions, loading: lookupsLoading, addReason, addDecision } = useDamagedPartsLookups()
+  const { orgUnits } = useMpLookups()
   const [form, setForm] = useState<FormState>(emptyForm)
   const [error, setError] = useState('')
   const [imageFile, setImageFile] = useState<File | null>(null)
@@ -300,7 +292,7 @@ export function DamagedPartFormModal({ open, models, employees, editing, onClose
               setForm(prev => ({
                 ...prev,
                 causedByEmployeeId: id,
-                causingDepartment: employee?.department ?? prev.causingDepartment
+                causingDepartment: employee?.factoryOrgUnitId ?? prev.causingDepartment
               }))
             }}
             placeholder={t('damagedParts.selectCauser')}
@@ -308,18 +300,12 @@ export function DamagedPartFormModal({ open, models, employees, editing, onClose
         </Field>
 
         <Field label={t('damagedParts.cols.causingDepartment')} required>
-          <select
-            className={inputCls()}
+          <OrgUnitCascadeField
+            units={orgUnits}
             value={form.causingDepartment}
-            onChange={e => setForm(prev => ({ ...prev, causingDepartment: e.target.value }))}
-          >
-            <option value="">{t('damagedParts.selectCausingDepartment')}</option>
-            {CAUSING_DEPARTMENTS.map(dept => (
-              <option key={dept} value={dept}>
-                {t(`department.${dept}`)}
-              </option>
-            ))}
-          </select>
+            onChange={code => setForm(prev => ({ ...prev, causingDepartment: code }))}
+            emptyLabel={t('damagedParts.selectCausingDepartment')}
+          />
         </Field>
 
         <Field label={t('damagedParts.cols.reason')} required>

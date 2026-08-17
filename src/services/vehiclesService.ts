@@ -1,5 +1,6 @@
 import { supabase } from '../lib/supabase'
 import type { VehicleInput, VehicleOverview, VehicleUpdateInput } from '../Types/vehicle'
+import { formatVehicleUpdateNote, logVehicleActivityNote } from '../Utils/vehicleActivityNote'
 
 function requireClient() {
   if (!supabase) throw new Error('Supabase غير مهيأ. تحقق من ملف .env')
@@ -83,29 +84,47 @@ export async function createVehicle(input: VehicleInput): Promise<string> {
   return (data as { id: string }).id
 }
 
-// RPC: enforces all release rules at the database level.
-export async function releaseVehicleForDelivery(vehicleId: string): Promise<void> {
-  const { error } = await requireClient().rpc('release_vehicle_for_delivery', { p_vehicle_id: vehicleId })
-  if (error) throw new Error(error.message)
-}
-
-export async function markVehicleDelivered(vehicleId: string): Promise<void> {
-  const { error } = await requireClient().from('vehicles').update({ delivery_status: 'delivered' }).eq('id', vehicleId)
-  if (error) throw new Error(error.message)
-}
-
 export async function updateVehicle(vehicleId: string, input: VehicleUpdateInput): Promise<void> {
   const patch: Record<string, unknown> = {}
-  if (input.vin !== undefined) patch.vin = input.vin.trim().toUpperCase()
-  if (input.modelId !== undefined) patch.model_id = input.modelId
-  if (input.vehicleColorId !== undefined) patch.vehicle_color_id = input.vehicleColorId || null
-  if (input.productionOrderId !== undefined) patch.production_order_id = input.productionOrderId || null
+  const changes: string[] = []
+  if (input.vin !== undefined) {
+    patch.vin = input.vin.trim().toUpperCase()
+    changes.push(`الشاسيه ← ${String(patch.vin)}`)
+  }
+  if (input.modelId !== undefined) {
+    patch.model_id = input.modelId
+    changes.push('تغيير الموديل')
+  }
+  if (input.vehicleColorId !== undefined) {
+    patch.vehicle_color_id = input.vehicleColorId || null
+    changes.push('تغيير اللون')
+  }
+  if (input.productionOrderId !== undefined) {
+    patch.production_order_id = input.productionOrderId || null
+    changes.push('تغيير أمر الإنتاج')
+  }
+
+  if (Object.keys(patch).length === 0) return
 
   const { error } = await requireClient().from('vehicles').update(patch).eq('id', vehicleId)
   if (error) throw new Error(error.message)
+  await logVehicleActivityNote(vehicleId, formatVehicleUpdateNote(changes))
 }
 
 export async function softDeleteVehicle(vehicleId: string): Promise<void> {
   const { error } = await requireClient().from('vehicles').update({ is_deleted: true }).eq('id', vehicleId)
   if (error) throw new Error(error.message)
+  await logVehicleActivityNote(vehicleId, 'حذف ناعم للسيارة من النظام.')
+}
+
+export async function releaseVehicleForDelivery(vehicleId: string): Promise<void> {
+  const { error } = await requireClient().rpc('release_vehicle_for_delivery', { p_vehicle_id: vehicleId })
+  if (error) throw new Error(error.message)
+  await logVehicleActivityNote(vehicleId, 'إطلاق السيارة للتسليم.')
+}
+
+export async function markVehicleDelivered(vehicleId: string): Promise<void> {
+  const { error } = await requireClient().from('vehicles').update({ delivery_status: 'delivered' }).eq('id', vehicleId)
+  if (error) throw new Error(error.message)
+  await logVehicleActivityNote(vehicleId, 'تسجيل تسليم السيارة.')
 }

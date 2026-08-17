@@ -23,6 +23,7 @@ type Props = {
   canEdit?: boolean
   canDelete?: boolean
   canComplete?: boolean
+  noteCounts?: Record<string, number>
   completingVehicleId?: string | null
   onOpenNotes?: (part: MissingPartDetail) => void
   onOpenDetail?: (part: MissingPartDetail) => void
@@ -30,6 +31,10 @@ type Props = {
   onUpdate?: (part: MissingPartDetail) => void
   onDeleteParts?: (parts: MissingPartDetail[]) => void
   onComplete?: (part: MissingPartDetail) => void
+  onAssignFollowUp?: (
+    part: MissingPartDetail,
+    assignment: { completingDepartment: string; followUpEmployeeId: string }
+  ) => void
 }
 
 export function MissingPartsFamilyCardsTab({
@@ -42,13 +47,15 @@ export function MissingPartsFamilyCardsTab({
   canEdit,
   canDelete,
   canComplete,
+  noteCounts = {},
   completingVehicleId,
   onOpenNotes,
   onOpenDetail,
   onEdit,
   onUpdate,
   onDeleteParts,
-  onComplete
+  onComplete,
+  onAssignFollowUp
 }: Props) {
   const { t } = useLang()
   const [models, setModels] = useState<VehicleModel[]>([])
@@ -122,6 +129,7 @@ export function MissingPartsFamilyCardsTab({
         canEdit={canEdit}
         canDelete={canDelete}
         canComplete={canComplete}
+        noteCounts={noteCounts}
         completingVehicleId={completingVehicleId}
         onOpenNotes={onOpenNotes}
         onOpenDetail={onOpenDetail}
@@ -129,6 +137,7 @@ export function MissingPartsFamilyCardsTab({
         onUpdate={onUpdate}
         onDeleteParts={onDeleteParts}
         onComplete={onComplete}
+        onAssignFollowUp={onAssignFollowUp}
       />
     </>
   )

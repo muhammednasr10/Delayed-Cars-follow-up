@@ -22,6 +22,9 @@ function part(overrides: Partial<MissingPartDetail> & Pick<MissingPartDetail, 'i
     remainingQty: 1,
     reason: 'stock_shortage',
     department: 'body',
+    completingDepartment: null,
+    followUpEmployeeId: null,
+    followUpEmployeeName: null,
     priority: 'normal',
     status: 'open',
     qcApproved: false,
@@ -30,6 +33,7 @@ function part(overrides: Partial<MissingPartDetail> & Pick<MissingPartDetail, 'i
     notes: null,
     modelName: 'SEDAN-A',
     colorName: null,
+    colorCode: null,
     colorHex: null,
     stationNumber: null,
     stationName: null,
@@ -159,6 +163,38 @@ describe('applyFilters', () => {
       dateTo: '2026-08-16'
     })
     expect(range.map(i => i.vin).sort()).toEqual(['D001', 'D002'])
+  })
+
+  it('filters archive rows by shortageResolvedAt date range', () => {
+    const archived = [
+      part({
+        id: 'd1',
+        vehicleId: 'vd1',
+        vin: 'D001',
+        createdAt: '2026-08-01T12:00:00Z',
+        shortageResolvedAt: '2026-08-10T12:00:00Z'
+      }),
+      part({
+        id: 'd2',
+        vehicleId: 'vd2',
+        vin: 'D002',
+        createdAt: '2026-08-01T08:00:00Z',
+        shortageResolvedAt: '2026-08-16T08:00:00Z'
+      })
+    ]
+    const today = applyFilters(
+      archived,
+      {
+        search: '',
+        modelNames: [],
+        departments: [],
+        resolvedMonth: null,
+        dateFrom: '2026-08-16',
+        dateTo: '2026-08-16'
+      },
+      { dateField: 'resolved' }
+    )
+    expect(today.map(i => i.vin)).toEqual(['D002'])
   })
 })
 

@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
+import { createPortal } from 'react-dom'
 import { Search, X } from 'lucide-react'
 import { useLang } from '../i18n/LanguageContext'
 import { inputCls } from './FormField'
@@ -16,6 +17,8 @@ type Props = {
   unknownLabel?: string
 }
 
+type DropdownRect = { top: number; left: number; width: number }
+
 export function EmployeeAutocomplete({
   employees,
   value,
@@ -31,9 +34,19 @@ export function EmployeeAutocomplete({
 
   const [query, setQuery] = useState('')
   const [open, setOpen] = useState(false)
+  const [rect, setRect] = useState<DropdownRect | null>(null)
   const boxRef = useRef<HTMLDivElement>(null)
+  const inputRef = useRef<HTMLInputElement>(null)
+  const listRef = useRef<HTMLUListElement>(null)
 
   const resolvedUnknownLabel = unknownLabel ?? t('common.unknown')
+
+  function updateRect() {
+    const el = inputRef.current
+    if (!el) return
+    const box = el.getBoundingClientRect()
+    setRect({ top: box.bottom + 4, left: box.left, width: box.width })
+  }
 
   useEffect(() => {
     if (selected) setQuery(employeeLookupLabel(selected))
@@ -43,11 +56,27 @@ export function EmployeeAutocomplete({
 
   useEffect(() => {
     function onDocClick(e: MouseEvent) {
-      if (boxRef.current && !boxRef.current.contains(e.target as Node)) setOpen(false)
+      const target = e.target as Node
+      if (boxRef.current?.contains(target) || listRef.current?.contains(target)) return
+      setOpen(false)
     }
     document.addEventListener('mousedown', onDocClick)
     return () => document.removeEventListener('mousedown', onDocClick)
   }, [])
+
+  useEffect(() => {
+    if (!open) return
+    updateRect()
+    function onReposition() {
+      updateRect()
+    }
+    window.addEventListener('resize', onReposition)
+    window.addEventListener('scroll', onReposition, true)
+    return () => {
+      window.removeEventListener('resize', onReposition)
+      window.removeEventListener('scroll', onReposition, true)
+    }
+  }, [open])
 
   const matches = useMemo(() => findEmployeesByQuery(pool, query), [pool, query])
 
@@ -84,6 +113,7 @@ export function EmployeeAutocomplete({
   function onQueryChange(next: string) {
     setQuery(next)
     setOpen(true)
+    updateRect()
     if (selected && employeeLookupLabel(selected) !== next.trim()) onChange('')
     else if (allowUnknown && !selected && next.trim() !== resolvedUnknownLabel) onChange('')
   }
@@ -91,6 +121,7 @@ export function EmployeeAutocomplete({
   function onFocusInput() {
     if (allowUnknown && !value && query === resolvedUnknownLabel) setQuery('')
     setOpen(true)
+    updateRect()
   }
 
   function onBlurInput() {
@@ -101,6 +132,7 @@ export function EmployeeAutocomplete({
   }
 
   const showUnknownSelected = allowUnknown && !value && query === resolvedUnknownLabel
+  const showDropdown = open && !selected && (allowUnknown || query.trim().length > 0) && rect
 
   return (
     <div className="relative" ref={boxRef}>
@@ -117,6 +149,7 @@ export function EmployeeAutocomplete({
           </button>
         )}
         <input
+          ref={inputRef}
           className={`${inputCls()} ltr:pl-9 ltr:pr-9 rtl:pr-9 rtl:pl-9 ${showUnknownSelected ? 'text-slate-400' : ''}`}
           value={query}
           placeholder={placeholder ?? t('manpower.daily.lookupPh')}
@@ -133,41 +166,53 @@ export function EmployeeAutocomplete({
         />
       </div>
 
-      {open && !selected && (allowUnknown || query.trim().length > 0) && (
-        <ul className="absolute z-30 mt-1 max-h-48 w-full overflow-auto rounded-xl border border-slate-700 bg-slate-900 py-1 shadow-xl">
-          {allowUnknown && (
-            <li>
-              <button
-                type="button"
-                className="flex w-full px-3 py-2 text-start text-sm font-bold text-slate-400 hover:bg-slate-800"
-                onMouseDown={e => e.preventDefault()}
-                onClick={pickUnknown}
-              >
-                {resolvedUnknownLabel}
-              </button>
-            </li>
-          )}
-          {query.trim().length > 0 && matches.length === 0 ? (
-            <li className="px-3 py-2 text-xs text-slate-500">{t('manpower.daily.noMatches')}</li>
-          ) : (
-            matches.map(emp => (
-              <li key={emp.id}>
+      {showDropdown &&
+        createPortal(
+          <ul
+            ref={listRef}
+            className="max-h-48 overflow-auto rounded-xl border border-slate-700 bg-slate-900 py-1 shadow-xl"
+            style={{
+              position: 'fixed',
+              top: rect.top,
+              left: rect.left,
+              width: rect.width,
+              zIndex: 260
+            }}
+          >
+            {allowUnknown && (
+              <li>
                 <button
                   type="button"
-                  className="flex w-full items-center justify-between gap-2 px-3 py-2 text-start hover:bg-slate-800"
+                  className="flex w-full px-3 py-2 text-start text-sm font-bold text-slate-400 hover:bg-slate-800"
                   onMouseDown={e => e.preventDefault()}
-                  onClick={() => pick(emp)}
+                  onClick={pickUnknown}
                 >
-                  <span className="font-bold text-slate-100">{emp.fullName}</span>
-                  <span className="font-mono text-xs text-amber-300" dir="ltr">
-                    {emp.employeeCode}
-                  </span>
+                  {resolvedUnknownLabel}
                 </button>
               </li>
-            ))
-          )}
-        </ul>
-      )}
+            )}
+            {query.trim().length > 0 && matches.length === 0 ? (
+              <li className="px-3 py-2 text-xs text-slate-500">{t('manpower.daily.noMatches')}</li>
+            ) : (
+              matches.map(emp => (
+                <li key={emp.id}>
+                  <button
+                    type="button"
+                    className="flex w-full items-center justify-between gap-2 px-3 py-2 text-start hover:bg-slate-800"
+                    onMouseDown={e => e.preventDefault()}
+                    onClick={() => pick(emp)}
+                  >
+                    <span className="font-bold text-slate-100">{emp.fullName}</span>
+                    <span className="font-mono text-xs text-amber-300" dir="ltr">
+                      {emp.employeeCode}
+                    </span>
+                  </button>
+                </li>
+              ))
+            )}
+          </ul>,
+          document.body
+        )}
     </div>
   )
 }

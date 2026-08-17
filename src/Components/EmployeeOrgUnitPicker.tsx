@@ -8,6 +8,10 @@ type Props = {
   path: string[]
   onChange: (path: string[]) => void
   className?: string
+  /** Label for the empty option (default —). Ignored when allowEmpty is false and a value is selected. */
+  emptyLabel?: string
+  /** When false, empty option is only shown while nothing is selected (disabled placeholder). */
+  allowEmpty?: boolean
 }
 
 function selectCls() {
@@ -23,8 +27,16 @@ function Field({ label, children }: { label: string; children: ReactNode }) {
   )
 }
 
-export function EmployeeOrgUnitPicker({ units, path, onChange, className }: Props) {
+export function EmployeeOrgUnitPicker({
+  units,
+  path,
+  onChange,
+  className,
+  emptyLabel,
+  allowEmpty = true
+}: Props) {
   const { t } = useLang()
+  const blank = emptyLabel ?? '—'
 
   const levels = useMemo(() => buildOrgPickerLevels(path, units), [path, units])
 
@@ -44,22 +56,29 @@ export function EmployeeOrgUnitPicker({ units, path, onChange, className }: Prop
 
   return (
     <div className={`grid grid-cols-1 gap-4 sm:grid-cols-2 ${className ?? ''}`}>
-      {levels.map(level => (
-        <Field key={level.depth} label={orgLevelLabel(level.parentId, units, t)}>
-          <select
-            className={selectCls()}
-            value={level.selectedId}
-            onChange={e => setLevel(level.depth, e.target.value)}
-          >
-            <option value="">—</option>
-            {level.options.map(option => (
-              <option key={option.id} value={option.id}>
-                {option.name}
-              </option>
-            ))}
-          </select>
-        </Field>
-      ))}
+      {levels.map(level => {
+        const showEmpty = allowEmpty || !level.selectedId || level.depth > 0
+        return (
+          <Field key={level.depth} label={orgLevelLabel(level.parentId, units, t)}>
+            <select
+              className={selectCls()}
+              value={level.selectedId}
+              onChange={e => setLevel(level.depth, e.target.value)}
+            >
+              {showEmpty && (
+                <option value="" disabled={!allowEmpty && level.depth === 0 && !level.selectedId}>
+                  {level.depth === 0 ? (allowEmpty ? blank : '—') : '—'}
+                </option>
+              )}
+              {level.options.map(option => (
+                <option key={option.id} value={option.id}>
+                  {option.name}
+                </option>
+              ))}
+            </select>
+          </Field>
+        )
+      })}
     </div>
   )
 }

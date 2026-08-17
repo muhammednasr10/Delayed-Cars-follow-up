@@ -6,3 +6,9 @@ export type MpLookupOption = {
   sortOrder: number
   isActive: boolean
 }
+
+export type MpDepartmentReasonLink = {
+  departmentCode: string
+  reasonCode: string
+  sortOrder: number
+}

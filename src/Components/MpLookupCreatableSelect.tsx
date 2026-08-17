@@ -59,7 +59,7 @@ export function MpLookupCreatableSelect({
         <select
           className={`${className} min-w-0 flex-1`}
           value={value}
-          disabled={disabled || (!allowEmpty && options.length === 0)}
+          disabled={disabled}
           onChange={e => onChange(e.target.value)}
         >
           {allowEmpty && <option value="">{emptyLabel ?? '—'}</option>}
@@ -68,6 +68,9 @@ export function MpLookupCreatableSelect({
               {mpLookupLabel(options, o.code, lang)}
             </option>
           ))}
+          {value && !options.some(o => o.code === value) && (
+            <option value={value}>{value}</option>
+          )}
         </select>
         <button
           type="button"

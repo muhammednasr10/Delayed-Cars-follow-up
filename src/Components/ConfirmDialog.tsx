@@ -7,10 +7,14 @@ type ConfirmDialogProps = {
   message: string
   confirmLabel?: string
   cancelLabel?: string
+  extraLabel?: string
+  extraBusy?: boolean
+  extraBusyLabel?: string
   tone?: 'danger' | 'default'
   busy?: boolean
   onConfirm: () => void
   onCancel: () => void
+  onExtra?: () => void
 }
 
 // Elegant centered confirmation card, replaces window.confirm for sensitive actions.
@@ -20,10 +24,14 @@ export function ConfirmDialog({
   message,
   confirmLabel = 'تأكيد',
   cancelLabel = 'إلغاء',
+  extraLabel,
+  extraBusy = false,
+  extraBusyLabel = '...',
   tone = 'danger',
   busy = false,
   onConfirm,
-  onCancel
+  onCancel,
+  onExtra
 }: ConfirmDialogProps) {
   const confirmClasses =
     tone === 'danger' ? 'bg-red-500 text-white hover:bg-red-400' : 'bg-cyan-500 text-slate-950 hover:bg-cyan-400'
@@ -45,6 +53,16 @@ export function ConfirmDialog({
           >
             {cancelLabel}
           </button>
+          {extraLabel && onExtra && (
+            <button
+              type="button"
+              disabled={extraBusy || busy}
+              onClick={onExtra}
+              className="rounded-xl border border-cyan-500/40 bg-slate-900 px-4 py-2 font-bold text-cyan-200 hover:bg-slate-800 disabled:opacity-50"
+            >
+              {extraBusy ? extraBusyLabel : extraLabel}
+            </button>
+          )}
           <button
             type="button"
             disabled={busy}
@@ -56,7 +74,7 @@ export function ConfirmDialog({
         </>
       }
     >
-      <p className="text-sm leading-relaxed text-slate-300">{message}</p>
+      <p className="whitespace-pre-line text-sm leading-relaxed text-slate-300">{message}</p>
     </Modal>
   )
 }
