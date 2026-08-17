@@ -8,7 +8,7 @@ import { mpLookupLabel } from '../../Utils/mpLookupLabel'
 import { computeTaktMinutes, lostVehiclesFromStopMinutes } from '../../Utils/productionLineRate'
 import { Modal } from '../Modal'
 import { ConfirmDialog } from '../ConfirmDialog'
-import { MpLookupCreatableSelect } from '../MpLookupCreatableSelect'
+import { OrgUnitCascadeField } from '../OrgUnitCascadeField'
 import { Field, inputCls } from '../FormField'
 import { TableExportButtons } from '../TableExportButtons'
 import type { TableExportColumn } from '../../Utils/tableExport'
@@ -62,7 +62,7 @@ function isSchemaMissing(message: string): boolean {
 export function ProductionStopsTab() {
   const { t, lang } = useLang()
   const { productivityStopFormOpen, setProductivityStopFormOpen } = useNavigation()
-  const { departments, addDepartment } = useMpLookups()
+  const { departments, orgUnits } = useMpLookups()
   const canManage = useCanManageProduction()
 
   const init = currentYm()
@@ -561,13 +561,10 @@ export function ProductionStopsTab() {
             </Field>
           </div>
           <Field label={t('productivity.stops.fields.department')} required>
-            <MpLookupCreatableSelect
-              className={inputCls()}
-              options={departments}
+            <OrgUnitCascadeField
+              units={orgUnits}
               value={form.department}
               onChange={code => setForm(p => ({ ...p, department: code }))}
-              onCreate={addDepartment}
-              addLabel={t('mp.addDepartmentOption')}
             />
           </Field>
           <Field label={t('productivity.stops.fields.lost')} required>

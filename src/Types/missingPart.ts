@@ -10,6 +10,9 @@ export type MissingPartDetail = {
   remainingQty: number
   reason: MissingPartReason
   department: ResponsibleDepartment
+  completingDepartment: string | null
+  followUpEmployeeId: string | null
+  followUpEmployeeName: string | null
   priority: PriorityLevel
   status: MissingPartStatus
   qcApproved: boolean
@@ -19,6 +22,7 @@ export type MissingPartDetail = {
   vin: string
   modelName: string
   colorName: string | null
+  colorCode: string | null
   colorHex: string | null
   stationNumber: string | null
   stationName: string | null
@@ -51,6 +55,9 @@ export type UpdateMissingPartInput = {
   priority: PriorityLevel
   stopperType: StopperType
   notes?: string
+  completingDepartment?: string | null
+  followUpEmployeeId?: string | null
+  assignFollowUp?: boolean
 }
 
 export type MissingPartBatchLineInput = {
@@ -59,6 +66,8 @@ export type MissingPartBatchLineInput = {
   reason: MissingPartReason
   department: ResponsibleDepartment
   stationId: string | null
+  completingDepartment?: string | null
+  followUpEmployeeId?: string | null
 }
 
 /** Per-line input when each issue may target different VINs (legacy / grouped UI). */
@@ -122,6 +131,8 @@ export type ReportMissingPartsBatchResult = {
   vehicle_count: number
   part_line_count: number
   missing_part_count: number
+  vehicle_ids?: string[]
+  report_group_id?: string | null
 }
 
 export type MissingPartFilters = {
@@ -135,6 +146,9 @@ export type MissingPartFilters = {
   /** Local calendar day `YYYY-MM-DD`; empty = no upper bound. */
   dateTo: string
 }
+
+export type MissingPartsListTab =
+  'active' | 'byFamily' | 'summary' | 'history' | 'historySummary' | 'historyDiary' | 'approvals'
 
 export type DepartmentVehicleCount = {
   department: string

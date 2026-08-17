@@ -52,6 +52,19 @@ export function MissingPartIssuesModal({ parts, vin, modelName, reasons, departm
                 {t('mp.cols.department')}:{' '}
                 <span className="text-slate-200">{mpLookupLabel(departments, part.department, lang)}</span>
               </span>
+              {part.completingDepartment && (
+                <span>
+                  {t('mp.cols.completingDepartment')}:{' '}
+                  <span className="text-slate-200">
+                    {mpLookupLabel(departments, part.completingDepartment, lang)}
+                  </span>
+                </span>
+              )}
+              {part.followUpEmployeeName && (
+                <span>
+                  {t('mp.cols.followUpEmployee')}: <span className="text-slate-200">{part.followUpEmployeeName}</span>
+                </span>
+              )}
               <span>
                 {t('mp.issuesListModal.qty')}:{' '}
                 <span className="font-mono text-slate-200">

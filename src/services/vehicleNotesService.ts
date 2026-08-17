@@ -28,6 +28,30 @@ function mapNote(row: NoteRow): VehicleNote {
   }
 }
 
+export async function getVehicleNoteCounts(vehicleIds: string[]): Promise<Record<string, number>> {
+  const ids = [...new Set(vehicleIds.filter(Boolean))]
+  const counts: Record<string, number> = {}
+  if (ids.length === 0) return counts
+
+  const chunkSize = 200
+  for (let i = 0; i < ids.length; i += chunkSize) {
+    const slice = ids.slice(i, i + chunkSize)
+    const { data, error } = await requireClient().from('vehicle_notes').select('vehicle_id').in('vehicle_id', slice)
+    if (error) throw new Error(error.message)
+    for (const row of data ?? []) {
+      const id = (row as { vehicle_id: string }).vehicle_id
+      counts[id] = (counts[id] ?? 0) + 1
+    }
+  }
+  return counts
+}
+
+export function notesCountForVehicleIds(vehicleIds: string[], counts: Record<string, number>): number {
+  let total = 0
+  for (const id of new Set(vehicleIds)) total += counts[id] ?? 0
+  return total
+}
+
 export async function getVehicleNotes(vehicleId: string): Promise<VehicleNote[]> {
   const { data, error } = await requireClient()
     .from('v_vehicle_notes_detail')

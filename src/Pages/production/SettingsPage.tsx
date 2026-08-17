@@ -14,10 +14,9 @@ import { FactoryOrgHierarchySection } from '../../Components/FactoryOrgHierarchy
 import { StationsSection, type StationsSectionHandle } from '../../Components/StationsSection'
 import {
   SettingsColorsTab,
-  SettingsDepartmentsTab,
   SettingsReasonsTab
 } from '../../Components/settings/SettingsLookupTabs'
-import { getMpDepartmentOptions, getMpReasonOptions } from '../../services/mpLookupService'
+import { getMpReasonOptions } from '../../services/mpLookupService'
 import type { MpLookupOption } from '../../Types/mpLookup'
 import { useLang } from '../../i18n/LanguageContext'
 
@@ -36,7 +35,6 @@ export function SettingsPage() {
   const [orgUnits, setOrgUnits] = useState<FactoryOrgUnit[]>([])
   const [colors, setColors] = useState<VehicleColor[]>([])
   const [reasonOptions, setReasonOptions] = useState<MpLookupOption[]>([])
-  const [departmentOptions, setDepartmentOptions] = useState<MpLookupOption[]>([])
 
   useEffect(() => {
     if (!SETTINGS_TAB_ORDER.includes(activeTab)) {
@@ -52,18 +50,16 @@ export function SettingsPage() {
     setLoading(true)
     setError('')
     try {
-      const [modelsData, orgUnitsData, colorsData, reasonsData, departmentsData] = await Promise.all([
+      const [modelsData, orgUnitsData, colorsData, reasonsData] = await Promise.all([
         getVehicleModels({ includeInactive: true }),
         getFactoryOrgUnits({ includeInactive: true }),
         getAllVehicleColors(),
-        getMpReasonOptions(false),
-        getMpDepartmentOptions(false)
+        getMpReasonOptions(false)
       ])
       setModels(modelsData)
       setOrgUnits(orgUnitsData)
       setColors(colorsData)
       setReasonOptions(reasonsData)
-      setDepartmentOptions(departmentsData)
     } catch (err) {
       setError(err instanceof Error ? err.message : t('common.error'))
     } finally {
@@ -140,9 +136,7 @@ export function SettingsPage() {
             </div>
             <div>
               <h2 className="text-lg font-black text-white">{t('settings.title')}</h2>
-              <p className="text-sm text-slate-400">
-                {activeTabLabel} — {t('settings.subtitle')}
-              </p>
+              <p className="text-sm text-slate-400">{activeTabLabel}</p>
             </div>
           </div>
           {crudTabs.includes(activeTab) && (
@@ -187,10 +181,7 @@ export function SettingsPage() {
       )}
       {activeTab === 'colors' && <SettingsColorsTab colors={colors} busy={loading} runAction={runAction} />}
       {activeTab === 'helperLists' && (
-        <div className="space-y-4">
-          <SettingsReasonsTab reasonOptions={reasonOptions} busy={loading} runAction={runAction} />
-          <SettingsDepartmentsTab departmentOptions={departmentOptions} busy={loading} runAction={runAction} />
-        </div>
+        <SettingsReasonsTab reasonOptions={reasonOptions} busy={loading} runAction={runAction} />
       )}
       {activeTab === 'users' && (
         <UsersPermissionsPanel

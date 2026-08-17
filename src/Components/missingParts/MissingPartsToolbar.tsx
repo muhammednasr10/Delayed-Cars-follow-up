@@ -1,15 +1,25 @@
 import { useMemo } from 'react'
-import { AlertTriangle, Archive, BarChart3, CalendarDays, ClipboardCheck, LayoutGrid, List, PlusCircle } from 'lucide-react'
+import {
+  AlertTriangle,
+  Archive,
+  BarChart3,
+  CalendarDays,
+  ClipboardCheck,
+  LayoutGrid,
+  List,
+  PlusCircle
+} from 'lucide-react'
 import { useLang } from '../../i18n/LanguageContext'
-import { mpLookupLabel } from '../../Utils/mpLookupLabel'
-import type { MpLookupOption } from '../../Types/mpLookup'
-import type { MissingPartDetail, MissingPartFilters } from '../../Types/missingPart'
+import type { FactoryOrgUnit } from '../../Types/factoryOrg'
+import type { MissingPartDetail, MissingPartFilters, MissingPartsListTab } from '../../Types/missingPart'
 import { FilterMultiSelect } from '../FilterMultiSelect'
+import { OrgUnitCascadeField } from '../OrgUnitCascadeField'
 import { MissingPartSearchAutocomplete } from './MissingPartSearchAutocomplete'
 import { MissingPartsModelSummaryTable } from './MissingPartsModelSummaryTable'
-import { formatResolvedMonthLabel, listResolvedMonths, todayLocalDayKey } from '../../Utils/missingPartPageUtils'
+import { formatResolvedMonthLabel, listResolvedMonths } from '../../Utils/missingPartPageUtils'
+import { MissingPartsDateFilters } from './MissingPartsDateFilters'
 
-export type ListTab = 'active' | 'byFamily' | 'summary' | 'history' | 'historySummary' | 'historyDiary' | 'approvals'
+export type ListTab = MissingPartsListTab
 export type CurrentShortageView = 'active' | 'byFamily'
 
 type TopTabKey = 'current' | 'summary' | 'history' | 'historySummary' | 'historyDiary' | 'approvals'
@@ -26,8 +36,7 @@ type Props = {
   filters: MissingPartFilters
   onFiltersChange: (patch: Partial<MissingPartFilters>) => void
   modelOptions: string[]
-  departmentFilterCodes: string[]
-  departments: MpLookupOption[]
+  orgUnits: FactoryOrgUnit[]
   canReport: boolean
   role: string
   onReport: () => void
@@ -50,8 +59,7 @@ export function MissingPartsToolbar({
   filters,
   onFiltersChange,
   modelOptions,
-  departmentFilterCodes,
-  departments,
+  orgUnits,
   canReport,
   role,
   onReport,
@@ -60,17 +68,10 @@ export function MissingPartsToolbar({
   const { t, lang } = useLang()
 
   const modelSelectOptions = useMemo(() => modelOptions.map(m => ({ value: m, label: m })), [modelOptions])
-  const departmentSelectOptions = useMemo(
-    () => departmentFilterCodes.map(code => ({ value: code, label: mpLookupLabel(departments, code, lang) })),
-    [departmentFilterCodes, departments, lang]
-  )
   const isArchiveTab = listTab === 'history' || listTab === 'historySummary'
-  const todayKey = todayLocalDayKey()
-  const todayActive = filters.dateFrom === todayKey && filters.dateTo === todayKey
-  const monthOptions = useMemo(
-    () => (isArchiveTab ? listResolvedMonths(searchPool) : []),
-    [isArchiveTab, searchPool]
-  )
+  const monthOptions = useMemo(() => (isArchiveTab ? listResolvedMonths(searchPool) : []), [isArchiveTab, searchPool])
+  const departmentFilterValue = filters.departments[0] ?? ''
+  const activeOrgUnits = useMemo(() => orgUnits.filter(u => u.isActive), [orgUnits])
 
   const showCurrentGroup = visibleTabs.includes('active') || visibleTabs.includes('byFamily')
 
@@ -221,97 +222,57 @@ export function MissingPartsToolbar({
       )}
 
       {canUseFilters &&
-        (listTab === 'active' ||
-          listTab === 'byFamily' ||
-          listTab === 'history' ||
-          listTab === 'historySummary') && (
-        <div className="flex flex-wrap items-end gap-3">
-          <div className="min-w-[12rem] flex-1">
-            <MissingPartSearchAutocomplete
-              items={searchPool}
-              value={filters.search}
-              onChange={search => onFiltersChange({ search })}
+        (listTab === 'active' || listTab === 'byFamily' || listTab === 'history' || listTab === 'historySummary') && (
+          <div className="flex flex-wrap items-end gap-3">
+            <div className="min-w-[12rem] flex-1">
+              <MissingPartSearchAutocomplete
+                items={searchPool}
+                value={filters.search}
+                onChange={search => onFiltersChange({ search })}
+              />
+            </div>
+            <div className="min-w-[10rem] flex-1">
+              <FilterMultiSelect
+                options={modelSelectOptions}
+                value={filters.modelNames}
+                onChange={modelNames => onFiltersChange({ modelNames })}
+                allLabel={t('mp.filterModel')}
+                selectedCountLabel={n => t('mp.filterSelectedCount', { n })}
+                clearLabel={t('mp.filterClear')}
+              />
+            </div>
+            <div className="min-w-[14rem] flex-1">
+              <OrgUnitCascadeField
+                units={activeOrgUnits}
+                value={departmentFilterValue}
+                onChange={id => onFiltersChange({ departments: id ? [id] : [] })}
+                emptyLabel={t('mp.filterDepartment')}
+                showPathPreview={false}
+              />
+            </div>
+            {isArchiveTab && (
+              <select
+                className="input-dark min-w-[9rem]"
+                value={filters.resolvedMonth ?? ''}
+                onChange={e => onFiltersChange({ resolvedMonth: e.target.value || null })}
+                aria-label={t('mp.filterMonthLabel')}
+                title={t('mp.filterMonthLabel')}
+              >
+                <option value="">{t('mp.filterMonth')}</option>
+                {monthOptions.map(key => (
+                  <option key={key} value={key}>
+                    {formatResolvedMonthLabel(key, lang)}
+                  </option>
+                ))}
+              </select>
+            )}
+            <MissingPartsDateFilters
+              dateFrom={filters.dateFrom}
+              dateTo={filters.dateTo}
+              onChange={patch => onFiltersChange(patch)}
             />
           </div>
-          <div className="min-w-[10rem] flex-1">
-            <FilterMultiSelect
-              options={modelSelectOptions}
-              value={filters.modelNames}
-              onChange={modelNames => onFiltersChange({ modelNames })}
-              allLabel={t('mp.filterModel')}
-              selectedCountLabel={n => t('mp.filterSelectedCount', { n })}
-              clearLabel={t('mp.filterClear')}
-            />
-          </div>
-          <div className="min-w-[10rem] flex-1">
-            <FilterMultiSelect
-              options={departmentSelectOptions}
-              value={filters.departments}
-              onChange={departments => onFiltersChange({ departments })}
-              allLabel={t('mp.filterDepartment')}
-              selectedCountLabel={n => t('mp.filterSelectedCount', { n })}
-              clearLabel={t('mp.filterClear')}
-            />
-          </div>
-          {isArchiveTab && (
-            <select
-              className="input-dark min-w-[9rem]"
-              value={filters.resolvedMonth ?? ''}
-              onChange={e => onFiltersChange({ resolvedMonth: e.target.value || null })}
-              aria-label={t('mp.filterMonthLabel')}
-              title={t('mp.filterMonthLabel')}
-            >
-              <option value="">{t('mp.filterMonth')}</option>
-              {monthOptions.map(key => (
-                <option key={key} value={key}>
-                  {formatResolvedMonthLabel(key, lang)}
-                </option>
-              ))}
-            </select>
-          )}
-          <label className="flex min-w-[9.5rem] flex-col gap-1">
-            <span className="text-xs font-bold text-slate-400">{t('mp.filterDateFrom')}</span>
-            <input
-              type="date"
-              className="input-dark"
-              value={filters.dateFrom}
-              max={filters.dateTo || undefined}
-              onChange={e => {
-                const dateFrom = e.target.value
-                const dateTo = filters.dateTo && dateFrom && dateFrom > filters.dateTo ? dateFrom : filters.dateTo
-                onFiltersChange({ dateFrom, dateTo })
-              }}
-              aria-label={t('mp.filterDateFrom')}
-            />
-          </label>
-          <label className="flex min-w-[9.5rem] flex-col gap-1">
-            <span className="text-xs font-bold text-slate-400">{t('mp.filterDateTo')}</span>
-            <input
-              type="date"
-              className="input-dark"
-              value={filters.dateTo}
-              min={filters.dateFrom || undefined}
-              onChange={e => {
-                const dateTo = e.target.value
-                const dateFrom = filters.dateFrom && dateTo && dateTo < filters.dateFrom ? dateTo : filters.dateFrom
-                onFiltersChange({ dateFrom, dateTo })
-              }}
-              aria-label={t('mp.filterDateTo')}
-            />
-          </label>
-          <button
-            type="button"
-            onClick={() => {
-              onFiltersChange(todayActive ? { dateFrom: '', dateTo: '' } : { dateFrom: todayKey, dateTo: todayKey })
-            }}
-            className={`mb-0.5 rounded-xl px-3 py-2.5 text-sm font-black ${
-              todayActive ? 'bg-cyan-500 text-slate-950' : 'bg-slate-800 text-slate-200 hover:bg-slate-700'
-            }`}
-          >
-            {t('mp.filterToday')}
-          </button>
-        </div>
-      )}
+        )}
     </div>
   )
 }

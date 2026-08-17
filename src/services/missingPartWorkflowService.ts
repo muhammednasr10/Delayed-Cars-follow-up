@@ -1,5 +1,10 @@
 import { supabase } from '../lib/supabase'
 import type { MissingPartWorkflowRequest } from '../Types/missingPartWorkflow'
+import {
+  formatWorkflowRequestNote,
+  formatWorkflowReviewNote,
+  logVehicleActivityNote
+} from '../Utils/vehicleActivityNote'
 
 function requireClient() {
   if (!supabase) throw new Error('Supabase غير مهيأ. تحقق من ملف .env')
@@ -63,11 +68,23 @@ function mapRow(row: Row): MissingPartWorkflowRequest {
 }
 
 export async function requestMissingPartTransfer(missingPartId: string, toStationId: string): Promise<void> {
+  const { data: part } = await requireClient()
+    .from('missing_parts')
+    .select('vehicle_id, part_description')
+    .eq('id', missingPartId)
+    .maybeSingle()
   const { error } = await requireClient().rpc('request_missing_part_transfer', {
     p_missing_part_id: missingPartId,
     p_to_station_id: toStationId
   })
-  if (!error) return
+  if (!error) {
+    const row = part as { vehicle_id?: string; part_description?: string } | null
+    if (row?.vehicle_id) {
+      const detail = row.part_description ? ` «${row.part_description}»` : ''
+      await logVehicleActivityNote(row.vehicle_id, formatWorkflowRequestNote('transfer', detail))
+    }
+    return
+  }
   if (missingFnError(error)) throw new Error(APPLY_HINT)
   throw new Error(error.message)
 }
@@ -76,7 +93,10 @@ export async function requestVehicleShortageRestore(vehicleId: string): Promise<
   const { error } = await requireClient().rpc('request_vehicle_shortage_restore', {
     p_vehicle_id: vehicleId
   })
-  if (!error) return
+  if (!error) {
+    await logVehicleActivityNote(vehicleId, formatWorkflowRequestNote('restore'))
+    return
+  }
   if (missingFnError(error)) throw new Error(APPLY_HINT)
   throw new Error(error.message)
 }
@@ -98,12 +118,23 @@ export async function reviewMissingPartWorkflowRequest(
   approve: boolean,
   note?: string
 ): Promise<void> {
+  const { data: existing } = await requireClient()
+    .from('missing_part_workflow_requests')
+    .select('vehicle_id, kind')
+    .eq('id', requestId)
+    .maybeSingle()
   const { error } = await requireClient().rpc('review_missing_part_workflow_request', {
     p_id: requestId,
     p_approve: approve,
     p_note: note?.trim() || null
   })
-  if (!error) return
+  if (!error) {
+    const row = existing as { vehicle_id?: string; kind?: 'transfer' | 'restore' } | null
+    if (row?.vehicle_id && (row.kind === 'transfer' || row.kind === 'restore')) {
+      await logVehicleActivityNote(row.vehicle_id, formatWorkflowReviewNote(row.kind, approve, note))
+    }
+    return
+  }
   if (missingFnError(error)) throw new Error(APPLY_HINT)
   throw new Error(error.message)
 }

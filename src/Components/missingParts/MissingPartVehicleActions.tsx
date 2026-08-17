@@ -1,12 +1,16 @@
 import { type ReactNode } from 'react'
 import { CheckCircle2, MessageSquare, Pencil, Settings2, Trash2 } from 'lucide-react'
 import { useLang } from '../../i18n/LanguageContext'
+import { useEmployees } from '../../hooks/useEmployees'
+import { useMissingPartsUiPermissions } from '../../hooks/useMissingPartsUiPermissions'
 import type { MissingPartDetail } from '../../Types/missingPart'
 import { canCompleteVehicle, iconSize } from '../../Utils/missingPartPageUtils'
+import { MpIssueFollowUpButton } from './MpIssueFollowUpButton'
 
 type Props = {
   item: MissingPartDetail
   issueCount: number
+  noteCount?: number
   deleteTargets: MissingPartDetail[]
   allItems: MissingPartDetail[]
   rowOpen?: boolean
@@ -25,12 +29,14 @@ type Props = {
   onDeleteParts: (parts: MissingPartDetail[]) => void
   onComplete: (part: MissingPartDetail) => void
   onCompleteAll?: (parts: MissingPartDetail[]) => void
+  onAssignFollowUp?: (part: MissingPartDetail, assignment: { completingDepartment: string; followUpEmployeeId: string }) => void
   layout?: 'inline' | 'stacked'
 }
 
 export function MissingPartVehicleActions({
   item,
   issueCount,
+  noteCount = 0,
   deleteTargets,
   allItems,
   rowOpen = true,
@@ -49,9 +55,12 @@ export function MissingPartVehicleActions({
   onDeleteParts,
   onComplete,
   onCompleteAll,
+  onAssignFollowUp,
   layout = 'inline'
 }: Props) {
   const { t } = useLang()
+  const { employees } = useEmployees()
+  const { canAssignFollowUp } = useMissingPartsUiPermissions()
   const canAct = archiveMode || rowOpen
   const target = completeRep ?? item
   const completeAll = completeAllReps && completeAllReps.length > 1
@@ -74,11 +83,29 @@ export function MissingPartVehicleActions({
           <Settings2 className={iconSize} />
         </IconBtn>
       )}
+      {!archiveMode && rowOpen && canAssignFollowUp && onAssignFollowUp && (
+        <MpIssueFollowUpButton
+          assignment={{
+            completingDepartment: item.completingDepartment ?? '',
+            followUpEmployeeId: item.followUpEmployeeId ?? ''
+          }}
+          employees={employees}
+          title={t('mp.followUp.open')}
+          className={`relative rounded-md p-1.5 ${
+            item.completingDepartment || item.followUpEmployeeId
+              ? 'bg-cyan-500/15 text-cyan-200 hover:bg-cyan-500/20'
+              : 'text-cyan-300 hover:bg-cyan-500/20'
+          }`}
+          iconClassName={iconSize}
+          onSave={next => onAssignFollowUp(item, next)}
+        />
+      )}
       {!archiveMode && rowOpen && canNotes && (
         <IconBtn
           title={t('mp.thread.open')}
           onClick={() => onOpenNotes(item)}
           className="text-cyan-400 hover:bg-cyan-500/20"
+          count={noteCount}
         >
           <MessageSquare className={iconSize} />
         </IconBtn>
@@ -130,23 +157,31 @@ function IconBtn({
   onClick,
   className,
   disabled,
+  count,
   children
 }: {
   title: string
   onClick: () => void
   className: string
   disabled?: boolean
+  count?: number
   children: ReactNode
 }) {
+  const label = count != null && count > 99 ? '99+' : count
   return (
     <button
       type="button"
       title={title}
       disabled={disabled}
       onClick={onClick}
-      className={`rounded-md p-1.5 ${className}`}
+      className={`relative rounded-md p-1.5 ${className}`}
     >
       {children}
+      {count != null && (
+        <span className="pointer-events-none absolute inset-0 flex items-center justify-center pt-[3px] text-[9px] font-black leading-none tabular-nums text-white drop-shadow-[0_1px_1px_rgba(0,0,0,0.85)]">
+          {label}
+        </span>
+      )}
     </button>
   )
 }

@@ -1,6 +1,7 @@
 import { type MouseEvent, type ReactNode } from 'react'
 import { useLang } from '../../i18n/LanguageContext'
 import { mpLookupLabel } from '../../Utils/mpLookupLabel'
+import { formatVehicleColorLabel } from '../../Utils/vehicleColorLabel'
 import {
   aggregateQty,
   buildMissingPartTableRows,
@@ -23,6 +24,7 @@ import {
   uniqueIssueReps
 } from '../../Utils/missingPartPageUtils'
 import { MissingPartVehicleActions } from './MissingPartVehicleActions'
+import { notesCountForVehicleIds } from '../../services/vehicleNotesService'
 import type { MissingPartDetail } from '../../Types/missingPart'
 import type { MpLookupOption } from '../../Types/mpLookup'
 import { ExportableTable } from '../ExportableTable'
@@ -42,6 +44,7 @@ type Props = {
   canUpdateStatus: boolean
   canNotes: boolean
   canComplete: boolean
+  noteCounts?: Record<string, number>
   selectableVehicleIds: Set<string>
   selectedVehicleIds: Set<string>
   bulkInstalling: boolean
@@ -60,6 +63,10 @@ type Props = {
   onDeleteParts: (parts: MissingPartDetail[]) => void
   onComplete: (part: MissingPartDetail) => void
   onCompleteAll: (parts: MissingPartDetail[]) => void
+  onAssignFollowUp?: (
+    part: MissingPartDetail,
+    assignment: { completingDepartment: string; followUpEmployeeId: string }
+  ) => void
 }
 
 export function MissingPartsTable({
@@ -76,6 +83,7 @@ export function MissingPartsTable({
   canUpdateStatus,
   canNotes,
   canComplete,
+  noteCounts = {},
   selectableVehicleIds,
   selectedVehicleIds,
   bulkInstalling,
@@ -93,7 +101,8 @@ export function MissingPartsTable({
   onUpdate,
   onDeleteParts,
   onComplete,
-  onCompleteAll
+  onCompleteAll,
+  onAssignFollowUp
 }: Props) {
   const { t, lang } = useLang()
   const cols = listTab === 'history' ? HISTORY_COLS : ACTIVE_COLS
@@ -166,6 +175,7 @@ export function MissingPartsTable({
                     canUpdateStatus={canUpdateStatus}
                     canNotes={canNotes}
                     canComplete={canComplete}
+                    noteCounts={noteCounts}
                     bulkInstalling={bulkInstalling}
                     completingVehicleId={completingVehicleId}
                     rowChecked={rowChecked(row)}
@@ -182,6 +192,7 @@ export function MissingPartsTable({
                     deleteTargets={row.displayRow.items}
                     onComplete={onComplete}
                     onCompleteAll={onCompleteAll}
+                    onAssignFollowUp={onAssignFollowUp}
                   />
                 )
               }
@@ -206,6 +217,7 @@ export function MissingPartsTable({
                     canUpdateStatus={canUpdateStatus}
                     canNotes={canNotes}
                     canComplete={canComplete}
+                    noteCounts={noteCounts}
                     bulkInstalling={bulkInstalling}
                     completingVehicleId={completingVehicleId}
                     rowChecked={rowChecked(row)}
@@ -221,6 +233,7 @@ export function MissingPartsTable({
                     deleteTargets={row.parts}
                     onComplete={onComplete}
                     onCompleteAll={onCompleteAll}
+                    onAssignFollowUp={onAssignFollowUp}
                   />
                 )
               }
@@ -240,6 +253,7 @@ export function MissingPartsTable({
                   canUpdateStatus={canUpdateStatus}
                   canNotes={canNotes}
                   canComplete={canComplete}
+                  noteCounts={noteCounts}
                   bulkInstalling={bulkInstalling}
                   completingVehicleId={completingVehicleId}
                   rowChecked={rowChecked(row)}
@@ -254,6 +268,7 @@ export function MissingPartsTable({
                   deleteTargets={[row.item]}
                   onComplete={onComplete}
                   onCompleteAll={onCompleteAll}
+                  onAssignFollowUp={onAssignFollowUp}
                 />
               )
             })}
@@ -282,6 +297,7 @@ type RowProps = {
   canUpdateStatus: boolean
   canNotes: boolean
   canComplete: boolean
+  noteCounts?: Record<string, number>
   bulkInstalling: boolean
   completingVehicleId: string | null
   rowChecked: boolean
@@ -296,6 +312,10 @@ type RowProps = {
   deleteTargets: MissingPartDetail[]
   onComplete: (part: MissingPartDetail) => void
   onCompleteAll: (parts: MissingPartDetail[]) => void
+  onAssignFollowUp?: (
+    part: MissingPartDetail,
+    assignment: { completingDepartment: string; followUpEmployeeId: string }
+  ) => void
 }
 
 function multiReasonButton(
@@ -474,6 +494,8 @@ function PartDataRow({
   deleteTargets,
   onComplete,
   onCompleteAll,
+  onAssignFollowUp,
+  noteCounts = {},
   rowClassName = '',
   relatedParts,
   completeRep,
@@ -498,6 +520,10 @@ function PartDataRow({
   const rowScope = relatedParts ?? [item]
   const rowOpen = isMissingPartRowOpen(rowScope)
   const completeTarget = completeRep ?? item
+  const noteCount = notesCountForVehicleIds(
+    rowScope.map(p => p.vehicleId),
+    noteCounts
+  )
 
   function handleRowClick(e: MouseEvent) {
     const target = e.target as HTMLElement
@@ -551,7 +577,7 @@ function PartDataRow({
               className="inline-block h-3 w-3 rounded-full ring-1 ring-slate-500"
               style={{ backgroundColor: item.colorHex ?? '#fff' }}
             />
-            {item.colorName}
+            {formatVehicleColorLabel(item.colorName, item.colorCode)}
           </span>
         ) : (
           '—'
@@ -596,7 +622,7 @@ function PartDataRow({
             <span className="mx-auto block max-w-[10rem] truncate text-slate-300">{completerLabel}</span>
           </td>
           <td className={`${cell} text-emerald-300/80`}>
-            {item.shortageResolvedAt ? formatDateTime(item.shortageResolvedAt, lang).date : '-'}
+            {item.shortageResolvedAt ? <DateTimeCell iso={item.shortageResolvedAt} lang={lang} /> : '-'}
           </td>
         </>
       )}
@@ -605,6 +631,7 @@ function PartDataRow({
           <MissingPartVehicleActions
             item={item}
             issueCount={issueCount}
+            noteCount={noteCount}
             rowOpen={rowOpen}
             archiveMode={listTab === 'history'}
             allItems={filtered}
@@ -623,6 +650,7 @@ function PartDataRow({
             onDeleteParts={onDeleteParts}
             onComplete={onComplete}
             onCompleteAll={onCompleteAll}
+            onAssignFollowUp={onAssignFollowUp}
           />
         </td>
       )}

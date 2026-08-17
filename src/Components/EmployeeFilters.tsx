@@ -3,7 +3,7 @@ import { useLang } from '../i18n/LanguageContext'
 import { JOB_ROLES } from '../Types/enums'
 import type { JobRole } from '../Types/enums'
 import type { FactoryOrgUnit } from '../Types/factoryOrg'
-import { orgPathFromLeaf, orgPathLabel } from '../Utils/employeeOrgPicker'
+import { OrgUnitCascadeField } from './OrgUnitCascadeField'
 
 export type EmployeeFilterState = {
   search: string
@@ -28,18 +28,7 @@ type Props = {
 export function EmployeeFilters({ value, onChange, orgUnits }: Props) {
   const { t } = useLang()
   const set = (patch: Partial<EmployeeFilterState>) => onChange({ ...value, ...patch })
-
-  const orgOptions = useMemo(
-    () =>
-      orgUnits
-        .filter(u => u.isActive)
-        .map(u => ({
-          id: u.id,
-          label: orgPathLabel(orgPathFromLeaf(u.id, orgUnits), orgUnits) ?? u.name
-        }))
-        .sort((a, b) => a.label.localeCompare(b.label, 'ar')),
-    [orgUnits]
-  )
+  const activeUnits = useMemo(() => orgUnits.filter(u => u.isActive), [orgUnits])
 
   return (
     <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
@@ -57,18 +46,15 @@ export function EmployeeFilters({ value, onChange, orgUnits }: Props) {
           </option>
         ))}
       </select>
-      <select
-        className="input-dark"
-        value={value.factoryOrgUnitId}
-        onChange={e => set({ factoryOrgUnitId: e.target.value })}
-      >
-        <option value="">{t('org.filters.orgUnit')}</option>
-        {orgOptions.map(o => (
-          <option key={o.id} value={o.id}>
-            {o.label}
-          </option>
-        ))}
-      </select>
+      <div className="sm:col-span-2 lg:col-span-1">
+        <OrgUnitCascadeField
+          units={activeUnits}
+          value={value.factoryOrgUnitId}
+          onChange={id => set({ factoryOrgUnitId: id })}
+          emptyLabel={t('org.filters.orgUnit')}
+          showPathPreview={false}
+        />
+      </div>
       <select
         className="input-dark"
         value={value.status}

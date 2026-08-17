@@ -1,6 +1,8 @@
 import type { MissingPartDetail, MissingPartFilters } from '../Types/missingPart'
+import type { FactoryOrgUnit } from '../Types/factoryOrg'
 import type { VehicleModel } from '../Types/settings'
 import { inferParentNameFromVariant } from './vehicleModelHierarchy'
+import { employeeMatchesOrgFilter } from './employeeOrgPicker'
 
 export const ACTIVE_COLS = [
   'select',
@@ -97,19 +99,31 @@ export function todayLocalDayKey(): string {
   return `${y}-${m}-${day}`
 }
 
-export function applyFilters(items: MissingPartDetail[], filters: MissingPartFilters) {
+export function applyFilters(
+  items: MissingPartDetail[],
+  filters: MissingPartFilters,
+  options?: { dateField?: 'created' | 'resolved'; orgUnits?: FactoryOrgUnit[] }
+) {
   const models = new Set(filters.modelNames)
-  const departments = new Set(filters.departments)
+  const departments = [...filters.departments]
+  const orgUnits = options?.orgUnits ?? []
   const month = filters.resolvedMonth
   const dateFrom = filters.dateFrom?.trim() ?? ''
   const dateTo = filters.dateTo?.trim() ?? ''
+  const dateField = options?.dateField ?? 'created'
   const base = items
     .filter(i => models.size === 0 || models.has(i.modelName))
-    .filter(i => departments.size === 0 || (i.department != null && departments.has(i.department)))
+    .filter(i => {
+      if (departments.length === 0) return true
+      if (!i.department) return false
+      return departments.some(
+        d => d === i.department || (orgUnits.length > 0 && employeeMatchesOrgFilter(i.department, d, orgUnits))
+      )
+    })
     .filter(i => !month || resolvedMonthKey(i.shortageResolvedAt) === month)
     .filter(i => {
       if (!dateFrom && !dateTo) return true
-      const day = localDayKey(i.createdAt)
+      const day = localDayKey(dateField === 'resolved' ? i.shortageResolvedAt : i.createdAt)
       if (!day) return false
       if (dateFrom && day < dateFrom) return false
       if (dateTo && day > dateTo) return false
@@ -235,6 +249,7 @@ export type VariantVehicleSummary = {
   vin: string
   modelName: string
   colorName: string | null
+  colorCode: string | null
   colorHex: string | null
   parts: MissingPartDetail[]
 }
@@ -254,6 +269,7 @@ export function buildVariantVehicleSummaries(items: MissingPartDetail[], variant
       vin: parts[0].vin,
       modelName: parts[0].modelName,
       colorName: parts[0].colorName,
+      colorCode: parts[0].colorCode,
       colorHex: parts[0].colorHex,
       parts
     }))

@@ -11,9 +11,12 @@ import type { VehicleIssuesContext } from '../Types/missingPart'
 import type { MissingPartDetail } from '../Types/missingPart'
 import type { VehicleColor, VehicleModel } from '../Types/settings'
 import { useMpLookups } from '../hooks/useMpLookups'
+import { useEmployees } from '../hooks/useEmployees'
+import { useMissingPartsUiPermissions } from '../hooks/useMissingPartsUiPermissions'
 import { useFormatError } from '../hooks/useFormatError'
 import { useVinListConflict } from '../hooks/useVinListConflict'
-import { MpLookupCreatableSelect } from './MpLookupCreatableSelect'
+import { MpIssueLookupsFields } from './missingParts/MpIssueLookupsFields'
+import { MpIssueFollowUpButton } from './missingParts/MpIssueFollowUpButton'
 import { VehicleModelFamilyPicker, resolveFamilyIdForVariant } from './VehicleModelFamilyPicker'
 import { defaultDepartmentCode, defaultReasonCode } from '../Utils/mpLookupLabel'
 import { isValidVinLength } from '../Utils/vinValidation'
@@ -28,38 +31,60 @@ type Props = {
 
 type ExistingLine = {
   part: MissingPartDetail
-  partDescription: string
+  partItems: string[]
   requiredQty: number
   reason: string
   department: string
   notes: string
+  completingDepartment: string
+  followUpEmployeeId: string
 }
 
 type NewIssue = {
   key: string
-  partDescription: string
+  partItems: string[]
   reason: string
   department: string
+  completingDepartment: string
+  followUpEmployeeId: string
+}
+
+function filledPartItems(items: string[]): string[] {
+  return items.map(s => s.trim()).filter(Boolean)
 }
 
 function lineChanged(d: ExistingLine): boolean {
   const p = d.part
+  const filled = filledPartItems(d.partItems)
+  const primary = (filled[0] ?? '').trim()
   return (
-    d.partDescription.trim() !== p.partDescription ||
+    primary !== p.partDescription ||
+    filled.length > 1 ||
     d.requiredQty !== p.requiredQty ||
     d.reason !== p.reason ||
     d.department !== p.department ||
+    (d.completingDepartment || '') !== (p.completingDepartment ?? '') ||
+    (d.followUpEmployeeId || '') !== (p.followUpEmployeeId ?? '') ||
     (d.notes.trim() || '') !== (p.notes ?? '')
   )
 }
 
 function newIssueDraft(reason: string, department: string): NewIssue {
-  return { key: crypto.randomUUID(), partDescription: '', reason, department }
+  return {
+    key: crypto.randomUUID(),
+    partItems: [''],
+    reason,
+    department,
+    completingDepartment: '',
+    followUpEmployeeId: ''
+  }
 }
 
 export function EditMissingPartModal({ vehicle, activeListParts = [], onClose, onSaved }: Props) {
   const { t } = useLang()
-  const { reasons, departments, addReason, addDepartment } = useMpLookups()
+  const { reasons, departments, orgUnits, addReason } = useMpLookups()
+  const { employees } = useEmployees()
+  const { canAssignFollowUp } = useMissingPartsUiPermissions()
   const formatError = useFormatError()
   const [models, setModels] = useState<VehicleModel[]>([])
   const [colors, setColors] = useState<VehicleColor[]>([])
@@ -109,11 +134,13 @@ export function EditMissingPartModal({ vehicle, activeListParts = [], onClose, o
     setLines(
       openParts.map(p => ({
         part: p,
-        partDescription: p.partDescription,
+        partItems: [p.partDescription],
         requiredQty: p.requiredQty,
         reason: p.reason,
         department: p.department,
-        notes: p.notes ?? ''
+        notes: p.notes ?? '',
+        completingDepartment: p.completingDepartment ?? '',
+        followUpEmployeeId: p.followUpEmployeeId ?? ''
       }))
     )
     setNewIssues([])
@@ -141,7 +168,7 @@ export function EditMissingPartModal({ vehicle, activeListParts = [], onClose, o
   if (!vehicle) return null
 
   const changedLines = lines.filter(lineChanged)
-  const filledNewIssues = newIssues.filter(i => i.partDescription.trim())
+  const filledNewIssues = newIssues.filter(i => filledPartItems(i.partItems).length > 0)
   const filledExtraVins = extraVins.map(v => normalizeVinKey(v)).filter(isValidVinLength)
   const vinChanged = normalizeVinKey(vin) !== normalizeVinKey(vehicle.vin)
   const originalColor = colors.find(c => c.name === vehicle.colorName)
@@ -164,9 +191,58 @@ export function EditMissingPartModal({ vehicle, activeListParts = [], onClose, o
   }
 
   function removeExistingLine(line: ExistingLine) {
-    if (!window.confirm(t('mp.deleteConfirm', { part: line.partDescription || line.part.partDescription }))) return
+    const label = filledPartItems(line.partItems)[0] || line.part.partDescription
+    if (!window.confirm(t('mp.deleteConfirm', { part: label }))) return
     setRemovedIds(prev => [...prev, line.part.id])
     setLines(prev => prev.filter(l => l.part.id !== line.part.id))
+  }
+
+  function updateLinePartItem(partId: string, index: number, value: string) {
+    setLines(prev =>
+      prev.map(l =>
+        l.part.id === partId
+          ? { ...l, partItems: l.partItems.map((item, i) => (i === index ? value : item)) }
+          : l
+      )
+    )
+  }
+
+  function addLinePartItem(partId: string) {
+    setLines(prev => prev.map(l => (l.part.id === partId ? { ...l, partItems: [...l.partItems, ''] } : l)))
+  }
+
+  function removeLinePartItem(partId: string, index: number) {
+    setLines(prev =>
+      prev.map(l => {
+        if (l.part.id !== partId || l.partItems.length <= 1) return l
+        return { ...l, partItems: l.partItems.filter((_, i) => i !== index) }
+      })
+    )
+  }
+
+  function updateNewIssuePartItem(key: string, index: number, value: string) {
+    setNewIssues(prev =>
+      prev.map(issue =>
+        issue.key === key
+          ? { ...issue, partItems: issue.partItems.map((item, i) => (i === index ? value : item)) }
+          : issue
+      )
+    )
+  }
+
+  function addNewIssuePartItem(key: string) {
+    setNewIssues(prev =>
+      prev.map(issue => (issue.key === key ? { ...issue, partItems: [...issue.partItems, ''] } : issue))
+    )
+  }
+
+  function removeNewIssuePartItem(key: string, index: number) {
+    setNewIssues(prev =>
+      prev.map(issue => {
+        if (issue.key !== key || issue.partItems.length <= 1) return issue
+        return { ...issue, partItems: issue.partItems.filter((_, i) => i !== index) }
+      })
+    )
   }
 
   function addExistingStyleIssue() {
@@ -189,12 +265,19 @@ export function EditMissingPartModal({ vehicle, activeListParts = [], onClose, o
       return
     }
     for (const line of changedLines) {
-      if (!line.partDescription.trim()) {
+      const filled = filledPartItems(line.partItems)
+      if (filled.length === 0) {
         setError(t('mp.edit.partRequired'))
         return
       }
       if (line.requiredQty < Math.max(1, line.part.installedQty)) {
         setError(t('mp.edit.qtyBelowInstalled'))
+        return
+      }
+    }
+    for (const issue of filledNewIssues) {
+      if (filledPartItems(issue.partItems).length === 0) {
+        setError(t('mp.edit.partRequired'))
         return
       }
     }
@@ -241,14 +324,18 @@ export function EditMissingPartModal({ vehicle, activeListParts = [], onClose, o
       }
 
       for (const line of changedLines) {
+        const filled = filledPartItems(line.partItems)
         await updateMissingPartRecord(line.part.id, {
-          partDescription: line.partDescription.trim(),
+          partDescription: filled[0],
           requiredQty: Math.max(1, line.requiredQty),
           reason: line.reason,
           department: line.department,
           priority: line.part.priority,
           stopperType: line.part.stopperType,
-          notes: sharedNotes || line.notes
+          notes: sharedNotes || line.notes,
+          completingDepartment: line.completingDepartment || null,
+          followUpEmployeeId: line.followUpEmployeeId || null,
+          assignFollowUp: canAssignFollowUp
         })
       }
 
@@ -256,25 +343,49 @@ export function EditMissingPartModal({ vehicle, activeListParts = [], onClose, o
       if (sharedNotes !== (openParts[0]?.notes ?? '').trim()) {
         for (const line of lines) {
           if (changedLines.some(c => c.part.id === line.part.id)) continue
+          const filled = filledPartItems(line.partItems)
           await updateMissingPartRecord(line.part.id, {
-            partDescription: line.partDescription.trim(),
+            partDescription: filled[0] || line.part.partDescription,
             requiredQty: Math.max(1, line.requiredQty),
             reason: line.reason,
             department: line.department,
             priority: line.part.priority,
             stopperType: line.part.stopperType,
-            notes: sharedNotes
+            notes: sharedNotes,
+            completingDepartment: line.completingDepartment || null,
+            followUpEmployeeId: line.followUpEmployeeId || null,
+            assignFollowUp: canAssignFollowUp
           })
         }
       }
 
-      const newPartLines = filledNewIssues.map(i => ({
-        partDescription: i.partDescription.trim(),
-        requiredQty: 1,
-        reason: i.reason,
-        department: i.department,
-        stationId: null as string | null
-      }))
+      const extraFromExisting = lines.flatMap(line => {
+        const filled = filledPartItems(line.partItems)
+        return filled.slice(1).map(partDescription => ({
+          partDescription,
+          requiredQty: 1,
+          reason: line.reason,
+          department: line.department,
+          stationId: null as string | null,
+          completingDepartment: line.completingDepartment || null,
+          followUpEmployeeId: line.followUpEmployeeId || null
+        }))
+      })
+
+      const newPartLines = [
+        ...extraFromExisting,
+        ...filledNewIssues.flatMap(i =>
+          filledPartItems(i.partItems).map(partDescription => ({
+            partDescription,
+            requiredQty: 1,
+            reason: i.reason,
+            department: i.department,
+            stationId: null as string | null,
+            completingDepartment: i.completingDepartment || null,
+            followUpEmployeeId: i.followUpEmployeeId || null
+          }))
+        )
+      ]
 
       let reportGroupId = openParts.map(p => p.reportGroupId).find(Boolean) ?? null
       if (allNewVins.length > 0 && !reportGroupId) {
@@ -301,15 +412,29 @@ export function EditMissingPartModal({ vehicle, activeListParts = [], onClose, o
 
       if (allNewVins.length > 0) {
         const partsForNewVins = [
-          ...lines.map(l => ({
-            partDescription: l.partDescription.trim(),
-            requiredQty: 1,
-            reason: l.reason,
-            department: l.department,
-            stationId: null as string | null
-          })),
-          ...newPartLines
-        ].filter(p => p.partDescription)
+          ...lines.flatMap(l =>
+            filledPartItems(l.partItems).map(partDescription => ({
+              partDescription,
+              requiredQty: 1,
+              reason: l.reason,
+              department: l.department,
+              stationId: null as string | null,
+              completingDepartment: l.completingDepartment || null,
+              followUpEmployeeId: l.followUpEmployeeId || null
+            }))
+          ),
+          ...filledNewIssues.flatMap(i =>
+            filledPartItems(i.partItems).map(partDescription => ({
+              partDescription,
+              requiredQty: 1,
+              reason: i.reason,
+              department: i.department,
+              stationId: null as string | null,
+              completingDepartment: i.completingDepartment || null,
+              followUpEmployeeId: i.followUpEmployeeId || null
+            }))
+          )
+        ]
         if (partsForNewVins.length === 0) {
           setError(t('mp.edit.needIssueForNewVin'))
           setBusy(false)
@@ -446,42 +571,47 @@ export function EditMissingPartModal({ vehicle, activeListParts = [], onClose, o
               <div key={line.part.id} className="space-y-2 rounded-xl border border-slate-700 bg-slate-950/50 p-3">
                 <div className="flex items-center justify-between gap-2">
                   <p className="text-[10px] font-black uppercase text-cyan-400/90">{t('mp.issueN', { n: idx + 1 })}</p>
-                  <button
-                    type="button"
-                    onClick={() => removeExistingLine(line)}
-                    className="rounded-lg bg-red-500/15 p-1.5 text-red-200 hover:bg-red-500/25"
-                    title={t('common.delete')}
-                  >
-                    <Trash2 className="h-3.5 w-3.5" />
-                  </button>
+                  <div className="flex items-center gap-1">
+                    {canAssignFollowUp && (
+                      <MpIssueFollowUpButton
+                        assignment={{
+                          completingDepartment: line.completingDepartment,
+                          followUpEmployeeId: line.followUpEmployeeId
+                        }}
+                        employees={employees}
+                        onSave={next =>
+                          patchLine(line.part.id, {
+                            completingDepartment: next.completingDepartment,
+                            followUpEmployeeId: next.followUpEmployeeId
+                          })
+                        }
+                      />
+                    )}
+                    <button
+                      type="button"
+                      onClick={() => removeExistingLine(line)}
+                      className="rounded-lg bg-red-500/15 p-1.5 text-red-200 hover:bg-red-500/25"
+                      title={t('common.delete')}
+                    >
+                      <Trash2 className="h-3.5 w-3.5" />
+                    </button>
+                  </div>
                 </div>
-                <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
-                  <Field label={t('mp.cols.reasonClass')} required>
-                    <MpLookupCreatableSelect
-                      options={reasons}
-                      value={line.reason}
-                      onChange={code => patchLine(line.part.id, { reason: code })}
-                      onCreate={addReason}
-                      addLabel={t('mp.addReasonOption')}
-                    />
-                  </Field>
-                  <Field label={t('mp.cols.department')} required>
-                    <MpLookupCreatableSelect
-                      options={departments}
-                      value={line.department}
-                      onChange={code => patchLine(line.part.id, { department: code })}
-                      onCreate={addDepartment}
-                      addLabel={t('mp.addDepartmentOption')}
-                    />
-                  </Field>
-                </div>
-                <Field label={t('mp.cols.reason')} required>
-                  <input
-                    className="input-dark w-full"
-                    value={line.partDescription}
-                    onChange={e => patchLine(line.part.id, { partDescription: e.target.value })}
-                  />
-                </Field>
+                <ReasonItemsField
+                  items={line.partItems}
+                  onUpdate={(index, value) => updateLinePartItem(line.part.id, index, value)}
+                  onAdd={() => addLinePartItem(line.part.id)}
+                  onRemove={index => removeLinePartItem(line.part.id, index)}
+                />
+                <MpIssueLookupsFields
+                  department={line.department}
+                  reason={line.reason}
+                  orgUnits={orgUnits}
+                  reasons={reasons}
+                  onDepartmentChange={department => patchLine(line.part.id, { department })}
+                  onReasonChange={code => patchLine(line.part.id, { reason: code })}
+                  onCreateReason={addReason}
+                />
                 <Field label={t('mp.cols.qty')}>
                   <input
                     type="number"
@@ -496,54 +626,61 @@ export function EditMissingPartModal({ vehicle, activeListParts = [], onClose, o
 
             {newIssues.map((issue, idx) => (
               <div key={issue.key} className="space-y-2 rounded-xl border border-dashed border-cyan-500/40 bg-cyan-500/5 p-3">
-                <div className="flex items-center justify-between">
-                  <p className="text-[10px] font-black uppercase text-cyan-300">
-                    {t('mp.edit.newIssue')} · {t('mp.issueN', { n: lines.length + idx + 1 })}
-                  </p>
-                  <button
-                    type="button"
-                    onClick={() => setNewIssues(prev => prev.filter(x => x.key !== issue.key))}
-                    className="rounded-lg bg-red-500/15 p-1.5 text-red-200 hover:bg-red-500/25"
-                  >
-                    <Trash2 className="h-3.5 w-3.5" />
-                  </button>
-                </div>
-                <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
-                  <Field label={t('mp.cols.reasonClass')} required>
-                    <MpLookupCreatableSelect
-                      options={reasons}
-                      value={issue.reason}
-                      onChange={code =>
-                        setNewIssues(prev => prev.map(x => (x.key === issue.key ? { ...x, reason: code } : x)))
-                      }
-                      onCreate={addReason}
-                      addLabel={t('mp.addReasonOption')}
-                    />
-                  </Field>
-                  <Field label={t('mp.cols.department')} required>
-                    <MpLookupCreatableSelect
-                      options={departments}
-                      value={issue.department}
-                      onChange={code =>
-                        setNewIssues(prev => prev.map(x => (x.key === issue.key ? { ...x, department: code } : x)))
-                      }
-                      onCreate={addDepartment}
-                      addLabel={t('mp.addDepartmentOption')}
-                    />
-                  </Field>
-                </div>
-                <Field label={t('mp.cols.reason')} required>
-                  <input
-                    className="input-dark w-full"
-                    value={issue.partDescription}
-                    onChange={e =>
-                      setNewIssues(prev =>
-                        prev.map(x => (x.key === issue.key ? { ...x, partDescription: e.target.value } : x))
-                      )
-                    }
-                    placeholder={t('mp.issueReasonPlaceholder')}
+                  <div className="flex items-center justify-between">
+                    <p className="text-[10px] font-black uppercase text-cyan-300">
+                      {t('mp.edit.newIssue')} · {t('mp.issueN', { n: lines.length + idx + 1 })}
+                    </p>
+                    <div className="flex items-center gap-1">
+                      {canAssignFollowUp && (
+                        <MpIssueFollowUpButton
+                          assignment={{
+                            completingDepartment: issue.completingDepartment,
+                            followUpEmployeeId: issue.followUpEmployeeId
+                          }}
+                          employees={employees}
+                          onSave={next =>
+                            setNewIssues(prev =>
+                              prev.map(x =>
+                                x.key === issue.key
+                                  ? {
+                                      ...x,
+                                      completingDepartment: next.completingDepartment,
+                                      followUpEmployeeId: next.followUpEmployeeId
+                                    }
+                                  : x
+                              )
+                            )
+                          }
+                        />
+                      )}
+                      <button
+                        type="button"
+                        onClick={() => setNewIssues(prev => prev.filter(x => x.key !== issue.key))}
+                        className="rounded-lg bg-red-500/15 p-1.5 text-red-200 hover:bg-red-500/25"
+                      >
+                        <Trash2 className="h-3.5 w-3.5" />
+                      </button>
+                    </div>
+                  </div>
+                  <ReasonItemsField
+                    items={issue.partItems}
+                    onUpdate={(index, value) => updateNewIssuePartItem(issue.key, index, value)}
+                    onAdd={() => addNewIssuePartItem(issue.key)}
+                    onRemove={index => removeNewIssuePartItem(issue.key, index)}
                   />
-                </Field>
+                  <MpIssueLookupsFields
+                    department={issue.department}
+                    reason={issue.reason}
+                    orgUnits={orgUnits}
+                    reasons={reasons}
+                    onDepartmentChange={department =>
+                      setNewIssues(prev => prev.map(x => (x.key === issue.key ? { ...x, department } : x)))
+                    }
+                    onReasonChange={code =>
+                      setNewIssues(prev => prev.map(x => (x.key === issue.key ? { ...x, reason: code } : x)))
+                    }
+                    onCreateReason={addReason}
+                  />
               </div>
             ))}
           </div>
@@ -575,5 +712,56 @@ function Field({ label, required, children }: { label: string; required?: boolea
       </span>
       {children}
     </label>
+  )
+}
+
+function ReasonItemsField({
+  items,
+  onUpdate,
+  onAdd,
+  onRemove
+}: {
+  items: string[]
+  onUpdate: (index: number, value: string) => void
+  onAdd: () => void
+  onRemove: (index: number) => void
+}) {
+  const { t } = useLang()
+  return (
+    <Field label={t('mp.cols.reason')} required>
+      <div className="space-y-2">
+        {items.map((item, pi) => (
+          <div key={pi} className="flex gap-2">
+            <input
+              className="input-dark min-w-0 flex-1"
+              value={item}
+              onChange={e => onUpdate(pi, e.target.value)}
+              placeholder={t('mp.issueReasonPlaceholder')}
+            />
+            {items.length > 1 && (
+              <button
+                type="button"
+                onClick={() => onRemove(pi)}
+                className="shrink-0 rounded-xl border border-red-500/30 bg-red-500/10 px-3 py-2 text-red-200 hover:bg-red-500/20"
+                title={t('common.delete')}
+              >
+                <Trash2 className="h-4 w-4" />
+              </button>
+            )}
+            {pi === items.length - 1 && (
+              <button
+                type="button"
+                onClick={onAdd}
+                className="shrink-0 rounded-xl border border-cyan-500/40 bg-cyan-500/10 px-3 py-2 text-cyan-200 hover:bg-cyan-500/20"
+                title={t('mp.addReasonLine')}
+              >
+                <Plus className="h-4 w-4" />
+              </button>
+            )}
+          </div>
+        ))}
+        <p className="text-[10px] text-slate-500">{t('mp.reasonItemsHint')}</p>
+      </div>
+    </Field>
   )
 }

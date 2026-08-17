@@ -2,11 +2,11 @@ import { useCallback, useMemo } from 'react'
 import { useAuth } from '../Context/AuthContext'
 import { usePermissions } from '../Context/PermissionsContext'
 import { useCanViewPage } from './useCanViewPage'
-import type { ListTab } from '../Components/missingParts/MissingPartsToolbar'
+import type { MissingPartsListTab } from '../Types/missingPart'
 import { resolveMissingPartAction, type MissingPartsActionBits } from '../Utils/missingPartPermissions'
 import { permissionKey } from '../services/permissionsService'
 
-const TAB_PAGE_KEYS: Record<ListTab, string> = {
+const TAB_PAGE_KEYS: Record<MissingPartsListTab, string> = {
   active: 'active',
   byFamily: 'active',
   summary: 'summary',
@@ -32,7 +32,7 @@ export function useMissingPartsUiPermissions() {
   )
 
   const canViewListTab = useCallback(
-    (tab: ListTab) => canViewTab('production_missing', TAB_PAGE_KEYS[tab]),
+    (tab: MissingPartsListTab) => canViewTab('production_missing', TAB_PAGE_KEYS[tab]),
     [canViewTab]
   )
 
@@ -48,7 +48,7 @@ export function useMissingPartsUiPermissions() {
   })
 
   const visibleTabs = useMemo(() => {
-    const all: ListTab[] = [
+    const all: MissingPartsListTab[] = [
       'active',
       'byFamily',
       'summary',
@@ -129,6 +129,14 @@ export function useMissingPartsUiPermissions() {
     )
   })
 
+  const canAssignFollowUp =
+    isAdmin ||
+    systemRoleCode === 'engineer' ||
+    systemRoleCode === 'production_manager' ||
+    systemRoleCode === 'general_manager' ||
+    systemRoleCode === 'admin' ||
+    systemRoleCode === 'super_admin'
+
   const canBulkInstall = resolveMissingPartAction(
     bits,
     'bulk_install',
@@ -151,6 +159,7 @@ export function useMissingPartsUiPermissions() {
     canEdit,
     canDelete,
     canComplete,
+    canAssignFollowUp,
     canReviewWorkflow,
     canBulkInstall,
     canBulkInstallAndUpdate: canBulkInstall && canUpdateStatus
