@@ -295,15 +295,15 @@ export function MissingPartsPage() {
   const activeVehicleCount = useMemo(() => new Set(activeItems.map(i => i.vehicleId)).size, [activeItems])
   const historyVehicleCount = useMemo(() => new Set(historyItems.map(i => i.vehicleId)).size, [historyItems])
   const tabSource = useMemo(() => {
-    if (listTab === 'history' || listTab === 'historySummary') return historyItems
-    return activeItems
+    const source = listTab === 'history' || listTab === 'historySummary' ? historyItems : activeItems
+    return source.slice()
   }, [listTab, historyItems, activeItems])
   const filtered = useMemo(
     () =>
       applyFilters(tabSource, filters, {
         dateField: listTab === 'history' || listTab === 'historySummary' ? 'resolved' : 'created',
         orgUnits
-      }),
+      }).slice(),
     [tabSource, filters, listTab, orgUnits]
   )
   const tableRows = useMemo(

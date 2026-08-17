@@ -278,14 +278,12 @@ export function SettingsDepartmentReasonNest({
     const labelEn = reasonForm.label_en.trim() || labelAr
     if (!labelAr) return
     const ok = reasonForm.id
-      ? await runAction(
-          () =>
-            updateMpReasonOption(reasonForm.id!, {
-              label_ar: labelAr,
-              label_en: labelEn
-            }),
-          t('settings.updated')
-        )
+      ? await runAction(async () => {
+          await updateMpReasonOption(reasonForm.id!, {
+            label_ar: labelAr,
+            label_en: labelEn
+          })
+        }, t('settings.updated'))
       : await runAction(async () => {
           const created = await createMpReasonOption({ label_ar: labelAr, label_en: labelEn })
           await linkMpDepartmentReason(reasonForm.departmentCode, created.code)

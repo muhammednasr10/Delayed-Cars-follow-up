@@ -16,7 +16,7 @@ const t = (key: string, vars?: Record<string, string | number>) => {
   }
   let out = map[key] ?? key
   if (vars) {
-    for (const [k, v] of Object.entries(vars)) out = out.replaceAll(`{${k}}`, String(v))
+    for (const [k, v] of Object.entries(vars)) out = out.split(`{${k}}`).join(String(v))
   }
   return out
 }
