@@ -5,8 +5,8 @@ import { Modal } from '../Modal'
 import { Field, inputCls } from '../FormField'
 import { EmployeeMultiSelect } from '../EmployeeMultiSelect'
 import type { Employee } from '../../Types/employee'
-import type { MissionPriority, MissionStatus, TeamMission, TeamMissionInput } from '../../Types/mission'
-import { MISSION_PRIORITIES, MISSION_STATUSES } from '../../Types/mission'
+import type { MissionPriority, MissionRecurrenceType, MissionStatus, TeamMission, TeamMissionInput } from '../../Types/mission'
+import { MISSION_PRIORITIES, MISSION_RECURRENCE_TYPES, MISSION_STATUSES } from '../../Types/mission'
 
 function todayIsoDate(): string {
   const d = new Date()
@@ -21,6 +21,8 @@ function emptyForm(): TeamMissionInput {
     status: 'pending',
     priority: 'normal',
     dueDate: todayIsoDate(),
+    recurrenceType: 'none',
+    recurrenceCustom: '',
     notes: ''
   }
 }
@@ -62,6 +64,8 @@ export function MissionFormModal({
         status: editing.status,
         priority: editing.priority,
         dueDate: editing.dueDate ?? todayIsoDate(),
+        recurrenceType: editing.recurrenceType ?? 'none',
+        recurrenceCustom: editing.recurrenceCustom ?? '',
         notes: editing.notes ?? ''
       })
     } else {
@@ -89,6 +93,8 @@ export function MissionFormModal({
         title: form.title.trim(),
         description: form.description?.trim() || undefined,
         dueDate: form.dueDate || null,
+        recurrenceType: form.recurrenceType ?? 'none',
+        recurrenceCustom: form.recurrenceType === 'custom' ? form.recurrenceCustom?.trim() || null : null,
         notes: form.notes?.trim() || undefined
       })
     } catch (e) {
@@ -177,7 +183,36 @@ export function MissionFormModal({
               onChange={e => setForm(f => ({ ...f, dueDate: e.target.value }))}
             />
           </Field>
+
+          <Field label={t('missions.cols.recurrence')}>
+            <select
+              className={inputCls()}
+              value={(form.recurrenceType ?? 'none') as MissionRecurrenceType}
+              onChange={e =>
+                setForm(f => ({
+                  ...f,
+                  recurrenceType: e.target.value as MissionRecurrenceType
+                }))
+              }
+            >
+              {MISSION_RECURRENCE_TYPES.map(key => (
+                <option key={key} value={key}>
+                  {t(`missions.recurrence.${key}`)}
+                </option>
+              ))}
+            </select>
+          </Field>
         </div>
+
+        {form.recurrenceType === 'custom' && (
+          <Field label={t('missions.recurrenceCustom')}>
+            <textarea
+              className={`${inputCls()} min-h-[3rem] resize-y`}
+              value={form.recurrenceCustom ?? ''}
+              onChange={e => setForm(f => ({ ...f, recurrenceCustom: e.target.value }))}
+            />
+          </Field>
+        )}
 
         {editing && (
           <Field label={t('missions.cols.status')}>

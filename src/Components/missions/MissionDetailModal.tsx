@@ -1,4 +1,4 @@
-import { ListTodo } from 'lucide-react'
+import { ListTodo, UserRoundCog } from 'lucide-react'
 import { useLang } from '../../i18n/LanguageContext'
 import { Modal } from '../Modal'
 import type { TeamMission } from '../../Types/mission'
@@ -6,6 +6,8 @@ import type { TeamMission } from '../../Types/mission'
 type Props = {
   mission: TeamMission | null
   onClose: () => void
+  canDelegate?: boolean
+  onDelegate?: () => void
 }
 
 function Field({ label, value, dir, preWrap }: { label: string; value: string; dir?: string; preWrap?: boolean }) {
@@ -22,7 +24,7 @@ function Field({ label, value, dir, preWrap }: { label: string; value: string; d
   )
 }
 
-export function MissionDetailModal({ mission, onClose }: Props) {
+export function MissionDetailModal({ mission, onClose, canDelegate, onDelegate }: Props) {
   const { t, lang } = useLang()
   if (!mission) return null
 
@@ -51,13 +53,25 @@ export function MissionDetailModal({ mission, onClose }: Props) {
       onClose={onClose}
       maxWidthClass="max-w-lg"
       footer={
-        <button
-          type="button"
-          onClick={onClose}
-          className="rounded-xl bg-slate-800 px-4 py-2 text-sm font-bold text-slate-200 hover:bg-slate-700"
-        >
-          {t('common.close')}
-        </button>
+        <div className="flex flex-wrap justify-end gap-2">
+          {canDelegate && onDelegate && (
+            <button
+              type="button"
+              onClick={onDelegate}
+              className="inline-flex items-center gap-2 rounded-xl border border-amber-500/40 bg-amber-500/10 px-4 py-2 text-sm font-bold text-amber-200 hover:bg-amber-500/20"
+            >
+              <UserRoundCog className="h-4 w-4" />
+              {t('missions.delegate.open')}
+            </button>
+          )}
+          <button
+            type="button"
+            onClick={onClose}
+            className="rounded-xl bg-slate-800 px-4 py-2 text-sm font-bold text-slate-200 hover:bg-slate-700"
+          >
+            {t('common.close')}
+          </button>
+        </div>
       }
     >
       <div className="space-y-3 p-5">
@@ -71,6 +85,15 @@ export function MissionDetailModal({ mission, onClose }: Props) {
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
           <Field label={t('missions.cols.priority')} value={t(`missions.priority.${mission.priority}`)} />
           <Field label={t('missions.cols.dueDate')} value={formatDate(mission.dueDate)} dir="ltr" />
+          <Field
+            label={t('missions.cols.recurrence')}
+            value={
+              mission.recurrenceType === 'custom'
+                ? `${t(`missions.recurrence.${mission.recurrenceType}`)}: ${mission.recurrenceCustom || '—'}`
+                : t(`missions.recurrence.${mission.recurrenceType}`)
+            }
+            dir="ltr"
+          />
           <Field label={t('missions.cols.status')} value={t(`missions.status.${mission.status}`)} />
           <Field label={t('missions.detail.createdAt')} value={formatDateTime(mission.createdAt)} dir="ltr" />
         </div>

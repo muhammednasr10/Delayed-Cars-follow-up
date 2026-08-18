@@ -19,6 +19,8 @@ type Row = {
   status: TeamMission['status']
   priority: TeamMission['priority']
   due_date: string | null
+  recurrence_type?: TeamMission['recurrenceType']
+  recurrence_custom?: string | null
   completed_at: string | null
   notes: string | null
   created_at: string
@@ -63,6 +65,8 @@ function mapRow(row: Row): TeamMission {
     status: row.status,
     priority: row.priority,
     dueDate: row.due_date,
+    recurrenceType: row.recurrence_type ?? 'none',
+    recurrenceCustom: row.recurrence_custom ?? null,
     completedAt: row.completed_at,
     notes: row.notes,
     createdAt: row.created_at,
@@ -80,6 +84,8 @@ function toPayload(input: TeamMissionInput) {
     status: input.status,
     priority: input.priority,
     due_date: input.dueDate || null,
+    recurrence_type: input.recurrenceType ?? 'none',
+    recurrence_custom: input.recurrenceCustom?.trim() || null,
     notes: input.notes?.trim() || null
   }
 }
@@ -156,6 +162,22 @@ export async function updateMyTeamMissionStatus(id: string, status: TeamMission[
     p_status: status
   })
   if (error) {
+    if (error.message?.includes('NO_EMPLOYEE_LINK')) throw new Error('NO_EMPLOYEE_LINK')
+    if (error.message?.includes('MISSION_NOT_FOUND')) throw new Error('MISSION_NOT_FOUND')
+    throw new Error(error.message)
+  }
+}
+
+export async function delegateMyTeamMission(missionId: string, assigneeIds: string[]): Promise<void> {
+  if (!assigneeIds.length) throw new Error('ASSIGNEES_REQUIRED')
+  const { error } = await requireClient().rpc('delegate_my_team_mission', {
+    p_mission_id: missionId,
+    p_assignee_ids: assigneeIds
+  })
+  if (error) {
+    if (error.message?.includes('ASSIGNEE_NOT_SUBORDINATE')) throw new Error('ASSIGNEE_NOT_SUBORDINATE')
+    if (error.message?.includes('ASSIGNEES_REQUIRED')) throw new Error('ASSIGNEES_REQUIRED')
+    if (error.message?.includes('MISSION_NOT_ASSIGNEE')) throw new Error('MISSION_NOT_ASSIGNEE')
     if (error.message?.includes('NO_EMPLOYEE_LINK')) throw new Error('NO_EMPLOYEE_LINK')
     if (error.message?.includes('MISSION_NOT_FOUND')) throw new Error('MISSION_NOT_FOUND')
     throw new Error(error.message)

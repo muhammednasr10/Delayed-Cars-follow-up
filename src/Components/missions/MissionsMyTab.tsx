@@ -1,10 +1,13 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import { RefreshCcw } from 'lucide-react'
+import { RefreshCcw, UserRoundCog } from 'lucide-react'
 import { useAuth } from '../../Context/AuthContext'
 import { useLang } from '../../i18n/LanguageContext'
+import { useEmployees } from '../../hooks/useEmployees'
+import { useMyOrgScope } from '../../hooks/useMyOrgScope'
 import { Field, inputCls } from '../FormField'
 import { MissionDetailModal } from './MissionDetailModal'
-import { getTeamMissions, updateMyTeamMissionStatus } from '../../services/missionService'
+import { MissionDelegateModal } from './MissionDelegateModal'
+import { delegateMyTeamMission, getTeamMissions, updateMyTeamMissionStatus } from '../../services/missionService'
 import { missionHasAssignee } from '../../Utils/missionPeople'
 import type { MissionStatus, TeamMission } from '../../Types/mission'
 import { MISSION_STATUSES } from '../../Types/mission'
@@ -23,7 +26,13 @@ type Props = {
 export function MissionsMyTab({ onChanged }: Props) {
   const { t, lang } = useLang()
   const { profile } = useAuth()
+  const { employees } = useEmployees()
+  const { assignableEmployees, canAssignMissions } = useMyOrgScope(employees)
   const employeeId = profile?.employee_id ?? null
+  const assignableEmployeesNoSelf = useMemo(
+    () => (employeeId ? assignableEmployees.filter(e => e.id !== employeeId) : assignableEmployees),
+    [assignableEmployees, employeeId]
+  )
 
   const [items, setItems] = useState<TeamMission[]>([])
   const [loading, setLoading] = useState(true)
@@ -33,6 +42,7 @@ export function MissionsMyTab({ onChanged }: Props) {
   const [statusFilter, setStatusFilter] = useState<MissionStatus | 'all'>('all')
   const [saving, setSaving] = useState(false)
   const [detailTarget, setDetailTarget] = useState<TeamMission | null>(null)
+  const [delegateTarget, setDelegateTarget] = useState<TeamMission | null>(null)
 
   const load = useCallback(async () => {
     setLoading(true)
@@ -107,6 +117,34 @@ export function MissionsMyTab({ onChanged }: Props) {
     return '—'
   }
 
+  function canDelegateMission(row: TeamMission): boolean {
+    if (!employeeId || !canAssignMissions || assignableEmployeesNoSelf.length === 0) return false
+    if (!missionHasAssignee(row.assigneeIds, employeeId)) return false
+    return row.status === 'pending' || row.status === 'in_progress'
+  }
+
+  async function delegateMission(assigneeIds: string[]) {
+    if (!delegateTarget) return
+    setSaving(true)
+    setError('')
+    try {
+      await delegateMyTeamMission(delegateTarget.id, assigneeIds)
+      notify(t('missions.delegate.success'))
+      setDelegateTarget(null)
+      setDetailTarget(null)
+      await load()
+      onChanged?.()
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : t('common.error')
+      if (msg === 'ASSIGNEE_NOT_SUBORDINATE') setError(t('missions.errAssigneeNotSubordinate'))
+      else if (msg === 'MISSION_NOT_ASSIGNEE') setError(t('missions.delegate.errNotAssignee'))
+      else setError(msg)
+      throw e
+    } finally {
+      setSaving(false)
+    }
+  }
+
   async function changeStatus(row: TeamMission, status: MissionStatus) {
     if (row.status === status) return
     setSaving(true)
@@ -132,6 +170,16 @@ export function MissionsMyTab({ onChanged }: Props) {
         <p className="mt-2 text-sm text-slate-400">{t('missions.my.noEmployeeHint')}</p>
       </div>
     )
+  }
+
+  const showActions = canAssignMissions && assignableEmployeesNoSelf.length > 0
+
+  function recurrenceLabel(row: TeamMission): string {
+    if (row.recurrenceType === 'custom') {
+      const extra = row.recurrenceCustom?.trim()
+      return extra ? `${t(`missions.recurrence.${row.recurrenceType}`)}: ${extra}` : t(`missions.recurrence.${row.recurrenceType}`)
+    }
+    return t(`missions.recurrence.${row.recurrenceType}`)
   }
 
   return (
@@ -213,20 +261,28 @@ export function MissionsMyTab({ onChanged }: Props) {
                 {t('missions.cols.dueDate')}
               </th>
               <th className={`${cell} whitespace-nowrap text-center font-black text-slate-400`}>
+                {t('missions.cols.recurrence')}
+              </th>
+              <th className={`${cell} whitespace-nowrap text-center font-black text-slate-400`}>
                 {t('missions.cols.status')}
               </th>
+              {showActions && (
+                <th className={`${cell} font-black text-slate-400`} data-export-skip>
+                  {t('common.actions')}
+                </th>
+              )}
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-800">
             {loading ? (
               <tr>
-                <td colSpan={5} className="px-4 py-12 text-slate-500">
+                <td colSpan={showActions ? 7 : 6} className="px-4 py-12 text-slate-500">
                   {t('common.loading')}
                 </td>
               </tr>
             ) : filtered.length === 0 ? (
               <tr>
-                <td colSpan={5} className="px-4 py-12 text-slate-500">
+                <td colSpan={showActions ? 7 : 6} className="px-4 py-12 text-slate-500">
                   {t('missions.my.empty')}
                 </td>
               </tr>
@@ -247,6 +303,9 @@ export function MissionsMyTab({ onChanged }: Props) {
                   </td>
                   <td className={`${cell} whitespace-nowrap`}>{priorityBadge(row.priority)}</td>
                   <td className={`${cell} whitespace-nowrap text-slate-300`}>{formatDate(row.dueDate)}</td>
+                  <td className={`${cell} whitespace-nowrap text-slate-300`} title={recurrenceLabel(row)}>
+                    {recurrenceLabel(row)}
+                  </td>
                   <td className={`${cell} whitespace-nowrap`} onClick={e => e.stopPropagation()}>
                     <select
                       className="rounded-lg border border-slate-700 bg-slate-900 px-2 py-1 text-xs font-bold text-slate-200"
@@ -261,6 +320,22 @@ export function MissionsMyTab({ onChanged }: Props) {
                       ))}
                     </select>
                   </td>
+                  {showActions && (
+                    <td className={cell} onClick={e => e.stopPropagation()}>
+                      {canDelegateMission(row) ? (
+                        <button
+                          type="button"
+                          onClick={() => setDelegateTarget(row)}
+                          className="rounded-lg bg-slate-800 p-2 text-amber-300 hover:bg-slate-700"
+                          title={t('missions.delegate.open')}
+                        >
+                          <UserRoundCog className="h-4 w-4" />
+                        </button>
+                      ) : (
+                        <span className="inline-block h-8 w-8" />
+                      )}
+                    </td>
+                  )}
                 </tr>
               ))
             )}
@@ -268,7 +343,18 @@ export function MissionsMyTab({ onChanged }: Props) {
         </table>
       </div>
 
-      <MissionDetailModal mission={detailTarget} onClose={() => setDetailTarget(null)} />
+      <MissionDetailModal
+        mission={detailTarget}
+        onClose={() => setDetailTarget(null)}
+      />
+      <MissionDelegateModal
+        open={Boolean(delegateTarget)}
+        mission={delegateTarget}
+        assignableEmployees={assignableEmployeesNoSelf}
+        saving={saving}
+        onClose={() => setDelegateTarget(null)}
+        onDelegate={delegateMission}
+      />
     </div>
   )
 }

@@ -206,6 +206,15 @@ export const translations = {
         noDescription: 'لا توجد تفاصيل إضافية.',
         createdAt: 'تاريخ الإنشاء'
       },
+      delegate: {
+        open: 'تحويل لمرؤوس',
+        title: 'تحويل المهمة',
+        hint: 'اختر موظفاً من مرؤوسيك ليتولى المهمة بدلاً منك.',
+        assignees: 'الموظفون الجدد',
+        save: 'تحويل المهمة',
+        success: 'تم تحويل المهمة للموظف.',
+        errNotAssignee: 'يمكنك تحويل المهام المكلّف بها أنت فقط.'
+      },
       addMission: 'مهمة جديدة',
       editMission: 'تعديل المهمة',
       formSubtitle: 'تعيين مهمة لعضو من الفريق',
@@ -234,13 +243,22 @@ export const translations = {
         assignees: 'المكلفون',
         priority: 'الأولوية',
         dueDate: 'الموعد',
+        recurrence: 'التكرار',
         status: 'الحالة',
         rank: 'الترتيب',
         completed: 'المكتمل',
         active: 'النشط'
       },
       status: { pending: 'معلقة', in_progress: 'قيد التنفيذ', completed: 'مكتملة', cancelled: 'ملغاة' },
-      priority: { low: 'منخفضة', normal: 'عادية', high: 'عالية' }
+      priority: { low: 'منخفضة', normal: 'عادية', high: 'عالية' },
+      recurrence: {
+        none: 'غير متكرر',
+        daily: 'يومي',
+        weekly: 'أسبوعي',
+        monthly: 'شهري',
+        custom: 'مخصص'
+      },
+      recurrenceCustom: 'تفاصيل التكرار (مخصص)'
     },
     requests: {
       title: 'الطلبات',
@@ -3598,6 +3616,15 @@ export const translations = {
         noDescription: 'No additional details.',
         createdAt: 'Created at'
       },
+      delegate: {
+        open: 'Delegate to subordinate',
+        title: 'Delegate mission',
+        hint: 'Pick one or more subordinates to take over this mission.',
+        assignees: 'New assignees',
+        save: 'Delegate mission',
+        success: 'Mission delegated to the employee.',
+        errNotAssignee: 'You can only delegate missions assigned to you.'
+      },
       addMission: 'New mission',
       editMission: 'Edit mission',
       formSubtitle: 'Assign a task to a team member',
@@ -3626,13 +3653,22 @@ export const translations = {
         assignees: 'Assignees',
         priority: 'Priority',
         dueDate: 'Due date',
+        recurrence: 'Recurrence',
         status: 'Status',
         rank: 'Rank',
         completed: 'Completed',
         active: 'Active'
       },
       status: { pending: 'Pending', in_progress: 'In progress', completed: 'Completed', cancelled: 'Cancelled' },
-      priority: { low: 'Low', normal: 'Normal', high: 'High' }
+      priority: { low: 'Low', normal: 'Normal', high: 'High' },
+      recurrence: {
+        none: 'Not recurring',
+        daily: 'Daily',
+        weekly: 'Weekly',
+        monthly: 'Monthly',
+        custom: 'Custom'
+      },
+      recurrenceCustom: 'Custom recurrence details'
     },
     requests: {
       title: 'Requests',
