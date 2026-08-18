@@ -14,6 +14,7 @@ export function useAppNotificationInbox() {
   const isAdmin = profileIsAdmin(profile)
   const [counts, setCounts] = useState<AppNotificationCounts>(EMPTY_COUNTS)
   const [items, setItems] = useState<AppNotificationItem[]>([])
+  const [ackedCounts, setAckedCounts] = useState({ missions: 0, requests: 0 })
 
   const refresh = useCallback(async () => {
     const [nextCounts, nextItems] = await Promise.all([
@@ -45,10 +46,27 @@ export function useAppNotificationInbox() {
     await markAppNotificationsRead().catch(() => undefined)
     const now = new Date().toISOString()
     setItems(prev => prev.map(row => (row.readAt ? row : { ...row, readAt: now })))
-  }, [])
+    setAckedCounts(prev => ({
+      missions: Math.max(prev.missions, counts.pendingMissions),
+      requests: Math.max(prev.requests, counts.pendingRequests)
+    }))
+  }, [counts.pendingMissions, counts.pendingRequests])
 
   const unreadEvents = items.filter(i => !i.readAt).length
-  const total = unreadEvents + counts.pendingMissions + counts.pendingRequests
+  const visibleMissions = Math.max(0, counts.pendingMissions - ackedCounts.missions)
+  const visibleRequests = Math.max(0, counts.pendingRequests - ackedCounts.requests)
+  const total = unreadEvents + visibleMissions + visibleRequests
 
-  return { items, counts, unreadEvents, total, refresh, markItemRead, markAllRead }
+  return {
+    items,
+    counts: {
+      pendingMissions: visibleMissions,
+      pendingRequests: visibleRequests
+    },
+    unreadEvents,
+    total,
+    refresh,
+    markItemRead,
+    markAllRead
+  }
 }

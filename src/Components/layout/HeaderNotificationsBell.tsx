@@ -16,7 +16,7 @@ const MOBILE_MQ = '(max-width: 639px)'
 export function HeaderNotificationsBell() {
   const { t } = useLang()
   const nav = useNavigation()
-  const { items, counts, unreadEvents, total, refresh, markItemRead, markAllRead } = useAppNotificationInbox()
+  const { items, counts, total, refresh, markItemRead, markAllRead } = useAppNotificationInbox()
   const [open, setOpen] = useState(false)
   const [mobile, setMobile] = useState(() =>
     typeof window !== 'undefined' ? window.matchMedia(MOBILE_MQ).matches : false
@@ -70,8 +70,8 @@ export function HeaderNotificationsBell() {
   const panel = open ? (
     <NotificationPanel
       layout={mobile ? 'sheet' : 'dropdown'}
-      unreadEvents={unreadEvents}
       empty={summaryItems.length === 0 && items.length === 0}
+      showMarkAll={total > 0}
       summaryItems={summaryItems}
       items={items}
       onClose={() => setOpen(false)}

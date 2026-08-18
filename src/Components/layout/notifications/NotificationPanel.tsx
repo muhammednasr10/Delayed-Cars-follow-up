@@ -9,8 +9,8 @@ type SummaryItem = { key: string; label: string; onClick: () => void }
 
 type Props = {
   layout: 'dropdown' | 'sheet'
-  unreadEvents: number
   empty: boolean
+  showMarkAll: boolean
   summaryItems: SummaryItem[]
   items: AppNotificationItem[]
   onClose: () => void
@@ -21,8 +21,8 @@ type Props = {
 
 function NotificationPanelBody({
   layout,
-  unreadEvents,
   empty,
+  showMarkAll,
   summaryItems,
   items,
   onClose,
@@ -55,15 +55,6 @@ function NotificationPanelBody({
           </div>
         </div>
         <div className="flex shrink-0 items-center gap-1">
-          {unreadEvents > 0 && (
-            <button
-              type="button"
-              onClick={onMarkAllRead}
-              className="rounded-lg px-2 py-1.5 text-[11px] font-bold text-cyan-300 hover:bg-slate-900 hover:text-cyan-200"
-            >
-              {t('notifications.markAllRead')}
-            </button>
-          )}
           {sheet && (
             <button
               type="button"
@@ -125,7 +116,18 @@ function NotificationPanelBody({
           )}
         </div>
       )}
-      <div className="border-t border-slate-800 p-2">
+      <div className="space-y-1 border-t border-slate-800 p-2">
+        {showMarkAll && (
+          <button
+            type="button"
+            onClick={onMarkAllRead}
+            className={`w-full rounded-lg border border-cyan-500/30 bg-cyan-500/10 px-3 text-xs font-black text-cyan-200 hover:bg-cyan-500/20 ${
+              sheet ? 'py-2.5' : 'py-2'
+            }`}
+          >
+            {t('notifications.markAllViewed')}
+          </button>
+        )}
         <button
           type="button"
           onClick={onOpenProfile}
