@@ -3,12 +3,13 @@ import { RefreshCcw } from 'lucide-react'
 import { useAuth } from '../../Context/AuthContext'
 import { useLang } from '../../i18n/LanguageContext'
 import { Field, inputCls } from '../FormField'
+import { MissionDetailModal } from './MissionDetailModal'
 import { getTeamMissions, updateMyTeamMissionStatus } from '../../services/missionService'
 import { missionHasAssignee } from '../../Utils/missionPeople'
 import type { MissionStatus, TeamMission } from '../../Types/mission'
 import { MISSION_STATUSES } from '../../Types/mission'
 
-const cell = 'table-cell text-center align-middle whitespace-nowrap px-3 py-2.5'
+const cell = 'table-cell align-middle px-3 py-2.5'
 
 function isSchemaMissing(message: string): boolean {
   const m = message.toLowerCase()
@@ -31,6 +32,7 @@ export function MissionsMyTab({ onChanged }: Props) {
   const [success, setSuccess] = useState('')
   const [statusFilter, setStatusFilter] = useState<MissionStatus | 'all'>('all')
   const [saving, setSaving] = useState(false)
+  const [detailTarget, setDetailTarget] = useState<TeamMission | null>(null)
 
   const load = useCallback(async () => {
     setLoading(true)
@@ -95,6 +97,14 @@ export function MissionsMyTab({ onChanged }: Props) {
         {t(`missions.priority.${priority}`)}
       </span>
     )
+  }
+
+  function missionDetailsPreview(row: TeamMission): string {
+    const description = row.description?.trim()
+    if (description) return description
+    const notes = row.notes?.trim()
+    if (notes) return notes
+    return '—'
   }
 
   async function changeStatus(row: TeamMission, status: MissionStatus) {
@@ -188,39 +198,56 @@ export function MissionsMyTab({ onChanged }: Props) {
       )}
 
       <div className="card-industrial overflow-x-auto">
+        <p className="border-b border-slate-800 px-4 py-2 text-xs text-slate-500">{t('missions.my.rowHint')}</p>
         <table className="w-full text-center text-sm">
           <thead className="bg-slate-950/90">
             <tr>
-              <th className={`${cell} font-black text-slate-400`}>{t('missions.cols.title')}</th>
-              <th className={`${cell} font-black text-slate-400`}>{t('missions.cols.priority')}</th>
-              <th className={`${cell} font-black text-slate-400`}>{t('missions.cols.dueDate')}</th>
-              <th className={`${cell} font-black text-slate-400`}>{t('missions.cols.status')}</th>
+              <th className={`${cell} text-center font-black text-slate-400`}>{t('missions.cols.title')}</th>
+              <th className={`${cell} min-w-[10rem] text-center font-black text-slate-400`}>
+                {t('missions.cols.description')}
+              </th>
+              <th className={`${cell} whitespace-nowrap text-center font-black text-slate-400`}>
+                {t('missions.cols.priority')}
+              </th>
+              <th className={`${cell} whitespace-nowrap text-center font-black text-slate-400`}>
+                {t('missions.cols.dueDate')}
+              </th>
+              <th className={`${cell} whitespace-nowrap text-center font-black text-slate-400`}>
+                {t('missions.cols.status')}
+              </th>
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-800">
             {loading ? (
               <tr>
-                <td colSpan={4} className="px-4 py-12 text-slate-500">
+                <td colSpan={5} className="px-4 py-12 text-slate-500">
                   {t('common.loading')}
                 </td>
               </tr>
             ) : filtered.length === 0 ? (
               <tr>
-                <td colSpan={4} className="px-4 py-12 text-slate-500">
+                <td colSpan={5} className="px-4 py-12 text-slate-500">
                   {t('missions.my.empty')}
                 </td>
               </tr>
             ) : (
               filtered.map(row => (
-                <tr key={row.id} className="bg-slate-900/30 hover:bg-slate-800/40">
-                  <td className={`${cell} max-w-[16rem] text-start`}>
+                <tr
+                  key={row.id}
+                  className="cursor-pointer bg-slate-900/30 hover:bg-slate-800/50"
+                  onClick={() => setDetailTarget(row)}
+                >
+                  <td className={`${cell} max-w-[14rem] text-start`}>
                     <p className="font-bold text-white">{row.title}</p>
-                    {row.description && <p className="mt-0.5 text-xs text-slate-500">{row.description}</p>}
-                    {row.notes && <p className="mt-1 text-xs text-slate-400">{row.notes}</p>}
                   </td>
-                  <td className={cell}>{priorityBadge(row.priority)}</td>
-                  <td className={`${cell} text-slate-300`}>{formatDate(row.dueDate)}</td>
-                  <td className={cell}>
+                  <td className={`${cell} max-w-[18rem] text-start`}>
+                    <p className="line-clamp-2 whitespace-pre-wrap text-xs leading-relaxed text-slate-300">
+                      {missionDetailsPreview(row)}
+                    </p>
+                  </td>
+                  <td className={`${cell} whitespace-nowrap`}>{priorityBadge(row.priority)}</td>
+                  <td className={`${cell} whitespace-nowrap text-slate-300`}>{formatDate(row.dueDate)}</td>
+                  <td className={`${cell} whitespace-nowrap`} onClick={e => e.stopPropagation()}>
                     <select
                       className="rounded-lg border border-slate-700 bg-slate-900 px-2 py-1 text-xs font-bold text-slate-200"
                       value={row.status}
@@ -240,6 +267,8 @@ export function MissionsMyTab({ onChanged }: Props) {
           </tbody>
         </table>
       </div>
+
+      <MissionDetailModal mission={detailTarget} onClose={() => setDetailTarget(null)} />
     </div>
   )
 }

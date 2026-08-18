@@ -7,7 +7,8 @@ import {
   ClipboardCheck,
   LayoutGrid,
   List,
-  PlusCircle
+  PlusCircle,
+  UserRound
 } from 'lucide-react'
 import { useLang } from '../../i18n/LanguageContext'
 import type { FactoryOrgUnit } from '../../Types/factoryOrg'
@@ -40,6 +41,7 @@ type Props = {
   modelOptions: string[]
   orgUnits: FactoryOrgUnit[]
   employees: Employee[]
+  myEmployeeId: string | null
   canReport: boolean
   role: string
   onReport: () => void
@@ -64,6 +66,7 @@ export function MissingPartsToolbar({
   modelOptions,
   orgUnits,
   employees,
+  myEmployeeId,
   canReport,
   role,
   onReport,
@@ -289,15 +292,41 @@ export function MissingPartsToolbar({
                   showPathPreview={false}
                 />
               </FilterField>
-              <FilterField label={t('mp.cols.followUpEmployee')} className="min-w-[14rem] flex-1">
-                <EmployeeAutocomplete
-                  employees={employees}
-                  value={filters.followUpEmployeeId}
-                  onChange={followUpEmployeeId => onFiltersChange({ followUpEmployeeId })}
-                  placeholder={t('mp.filterFollowUpEmployeeAll')}
-                  activeOnly={false}
-                />
-              </FilterField>
+              <div className="flex min-w-[18rem] flex-1 flex-col gap-1">
+                <span className="text-xs font-bold text-slate-400">{t('mp.cols.followUpEmployee')}</span>
+                <div className="flex items-stretch gap-2">
+                  <div className="min-w-0 flex-1">
+                    <EmployeeAutocomplete
+                      employees={employees}
+                      value={filters.followUpEmployeeId}
+                      onChange={followUpEmployeeId => onFiltersChange({ followUpEmployeeId })}
+                      placeholder={t('mp.filterFollowUpEmployeeAll')}
+                      activeOnly={false}
+                    />
+                  </div>
+                  <button
+                    type="button"
+                    disabled={!myEmployeeId}
+                    title={!myEmployeeId ? t('mp.filterFollowUpMineNoEmployee') : t('mp.filterFollowUpMineHint')}
+                    onClick={() => {
+                      if (!myEmployeeId) return
+                      onFiltersChange({
+                        followUpEmployeeId: filters.followUpEmployeeId === myEmployeeId ? '' : myEmployeeId
+                      })
+                    }}
+                    className={`inline-flex shrink-0 items-center gap-1.5 rounded-xl px-3 text-sm font-black ${
+                      myEmployeeId && filters.followUpEmployeeId === myEmployeeId
+                        ? 'bg-cyan-500 text-slate-950'
+                        : myEmployeeId
+                          ? 'bg-slate-800 text-slate-200 hover:bg-slate-700'
+                          : 'cursor-not-allowed bg-slate-800 text-slate-500'
+                    }`}
+                  >
+                    <UserRound className="h-4 w-4" />
+                    {t('mp.filterFollowUpMine')}
+                  </button>
+                </div>
+              </div>
             </div>
           </div>
         )}

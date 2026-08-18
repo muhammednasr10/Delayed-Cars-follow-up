@@ -1,4 +1,5 @@
 import { parseQtyByModel } from './partNumberNormalize'
+import { iplModelNamesMatch } from './iplModelAliases'
 import type { ParsedBomRow } from '../Types/bom'
 
 export type ModelQtyEntry = { modelName: string; qty: number }
@@ -17,11 +18,11 @@ export function applicableModelsAfterRemoval(
   allModelNames: string[]
 ): string[] {
   const stored = parseApplicableModelNames(storedText)
-  const target = removeModel.trim().toUpperCase()
+  const target = removeModel.trim()
   if (stored.length === 0) {
-    return allModelNames.filter(n => n.trim().toUpperCase() !== target)
+    return allModelNames.filter(n => !iplModelNamesMatch(n, target))
   }
-  return stored.filter(n => n.trim().toUpperCase() !== target)
+  return stored.filter(n => !iplModelNamesMatch(n, target))
 }
 
 export function formatQtyByModelRaw(entries: ModelQtyEntry[]): string {
@@ -83,9 +84,9 @@ export function modelQtyForBomRow(
   },
   modelName: string
 ): number {
-  const target = modelName.trim().toUpperCase()
+  const target = modelName.trim()
   if (!target) return 0
-  const hit = modelQtyFromBomRow(row).find(e => e.modelName.trim().toUpperCase() === target)
+  const hit = modelQtyFromBomRow(row).find(e => iplModelNamesMatch(e.modelName, target))
   return hit?.qty ?? 0
 }
 

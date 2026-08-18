@@ -1,3 +1,6 @@
+import { normalizeStationReferenceCode } from './stationHierarchy'
+import { iplModelNamesMatch } from './iplModelAliases'
+
 const HIDDEN = /[\u200B-\u200D\uFEFF\u00A0]/g
 
 /** Normalize for comparison — original part_number is stored separately. */
@@ -18,7 +21,8 @@ export function normalizeStationCode(raw: string): string {
     .trim()
     .toUpperCase()
   if (/^\d+\.0$/.test(s)) s = String(parseInt(s, 10))
-  return s
+  const canonical = normalizeStationReferenceCode(s)
+  return canonical || s.replace(/-/g, '')
 }
 
 /** Stable upsert key: one BOM line per part + station + vehicle model. */
@@ -36,11 +40,16 @@ export function resolveVehicleModelId(name: string, modelMap: Map<string, string
   const u = raw.toUpperCase()
   if (modelMap.has(u)) return modelMap.get(u) ?? null
   for (const [key, id] of modelMap) {
-    if (key === u) return id
+    if (key.toUpperCase() === u) return id
   }
   for (const [key, id] of modelMap) {
-    if (key.includes(u) || u.includes(key)) return id
+    if (iplModelNamesMatch(key, raw)) return id
   }
+  const includesHits = [...modelMap.entries()].filter(([key]) => {
+    const k = key.toUpperCase()
+    return k !== u && (k.includes(u) || u.includes(k))
+  })
+  if (includesHits.length === 1) return includesHits[0][1]
   return null
 }
 

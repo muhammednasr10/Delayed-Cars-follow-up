@@ -845,20 +845,22 @@ export function buildIplModelMergedRows(
   filters: { search?: string; stationCode?: string }
 ): BomItemDetail[] {
   const target = modelName.trim().toUpperCase()
-  const bomByPart = new Map<string, BomItemDetail>()
+  const bomByLine = new Map<string, BomItemDetail>()
   for (const row of allBom) {
     if (!bomRowAssignedToIplModel(row, modelName)) continue
-    const existing = bomByPart.get(row.part_id)
+    const station = (row.station_code_text ?? '').trim().toUpperCase() || '_'
+    const lineKey = `${row.part_id}|${station}`
+    const existing = bomByLine.get(lineKey)
     if (!existing) {
-      bomByPart.set(row.part_id, row)
+      bomByLine.set(lineKey, row)
       continue
     }
     if (row.vehicle_model_name?.trim().toUpperCase() === target) {
-      bomByPart.set(row.part_id, row)
+      bomByLine.set(lineKey, row)
     }
   }
 
-  const bomRows = [...bomByPart.values()]
+  const bomRows = [...bomByLine.values()]
   const bomPartIds = new Set(bomRows.map(r => r.part_id))
   const mastersById = new Map(masters.map(p => [p.id, p]))
   const pending = masters.filter(p => isPartsListMaster(p) && !bomPartIds.has(p.id))

@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import type { BomImportSummary, BomImportValidation, ParsedBomRow } from '../../Types/bom'
-import type { BomImportProgress } from '../../services/bomImportService'
+import type { BomImportProgress, BomImportRunOptions } from '../../services/bomImportService'
 import type { IplSheetSummary } from '../../Utils/iplImportParser'
 import { runBomImport } from '../../services/bomImportService'
 
@@ -19,13 +19,23 @@ export function useBomImportRunner(notify: (msg: string, isError?: boolean) => v
     rows: ParsedBomRow[],
     file: File,
     sheetName: string,
-    doneMessage: string
+    doneMessage: string,
+    runOptions?: Pick<BomImportRunOptions, 'addOnly'>
   ): Promise<boolean> {
     if (!rows.length) return false
     setBusy(true)
     setImportProgress({ phase: 'parts', done: 0, total: rows.length })
     try {
-      const sum = await runBomImport(rows, { fileName: file.name, sheetName, sourceFile: file.name }, setImportProgress)
+      const sum = await runBomImport(
+        rows,
+        {
+          fileName: file.name,
+          sheetName,
+          sourceFile: file.name,
+          addOnly: runOptions?.addOnly !== false
+        },
+        setImportProgress
+      )
       setSummary(sum)
       notify(doneMessage)
       return true
@@ -117,6 +127,12 @@ export function BomImportDoneCard({ summary, title, t, onReset, resetLabel, comp
       <ul className={`text-sm ${compact ? 'text-xs text-emerald-200/90' : 'text-slate-300'}`}>
         <li>{t('bom.sumParts', { c: summary.createdParts, u: summary.updatedParts })}</li>
         <li>{t('bom.sumBom', { c: summary.createdBomItems, u: summary.updatedBomItems })}</li>
+        {(summary.skippedBomItems ?? 0) > 0 && (
+          <li>{t('bom.sumSkippedBom', { n: summary.skippedBomItems ?? 0 })}</li>
+        )}
+        {(summary.linkedExistingParts ?? 0) > 0 && (
+          <li>{t('bom.sumLinkedParts', { n: summary.linkedExistingParts ?? 0 })}</li>
+        )}
         {!compact && <li>{t('bom.sumDup', { n: summary.duplicatePartNumbers })}</li>}
         <li>{t('bom.sumErr', { n: summary.errorsCount })}</li>
       </ul>

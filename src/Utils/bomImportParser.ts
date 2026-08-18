@@ -9,6 +9,7 @@ import {
   type IplSheetSummary,
   type WorkbookIplValidation
 } from './iplImportParser'
+import { isT4IplSheetName } from './bomImportFilters'
 
 export { isIplMasterWorkbook, type IplSheetSummary, type WorkbookIplValidation } from './iplImportParser'
 
@@ -26,6 +27,7 @@ const HEADER_ALIASES: Record<string, string[]> = {
     'part_name_ar',
     'part name',
     'arabic name',
+    'الاسم',
     'الاسم بالعربية',
     'اسم الجزء بالعربى',
     'اسم الجزء بالعربي',
@@ -34,15 +36,16 @@ const HEADER_ALIASES: Record<string, string[]> = {
   part_name_en: [
     'part_name_en',
     'english name',
+    'part name (en)',
     'part name(en)',
     'part name_en',
     'اسم الجزء بالانجليزى',
     'اسم الجزء بالانجليزي',
     'اسم_الجزء_بالانجليزى'
   ],
-  part_kind: ['part_kind', 'part kind', 'parts/hw', 'parts/h/w', 'type', 'نوع الجزء', 'نوع_الجزء'],
+  part_kind: ['part_kind', 'part kind', 'parts/hw', 'parts/h/w', 'نوع الجزء', 'نوع_الجزء'],
   part_class: ['part_class', 'part class', 'تصنيف الجزء', 'تصنيف_الجزء'],
-  supply_source: ['supply_source', 'ckd', 'supplier', 'مصدر التوريد', 'المورد'],
+  supply_source: ['supply_source', 'ckd', 'supplier', 'type', 'مصدر التوريد', 'المورد'],
   bom_classification: ['bom_classification', 'new part class', 'classification', 'class', 'التصنيف'],
   qty_by_model: ['qty_by_model', 'quantity', 'qty', 'الكمية'],
   source_sheet: ['source_sheet', 'source sheet'],
@@ -89,9 +92,9 @@ function findBestHeaderRowIndex(rows: string[][]): number {
   for (let i = 0; i < Math.min(rows.length, 40); i++) {
     const norms = rows[i].map(c => normHeader(String(c)))
     let score = 0
-    if (norms.some(h => h.includes('part_number') || h.includes('رقم_الجزء'))) score += 5
+    if (norms.some(h => h.includes('part_number') || h.includes('part_no') || h.includes('رقم_الجزء'))) score += 5
     if (norms.some(h => h === 'st' || h.includes('محطة'))) score += 2
-    if (norms.some(h => h === 't' || h.includes('t4t'))) score += 2
+    if (norms.some(h => h === 't' || h.includes('t4t') || h.includes('turbo'))) score += 2
     if (norms.some(h => h === 'l' || h.includes('t4l'))) score += 1
     if (norms.some(h => h === 'c' || h.includes('t4c'))) score += 1
     if (score > bestScore) {
@@ -240,3 +243,32 @@ export function parseWorkbookIplSheets(sheets: { sheetName: string; rows: string
 
   return { sheets: summaries, validation: mergeBomImportValidations(validations) }
 }
+
+/** Find and parse a T4 / T4 Turbo IPL sheet from a workbook. */
+export function parseT4SheetOnly(sheets: { sheetName: string; rows: string[][] }[]): {
+  sheetName: string
+  validation: BomImportValidation
+} | null {
+  const usable = sheets.filter(s => s.rows.length >= 2 && s.rows.some(r => r.some(c => String(c).trim())))
+  const named = usable.filter(s => isT4IplSheetName(s.sheetName))
+  const rest = usable.filter(s => !isT4IplSheetName(s.sheetName))
+  let fallback: { sheetName: string; validation: BomImportValidation } | null = null
+
+  for (const sheet of [...named, ...rest]) {
+    const validation = parseBomSpreadsheetRows(sheet.rows, sheet.sheetName)
+    if (validation.rows.length > 0) {
+      const looksT4 =
+        isT4IplSheetName(sheet.sheetName) ||
+        validation.rows.some(r => r.modelFamily === 'T4' || r.applicableModels.some(m => /^T4/i.test(m)))
+      if (looksT4 || named.length > 0) return { sheetName: sheet.sheetName, validation }
+      if (!fallback) fallback = { sheetName: sheet.sheetName, validation }
+      continue
+    }
+    if (!fallback && isT4IplSheetName(sheet.sheetName)) {
+      fallback = { sheetName: sheet.sheetName, validation }
+    }
+  }
+
+  return fallback
+}
+

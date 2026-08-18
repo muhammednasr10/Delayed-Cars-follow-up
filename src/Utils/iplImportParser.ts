@@ -24,12 +24,13 @@ function headerIndex(headerRow: string[], ...candidates: string[]): number | nul
   const norms = headerRow.map(normHeader)
   for (const c of candidates) {
     const n = normHeader(c)
-    const exactOnly = n.length <= 2
-    const i = norms.findIndex(h => {
-      if (h === n) return true
-      if (exactOnly) return false
-      return h.includes(n)
-    })
+    const i = norms.findIndex(h => h === n)
+    if (i >= 0) return i
+  }
+  for (const c of candidates) {
+    const n = normHeader(c)
+    if (n.length <= 2) continue
+    const i = norms.findIndex(h => h.includes(n) || n.includes(h))
     if (i >= 0) return i
   }
   return null
@@ -51,8 +52,31 @@ function cell(row: string[], idx: number | null): string {
 }
 
 function parseQty(v: string): number {
-  const n = Number(String(v).replace(/,/g, '').trim())
+  const s = String(v ?? '')
+    .replace(/,/g, '')
+    .trim()
+  if (!s) return 0
+  if (/^(x|√|✔|yes|y|true|●|■|\*)$/i.test(s)) return 1
+  const n = Number(s)
   return Number.isFinite(n) && n > 0 ? n : 0
+}
+
+function isQtySubHeaderRow(row: string[]): boolean {
+  const cells = row.map(c => String(c ?? '').trim()).filter(Boolean)
+  if (cells.length === 0) return false
+  const hit = cells.filter(c => /^(t|l|c|t4t|t4l|t4c|turbo|qty|q.?ty|quantity)$/i.test(c)).length
+  return hit >= 1 && hit >= Math.min(cells.length, 3) * 0.4
+}
+
+function mergeHeaderRows(main: string[], sub: string[]): string[] {
+  const len = Math.max(main.length, sub.length)
+  const out: string[] = []
+  for (let i = 0; i < len; i++) {
+    const a = String(main[i] ?? '').trim()
+    const b = String(sub[i] ?? '').trim()
+    out.push(a && b && a.toLowerCase() !== b.toLowerCase() ? `${a} ${b}` : a || b)
+  }
+  return out
 }
 
 function emptyValidation(): BomImportValidation {
@@ -92,24 +116,58 @@ function parseGroupedVariantSheet(cfg: GroupedSheetConfig): BomImportValidation 
   const headerIdx =
     cfg.headerIdxOverride ??
     rows.findIndex(r => r.some(c => /part\s*number|part\s*no|part_number|رقم\s*الجزء/i.test(String(c))))
-  const headerRow = rows[headerIdx >= 0 ? headerIdx : 0]
-  const dataStart = (headerIdx >= 0 ? headerIdx : 0) + 1
+  const topHeader = rows[headerIdx >= 0 ? headerIdx : 0]
+  const maybeSub = rows[(headerIdx >= 0 ? headerIdx : 0) + 1] ?? []
+  const useSub = isQtySubHeaderRow(maybeSub)
+  const headerRow = useSub ? mergeHeaderRows(topHeader, maybeSub) : topHeader
+  const dataStart = (headerIdx >= 0 ? headerIdx : 0) + (useSub ? 2 : 1)
 
-  const iPart = headerIndex(headerRow, ...cfg.partHeaders)
-  const iPartNew = cfg.partNewHeaders ? headerIndex(headerRow, ...cfg.partNewHeaders) : null
-  const iAlt = cfg.altPartHeaders ? headerIndex(headerRow, ...cfg.altPartHeaders) : null
-  const iClass = headerIndex(headerRow, ...cfg.classHeaders)
-  const iNameAr = headerIndex(headerRow, ...cfg.nameArHeaders)
+  const iPart = headerIndex(headerRow, ...cfg.partHeaders) ?? headerIndex(topHeader, ...cfg.partHeaders)
+  const iPartNew = cfg.partNewHeaders
+    ? headerIndex(headerRow, ...cfg.partNewHeaders) ?? headerIndex(topHeader, ...cfg.partNewHeaders)
+    : null
+  const iAlt = cfg.altPartHeaders
+    ? headerIndex(headerRow, ...cfg.altPartHeaders) ?? headerIndex(topHeader, ...cfg.altPartHeaders)
+    : null
+  const iClass = headerIndex(headerRow, ...cfg.classHeaders) ?? headerIndex(topHeader, ...cfg.classHeaders)
+  const iNameAr = headerIndex(headerRow, ...cfg.nameArHeaders) ?? headerIndex(topHeader, ...cfg.nameArHeaders)
   const iNameEn =
-    (cfg.nameEnHeaders ? headerIndex(headerRow, ...cfg.nameEnHeaders) : null) ?? headerIndexEnglishName(headerRow)
-  const iSt = headerIndex(headerRow, ...cfg.stationHeaders)
-  const iKind = cfg.partKindHeaders.length > 0 ? headerIndex(headerRow, ...cfg.partKindHeaders) : null
-  const iPartClass = cfg.partClassHeaders ? headerIndex(headerRow, ...cfg.partClassHeaders) : null
-  const iSupply = headerIndex(headerRow, ...cfg.supplyHeaders)
-  const variantIdx = cfg.variantColumns.map(v => ({
+    (cfg.nameEnHeaders ? headerIndex(headerRow, ...cfg.nameEnHeaders) : null) ??
+    headerIndexEnglishName(headerRow) ??
+    headerIndexEnglishName(topHeader)
+  const iSt =
+    headerIndex(headerRow, ...cfg.stationHeaders) ?? headerIndex(topHeader, ...cfg.stationHeaders)
+  const iKind =
+    cfg.partKindHeaders.length > 0
+      ? headerIndex(headerRow, ...cfg.partKindHeaders) ?? headerIndex(topHeader, ...cfg.partKindHeaders)
+      : null
+  const iPartClass = cfg.partClassHeaders
+    ? headerIndex(headerRow, ...cfg.partClassHeaders) ?? headerIndex(topHeader, ...cfg.partClassHeaders)
+    : null
+  const iSupply = headerIndex(headerRow, ...cfg.supplyHeaders) ?? headerIndex(topHeader, ...cfg.supplyHeaders)
+  const iQtyFallback = headerIndex(
+    headerRow,
+    'QTY',
+    "Q'TY",
+    'QUANTITY',
+    'Q/V',
+    'QTY/CAR',
+    'QTY PER CAR',
+    'الكمية',
+    'qty_by_model'
+  )
+  let variantIdx = cfg.variantColumns.map(v => ({
     ...v,
-    index: v.header ? headerIndex(headerRow, v.header) : null
+    index: v.header
+      ? headerIndex(headerRow, v.header) ?? headerIndex(topHeader, v.header) ?? headerIndex(maybeSub, v.header)
+      : null
   }))
+  if (cfg.modelFamily === 'T4' && iQtyFallback != null && !variantIdx.some(v => v.flag === 'T' && v.index != null)) {
+    variantIdx = [...variantIdx, { header: 'QTY', modelName: 'T4T', flag: 'T', index: iQtyFallback }]
+  }
+  if (!variantIdx.some(v => v.index != null) && cfg.modelFamily === 'T4' && iQtyFallback != null) {
+    variantIdx = [{ header: 'QTY', modelName: 'T4T', flag: 'T', index: iQtyFallback }]
+  }
 
   const errors: BomImportValidation['errors'] = []
   if (iPart == null) errors.push({ row: headerIdx + 1, message: 'Missing part number column' })
@@ -189,18 +247,21 @@ function parseGroupedVariantSheet(cfg: GroupedSheetConfig): BomImportValidation 
   let skippedNoQty = 0
 
   for (const g of groups.values()) {
-    const variants: string[] = []
-    const qtyParts: string[] = []
+    const qtyByModel = new Map<string, number>()
     const flags: { label: string; active: boolean }[] = []
+    const seenFlag = new Set<string>()
 
     for (const v of cfg.variantColumns) {
       const q = g.qtyByFlag.get(v.flag) ?? 0
-      flags.push({ label: v.flag, active: q > 0 })
-      if (q > 0) {
-        variants.push(v.modelName)
-        qtyParts.push(`${v.modelName}=${q}`)
+      if (!seenFlag.has(v.flag)) {
+        flags.push({ label: v.flag, active: q > 0 })
+        seenFlag.add(v.flag)
       }
+      if (q > 0) qtyByModel.set(v.modelName, Math.max(qtyByModel.get(v.modelName) ?? 0, q))
     }
+
+    const variants = [...qtyByModel.keys()]
+    const qtyParts = [...qtyByModel.entries()].map(([model, qty]) => `${model}=${qty}`)
 
     if (variants.length === 0) {
       skippedNoQty++
@@ -249,15 +310,15 @@ function parseGroupedVariantSheet(cfg: GroupedSheetConfig): BomImportValidation 
 }
 
 const T_LINE_COLUMNS = {
-  partHeaders: ['PART NUMBER', 'PART NO.', 'part_number'],
+  partHeaders: ['PART NO.', 'Part No.', 'PART NUMBER', 'part_number', 'رقم الجزء'],
   partNewHeaders: ['PART NO. New'],
   altPartHeaders: ['old Part Number', 'alternative_part_no', 'P/No. Alternatives', 'Alternative Part No.'],
   classHeaders: ['CLASSIFICATION', 'Class', 'classification'],
-  nameArHeaders: ['PART NAME', 'Arabic Name', 'part_name_ar'],
-  nameEnHeaders: ['Part Name(EN)', 'ENGLISH NAME', 'PART NAME'],
+  nameArHeaders: ['الاسم', 'اسم الجزء', 'الاسم بالعربية', 'Arabic Name', 'part_name_ar', 'PART NAME'],
+  nameEnHeaders: ['Part Name (EN)', 'Part Name(EN)', 'ENGLISH NAME', 'part_name_en', 'الاسم بالانجليزية'],
   partKindHeaders: ['Part class', 'Parts/H/W', 'Parts/HW'],
   partClassHeaders: ['Part class'],
-  supplyHeaders: ['Type', 'STATUS', 'CKD', 'TYPE'],
+  supplyHeaders: ['Type', 'TYPE', 'المورد', 'STATUS', 'CKD'],
   stationHeaders: ['ST', 'Station', 'station_code']
 }
 
@@ -284,11 +345,18 @@ const IPL_PARSERS: {
   parse: (rows: string[][], headerIdx?: number) => BomImportValidation
 }[] = [
   {
-    test: (h, sn) => /ipl.*t4|t4.*ipl/i.test(sn) || isT4Headers(h),
+    test: (h, sn) => /ipl.*t4|t4.*ipl|t4.*turbo|turbo.*t4|tiggo\s*4/i.test(sn) || isT4Headers(h),
     parse: grouped('IPL-T4', 'T4', [
       { header: 'T', modelName: 'T4T', flag: 'T' },
+      { header: 'T4T', modelName: 'T4T', flag: 'T' },
+      { header: 'TURBO', modelName: 'T4T', flag: 'T' },
+      { header: 'T4 TURBO', modelName: 'T4T', flag: 'T' },
+      { header: 'T-QTY', modelName: 'T4T', flag: 'T' },
+      { header: "T Q'TY", modelName: 'T4T', flag: 'T' },
       { header: 'L', modelName: 'T4L', flag: 'L' },
-      { header: 'C', modelName: 'T4C', flag: 'C' }
+      { header: 'T4L', modelName: 'T4L', flag: 'L' },
+      { header: 'C', modelName: 'T4C', flag: 'C' },
+      { header: 'T4C', modelName: 'T4C', flag: 'C' }
     ])
   },
   {
@@ -339,12 +407,19 @@ const IPL_PARSERS: {
 
 function isT4Headers(headerRow: string[]): boolean {
   const headers = headerRow.map(normHeader)
-  const hasPart = headers.some(h => h.includes('part_number'))
-  const hasSt = headers.includes('st') || headers.includes('station')
+  const hasPart = headers.some(
+    h => h.includes('part_number') || h.includes('part_no') || h === 'pn' || h.includes('رقم_الجزء')
+  )
+  const hasSt = headers.includes('st') || headers.includes('station') || headers.includes('station_code')
   const hasTlc = headers.includes('t') && headers.includes('l') && headers.includes('c')
   const hasNamed =
     headers.some(h => h.includes('t4t')) && headers.some(h => h.includes('t4l')) && headers.some(h => h.includes('t4c'))
-  return hasPart && hasSt && (hasTlc || hasNamed)
+  const hasTurbo =
+    headers.includes('t') ||
+    headers.some(h => h.includes('t4t') || h.includes('turbo') || h.includes('t4_turbo') || h === 't_qty')
+  const hasQty = headers.some(h => h === 'qty' || h === 'quantity' || h === 'الكمية' || h.endsWith('_qty'))
+  const hasName = headers.some(h => h === 'الاسم' || h.includes('part_name') || h.includes('اسم'))
+  return hasPart && (hasTlc || hasNamed || hasTurbo || (hasQty && hasName) || (hasQty && hasSt))
 }
 
 function isT7Headers(headerRow: string[]): boolean {

@@ -243,9 +243,28 @@ export type BomImportSummary = {
   updatedParts: number
   createdBomItems: number
   updatedBomItems: number
+  /** Skipped BOM lines because import_line_key already exists (add-only mode). */
+  skippedBomItems?: number
+  /** Existing parts linked without overwriting master data (add-only mode). */
+  linkedExistingParts?: number
   duplicatePartNumbers: number
   errorsCount: number
   errors: string[]
+}
+
+export type BomImportRunOptions = {
+  fileName: string
+  sheetName: string
+  sourceFile?: string
+  /** When true, skip existing BOM rows and do not update existing parts master rows. */
+  addOnly?: boolean
+}
+
+export type BomImportImpactEstimate = {
+  toAddBom: number
+  toSkipExistingBom: number
+  toCreateParts: number
+  toLinkExistingParts: number
 }
 
 export type BomDashboardStats = {

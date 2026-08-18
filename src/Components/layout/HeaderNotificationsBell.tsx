@@ -11,21 +11,33 @@ import {
 } from '../../Utils/openMissingPartsTab'
 import { NotificationPanel } from './notifications/NotificationPanel'
 
+const MOBILE_MQ = '(max-width: 639px)'
+
 export function HeaderNotificationsBell() {
   const { t } = useLang()
   const nav = useNavigation()
   const { items, counts, unreadEvents, total, refresh, markItemRead, markAllRead } = useAppNotificationInbox()
   const [open, setOpen] = useState(false)
+  const [mobile, setMobile] = useState(() =>
+    typeof window !== 'undefined' ? window.matchMedia(MOBILE_MQ).matches : false
+  )
   const rootRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
-    if (!open) return
+    const mq = window.matchMedia(MOBILE_MQ)
+    const onChange = () => setMobile(mq.matches)
+    mq.addEventListener('change', onChange)
+    return () => mq.removeEventListener('change', onChange)
+  }, [])
+
+  useEffect(() => {
+    if (!open || mobile) return
     function onDoc(e: MouseEvent) {
       if (!rootRef.current?.contains(e.target as Node)) setOpen(false)
     }
     document.addEventListener('mousedown', onDoc)
     return () => document.removeEventListener('mousedown', onDoc)
-  }, [open])
+  }, [open, mobile])
 
   function closeAndNavigate(page: 'missing' | 'missions' | 'requests') {
     setOpen(false)
@@ -55,6 +67,23 @@ export function HeaderNotificationsBell() {
     }
   ].filter(Boolean) as { key: string; label: string; onClick: () => void }[]
 
+  const panel = open ? (
+    <NotificationPanel
+      layout={mobile ? 'sheet' : 'dropdown'}
+      unreadEvents={unreadEvents}
+      empty={summaryItems.length === 0 && items.length === 0}
+      summaryItems={summaryItems}
+      items={items}
+      onClose={() => setOpen(false)}
+      onMarkAllRead={() => void markAllRead()}
+      onOpenItem={item => void openItem(item)}
+      onOpenProfile={() => {
+        setOpen(false)
+        nav.openProfile('account')
+      }}
+    />
+  ) : null
+
   return (
     <div ref={rootRef} className="relative">
       <button
@@ -66,6 +95,7 @@ export function HeaderNotificationsBell() {
         className="relative touch-target rounded-xl border border-slate-700 bg-slate-900 p-2.5 text-slate-200 hover:border-slate-600 hover:bg-slate-800"
         title={t('notifications.title')}
         aria-label={t('notifications.title')}
+        aria-expanded={open}
       >
         <Bell className="h-5 w-5" />
         {total > 0 && (
@@ -74,20 +104,7 @@ export function HeaderNotificationsBell() {
           </span>
         )}
       </button>
-      {open && (
-        <NotificationPanel
-          unreadEvents={unreadEvents}
-          empty={summaryItems.length === 0 && items.length === 0}
-          summaryItems={summaryItems}
-          items={items}
-          onMarkAllRead={() => void markAllRead()}
-          onOpenItem={item => void openItem(item)}
-          onOpenProfile={() => {
-            setOpen(false)
-            nav.openProfile('account')
-          }}
-        />
-      )}
+      {panel}
     </div>
   )
 }

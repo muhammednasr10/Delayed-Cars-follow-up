@@ -1,5 +1,6 @@
 import type { BomItemDetail, Part } from '../Types/bom'
 import { parseApplicableModelNames } from './bomQtyByModel'
+import { iplModelNamesMatch } from './iplModelAliases'
 
 export function isPendingBomItemId(id: string): boolean {
   return id.startsWith('pending:')
@@ -98,7 +99,7 @@ export function partMatchesIplModel(part: Part, modelName: string): boolean {
   const stored = parseApplicableModelNames(part.applicable_models_text)
   // Must assign models explicitly in parts list — empty means not on any IPL model yet.
   if (stored.length === 0) return false
-  return stored.some(n => n.trim().toUpperCase() === target)
+  return stored.some(n => iplModelNamesMatch(n, modelName))
 }
 
 /** Parts-list masters always appear in IPL Models (user fills PN/qty per model). */

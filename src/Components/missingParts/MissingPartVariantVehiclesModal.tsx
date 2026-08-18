@@ -8,6 +8,7 @@ import type { VariantVehicleSummary } from '../../Utils/missingPartPageUtils'
 import { notesCountForVehicleIds } from '../../services/vehicleNotesService'
 import { Modal } from '../Modal'
 import { MissingPartVehicleActions } from './MissingPartVehicleActions'
+import type { ShortageMissionAssignInput } from './MpAssignShortageMissionButton'
 
 type ActionProps = {
   allItems: MissingPartDetail[]
@@ -28,6 +29,8 @@ type ActionProps = {
     part: MissingPartDetail,
     assignment: { completingDepartment: string; followUpEmployeeId: string }
   ) => void
+  onAssignShortageMission?: (part: MissingPartDetail, input: ShortageMissionAssignInput) => void | Promise<void>
+  assignMissionBusy?: boolean
 }
 
 type Props = {
@@ -64,13 +67,22 @@ export function MissingPartVariantVehiclesModal({
   onUpdate,
   onDeleteParts,
   onComplete,
-  onAssignFollowUp
+  onAssignFollowUp,
+  onAssignShortageMission,
+  assignMissionBusy
 }: Props) {
   const { t, lang } = useLang()
   if (!variantName) return null
 
   const hasActions = Boolean(allItems && onEdit && onUpdate && onDeleteParts && onComplete && onOpenNotes)
-  const anyPerm = canUpdateStatus || canNotes || canEdit || canDelete || canComplete
+  const anyPerm =
+    canUpdateStatus ||
+    canNotes ||
+    canEdit ||
+    canDelete ||
+    canComplete ||
+    Boolean(onAssignFollowUp) ||
+    Boolean(onAssignShortageMission)
 
   return (
     <Modal
@@ -114,6 +126,8 @@ export function MissingPartVariantVehiclesModal({
               onDeleteParts={onDeleteParts!}
               onComplete={onComplete!}
               onAssignFollowUp={onAssignFollowUp}
+              onAssignShortageMission={onAssignShortageMission}
+              assignMissionBusy={assignMissionBusy}
             />
           ))
         )}
@@ -142,7 +156,9 @@ function VehicleShortageCard({
   onUpdate,
   onDeleteParts,
   onComplete,
-  onAssignFollowUp
+  onAssignFollowUp,
+  onAssignShortageMission,
+  assignMissionBusy
 }: {
   vehicle: VariantVehicleSummary
   reasons: MpLookupOption[]
@@ -167,6 +183,8 @@ function VehicleShortageCard({
     part: MissingPartDetail,
     assignment: { completingDepartment: string; followUpEmployeeId: string }
   ) => void
+  onAssignShortageMission?: (part: MissingPartDetail, input: ShortageMissionAssignInput) => void | Promise<void>
+  assignMissionBusy?: boolean
 }) {
   const { t } = useLang()
   const rep = vehicle.parts[0]
@@ -216,6 +234,8 @@ function VehicleShortageCard({
             onDeleteParts={onDeleteParts}
             onComplete={onComplete}
             onAssignFollowUp={onAssignFollowUp}
+            onAssignShortageMission={onAssignShortageMission}
+            assignMissionBusy={assignMissionBusy}
             layout="stacked"
           />
         )}

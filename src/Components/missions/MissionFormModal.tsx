@@ -29,12 +29,23 @@ type Props = {
   open: boolean
   employees: Employee[]
   editing: TeamMission | null
+  defaultTitle?: string
   onClose: () => void
-  onSave: (input: TeamMissionInput) => void
+  onSave: (input: TeamMissionInput) => void | Promise<void>
   saving?: boolean
+  zIndexClass?: string
 }
 
-export function MissionFormModal({ open, employees, editing, onClose, onSave, saving }: Props) {
+export function MissionFormModal({
+  open,
+  employees,
+  editing,
+  defaultTitle,
+  onClose,
+  onSave,
+  saving,
+  zIndexClass
+}: Props) {
   const { t } = useLang()
   const [form, setForm] = useState<TeamMissionInput>(emptyForm())
   const [error, setError] = useState('')
@@ -54,10 +65,10 @@ export function MissionFormModal({ open, employees, editing, onClose, onSave, sa
         notes: editing.notes ?? ''
       })
     } else {
-      setForm(emptyForm())
+      setForm({ ...emptyForm(), title: defaultTitle?.trim() ?? '' })
     }
     setError('')
-  }, [open, editing])
+  }, [open, editing, defaultTitle])
 
   function validate(): string | null {
     if (!form.title.trim()) return t('missions.errTitle')
@@ -65,19 +76,24 @@ export function MissionFormModal({ open, employees, editing, onClose, onSave, sa
     return null
   }
 
-  function submit() {
+  async function submit() {
     const err = validate()
     if (err) {
       setError(err)
       return
     }
-    onSave({
-      ...form,
-      title: form.title.trim(),
-      description: form.description?.trim() || undefined,
-      dueDate: form.dueDate || null,
-      notes: form.notes?.trim() || undefined
-    })
+    setError('')
+    try {
+      await onSave({
+        ...form,
+        title: form.title.trim(),
+        description: form.description?.trim() || undefined,
+        dueDate: form.dueDate || null,
+        notes: form.notes?.trim() || undefined
+      })
+    } catch (e) {
+      setError(e instanceof Error ? e.message : t('common.error'))
+    }
   }
 
   return (
@@ -88,6 +104,7 @@ export function MissionFormModal({ open, employees, editing, onClose, onSave, sa
       icon={<ListTodo className="h-5 w-5" />}
       onClose={onClose}
       maxWidthClass="max-w-xl"
+      zIndexClass={zIndexClass}
       footer={
         <div className="flex justify-end gap-2">
           <button
@@ -100,7 +117,7 @@ export function MissionFormModal({ open, employees, editing, onClose, onSave, sa
           <button
             type="button"
             disabled={saving}
-            onClick={submit}
+            onClick={() => void submit()}
             className="rounded-xl bg-amber-500 px-4 py-2 text-sm font-black text-slate-950 hover:bg-amber-400 disabled:opacity-60"
           >
             {saving ? t('common.saving') : t('common.save')}

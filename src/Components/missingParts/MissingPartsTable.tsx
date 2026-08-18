@@ -23,6 +23,7 @@ import {
   uniqueIssueReps
 } from '../../Utils/missingPartPageUtils'
 import { MissingPartVehicleActions } from './MissingPartVehicleActions'
+import type { ShortageMissionAssignInput } from './MpAssignShortageMissionButton'
 import { notesCountForVehicleIds } from '../../services/vehicleNotesService'
 import type { MissingPartDetail } from '../../Types/missingPart'
 import { ExportableTable } from '../ExportableTable'
@@ -61,6 +62,8 @@ type Props = {
     part: MissingPartDetail,
     assignment: { completingDepartment: string; followUpEmployeeId: string }
   ) => void
+  onAssignShortageMission?: (part: MissingPartDetail, input: ShortageMissionAssignInput) => void | Promise<void>
+  assignMissionBusy?: boolean
 }
 
 export function MissingPartsTable({
@@ -92,7 +95,9 @@ export function MissingPartsTable({
   onDeleteParts,
   onComplete,
   onCompleteAll,
-  onAssignFollowUp
+  onAssignFollowUp,
+  onAssignShortageMission,
+  assignMissionBusy
 }: Props) {
   const { t, lang } = useLang()
   const cols = listTab === 'history' ? HISTORY_COLS : ACTIVE_COLS
@@ -179,6 +184,8 @@ export function MissingPartsTable({
                     onComplete={onComplete}
                     onCompleteAll={onCompleteAll}
                     onAssignFollowUp={onAssignFollowUp}
+                    onAssignShortageMission={onAssignShortageMission}
+                    assignMissionBusy={assignMissionBusy}
                   />
                 )
               }
@@ -216,6 +223,8 @@ export function MissingPartsTable({
                     onComplete={onComplete}
                     onCompleteAll={onCompleteAll}
                     onAssignFollowUp={onAssignFollowUp}
+                    onAssignShortageMission={onAssignShortageMission}
+                    assignMissionBusy={assignMissionBusy}
                   />
                 )
               }
@@ -248,6 +257,8 @@ export function MissingPartsTable({
                   onComplete={onComplete}
                   onCompleteAll={onCompleteAll}
                   onAssignFollowUp={onAssignFollowUp}
+                  onAssignShortageMission={onAssignShortageMission}
+                  assignMissionBusy={assignMissionBusy}
                 />
               )
             })}
@@ -292,6 +303,8 @@ type RowProps = {
     part: MissingPartDetail,
     assignment: { completingDepartment: string; followUpEmployeeId: string }
   ) => void
+  onAssignShortageMission?: (part: MissingPartDetail, input: ShortageMissionAssignInput) => void | Promise<void>
+  assignMissionBusy?: boolean
 }
 
 function ReportGroupRow({
@@ -334,11 +347,7 @@ function ReportGroupRow({
       qty={qty}
       reporterLabel={reporterNames(displayRow.items)}
       completerLabel={completerNames(displayRow.items)}
-      reasonCell={
-        multiIssues ? (
-          <span className="text-sm font-bold text-amber-200">{t('mp.multiReasonsSummary', { n: uniqueIssues.length })}</span>
-        ) : undefined
-      }
+      reasonCell={multiIssues ? <StackedShortageReasons parts={displayRow.items} /> : undefined}
       deleteTargets={displayRow.items}
       lang={lang}
       relatedParts={displayRow.items}
@@ -358,8 +367,8 @@ function VehicleRows({
   primary: MissingPartDetail
   qty: { installed: number; required: number }
 }) {
-  const { t, lang } = useLang()
-  const multi = parts.length > 1
+  const { lang } = useLang()
+  const uniqueIssues = uniqueIssueReps(parts)
 
   return (
     <PartDataRow
@@ -371,16 +380,29 @@ function VehicleRows({
       qty={qty}
       reporterLabel={reporterNames(parts)}
       completerLabel={completerNames(parts)}
-      reasonCell={
-        multi ? (
-          <span className="text-sm font-bold text-amber-200">{t('mp.multiReasonsSummary', { n: parts.length })}</span>
-        ) : undefined
-      }
+      reasonCell={uniqueIssues.length > 1 ? <StackedShortageReasons parts={parts} /> : undefined}
       deleteTargets={parts}
       lang={lang}
       relatedParts={parts}
       completeRep={primary}
     />
+  )
+}
+
+function StackedShortageReasons({ parts }: { parts: MissingPartDetail[] }) {
+  const issues = uniqueIssueReps(parts)
+  return (
+    <span
+      className="mx-auto flex max-w-[16rem] flex-col items-center gap-1 py-0.5 text-sm leading-snug text-slate-200"
+      title={issues.map(p => p.partDescription).join('\n')}
+      onClick={e => e.stopPropagation()}
+    >
+      {issues.map(p => (
+        <span key={p.id} className="block w-full text-center">
+          {p.partDescription}
+        </span>
+      ))}
+    </span>
   )
 }
 
@@ -436,6 +458,8 @@ function PartDataRow({
   onComplete,
   onCompleteAll,
   onAssignFollowUp,
+  onAssignShortageMission,
+  assignMissionBusy,
   noteCounts = {},
   rowClassName = '',
   relatedParts,
@@ -576,6 +600,8 @@ function PartDataRow({
             onComplete={onComplete}
             onCompleteAll={onCompleteAll}
             onAssignFollowUp={onAssignFollowUp}
+            onAssignShortageMission={onAssignShortageMission}
+            assignMissionBusy={assignMissionBusy}
           />
         </td>
       )}

@@ -1,8 +1,4 @@
 import { supabase } from '../lib/supabase'
-import type { BomImportSummary, ParsedBomRow } from '../Types/bom'
-import { sanitizePartNameEn } from '../Utils/partNameEn'
-import { effectivePartKind, effectiveSupplySource } from '../Utils/bomDefaults'
-import { maxModelQty, isConsolidatedImportRow } from '../Utils/bomQtyByModel'
 import {
   bomImportLineKey,
   classificationToCategoryCode,
@@ -11,6 +7,12 @@ import {
   parseQtyByModel,
   resolveVehicleModelId
 } from '../Utils/partNumberNormalize'
+import { bomStationCodeRawVariants } from '../Utils/bomStationCode'
+import type { BomImportImpactEstimate, BomImportRunOptions, BomImportSummary, ParsedBomRow } from '../Types/bom'
+import { sanitizePartNameEn } from '../Utils/partNameEn'
+import { effectivePartKind, effectiveSupplySource } from '../Utils/bomDefaults'
+import { maxModelQty, isConsolidatedImportRow } from '../Utils/bomQtyByModel'
+import { resolveIplModelName } from '../Utils/iplModelAliases'
 import type { PartUpsertInput } from './partsService'
 import { refreshPartNumberComparisons } from './partComparisonService'
 import { extractIplLogisticsFromRaw } from '../Utils/iplBomLogistics'
@@ -32,9 +34,14 @@ async function loadStationMap(): Promise<Map<string, string>> {
   const { data } = await client().from('stations').select('id, station_number').eq('is_active', true)
   const m = new Map<string, string>()
   ;(data ?? []).forEach(r => {
-    const n = normalizeStationCode(String(r.station_number))
-    m.set(n, r.id as string)
-    m.set(String(r.station_number).toUpperCase(), r.id as string)
+    const id = r.id as string
+    const sn = String(r.station_number)
+    for (const variant of bomStationCodeRawVariants(sn)) {
+      m.set(variant.toUpperCase(), id)
+      m.set(normalizeStationCode(variant), id)
+    }
+    m.set(normalizeStationCode(sn), id)
+    m.set(sn.toUpperCase(), id)
   })
   return m
 }
@@ -81,10 +88,11 @@ async function loadExistingBomLineKeys(keys: string[]): Promise<Set<string>> {
 async function upsertPartsBatch(
   inputs: Map<string, PartUpsertInput & { normalized: string }>,
   existingNorms: Set<string>,
-  summary: BomImportSummary
+  summary: BomImportSummary,
+  addOnly: boolean
 ): Promise<Map<string, string>> {
   const idByNorm = new Map<string, string>()
-  const payloads = [...inputs.values()].map(p => ({
+  const allPayloads = [...inputs.values()].map(p => ({
     part_number: p.part_number.trim(),
     normalized_part_number: p.normalized,
     part_name_ar: p.part_name_ar?.trim() || null,
@@ -95,18 +103,38 @@ async function upsertPartsBatch(
     alternative_part_no: p.alternative_part_no?.trim() || null
   }))
 
-  for (const batch of chunk(payloads, CHUNK)) {
-    for (const p of batch) {
-      if (existingNorms.has(p.normalized_part_number)) summary.updatedParts++
-      else {
-        summary.createdParts++
-        existingNorms.add(p.normalized_part_number)
-      }
+  const toUpsert = addOnly
+    ? allPayloads.filter(p => !existingNorms.has(p.normalized_part_number))
+    : allPayloads
+
+  summary.createdParts = 0
+  summary.updatedParts = 0
+  summary.linkedExistingParts = 0
+
+  for (const p of allPayloads) {
+    if (existingNorms.has(p.normalized_part_number)) {
+      if (addOnly) summary.linkedExistingParts = (summary.linkedExistingParts ?? 0) + 1
+      else summary.updatedParts++
+    } else {
+      summary.createdParts++
     }
+  }
+
+  for (const batch of chunk(toUpsert, CHUNK)) {
     const { data, error } = await client()
       .from('parts')
       .upsert(batch, { onConflict: 'normalized_part_number' })
       .select('id, normalized_part_number')
+    if (error) throw new Error(error.message)
+    ;(data ?? []).forEach(r => idByNorm.set(String(r.normalized_part_number), r.id as string))
+  }
+
+  const needLookup = [...inputs.keys()].filter(n => !idByNorm.has(n))
+  for (const batch of chunk(needLookup, CHUNK)) {
+    const { data, error } = await client()
+      .from('parts')
+      .select('id, normalized_part_number')
+      .in('normalized_part_number', batch)
     if (error) throw new Error(error.message)
     ;(data ?? []).forEach(r => idByNorm.set(String(r.normalized_part_number), r.id as string))
   }
@@ -126,17 +154,56 @@ export type BomImportProgress = {
   total: number
 }
 
+function buildLineKeys(rows: ParsedBomRow[]): string[] {
+  return rows.map(row => {
+    const norm = normalizePartNumber(row.partNumber)
+    const consolidated = isConsolidatedImportRow(row)
+    const modelName = row.qtyByModel[0]?.model ?? row.applicableModels[0] ?? ''
+    return bomImportLineKey({
+      normalizedPart: norm,
+      stationCode: row.stationCode || '_',
+      modelName: consolidated ? '_' : modelName || '_'
+    })
+  })
+}
+
+/** Preview how many rows would be added vs skipped (add-only). */
+export async function estimateBomImportImpact(rows: ParsedBomRow[]): Promise<BomImportImpactEstimate> {
+  const norms = [...new Set(rows.map(r => normalizePartNumber(r.partNumber)))]
+  const keys = buildLineKeys(rows)
+  const [existingParts, existingBom] = await Promise.all([
+    loadExistingNormalizedParts(norms),
+    loadExistingBomLineKeys(keys)
+  ])
+  let toAddBom = 0
+  let toSkipExistingBom = 0
+  for (const key of keys) {
+    if (existingBom.has(key)) toSkipExistingBom++
+    else toAddBom++
+  }
+  let toCreateParts = 0
+  let toLinkExistingParts = 0
+  for (const n of norms) {
+    if (existingParts.has(n)) toLinkExistingParts++
+    else toCreateParts++
+  }
+  return { toAddBom, toSkipExistingBom, toCreateParts, toLinkExistingParts }
+}
+
 export async function runBomImport(
   rows: ParsedBomRow[],
-  options: { fileName: string; sheetName: string; sourceFile?: string },
+  options: BomImportRunOptions,
   onProgress?: (p: BomImportProgress) => void
 ): Promise<BomImportSummary> {
+  const addOnly = options.addOnly !== false
   const summary: BomImportSummary = {
     batchId: '',
     createdParts: 0,
     updatedParts: 0,
     createdBomItems: 0,
     updatedBomItems: 0,
+    skippedBomItems: 0,
+    linkedExistingParts: 0,
     duplicatePartNumbers: 0,
     errorsCount: 0,
     errors: []
@@ -158,12 +225,12 @@ export async function runBomImport(
 
   const stationMap = await loadStationMap()
   const modelMap = await loadModelMap()
+  const catalogNames = [...modelMap.keys()]
   const categoryMap = await loadCategoryMap()
   const uncategorizedId = categoryMap.get('UNCATEGORIZED') ?? null
 
   const partInputs = new Map<string, PartUpsertInput & { normalized: string }>()
   const prepared: PreparedBomLine[] = []
-  const lineKeys: string[] = []
   const seenNormalized = new Set<string>()
 
   for (const row of rows) {
@@ -174,7 +241,6 @@ export async function runBomImport(
 
       const catCode = classificationToCategoryCode(row.bomClassification)
       const categoryId = categoryMap.get(catCode) ?? uncategorizedId
-
       const nameEn = sanitizePartNameEn(row.partNameAr, row.partNameEn, row.raw)
 
       if (!partInputs.has(norm)) {
@@ -188,22 +254,24 @@ export async function runBomImport(
           part_number_new: row.partNumberNew,
           alternative_part_no: row.alternativePartNo
         })
-      } else {
+      } else if (!addOnly) {
         const cur = partInputs.get(norm)!
         if (!cur.part_name_ar && row.partNameAr) cur.part_name_ar = row.partNameAr
         if (!cur.part_name_en && nameEn) cur.part_name_en = nameEn
         if (!cur.part_type) cur.part_type = effectivePartKind(row.partKind)
       }
 
-      const modelName = row.qtyByModel[0]?.model ?? row.applicableModels[0] ?? ''
+      const modelNameRaw = row.qtyByModel[0]?.model ?? row.applicableModels[0] ?? ''
+      const modelName = resolveIplModelName(modelNameRaw, catalogNames)
       const consolidated = isConsolidatedImportRow(row)
-      const qtyEntries = consolidated
+      const qtyEntries = (consolidated
         ? parseQtyByModel(row.qtyByModelRaw).map(e => ({ modelName: e.model, qty: e.qty }))
-        : [{ modelName, qty: row.qtyByModel[0]?.qty ?? 1 }]
-      const qty = consolidated ? maxModelQty(qtyEntries) : (row.qtyByModel[0]?.qty ?? 1)
-      const stCode = normalizeStationCode(row.stationCode)
+        : [{ modelName: modelNameRaw, qty: row.qtyByModel[0]?.qty ?? 1 }]
+      ).map(e => ({ ...e, modelName: resolveIplModelName(e.modelName, catalogNames) }))
+      const qty = consolidated ? maxModelQty(qtyEntries) : (qtyEntries[0]?.qty ?? 1)
+      const stCanon = normalizeStationCode(row.stationCode)
       const stationId = row.stationCode
-        ? (stationMap.get(stCode) ?? stationMap.get(row.stationCode.toUpperCase()) ?? null)
+        ? (stationMap.get(stCanon) ?? stationMap.get(row.stationCode.toUpperCase()) ?? null)
         : null
       const vehicleModelId = consolidated ? null : resolveVehicleModelId(modelName, modelMap)
       const needsReview = !stationId || (!consolidated && !vehicleModelId && Boolean(modelName))
@@ -212,9 +280,19 @@ export async function runBomImport(
         stationCode: row.stationCode || '_',
         modelName: consolidated ? '_' : modelName || '_'
       })
+      const applicableCatalog = [
+        ...new Set(
+          (row.applicableModels.length ? row.applicableModels : qtyEntries.map(e => e.modelName))
+            .map(m => resolveIplModelName(m, catalogNames))
+            .filter(Boolean)
+        )
+      ]
+      const qtyRawCatalog = qtyEntries
+        .filter(e => e.modelName && e.qty > 0)
+        .map(e => `${e.modelName}=${e.qty}`)
+        .join('; ')
 
       const logistics = extractIplLogisticsFromRaw(row.raw)
-      lineKeys.push(lineKey)
       prepared.push({
         row,
         lineKey,
@@ -225,12 +303,12 @@ export async function runBomImport(
           vehicle_model_id: vehicleModelId,
           station_id: stationId,
           model_family: row.modelFamily || null,
-          applicable_models_text: row.applicableModels.join(', ') || null,
+          applicable_models_text: applicableCatalog.join(', ') || null,
           station_code_text: row.stationCode || null,
           station_category: row.stationCategory || null,
           supply_source: effectiveSupplySource(row.supplySource),
           bom_classification: row.bomClassification || null,
-          qty_by_model_raw: row.qtyByModelRaw || row.qtyByModel.map(q => `${q.model}=${q.qty}`).join('; ') || null,
+          qty_by_model_raw: qtyRawCatalog || row.qtyByModelRaw || null,
           source_file: options.sourceFile ?? options.fileName,
           source_sheet: row.sourceSheet || options.sheetName,
           source_row_number: row.sourceRow,
@@ -252,21 +330,7 @@ export async function runBomImport(
   onProgress?.({ phase: 'parts', done: 0, total: uniqueNorms.length })
 
   const existingParts = await loadExistingNormalizedParts(uniqueNorms)
-  summary.createdParts = 0
-  summary.updatedParts = 0
-
-  const partIdByNorm = await upsertPartsBatch(partInputs, existingParts, summary)
-  const missingNorms = uniqueNorms.filter(n => !partIdByNorm.has(n))
-  if (missingNorms.length > 0) {
-    for (const batch of chunk(missingNorms, CHUNK)) {
-      const { data, error } = await client()
-        .from('parts')
-        .select('id, normalized_part_number')
-        .in('normalized_part_number', batch)
-      if (error) throw new Error(error.message)
-      ;(data ?? []).forEach(r => partIdByNorm.set(String(r.normalized_part_number), r.id as string))
-    }
-  }
+  const partIdByNorm = await upsertPartsBatch(partInputs, existingParts, summary, addOnly)
   onProgress?.({ phase: 'parts', done: uniqueNorms.length, total: uniqueNorms.length })
 
   for (const line of prepared) {
@@ -281,22 +345,29 @@ export async function runBomImport(
   }
 
   const validLines = prepared.filter(l => l.payload.part_id)
-  const validKeys = validLines.map(l => l.lineKey)
-
   onProgress?.({ phase: 'bom', done: 0, total: validLines.length })
-  const existingBomKeys = await loadExistingBomLineKeys(validKeys)
+  const existingBomKeys = await loadExistingBomLineKeys(validLines.map(l => l.lineKey))
+
+  const linesToWrite = addOnly ? validLines.filter(l => !existingBomKeys.has(l.lineKey)) : validLines
+  summary.createdBomItems = 0
+  summary.updatedBomItems = 0
+  summary.skippedBomItems = 0
+
+  for (const l of validLines) {
+    if (existingBomKeys.has(l.lineKey)) {
+      if (addOnly) summary.skippedBomItems = (summary.skippedBomItems ?? 0) + 1
+      else summary.updatedBomItems++
+    } else {
+      summary.createdBomItems++
+    }
+  }
 
   let bomDone = 0
-  for (const batch of chunk(validLines, CHUNK)) {
+  for (const batch of chunk(linesToWrite, CHUNK)) {
     const payloads = batch.map(l => l.payload)
-    for (const l of batch) {
-      if (existingBomKeys.has(l.lineKey)) summary.updatedBomItems++
-      else {
-        summary.createdBomItems++
-        existingBomKeys.add(l.lineKey)
-      }
-    }
-    const { error } = await client().from('bom_items').upsert(payloads, { onConflict: 'import_line_key' })
+    const { error } = addOnly
+      ? await client().from('bom_items').insert(payloads)
+      : await client().from('bom_items').upsert(payloads, { onConflict: 'import_line_key' })
     if (error) {
       for (const l of batch) {
         summary.errorsCount++
@@ -310,7 +381,7 @@ export async function runBomImport(
       }
     }
     bomDone += batch.length
-    onProgress?.({ phase: 'bom', done: bomDone, total: validLines.length })
+    onProgress?.({ phase: 'bom', done: bomDone, total: linesToWrite.length })
   }
 
   onProgress?.({ phase: 'finish', done: 0, total: 1 })

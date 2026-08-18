@@ -2,10 +2,12 @@ import { type ReactNode } from 'react'
 import { CheckCircle2, MessageSquare, Pencil, Settings2, Trash2 } from 'lucide-react'
 import { useLang } from '../../i18n/LanguageContext'
 import { useEmployees } from '../../hooks/useEmployees'
+import { useMyOrgScope } from '../../hooks/useMyOrgScope'
 import { useMissingPartsUiPermissions } from '../../hooks/useMissingPartsUiPermissions'
 import type { MissingPartDetail } from '../../Types/missingPart'
 import { canCompleteVehicle, iconSize } from '../../Utils/missingPartPageUtils'
 import { MpIssueFollowUpButton } from './MpIssueFollowUpButton'
+import { MpAssignShortageMissionButton, type ShortageMissionAssignInput } from './MpAssignShortageMissionButton'
 
 type Props = {
   item: MissingPartDetail
@@ -30,6 +32,8 @@ type Props = {
   onComplete: (part: MissingPartDetail) => void
   onCompleteAll?: (parts: MissingPartDetail[]) => void
   onAssignFollowUp?: (part: MissingPartDetail, assignment: { completingDepartment: string; followUpEmployeeId: string }) => void
+  onAssignShortageMission?: (part: MissingPartDetail, input: ShortageMissionAssignInput) => void | Promise<void>
+  assignMissionBusy?: boolean
   layout?: 'inline' | 'stacked'
 }
 
@@ -56,10 +60,13 @@ export function MissingPartVehicleActions({
   onComplete,
   onCompleteAll,
   onAssignFollowUp,
+  onAssignShortageMission,
+  assignMissionBusy,
   layout = 'inline'
 }: Props) {
   const { t } = useLang()
   const { employees } = useEmployees()
+  const { assignableEmployees, canAssignMissions } = useMyOrgScope(employees)
   const { canAssignFollowUp } = useMissingPartsUiPermissions()
   const canAct = archiveMode || rowOpen
   const target = completeRep ?? item
@@ -82,6 +89,16 @@ export function MissingPartVehicleActions({
         >
           <Settings2 className={iconSize} />
         </IconBtn>
+      )}
+      {!archiveMode && rowOpen && canAssignMissions && onAssignShortageMission && assignableEmployees.length > 0 && (
+        <MpAssignShortageMissionButton
+          parts={deleteTargets}
+          employees={assignableEmployees}
+          busy={assignMissionBusy}
+          className="relative rounded-md p-1.5 text-amber-300 hover:bg-amber-500/20"
+          iconClassName={iconSize}
+          onAssign={input => onAssignShortageMission(item, input)}
+        />
       )}
       {!archiveMode && rowOpen && canAssignFollowUp && onAssignFollowUp && (
         <MpIssueFollowUpButton

@@ -12,6 +12,7 @@ import {
 import { getVehicleModels } from '../../services/settingsService'
 import { MissingPartFamilyVariantsModal } from './MissingPartFamilyVariantsModal'
 import { MissingPartVariantVehiclesModal } from './MissingPartVariantVehiclesModal'
+import type { ShortageMissionAssignInput } from './MpAssignShortageMissionButton'
 
 type Props = {
   items: MissingPartDetail[]
@@ -35,6 +36,8 @@ type Props = {
     part: MissingPartDetail,
     assignment: { completingDepartment: string; followUpEmployeeId: string }
   ) => void
+  onAssignShortageMission?: (part: MissingPartDetail, input: ShortageMissionAssignInput) => void | Promise<void>
+  assignMissionBusy?: boolean
 }
 
 export function MissingPartsFamilyCardsTab({
@@ -55,7 +58,9 @@ export function MissingPartsFamilyCardsTab({
   onUpdate,
   onDeleteParts,
   onComplete,
-  onAssignFollowUp
+  onAssignFollowUp,
+  onAssignShortageMission,
+  assignMissionBusy
 }: Props) {
   const { t } = useLang()
   const [models, setModels] = useState<VehicleModel[]>([])
@@ -138,6 +143,8 @@ export function MissingPartsFamilyCardsTab({
         onDeleteParts={onDeleteParts}
         onComplete={onComplete}
         onAssignFollowUp={onAssignFollowUp}
+        onAssignShortageMission={onAssignShortageMission}
+        assignMissionBusy={assignMissionBusy}
       />
     </>
   )

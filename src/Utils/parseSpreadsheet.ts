@@ -25,9 +25,9 @@ export async function listSpreadsheetSheets(file: File): Promise<string[]> {
 }
 
 export function pickDefaultBomSheet(sheetNames: string[]): string {
-  if (sheetNames.includes('BOM_App_Import')) return 'BOM_App_Import'
-  const iplT4 = sheetNames.find(s => /ipl.*t4/i.test(s))
+  const iplT4 = sheetNames.find(s => /ipl.*t4|t4.*ipl|t4.*turbo|turbo.*t4/i.test(s))
   if (iplT4) return iplT4
+  if (sheetNames.includes('BOM_App_Import')) return 'BOM_App_Import'
   if (sheetNames.includes('BOM')) return 'BOM'
   return sheetNames[0] ?? 'Sheet1'
 }

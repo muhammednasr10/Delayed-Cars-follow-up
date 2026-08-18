@@ -60,6 +60,8 @@ import {
 import { scratchAreaLabel } from '../../Utils/scratchAreaOptions'
 import { ConfirmDialog } from '../../Components/ConfirmDialog'
 import { getVehicleNoteCounts } from '../../services/vehicleNotesService'
+import { createTeamMission } from '../../services/missionService'
+import type { ShortageMissionAssignInput } from '../../Components/missingParts/MpAssignShortageMissionButton'
 
 export function MissingPartsPage() {
   const { t } = useLang()
@@ -81,7 +83,7 @@ export function MissingPartsPage() {
   } = useMissingPartsUiPermissions()
   const formatError = useFormatError()
   const { employees } = useEmployees()
-  const { filterRecords, isScopedView, scopeLabel, orgUnits } = useFactoryOrgScope(employees)
+  const { filterRecords, isScopedView, scopeLabel, orgUnits, employeeId: myEmployeeId } = useFactoryOrgScope(employees)
   const orgUnitLabelFor = useCallback(
     (id: string | null | undefined) => (id ? scratchAreaLabel(id, orgUnits) : '—'),
     [orgUnits]
@@ -125,6 +127,7 @@ export function MissingPartsPage() {
   const [transferPart, setTransferPart] = useState<MissingPartDetail | null>(null)
   const [workflowRequests, setWorkflowRequests] = useState<MissingPartWorkflowRequest[]>([])
   const [reviewingRequestId, setReviewingRequestId] = useState<string | null>(null)
+  const [assignMissionBusy, setAssignMissionBusy] = useState(false)
 
   const canBulkSelectForTab = useMemo(() => {
     if (listTab === 'history') return canBulkSelectArchive
@@ -195,6 +198,25 @@ export function MissingPartsPage() {
       void load()
     } catch (err) {
       setError(formatError(err))
+    }
+  }
+
+  async function assignShortageMission(_row: MissingPartDetail, input: ShortageMissionAssignInput) {
+    setAssignMissionBusy(true)
+    setError('')
+    try {
+      await createTeamMission(input)
+      showSuccess(t('mp.assignMission.success'))
+    } catch (err) {
+      const raw = err instanceof Error ? err.message : ''
+      const msg =
+        raw === 'ASSIGNEE_NOT_SUBORDINATE' || raw.includes('ASSIGNEE_NOT_SUBORDINATE')
+          ? t('missions.errAssigneeNotSubordinate')
+          : formatError(err)
+      setError(msg)
+      throw new Error(msg)
+    } finally {
+      setAssignMissionBusy(false)
     }
   }
 
@@ -607,6 +629,7 @@ export function MissingPartsPage() {
           modelOptions={modelOptions}
           orgUnits={orgUnits}
           employees={employees}
+          myEmployeeId={myEmployeeId}
           canReport={canReport}
           role={role}
           onReport={() => setShowReport(true)}
@@ -713,6 +736,8 @@ export function MissingPartsPage() {
             onEdit={openEdit}
             onUpdate={openUpdate}
             onAssignFollowUp={(row, assignment) => void applyFollowUp(row, assignment)}
+            onAssignShortageMission={assignShortageMission}
+            assignMissionBusy={assignMissionBusy}
             onDeleteParts={parts => void removeParts(parts)}
             onComplete={requestCompleteVehicle}
           />
@@ -776,6 +801,8 @@ export function MissingPartsPage() {
             onComplete={requestCompleteVehicle}
             onCompleteAll={requestCompleteAll}
             onAssignFollowUp={(row, assignment) => void applyFollowUp(row, assignment)}
+            onAssignShortageMission={assignShortageMission}
+            assignMissionBusy={assignMissionBusy}
           />
         )}
       </div>

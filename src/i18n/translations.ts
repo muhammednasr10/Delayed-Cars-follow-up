@@ -198,7 +198,13 @@ export const translations = {
         hint: 'المهام المكلّف بها حسابك الحالي',
         empty: 'لا توجد مهام مكلّف بها.',
         noEmployeeLink: 'حسابك غير مربوط بموظف.',
-        noEmployeeHint: 'اطلب من المسؤول ربط حسابك بسجل موظف لعرض مهامك.'
+        noEmployeeHint: 'اطلب من المسؤول ربط حسابك بسجل موظف لعرض مهامك.',
+        rowHint: 'اضغط على السطر لعرض التفاصيل'
+      },
+      detail: {
+        title: 'تفاصيل المهمة',
+        noDescription: 'لا توجد تفاصيل إضافية.',
+        createdAt: 'تاريخ الإنشاء'
       },
       addMission: 'مهمة جديدة',
       editMission: 'تعديل المهمة',
@@ -1703,6 +1709,10 @@ export const translations = {
         bulk: 'تحديد القسم المتمم وموظف المتابعة للمحدد',
         nothingSelected: 'لا توجد مشاكل مفتوحة على السيارات المحددة.'
       },
+      assignMission: {
+        open: 'تعيين مهمة للموظف',
+        success: 'تم إنشاء المهمة للموظف.'
+      },
       lookupNewPlaceholder: 'الاسم بالعربية',
       lookupLabelRequired: 'أدخل الاسم.',
       filterStation: 'كل المحطات',
@@ -1713,6 +1723,9 @@ export const translations = {
       filterCausingDepartmentAll: 'كل الأقسام المتسببة',
       filterCompletingDepartmentAll: 'كل الأقسام المتممة',
       filterFollowUpEmployeeAll: 'كل موظفي المتابعة',
+      filterFollowUpMine: 'متابعتي',
+      filterFollowUpMineHint: 'عرض السيارات المعيّنة لمتابعتك',
+      filterFollowUpMineNoEmployee: 'حسابك غير مربوط بموظف. اربطه من الصلاحيات أولاً.',
       filterMonth: 'كل الشهور',
       filterMonthLabel: 'الشهر',
       filterSelectedCount: '{n} محدد',
@@ -2641,7 +2654,7 @@ export const translations = {
       },
       consolidatedHint: 'عرض مجمّع عبر الموديلات — الأسماء من قائمة الأجزاء الموحّدة ومصدر البيانات IPL موديلات',
       iplModelsHint:
-        'كل أجزاء قائمة الأجزاء تظهر هنا تلقائياً — اكتب رقم الجزء والكمية لكل موديل بنفسك (بدون تأليف بيانات)',
+        'اختر موديل واحد (مثل T4-PRO T) لعرض قطع IPL المستوردة حسب المحطة. اختيار أكثر من موديل يفتح المقارنة.',
       iplPartNumberMissing: 'رقم مفقود',
       iplNeedPartNumberFirst: 'أدخل رقم الجزء أولاً ثم الكمية',
       iplNeedPartNumberAndQty: 'أدخل رقم الجزء والكمية أولاً قبل بيانات التغذية',
@@ -2739,7 +2752,26 @@ export const translations = {
         blank: '(فارغ)',
         truncated: 'عرض أول القيم فقط — ضيّق الفلتر أو ابحث'
       },
-      importIplMasterHint: 'ملف IPL Master (T7 + T8 + T4 + GD): يُستورد تلقائياً من كل الأوراق عند رفع الملف الكامل',
+      importIplMasterHint: 'ملف IPL Master: يُستورد ورقة T4 فقط تلقائياً (بدون T7/T8/GD)',
+      importT4SafeHint: 'استيراد آمن لـ T4 Turbo: استبعاد PBS + إضافة الجديد فقط + كمية عمود T فقط',
+      importT4OnlyBadge: 'T4 فقط',
+      importT4TurboBadge: 'T4 Turbo فقط',
+      importT4TurboOnly: 'T4 Turbo فقط (عمود T / T4T)',
+      importExcludedNoTurboCount: '{n} صف بدون Turbo',
+      importNoT4Sheet: 'لم تُعثر على ورقة IPL-T4 في الملف.',
+      importNoT4SheetDetail:
+        'لم يُعثر على قطع IPL في الملف. الأوراق الموجودة: {sheets}. اختر الورقة الصحيحة أو تأكد أن فيها رقم الجزء وعمود T / Turbo.',
+      importExcludePbs: 'استبعاد محطات PBS',
+      importExcludedPbsCount: '{n} صف PBS',
+      importAddOnly: 'إضافة الجديد فقط (بدون تعديل الموجود)',
+      importImpactAddBom: 'سيُضاف: {n} صف BOM',
+      importImpactSkipBom: 'سيُتخطى (موجود): {n} صف BOM',
+      importImpactNewParts: 'أجزاء جديدة: {n}',
+      importImpactLinkParts: 'أجزاء موجودة (ربط فقط): {n}',
+      importStationPreviewTitle: 'مراجعة المحطات',
+      importStationPreviewHint: 'ألغِ تحديد محطة لاستبعاد أجزائها من الاستيراد.',
+      importStationSelectAll: 'تحديد الكل',
+      importStationClearAll: 'إلغاء الكل',
       col: {
         model_family: 'عائلة الموديل',
         applicable_models: 'الموديلات',
@@ -2841,6 +2873,8 @@ export const translations = {
       importPhaseFinish: 'إنهاء',
       sumParts: 'أجزاء: {c} جديد · {u} محدّث',
       sumBom: 'صفوف BOM: {c} جديد · {u} محدّث',
+      sumSkippedBom: 'صفوف BOM متخطاة (موجودة مسبقاً): {n}',
+      sumLinkedParts: 'أجزاء موجودة مرتبطة بدون تعديل: {n}',
       sumDup: 'أرقام مكررة: {n}',
       sumErr: 'أخطاء: {n}',
       row: 'صف',
@@ -3555,7 +3589,13 @@ export const translations = {
         hint: 'Tasks assigned to your linked employee account',
         empty: 'No tasks assigned to you.',
         noEmployeeLink: 'Your account is not linked to an employee.',
-        noEmployeeHint: 'Ask an administrator to link your user account to an employee record.'
+        noEmployeeHint: 'Ask an administrator to link your user account to an employee record.',
+        rowHint: 'Click a row to view details'
+      },
+      detail: {
+        title: 'Mission details',
+        noDescription: 'No additional details.',
+        createdAt: 'Created at'
       },
       addMission: 'New mission',
       editMission: 'Edit mission',
@@ -5054,6 +5094,10 @@ export const translations = {
         bulk: 'Set completing department and follow-up employee for selected',
         nothingSelected: 'No open issues on the selected vehicles.'
       },
+      assignMission: {
+        open: 'Assign a task to an employee',
+        success: 'Task created for the employee.'
+      },
       lookupNewPlaceholder: 'Arabic name',
       lookupLabelRequired: 'Enter a name.',
       filterStation: 'All stations',
@@ -5064,6 +5108,9 @@ export const translations = {
       filterCausingDepartmentAll: 'All causing departments',
       filterCompletingDepartmentAll: 'All completing departments',
       filterFollowUpEmployeeAll: 'All follow-up employees',
+      filterFollowUpMine: 'My follow-up',
+      filterFollowUpMineHint: 'Show vehicles assigned to you for follow-up',
+      filterFollowUpMineNoEmployee: 'Your account is not linked to an employee. Link it in permissions first.',
       filterMonth: 'All months',
       filterMonthLabel: 'Month',
       filterSelectedCount: '{n} selected',
@@ -6011,7 +6058,7 @@ export const translations = {
         'Cross-model consolidated view — names from the unified parts list; data sourced from IPL models',
       modelBomSummary: '{model}: {n} parts · {shown} shown after filter',
       iplModelsHint:
-        'All parts-list items appear here automatically — enter part number and qty per model yourself (nothing invented)',
+        'Pick one model (e.g. T4-PRO T) to see imported IPL parts by station. Selecting more than one model opens compare.',
       iplPartNumberMissing: 'Missing number',
       iplNeedPartNumberFirst: 'Enter the part number first, then the quantity',
       iplNeedPartNumberAndQty: 'Enter part number and quantity before feeding logistics',
@@ -6108,7 +6155,26 @@ export const translations = {
         blank: '(Blank)',
         truncated: 'Showing first values only — narrow search'
       },
-      importIplMasterHint: 'IPL Master workbook (T7 + T8 + T4 + GD): all IPL sheets are imported automatically',
+      importIplMasterHint: 'IPL Master workbook: only the T4 sheet is imported (not T7/T8/GD)',
+      importT4SafeHint: 'Safe T4 Turbo import: PBS excluded + add new only + column T qty only',
+      importT4OnlyBadge: 'T4 only',
+      importT4TurboBadge: 'T4 Turbo only',
+      importT4TurboOnly: 'T4 Turbo only (column T / T4T)',
+      importExcludedNoTurboCount: '{n} rows with no Turbo qty',
+      importNoT4Sheet: 'No IPL-T4 sheet found in the file.',
+      importNoT4SheetDetail:
+        'No IPL parts found in the file. Sheets: {sheets}. Pick the correct sheet, or check that it has a part number column and T / Turbo qty.',
+      importExcludePbs: 'Exclude PBS stations',
+      importExcludedPbsCount: '{n} PBS rows',
+      importAddOnly: 'Add new only (do not update existing)',
+      importImpactAddBom: 'Will add: {n} BOM rows',
+      importImpactSkipBom: 'Will skip (exists): {n} BOM rows',
+      importImpactNewParts: 'New parts: {n}',
+      importImpactLinkParts: 'Existing parts (link only): {n}',
+      importStationPreviewTitle: 'Review stations',
+      importStationPreviewHint: 'Uncheck a station to exclude its parts from import.',
+      importStationSelectAll: 'Select all',
+      importStationClearAll: 'Clear all',
       col: {
         model_family: 'Model family',
         applicable_models: 'Applicable models',
@@ -6211,6 +6277,8 @@ export const translations = {
       importPhaseFinish: 'finishing',
       sumParts: 'Parts: {c} new · {u} updated',
       sumBom: 'BOM rows: {c} new · {u} updated',
+      sumSkippedBom: 'BOM rows skipped (already exist): {n}',
+      sumLinkedParts: 'Existing parts linked without update: {n}',
       sumDup: 'Duplicate numbers: {n}',
       sumErr: 'Errors: {n}',
       row: 'Row',

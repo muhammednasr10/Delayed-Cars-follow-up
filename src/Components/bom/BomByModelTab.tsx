@@ -52,7 +52,8 @@ import {
   isSelectableVehicleModel,
   selectableVehicleModels
 } from '../../Utils/vehicleModelHierarchy'
-import { filterBomItemsByLineScope, filterModelFamilyPicker, type BomLineScope } from '../../Utils/bomModelScope'
+import { filterBomItemsByLineScope, filterModelFamilyPicker, isGdModelName, type BomLineScope } from '../../Utils/bomModelScope'
+import { preferredIplModelName } from '../../Utils/iplModelAliases'
 import { masterStationsForBom, normalizeBomStationCodeText, sortBomDisplayGroups } from '../../Utils/bomStationCode'
 import { formatStationReferenceCode } from '../../Utils/stationHierarchy'
 import { BomGroupedTableRow } from './BomGroupedTableRow'
@@ -148,7 +149,11 @@ export function BomByModelTab({
     [models, lineScope]
   )
   const masterStations = useMemo(() => masterStationsForBom(stations), [stations])
-  const assignableModels = useMemo(() => selectableVehicleModels(models), [models])
+  const assignableModels = useMemo(() => {
+    const all = selectableVehicleModels(models)
+    if (lineScope === 'gd') return all.filter(m => isGdModelName(m.name))
+    return all.filter(m => !isGdModelName(m.name))
+  }, [models, lineScope])
   const assignableModelNames = useMemo(() => new Set(assignableModels.map(m => m.name)), [assignableModels])
   const openTabsActive = useMemo(
     () => openModelTabs.filter(name => assignableModelNames.has(name)),
@@ -339,8 +344,9 @@ export function BomByModelTab({
     if (!perModel || assignableModels.length === 0 || didInitModelTabs.current) return
     didInitModelTabs.current = true
     const allNames = assignableModels.map(m => m.name)
-    setOpenModelTabs(allNames)
-    setActiveModelTab(allNames[0] ?? '')
+    const preferred = preferredIplModelName(allNames)
+    setOpenModelTabs(preferred ? [preferred] : allNames.slice(0, 1))
+    setActiveModelTab(preferred || allNames[0] ?? '')
   }, [perModel, assignableModels])
 
   function toggleModelTab(name: string) {
