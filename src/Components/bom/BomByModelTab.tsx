@@ -346,7 +346,7 @@ export function BomByModelTab({
     const allNames = assignableModels.map(m => m.name)
     const preferred = preferredIplModelName(allNames)
     setOpenModelTabs(preferred ? [preferred] : allNames.slice(0, 1))
-    setActiveModelTab(preferred || allNames[0] ?? '')
+    setActiveModelTab((preferred ?? allNames[0]) || '')
   }, [perModel, assignableModels])
 
   function toggleModelTab(name: string) {
