@@ -67,7 +67,15 @@ export function dimensionReasonClass(row: MissingPartDetail) {
 }
 
 export function dimensionDepartment(row: MissingPartDetail) {
+  return dimensionCausingDepartment(row)
+}
+
+export function dimensionCausingDepartment(row: MissingPartDetail) {
   return row.department?.trim() || '—'
+}
+
+export function dimensionCompletingDepartment(row: MissingPartDetail) {
+  return row.completingDepartment?.trim() || '—'
 }
 
 export function dimensionReporter(row: MissingPartDetail) {

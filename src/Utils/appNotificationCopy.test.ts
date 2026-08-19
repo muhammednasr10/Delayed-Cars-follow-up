@@ -12,7 +12,9 @@ const t = (key: string, vars?: Record<string, string | number>) => {
     'notifications.shortageDeleted': '{actor} حذف نقصاً على الشاسيه {vin}',
     'notifications.shortageDeletedPart': '{actor} حذف نقص «{part}» على الشاسيه {vin}',
     'notifications.transferRequested': '{actor} طلب ترحيل الشاسيه {vin}',
-    'notifications.transferRequestedStation': '{actor} طلب ترحيل الشاسيه {vin} إلى {station}'
+    'notifications.transferRequestedStation': '{actor} طلب ترحيل الشاسيه {vin} إلى {station}',
+    'notifications.missionAssigned': '{actor} عيّن لك مهمة «{title}»',
+    'notifications.missionDelegated': '{actor} حوّل إليك مهمة «{title}»'
   }
   let out = map[key] ?? key
   if (vars) {
@@ -47,6 +49,12 @@ describe('appNotificationLabel', () => {
     expect(
       appNotificationLabel(item({ eventType: 'transfer_requested', payload: { to_station_name: 'QP1' } }), t)
     ).toContain('QP1')
+    expect(
+      appNotificationLabel(item({ eventType: 'mission_assigned', payload: { title: 'إصلاح المحطة' } }), t)
+    ).toContain('إصلاح المحطة')
+    expect(
+      appNotificationLabel(item({ eventType: 'mission_delegated', payload: { title: 'متابعة النقص' } }), t)
+    ).toContain('حوّل')
   })
 })
 

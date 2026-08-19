@@ -4,6 +4,18 @@ import type { VehicleModel } from '../Types/settings'
 import { inferParentNameFromVariant } from './vehicleModelHierarchy'
 import { employeeMatchesOrgFilter } from './employeeOrgPicker'
 
+/** Sentinel for «show rows with no value in this field». */
+export const MP_FILTER_UNASSIGNED = '__unassigned__'
+
+export function isUnassignedFilter(value: string | string[]): boolean {
+  if (Array.isArray(value)) return value.includes(MP_FILTER_UNASSIGNED)
+  return value === MP_FILTER_UNASSIGNED
+}
+
+function isEmptyDepartmentValue(value: string | null | undefined): boolean {
+  return !value?.trim()
+}
+
 export const ACTIVE_COLS = [
   'select',
   'vin',
@@ -101,8 +113,15 @@ function matchesDepartmentFilter(
   orgUnits: FactoryOrgUnit[]
 ): boolean {
   if (filterDeptIds.length === 0) return true
-  if (!rowDept) return false
-  return filterDeptIds.some(
+  const wantsUnassigned = filterDeptIds.includes(MP_FILTER_UNASSIGNED)
+  const deptIds = filterDeptIds.filter(id => id !== MP_FILTER_UNASSIGNED)
+  const empty = isEmptyDepartmentValue(rowDept)
+
+  if (wantsUnassigned && empty) return true
+  if (deptIds.length === 0) return false
+  if (empty) return false
+
+  return deptIds.some(
     d => d === rowDept || (orgUnits.length > 0 && employeeMatchesOrgFilter(rowDept, d, orgUnits))
   )
 }
@@ -135,7 +154,12 @@ export function applyFilters(
     .filter(i => models.size === 0 || models.has(i.modelName))
     .filter(i => matchesDepartmentFilter(i.department, filters.departments, orgUnits))
     .filter(i => matchesDepartmentFilter(i.completingDepartment, filters.completingDepartments, orgUnits))
-    .filter(i => !filters.followUpEmployeeId || i.followUpEmployeeId === filters.followUpEmployeeId)
+    .filter(i => {
+      const followUp = filters.followUpEmployeeId
+      if (!followUp) return true
+      if (followUp === MP_FILTER_UNASSIGNED) return !i.followUpEmployeeId
+      return i.followUpEmployeeId === followUp
+    })
     .filter(i => !month || resolvedMonthKey(i.shortageResolvedAt) === month)
     .filter(i => {
       if (!dateFrom && !dateTo) return true

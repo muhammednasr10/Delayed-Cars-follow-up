@@ -16,6 +16,7 @@ export const PERMISSION_ACTION_ORDER = [
   'print',
   'manage',
   'assign',
+  'view_all',
   'override'
 ] as const
 
@@ -40,7 +41,7 @@ export const PERMISSION_MODULE_GROUPS: { key: string; labelKey: string; modules:
   {
     key: 'production',
     labelKey: 'permissions.matrix.groups.production',
-    modules: ['stations', 'station_operations', 'bom', 'missing_parts', 'production', 'qc']
+    modules: ['stations', 'station_operations', 'bom', 'missing_parts', 'missions', 'production', 'qc']
   },
   {
     key: 'inventory',

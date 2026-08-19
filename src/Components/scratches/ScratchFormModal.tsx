@@ -7,11 +7,12 @@ import { Modal } from '../Modal'
 import { Field, inputCls } from '../FormField'
 import { FactoryOrgUnitPicker } from '../FactoryOrgUnitPicker'
 import { VehicleModelFamilyPicker } from '../VehicleModelFamilyPicker'
-import type { ScratchInput, ScratchSeverity } from '../../Types/scratch'
+import type { ScratchInput, ScratchRecord, ScratchSeverity } from '../../Types/scratch'
 import { getFactoryOrgUnits } from '../../services/factoryOrgService'
 import type { FactoryOrgUnit } from '../../Types/factoryOrg'
 import type { VehicleModel } from '../../Types/settings'
-import { orgPathLabel, orgPathLeaf } from '../../Utils/employeeOrgPicker'
+import { orgPathFromLeaf, orgPathLabel, orgPathLeaf } from '../../Utils/employeeOrgPicker'
+import { CHASSIS_VIN_LENGTH, isValidVinLength, normalizeChassisVin } from '../../Utils/vinValidation'
 
 const SEVERITIES: ScratchSeverity[] = ['light', 'medium', 'severe']
 
@@ -23,6 +24,7 @@ type FormState = {
   orgPath: string[]
   severity: ScratchSeverity
   recordedAt: string
+  willStop: boolean
 }
 
 function emptyForm(defaultPath: string[] = []): FormState {
@@ -33,24 +35,22 @@ function emptyForm(defaultPath: string[] = []): FormState {
     notes: '',
     orgPath: [...defaultPath],
     severity: 'light',
-    recordedAt: new Date().toISOString().slice(0, 10)
+    recordedAt: new Date().toISOString().slice(0, 10),
+    willStop: false
   }
-}
-
-function countDigits(value: string): number {
-  return (value.match(/\d/g) ?? []).length
 }
 
 type Props = {
   open: boolean
   models: VehicleModel[]
   modelsLoading?: boolean
+  editing?: ScratchRecord | null
   onClose: () => void
   onSave: (input: ScratchInput, imageFile: File | null) => void
   saving?: boolean
 }
 
-export function ScratchFormModal({ open, models, modelsLoading, onClose, onSave, saving }: Props) {
+export function ScratchFormModal({ open, models, modelsLoading, editing, onClose, onSave, saving }: Props) {
   const { t } = useLang()
   const { employees } = useEmployees()
   const { defaultOrgPath } = useFactoryOrgScope(employees)
@@ -65,26 +65,59 @@ export function ScratchFormModal({ open, models, modelsLoading, onClose, onSave,
 
   useEffect(() => {
     if (!open) return
-    setForm(emptyForm(defaultOrgPath))
     setError('')
     setImageFile(null)
     setImagePreview(null)
     getFactoryOrgUnits()
-      .then(setOrgUnits)
-      .catch(() => setOrgUnits([]))
-  }, [open, defaultOrgPath])
+      .then(units => {
+        setOrgUnits(units)
+        if (editing) {
+          setForm({
+            familyId: editing.parentModelId ?? '',
+            variantId: editing.vehicleModelId ?? '',
+            vin: editing.vin,
+            notes: editing.notes ?? '',
+            orgPath: orgPathFromLeaf(editing.factoryOrgUnitId, units),
+            severity: editing.severity,
+            recordedAt: editing.recordedAt.slice(0, 10),
+            willStop: editing.willStop
+          })
+          if (editing.imageUrl) setImagePreview(editing.imageUrl)
+        } else {
+          setForm(emptyForm(defaultOrgPath))
+        }
+      })
+      .catch(() => {
+        setOrgUnits([])
+        if (editing) {
+          setForm({
+            familyId: editing.parentModelId ?? '',
+            variantId: editing.vehicleModelId ?? '',
+            vin: editing.vin,
+            notes: editing.notes ?? '',
+            orgPath: [],
+            severity: editing.severity,
+            recordedAt: editing.recordedAt.slice(0, 10),
+            willStop: editing.willStop
+          })
+          if (editing.imageUrl) setImagePreview(editing.imageUrl)
+        } else {
+          setForm(emptyForm(defaultOrgPath))
+        }
+      })
+  }, [open, defaultOrgPath, editing])
 
   useEffect(() => {
     return () => {
-      if (imagePreview) URL.revokeObjectURL(imagePreview)
+      if (imagePreview?.startsWith('blob:')) URL.revokeObjectURL(imagePreview)
     }
   }, [imagePreview])
 
   function pickImage(file: File | null) {
-    if (imagePreview) URL.revokeObjectURL(imagePreview)
+    if (imagePreview?.startsWith('blob:')) URL.revokeObjectURL(imagePreview)
     if (!file) {
       setImageFile(null)
-      setImagePreview(null)
+      setImagePreview(editing?.imageUrl ?? null)
       return
     }
     if (file.size > 5 * 1024 * 1024) {
@@ -103,7 +136,7 @@ export function ScratchFormModal({ open, models, modelsLoading, onClose, onSave,
   function validate(): string | null {
     if (!form.familyId) return t('scratches.errParentModel')
     if (!form.variantId) return t('scratches.errVariant')
-    if (countDigits(form.vin.trim()) < 4) return t('scratches.errVin')
+    if (!isValidVinLength(form.vin)) return t('scratches.errVin')
     if (!orgPathLeaf(form.orgPath)) return t('scratches.errArea')
     if (!form.recordedAt) return t('scratches.errDate')
     return null
@@ -119,14 +152,15 @@ export function ScratchFormModal({ open, models, modelsLoading, onClose, onSave,
     const bodyArea = orgPathLabel(form.orgPath, orgUnits) ?? ''
     onSave(
       {
-        vin: form.vin.trim().toUpperCase(),
+        vin: normalizeChassisVin(form.vin),
         parentModelId: form.familyId,
         vehicleModelId: form.variantId,
         bodyArea,
         factoryOrgUnitId,
         severity: form.severity,
         recordedAt: form.recordedAt,
-        notes: form.notes?.trim() || undefined
+        notes: form.notes?.trim() || undefined,
+        willStop: form.willStop
       },
       imageFile
     )
@@ -135,7 +169,7 @@ export function ScratchFormModal({ open, models, modelsLoading, onClose, onSave,
   return (
     <Modal
       open={open}
-      title={t('scratches.formTitle')}
+      title={editing ? t('scratches.formEditTitle') : t('scratches.formTitle')}
       subtitle={t('scratches.formSubtitle')}
       icon={<ScanLine className="h-5 w-5" />}
       onClose={onClose}
@@ -178,17 +212,23 @@ export function ScratchFormModal({ open, models, modelsLoading, onClose, onSave,
           <input
             className={inputCls()}
             dir="ltr"
+            inputMode="numeric"
+            maxLength={CHASSIS_VIN_LENGTH}
             value={form.vin}
-            onChange={e => setForm(f => ({ ...f, vin: e.target.value }))}
+            onChange={e =>
+              setForm(f => ({ ...f, vin: e.target.value.replace(/\D/g, '').slice(0, CHASSIS_VIN_LENGTH) }))
+            }
             placeholder={t('scratches.vinPlaceholder')}
           />
+          <p className="mt-1 text-[10px] text-slate-500">{t('scratches.vinHint')}</p>
         </Field>
 
-        <Field label={t('common.notes')}>
+        <Field label={t('scratches.cols.notes')}>
           <textarea
             className={`${inputCls()} min-h-[5rem] resize-y`}
             value={form.notes}
             onChange={e => setForm(f => ({ ...f, notes: e.target.value }))}
+            placeholder={t('scratches.notesPlaceholder')}
           />
         </Field>
 
@@ -226,6 +266,34 @@ export function ScratchFormModal({ open, models, modelsLoading, onClose, onSave,
           </select>
         </Field>
 
+        <Field label={t('scratches.willStop.label')} required>
+          <div className="grid grid-cols-2 gap-2">
+            <button
+              type="button"
+              onClick={() => setForm(f => ({ ...f, willStop: true }))}
+              className={`rounded-xl border px-3 py-2.5 text-sm font-black ${
+                form.willStop
+                  ? 'border-red-400/50 bg-red-500/20 text-red-100'
+                  : 'border-slate-700 bg-slate-900/50 text-slate-400 hover:border-slate-500'
+              }`}
+            >
+              {t('scratches.willStop.yes')}
+            </button>
+            <button
+              type="button"
+              onClick={() => setForm(f => ({ ...f, willStop: false }))}
+              className={`rounded-xl border px-3 py-2.5 text-sm font-black ${
+                !form.willStop
+                  ? 'border-emerald-400/50 bg-emerald-500/20 text-emerald-100'
+                  : 'border-slate-700 bg-slate-900/50 text-slate-400 hover:border-slate-500'
+              }`}
+            >
+              {t('scratches.willStop.no')}
+            </button>
+          </div>
+          <p className="mt-1 text-[10px] text-slate-500">{t('scratches.willStop.hint')}</p>
+        </Field>
+
         <Field label={t('scratches.cols.date')} required>
           <input
             type="date"
@@ -245,15 +313,19 @@ export function ScratchFormModal({ open, models, modelsLoading, onClose, onSave,
           />
           {imagePreview ? (
             <div className="relative inline-block">
-              <img src={imagePreview} alt="" className="max-h-40 rounded-xl border border-slate-700 object-contain" />
-              <button
-                type="button"
-                onClick={() => pickImage(null)}
-                className="absolute top-1 rounded-full bg-slate-900/90 p-1 text-slate-300 hover:text-white ltr:right-1 rtl:left-1"
-                aria-label={t('scratches.removeImage')}
-              >
-                <X className="h-4 w-4" />
+              <button type="button" onClick={() => fileInputRef.current?.click()} className="block">
+                <img src={imagePreview} alt="" className="max-h-40 rounded-xl border border-slate-700 object-contain" />
               </button>
+              {imageFile && (
+                <button
+                  type="button"
+                  onClick={() => pickImage(null)}
+                  className="absolute top-1 rounded-full bg-slate-900/90 p-1 text-slate-300 hover:text-white ltr:right-1 rtl:left-1"
+                  aria-label={t('scratches.removeImage')}
+                >
+                  <X className="h-4 w-4" />
+                </button>
+              )}
             </div>
           ) : (
             <button

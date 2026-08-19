@@ -7,7 +7,8 @@ export function appNotificationLabel(item: AppNotificationItem, t: Translate): s
   const vin = item.vin.trim() || '—'
   const part = item.payload.part_description?.trim() || ''
   const station = item.payload.to_station_name?.trim() || ''
-  const vars = { actor, vin, part, station, model: item.modelName.trim() }
+  const title = item.payload.title?.trim() || '—'
+  const vars = { actor, vin, part, station, model: item.modelName.trim(), title }
 
   switch (item.eventType) {
     case 'shortage_added':
@@ -18,5 +19,9 @@ export function appNotificationLabel(item: AppNotificationItem, t: Translate): s
       return part ? t('notifications.shortageDeletedPart', vars) : t('notifications.shortageDeleted', vars)
     case 'transfer_requested':
       return station ? t('notifications.transferRequestedStation', vars) : t('notifications.transferRequested', vars)
+    case 'mission_assigned':
+      return t('notifications.missionAssigned', vars)
+    case 'mission_delegated':
+      return t('notifications.missionDelegated', vars)
   }
 }

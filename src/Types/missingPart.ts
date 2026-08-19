@@ -138,18 +138,23 @@ export type ReportMissingPartsBatchResult = {
 export type MissingPartFilters = {
   search: string
   modelNames: string[]
-  /** Causing department (القسم المتسبب) — org unit id or legacy code. */
   departments: string[]
-  /** Completing department (القسم المتمم). */
   completingDepartments: string[]
-  /** Follow-up employee id; empty = all. */
   followUpEmployeeId: string
-  /** Archive month key `YYYY-MM` from shortageResolvedAt; null = all months. */
   resolvedMonth: string | null
-  /** Local calendar day `YYYY-MM-DD`; empty = no lower bound. */
   dateFrom: string
-  /** Local calendar day `YYYY-MM-DD`; empty = no upper bound. */
   dateTo: string
+}
+
+export const EMPTY_MISSING_PART_FILTERS: MissingPartFilters = {
+  search: '',
+  modelNames: [],
+  departments: [],
+  completingDepartments: [],
+  followUpEmployeeId: '',
+  resolvedMonth: null,
+  dateFrom: '',
+  dateTo: ''
 }
 
 export type MissingPartsListTab =

@@ -12,33 +12,18 @@ import {
 import { getVehicleModels } from '../../services/settingsService'
 import { MissingPartFamilyVariantsModal } from './MissingPartFamilyVariantsModal'
 import { MissingPartVariantVehiclesModal } from './MissingPartVariantVehiclesModal'
-import type { ShortageMissionAssignInput } from './MpAssignShortageMissionButton'
+import type { MpVehicleActionFlags, MpVehicleListActionProps } from '../../Types/mpVehicleActions'
 
 type Props = {
   items: MissingPartDetail[]
   reasons: MpLookupOption[]
   departments: MpLookupOption[]
   loading?: boolean
-  canUpdateStatus?: boolean
-  canNotes?: boolean
-  canEdit?: boolean
-  canDelete?: boolean
-  canComplete?: boolean
   noteCounts?: Record<string, number>
   completingVehicleId?: string | null
-  onOpenNotes?: (part: MissingPartDetail) => void
   onOpenDetail?: (part: MissingPartDetail) => void
-  onEdit?: (part: MissingPartDetail) => void
-  onUpdate?: (part: MissingPartDetail) => void
-  onDeleteParts?: (parts: MissingPartDetail[]) => void
-  onComplete?: (part: MissingPartDetail) => void
-  onAssignFollowUp?: (
-    part: MissingPartDetail,
-    assignment: { completingDepartment: string; followUpEmployeeId: string }
-  ) => void
-  onAssignShortageMission?: (part: MissingPartDetail, input: ShortageMissionAssignInput) => void | Promise<void>
-  assignMissionBusy?: boolean
-}
+} & Partial<MpVehicleActionFlags> &
+  Partial<MpVehicleListActionProps>
 
 export function MissingPartsFamilyCardsTab({
   items,
@@ -60,7 +45,8 @@ export function MissingPartsFamilyCardsTab({
   onComplete,
   onAssignFollowUp,
   onAssignShortageMission,
-  assignMissionBusy
+  assignMissionBusy,
+  shortageMissions = []
 }: Props) {
   const { t } = useLang()
   const [models, setModels] = useState<VehicleModel[]>([])
@@ -145,6 +131,7 @@ export function MissingPartsFamilyCardsTab({
         onAssignFollowUp={onAssignFollowUp}
         onAssignShortageMission={onAssignShortageMission}
         assignMissionBusy={assignMissionBusy}
+        shortageMissions={shortageMissions}
       />
     </>
   )

@@ -322,7 +322,8 @@ export const PERMISSIONS_MATRIX_TREE: MatrixTreeNode[] = [
         id: 'prod_missions',
         labelKey: 'nav.missions',
         descKey: 'permissions.matrix.pageDesc.production_missions',
-        pagePerm: 'production_missions'
+        pagePerm: 'production_missions',
+        actionModules: [{ moduleKey: 'missions', actions: ['assign', 'view_all'] }]
       },
       {
         id: 'prod_requests',

@@ -4,6 +4,7 @@ import { useLang } from '../../i18n/LanguageContext'
 import { Modal } from '../Modal'
 import { Field, inputCls } from '../FormField'
 import { EmployeeMultiSelect } from '../EmployeeMultiSelect'
+import { isAutoRecurringType } from '../../Utils/missionRecurrence'
 import type { Employee } from '../../Types/employee'
 import type { MissionPriority, MissionRecurrenceType, MissionStatus, TeamMission, TeamMissionInput } from '../../Types/mission'
 import { MISSION_PRIORITIES, MISSION_RECURRENCE_TYPES, MISSION_STATUSES } from '../../Types/mission'
@@ -203,6 +204,12 @@ export function MissionFormModal({
             </select>
           </Field>
         </div>
+        {isAutoRecurringType((form.recurrenceType ?? 'none') as MissionRecurrenceType) && (
+          <p className="text-xs font-medium text-slate-400">{t('missions.recurrenceAutoHint')}</p>
+        )}
+        {form.recurrenceType === 'custom' && (
+          <p className="text-xs font-medium text-slate-400">{t('missions.recurrenceCustomHint')}</p>
+        )}
 
         {form.recurrenceType === 'custom' && (
           <Field label={t('missions.recurrenceCustom')}>

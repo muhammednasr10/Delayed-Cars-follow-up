@@ -7,7 +7,10 @@ import { useMissingPartsUiPermissions } from '../../hooks/useMissingPartsUiPermi
 import type { MissingPartDetail } from '../../Types/missingPart'
 import { canCompleteVehicle, iconSize } from '../../Utils/missingPartPageUtils'
 import { MpIssueFollowUpButton } from './MpIssueFollowUpButton'
-import { MpAssignShortageMissionButton, type ShortageMissionAssignInput } from './MpAssignShortageMissionButton'
+import { MpAssignShortageMissionButton } from './MpAssignShortageMissionButton'
+import { shortageMissionsForParts } from '../../Utils/shortageMissionLinks'
+import { useOpenShortageMissions } from '../../hooks/useOpenShortageMissions'
+import type { MpVehicleActionFlags, MpVehicleListActionProps } from '../../Types/mpVehicleActions'
 
 type Props = {
   item: MissingPartDetail
@@ -17,25 +20,12 @@ type Props = {
   allItems: MissingPartDetail[]
   rowOpen?: boolean
   archiveMode?: boolean
-  canUpdateStatus: boolean
-  canNotes: boolean
-  canEdit: boolean
-  canDelete: boolean
-  canComplete: boolean
   completingVehicleId?: string | null
   completeRep?: MissingPartDetail
   completeAllReps?: MissingPartDetail[]
-  onOpenNotes: (part: MissingPartDetail) => void
-  onEdit: (part: MissingPartDetail) => void
-  onUpdate: (part: MissingPartDetail) => void
-  onDeleteParts: (parts: MissingPartDetail[]) => void
-  onComplete: (part: MissingPartDetail) => void
-  onCompleteAll?: (parts: MissingPartDetail[]) => void
-  onAssignFollowUp?: (part: MissingPartDetail, assignment: { completingDepartment: string; followUpEmployeeId: string }) => void
-  onAssignShortageMission?: (part: MissingPartDetail, input: ShortageMissionAssignInput) => void | Promise<void>
-  assignMissionBusy?: boolean
   layout?: 'inline' | 'stacked'
-}
+} & MpVehicleActionFlags &
+  MpVehicleListActionProps
 
 export function MissingPartVehicleActions({
   item,
@@ -62,12 +52,14 @@ export function MissingPartVehicleActions({
   onAssignFollowUp,
   onAssignShortageMission,
   assignMissionBusy,
+  shortageMissions = [],
   layout = 'inline'
 }: Props) {
   const { t } = useLang()
   const { employees } = useEmployees()
   const { assignableEmployees, canAssignMissions } = useMyOrgScope(employees)
   const { canAssignFollowUp } = useMissingPartsUiPermissions()
+  const openShortageMissions = useOpenShortageMissions()
   const canAct = archiveMode || rowOpen
   const target = completeRep ?? item
   const completeAll = completeAllReps && completeAllReps.length > 1
@@ -75,6 +67,10 @@ export function MissingPartVehicleActions({
   const canArchiveAnyInGroup = completeAllReps?.some(rep => canCompleteVehicle(rep.vehicleId, allItems)) ?? false
   const groupBusy = completeAllReps?.some(rep => completingVehicleId === rep.vehicleId) ?? false
   const singleBusy = completingVehicleId === target.vehicleId
+  const linkedMissions = shortageMissionsForParts(deleteTargets, shortageMissions)
+  const canAssign =
+    !archiveMode && rowOpen && canAssignMissions && Boolean(onAssignShortageMission) && assignableEmployees.length > 0
+  const showMissionBtn = !archiveMode && rowOpen && (canAssign || linkedMissions.length > 0)
 
   const wrapClass =
     layout === 'stacked' ? 'flex flex-wrap items-center justify-end gap-1' : 'flex items-center justify-center gap-1'
@@ -90,14 +86,21 @@ export function MissingPartVehicleActions({
           <Settings2 className={iconSize} />
         </IconBtn>
       )}
-      {!archiveMode && rowOpen && canAssignMissions && onAssignShortageMission && assignableEmployees.length > 0 && (
+      {showMissionBtn && (
         <MpAssignShortageMissionButton
           parts={deleteTargets}
           employees={assignableEmployees}
           busy={assignMissionBusy}
-          className="relative rounded-md p-1.5 text-amber-300 hover:bg-amber-500/20"
+          linkedMissions={linkedMissions}
+          canAssign={canAssign}
+          onOpenLinked={() => openShortageMissions(item.vin)}
+          className={`relative rounded-md p-1.5 ${
+            linkedMissions.length > 0
+              ? 'bg-amber-500/15 text-amber-200 hover:bg-amber-500/20'
+              : 'text-amber-300 hover:bg-amber-500/20'
+          }`}
           iconClassName={iconSize}
-          onAssign={input => onAssignShortageMission(item, input)}
+          onAssign={input => onAssignShortageMission?.(item, input)}
         />
       )}
       {!archiveMode && rowOpen && canAssignFollowUp && onAssignFollowUp && (
@@ -147,7 +150,7 @@ export function MissingPartVehicleActions({
       )}
       {!archiveMode && rowOpen && canComplete && completeAll && onCompleteAll && (
         <IconBtn
-          title={canArchiveAnyInGroup ? t('mp.completeAllConfirm') : t('mp.completeDisabledHint')}
+          title={canArchiveAnyInGroup ? t('mp.vinListModal.pickToComplete') : t('mp.completeDisabledHint')}
           disabled={!canArchiveAnyInGroup || groupBusy}
           onClick={() => onCompleteAll(completeAllReps)}
           className="text-emerald-400 hover:bg-emerald-500/20 disabled:cursor-not-allowed disabled:opacity-35"

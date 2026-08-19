@@ -8,30 +8,7 @@ import type { VariantVehicleSummary } from '../../Utils/missingPartPageUtils'
 import { notesCountForVehicleIds } from '../../services/vehicleNotesService'
 import { Modal } from '../Modal'
 import { MissingPartVehicleActions } from './MissingPartVehicleActions'
-import type { ShortageMissionAssignInput } from './MpAssignShortageMissionButton'
-
-type ActionProps = {
-  allItems: MissingPartDetail[]
-  canUpdateStatus: boolean
-  canNotes: boolean
-  canEdit: boolean
-  canDelete: boolean
-  canComplete: boolean
-  noteCounts?: Record<string, number>
-  completingVehicleId?: string | null
-  onOpenNotes: (part: MissingPartDetail) => void
-  onOpenDetail?: (part: MissingPartDetail) => void
-  onEdit: (part: MissingPartDetail) => void
-  onUpdate: (part: MissingPartDetail) => void
-  onDeleteParts: (parts: MissingPartDetail[]) => void
-  onComplete: (part: MissingPartDetail) => void
-  onAssignFollowUp?: (
-    part: MissingPartDetail,
-    assignment: { completingDepartment: string; followUpEmployeeId: string }
-  ) => void
-  onAssignShortageMission?: (part: MissingPartDetail, input: ShortageMissionAssignInput) => void | Promise<void>
-  assignMissionBusy?: boolean
-}
+import type { MpFollowUpAssignment, MpVehicleActionFlags, MpVehicleListActionProps } from '../../Types/mpVehicleActions'
 
 type Props = {
   variantName: string | null
@@ -40,7 +17,12 @@ type Props = {
   reasons: MpLookupOption[]
   departments: MpLookupOption[]
   onClose: () => void
-} & Partial<ActionProps>
+  allItems?: MissingPartDetail[]
+  noteCounts?: Record<string, number>
+  completingVehicleId?: string | null
+  onOpenDetail?: (part: MissingPartDetail) => void
+} & Partial<MpVehicleActionFlags> &
+  Partial<MpVehicleListActionProps>
 
 function activeParts(parts: MissingPartDetail[]) {
   return parts.filter(p => p.status !== 'closed' && p.status !== 'cancelled')
@@ -69,7 +51,8 @@ export function MissingPartVariantVehiclesModal({
   onComplete,
   onAssignFollowUp,
   onAssignShortageMission,
-  assignMissionBusy
+  assignMissionBusy,
+  shortageMissions = []
 }: Props) {
   const { t, lang } = useLang()
   if (!variantName) return null
@@ -82,7 +65,8 @@ export function MissingPartVariantVehiclesModal({
     canDelete ||
     canComplete ||
     Boolean(onAssignFollowUp) ||
-    Boolean(onAssignShortageMission)
+    Boolean(onAssignShortageMission) ||
+    shortageMissions.length > 0
 
   return (
     <Modal
@@ -128,6 +112,7 @@ export function MissingPartVariantVehiclesModal({
               onAssignFollowUp={onAssignFollowUp}
               onAssignShortageMission={onAssignShortageMission}
               assignMissionBusy={assignMissionBusy}
+              shortageMissions={shortageMissions}
             />
           ))
         )}
@@ -158,7 +143,8 @@ function VehicleShortageCard({
   onComplete,
   onAssignFollowUp,
   onAssignShortageMission,
-  assignMissionBusy
+  assignMissionBusy,
+  shortageMissions = []
 }: {
   vehicle: VariantVehicleSummary
   reasons: MpLookupOption[]
@@ -179,12 +165,10 @@ function VehicleShortageCard({
   onUpdate: (part: MissingPartDetail) => void
   onDeleteParts: (parts: MissingPartDetail[]) => void
   onComplete: (part: MissingPartDetail) => void
-  onAssignFollowUp?: (
-    part: MissingPartDetail,
-    assignment: { completingDepartment: string; followUpEmployeeId: string }
-  ) => void
-  onAssignShortageMission?: (part: MissingPartDetail, input: ShortageMissionAssignInput) => void | Promise<void>
+  onAssignFollowUp?: (part: MissingPartDetail, assignment: MpFollowUpAssignment) => void
+  onAssignShortageMission?: MpVehicleListActionProps['onAssignShortageMission']
   assignMissionBusy?: boolean
+  shortageMissions?: MpVehicleListActionProps['shortageMissions']
 }) {
   const { t } = useLang()
   const rep = vehicle.parts[0]
@@ -236,6 +220,7 @@ function VehicleShortageCard({
             onAssignFollowUp={onAssignFollowUp}
             onAssignShortageMission={onAssignShortageMission}
             assignMissionBusy={assignMissionBusy}
+            shortageMissions={shortageMissions}
             layout="stacked"
           />
         )}

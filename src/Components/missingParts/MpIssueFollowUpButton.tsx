@@ -6,16 +6,12 @@ import { Modal } from '../Modal'
 import { OrgUnitCascadeField } from '../OrgUnitCascadeField'
 import { EmployeeAutocomplete } from '../EmployeeAutocomplete'
 import type { Employee } from '../../Types/employee'
-
-type Assignment = {
-  completingDepartment: string
-  followUpEmployeeId: string
-}
+import type { MpFollowUpAssignment } from '../../Types/mpVehicleActions'
 
 type Props = {
-  assignment: Assignment
+  assignment: MpFollowUpAssignment
   employees: Employee[]
-  onSave: (next: Assignment) => void
+  onSave: (next: MpFollowUpAssignment) => void
   className?: string
   iconClassName?: string
   title?: string

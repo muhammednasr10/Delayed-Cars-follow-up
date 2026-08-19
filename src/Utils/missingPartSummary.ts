@@ -21,6 +21,8 @@ export type MissingPartSummaryStats = {
   fullyInstalledVehicles: number
   byModel: SummaryBreakdownRow[]
   byDepartment: SummaryBreakdownRow[]
+  byCausingDepartment: SummaryBreakdownRow[]
+  byCompletingDepartment: SummaryBreakdownRow[]
   byReason: SummaryBreakdownRow[]
   byPart: SummaryBreakdownRow[]
   byReporter: SummaryBreakdownRow[]
@@ -100,6 +102,8 @@ export function buildMissingPartSummary(
 
   const byModel = new Map<string, Acc>()
   const byDepartment = new Map<string, Acc>()
+  const byCausingDepartment = new Map<string, Acc>()
+  const byCompletingDepartment = new Map<string, Acc>()
   const byReason = new Map<string, Acc>()
   const byPart = new Map<string, Acc>()
   const byReporter = new Map<string, Acc>()
@@ -108,7 +112,11 @@ export function buildMissingPartSummary(
   for (const row of rows) {
     const pending = mode === 'active' && row.installedQty < row.requiredQty
     bump(byModel, row.modelName?.trim() || '—', row, pending)
-    bump(byDepartment, row.department?.trim() || '—', row, pending)
+    const causing = row.department?.trim() || '—'
+    const completing = row.completingDepartment?.trim() || '—'
+    bump(byDepartment, causing, row, pending)
+    bump(byCausingDepartment, causing, row, pending)
+    bump(byCompletingDepartment, completing, row, pending)
     bump(byReason, row.reason?.trim() || '—', row, pending)
     bump(byPart, row.partDescription?.trim() || '—', row, pending)
     bump(byReporter, row.createdByName?.trim() || row.createdByEmail?.trim() || '—', row, pending)
@@ -129,9 +137,16 @@ export function buildMissingPartSummary(
     fullyInstalledVehicles: fullyInstalledVehicleIds.size,
     byModel: toRows(byModel, totalLines),
     byDepartment: toRows(byDepartment, totalLines, true),
+    byCausingDepartment: toRows(byCausingDepartment, totalLines, true),
+    byCompletingDepartment: toRows(byCompletingDepartment, totalLines, true),
     byReason: toRows(byReason, totalLines, true),
     byPart: toRows(byPart, totalLines),
     byReporter: toRows(byReporter, totalLines),
     byStation: toRows(byStation, totalLines)
   }
+}
+
+export function sliceTopSummaryRows(rows: SummaryBreakdownRow[], limit = 10): SummaryBreakdownRow[] {
+  const n = Math.max(1, Math.min(100, Math.floor(limit) || 10))
+  return rows.slice(0, n)
 }

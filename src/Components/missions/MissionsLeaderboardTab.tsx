@@ -4,17 +4,16 @@ import { useLang } from '../../i18n/LanguageContext'
 import { useEmployees } from '../../hooks/useEmployees'
 import { inputCls } from '../FormField'
 import { getTeamMissions } from '../../services/missionService'
+import { isMissionSchemaMissing } from '../../Utils/missionDisplay'
+import { MissionListAlerts } from './MissionStatPills'
 import { computeMissionLeaderboard } from '../../Utils/missionLeaderboard'
+import { missionHasAssignee, missionVisibleToManager } from '../../Utils/missionPeople'
+import { useMyOrgScope } from '../../hooks/useMyOrgScope'
 import type { MissionLeaderboardRow } from '../../Types/mission'
 
 function currentYm() {
   const d = new Date()
   return { year: d.getFullYear(), month: d.getMonth() + 1 }
-}
-
-function isSchemaMissing(message: string): boolean {
-  const m = message.toLowerCase()
-  return m.includes('schema cache') || m.includes('could not find the table') || m.includes('does not exist')
 }
 
 const podiumTones = [
@@ -32,6 +31,7 @@ const medalIcons = [
 export function MissionsLeaderboardTab() {
   const { t } = useLang()
   const { employees } = useEmployees()
+  const { employeeId, canViewAllMissions, subordinateIds } = useMyOrgScope(employees)
   const init = currentYm()
   const [year, setYear] = useState(init.year)
   const [month, setMonth] = useState(init.month)
@@ -47,17 +47,26 @@ export function MissionsLeaderboardTab() {
     setError('')
     try {
       const missions = await getTeamMissions()
-      setRows(computeMissionLeaderboard(missions, employees, year, month))
+      const scoped = canViewAllMissions
+        ? missions
+        : missions.filter(m => {
+            if (!employeeId) return false
+            return (
+              missionHasAssignee(m.assigneeIds, employeeId) ||
+              missionVisibleToManager(m.assigneeIds, subordinateIds)
+            )
+          })
+      setRows(computeMissionLeaderboard(scoped, employees, year, month))
       setSetupRequired(false)
     } catch (e) {
       const msg = e instanceof Error ? e.message : t('common.error')
-      setSetupRequired(isSchemaMissing(msg))
+      setSetupRequired(isMissionSchemaMissing(msg))
       setError(msg)
       setRows([])
     } finally {
       setLoading(false)
     }
-  }, [employees, month, t, year])
+  }, [canViewAllMissions, employeeId, employees, month, subordinateIds, t, year])
 
   useEffect(() => {
     void load()
@@ -101,16 +110,7 @@ export function MissionsLeaderboardTab() {
         </div>
       </div>
 
-      {setupRequired && (
-        <div className="rounded-xl border border-amber-500/30 bg-amber-500/10 p-4 text-sm text-amber-100">
-          <p className="font-bold">{t('missions.setupTitle')}</p>
-          <p className="mt-1 text-amber-200/80">{t('missions.setupHint')}</p>
-        </div>
-      )}
-
-      {error && !setupRequired && (
-        <div className="rounded-xl border border-red-500/30 bg-red-500/10 p-3 text-sm text-red-200">{error}</div>
-      )}
+      <MissionListAlerts setupRequired={setupRequired} success="" error={error} />
 
       {loading ? (
         <div className="card-industrial p-12 text-center text-slate-500">{t('common.loading')}</div>

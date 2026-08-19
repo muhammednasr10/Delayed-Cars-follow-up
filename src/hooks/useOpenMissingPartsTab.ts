@@ -1,14 +1,13 @@
 import { useEffect } from 'react'
 import { OPEN_MISSING_PARTS_EVENT } from '../Types/appNotification'
-import type { MissingPartsListTab } from '../Types/missingPart'
+import type { OpenMissingPartsDetail } from '../Utils/openMissingPartsTab'
 
-export function useOpenMissingPartsTab(onTab: (tab: MissingPartsListTab) => void) {
+export function useOpenMissingPartsTab(onOpen: (detail: OpenMissingPartsDetail) => void) {
   useEffect(() => {
-    function onOpen(e: Event) {
-      const tab = (e as CustomEvent<{ tab?: MissingPartsListTab }>).detail?.tab
-      if (tab) onTab(tab)
+    function onEvent(e: Event) {
+      onOpen((e as CustomEvent<OpenMissingPartsDetail>).detail ?? {})
     }
-    window.addEventListener(OPEN_MISSING_PARTS_EVENT, onOpen)
-    return () => window.removeEventListener(OPEN_MISSING_PARTS_EVENT, onOpen)
-  }, [onTab])
+    window.addEventListener(OPEN_MISSING_PARTS_EVENT, onEvent)
+    return () => window.removeEventListener(OPEN_MISSING_PARTS_EVENT, onEvent)
+  }, [onOpen])
 }

@@ -3,7 +3,7 @@ import { Bell } from 'lucide-react'
 import { useLang } from '../../i18n/LanguageContext'
 import { useNavigation } from '../../Context/NavigationContext'
 import { useAppNotificationInbox } from '../../hooks/useAppNotificationInbox'
-import type { AppNotificationItem } from '../../Types/appNotification'
+import { isMissionNotificationEvent, type AppNotificationItem } from '../../Types/appNotification'
 import {
   dispatchOpenMissingPartsTab,
   missingPartsTabForNotification,
@@ -51,6 +51,10 @@ export function HeaderNotificationsBell() {
 
   async function openItem(item: AppNotificationItem) {
     if (!item.readAt) await markItemRead(item.id)
+    if (isMissionNotificationEvent(item.eventType)) {
+      closeAndNavigate('missions')
+      return
+    }
     goMissing(item)
   }
 

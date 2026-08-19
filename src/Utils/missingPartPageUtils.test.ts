@@ -10,6 +10,7 @@ import {
   hasActiveMissingPartFilters,
   isSchemaMissing,
   listResolvedMonths,
+  MP_FILTER_UNASSIGNED,
   openVehicleShortageLines,
   uniqueVehicleReps,
   completerNames
@@ -136,6 +137,17 @@ describe('applyFilters', () => {
     expect(applyFilters(withMeta, emptyFilters({ completingDepartments: ['paint'], followUpEmployeeId: 'emp-2' }))).toHaveLength(1)
   })
 
+  it('filters rows with no causing/completing department or follow-up employee', () => {
+    const withGaps = [
+      part({ id: '1', vehicleId: 'v1', vin: 'VIN001', department: '', completingDepartment: null, followUpEmployeeId: null }),
+      part({ id: '2', vehicleId: 'v2', vin: 'VIN002', department: 'paint', completingDepartment: 'body', followUpEmployeeId: 'emp-1' }),
+      part({ id: '3', vehicleId: 'v3', vin: 'VIN003', department: 'body', completingDepartment: null, followUpEmployeeId: null })
+    ]
+    expect(applyFilters(withGaps, emptyFilters({ departments: [MP_FILTER_UNASSIGNED] }))).toHaveLength(1)
+    expect(applyFilters(withGaps, emptyFilters({ completingDepartments: [MP_FILTER_UNASSIGNED] }))).toHaveLength(2)
+    expect(applyFilters(withGaps, emptyFilters({ followUpEmployeeId: MP_FILTER_UNASSIGNED }))).toHaveLength(2)
+  })
+
   it('includes all vehicles in a report group when one member matches search', () => {
     const filtered = applyFilters(items, emptyFilters({ search: 'mirror' }))
     const vins = filtered.map(i => i.vin).sort()
@@ -199,6 +211,8 @@ describe('hasActiveMissingPartFilters', () => {
     expect(hasActiveMissingPartFilters(emptyFilters())).toBe(false)
     expect(hasActiveMissingPartFilters(emptyFilters({ completingDepartments: ['body'] }))).toBe(true)
     expect(hasActiveMissingPartFilters(emptyFilters({ followUpEmployeeId: 'emp-1' }))).toBe(true)
+    expect(hasActiveMissingPartFilters(emptyFilters({ followUpEmployeeId: MP_FILTER_UNASSIGNED }))).toBe(true)
+    expect(hasActiveMissingPartFilters(emptyFilters({ departments: [MP_FILTER_UNASSIGNED] }))).toBe(true)
     expect(hasActiveMissingPartFilters(emptyFilters({ dateFrom: '2026-08-01' }))).toBe(true)
   })
 })

@@ -12,3 +12,14 @@ export function missionHasAssignee(assigneeIds: string[], employeeId: string): b
 export function missionVisibleToManager(assigneeIds: string[], subordinateIds: Set<string>): boolean {
   return assigneeIds.some(id => subordinateIds.has(id))
 }
+
+export function missionCreatorLabel(name: string | null | undefined): string {
+  return name?.trim() || '—'
+}
+
+export function missionShortageLabel(vin: string | null | undefined, modelName?: string | null): string | null {
+  const v = vin?.trim()
+  if (!v) return null
+  const model = modelName?.trim()
+  return model ? `${v} · ${model}` : v
+}

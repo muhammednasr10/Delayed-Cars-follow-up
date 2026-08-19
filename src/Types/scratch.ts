@@ -14,6 +14,11 @@ export type ScratchRecord = {
   notes?: string
   imagePath?: string | null
   imageUrl?: string | null
+  willStop: boolean
+  completingDepartment: string | null
+  followUpEmployeeId: string | null
+  followUpEmployeeName: string | null
+  resolvedAt: string | null
 }
 
 export type ScratchInput = {
@@ -26,4 +31,21 @@ export type ScratchInput = {
   recordedAt: string
   notes?: string
   imagePath?: string | null
+  willStop: boolean
+}
+
+export type ScratchNote = {
+  id: string
+  scratchId: string
+  body: string
+  createdBy: string | null
+  createdByName: string | null
+  createdByEmail: string | null
+  createdAt: string
+}
+
+export type ScratchNoteTarget = {
+  scratchId: string
+  vin: string
+  modelName?: string
 }

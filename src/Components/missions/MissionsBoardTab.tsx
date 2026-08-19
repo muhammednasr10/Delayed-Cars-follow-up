@@ -1,130 +1,85 @@
-import { useCallback, useEffect, useMemo, useState } from 'react'
-import { Pencil, Plus, RefreshCcw, Trash2 } from 'lucide-react'
+import { useMemo, useState } from 'react'
+import { RefreshCcw, Plus } from 'lucide-react'
 import { useLang } from '../../i18n/LanguageContext'
 import { useEmployees } from '../../hooks/useEmployees'
 import { useMyOrgScope } from '../../hooks/useMyOrgScope'
+import { useOpenMissionShortage } from '../../hooks/useOpenMissionShortage'
+import { useOpenedMissionSearch } from '../../hooks/useOpenedMissionSearch'
+import { useMissionRespond } from '../../hooks/useMissionRespond'
+import { useTeamMissions } from '../../hooks/useTeamMissions'
 import { ConfirmDialog } from '../ConfirmDialog'
-import { Field, inputCls } from '../FormField'
 import { MissionFormModal } from './MissionFormModal'
-import { ExportableTable } from '../ExportableTable'
+import { MissionsFilterBar } from './MissionsFilterBar'
+import { MissionListAlerts, MissionStatPills } from './MissionStatPills'
+import { MissionListModals } from './MissionListModals'
+import { MissionsBoardTable } from './MissionsBoardTable'
 import {
   createTeamMission,
   deleteTeamMission,
-  getTeamMissions,
+  reassignTeamMission,
   updateTeamMission,
   updateTeamMissionStatus
 } from '../../services/missionService'
-import { formatPeopleList, missionVisibleToManager } from '../../Utils/missionPeople'
-import type { MissionStatus, TeamMission, TeamMissionInput } from '../../Types/mission'
-import { MISSION_STATUSES } from '../../Types/mission'
-
-const cell = 'table-cell text-center align-middle whitespace-nowrap px-3 py-2.5'
-
-function isSchemaMissing(message: string): boolean {
-  const m = message.toLowerCase()
-  return m.includes('schema cache') || m.includes('could not find the table') || m.includes('does not exist')
-}
+import { missionVisibleToManager } from '../../Utils/missionPeople'
+import { filterMissions } from '../../Utils/missionFilters'
+import { isOpenMissionStatus, missionListStats } from '../../Utils/missionDisplay'
+import type { MissionPerson, MissionStatus, TeamMission, TeamMissionInput } from '../../Types/mission'
 
 type Props = {
   onChanged?: () => void
+  openedSearch?: string
+  openedSearchKey?: number
 }
 
-export function MissionsBoardTab({ onChanged }: Props) {
+export function MissionsBoardTab({ onChanged, openedSearch, openedSearchKey = 0 }: Props) {
   const { t, lang } = useLang()
   const { employees } = useEmployees()
-  const { employeeId, isAdmin, subordinateIds, assignableEmployees, canAssignMissions } = useMyOrgScope(employees)
-
-  const [items, setItems] = useState<TeamMission[]>([])
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState('')
-  const [setupRequired, setSetupRequired] = useState(false)
-  const [success, setSuccess] = useState('')
-  const [statusFilter, setStatusFilter] = useState<MissionStatus | 'all'>('all')
+  const { employeeId, canViewAllMissions, subordinateIds, assignableEmployees, canAssignMissions } =
+    useMyOrgScope(employees)
+  const list = useTeamMissions()
+  const {
+    items,
+    loading,
+    error,
+    setError,
+    setupRequired,
+    success,
+    saving,
+    setSaving,
+    detailTarget,
+    setDetailTarget,
+    detailRefresh,
+    load,
+    notify
+  } = list
+  const openShortage = useOpenMissionShortage(() => setDetailTarget(null))
+  const { query, setQuery } = useOpenedMissionSearch(openedSearch, openedSearchKey)
+  const { respondTarget, setRespondTarget, respondMission } = useMissionRespond(list, onChanged)
 
   const [formOpen, setFormOpen] = useState(false)
   const [editing, setEditing] = useState<TeamMission | null>(null)
-  const [saving, setSaving] = useState(false)
   const [deleteTarget, setDeleteTarget] = useState<TeamMission | null>(null)
-
-  const load = useCallback(async () => {
-    setLoading(true)
-    setError('')
-    try {
-      setItems(await getTeamMissions())
-      setSetupRequired(false)
-    } catch (e) {
-      const msg = e instanceof Error ? e.message : t('common.error')
-      setSetupRequired(isSchemaMissing(msg))
-      setError(msg)
-      setItems([])
-    } finally {
-      setLoading(false)
-    }
-  }, [t])
-
-  useEffect(() => {
-    void load()
-  }, [load])
+  const [delegateTarget, setDelegateTarget] = useState<TeamMission | null>(null)
 
   const visibleItems = useMemo(() => {
-    if (isAdmin) return items
+    if (canViewAllMissions) return items
     if (!employeeId) return []
     return items.filter(i => missionVisibleToManager(i.assigneeIds, subordinateIds))
-  }, [items, isAdmin, employeeId, subordinateIds])
+  }, [items, canViewAllMissions, employeeId, subordinateIds])
 
-  const filtered = useMemo(
-    () => (statusFilter === 'all' ? visibleItems : visibleItems.filter(i => i.status === statusFilter)),
-    [visibleItems, statusFilter]
-  )
+  const filtered = useMemo(() => filterMissions(visibleItems, query), [visibleItems, query])
 
-  const stats = useMemo(
-    () => ({
-      total: visibleItems.length,
-      pending: visibleItems.filter(i => i.status === 'pending').length,
-      inProgress: visibleItems.filter(i => i.status === 'in_progress').length,
-      completed: visibleItems.filter(i => i.status === 'completed').length
-    }),
-    [visibleItems]
-  )
-
-  function notify(msg: string) {
-    setSuccess(msg)
-    window.setTimeout(() => setSuccess(''), 2500)
-  }
-
-  function formatDate(iso: string | null) {
-    if (!iso) return '—'
-    const d = new Date(iso.includes('T') ? iso : `${iso}T12:00:00`)
-    if (Number.isNaN(d.getTime())) return '—'
-    return d.toLocaleDateString(lang === 'ar' ? 'ar-EG' : 'en-GB', { dateStyle: 'medium' })
-  }
-
-  function priorityBadge(priority: TeamMission['priority']) {
-    const tones = {
-      low: 'bg-slate-500/15 text-slate-300 border-slate-500/30',
-      normal: 'bg-cyan-500/15 text-cyan-200 border-cyan-500/30',
-      high: 'bg-red-500/15 text-red-200 border-red-500/30'
+  const assigneeOptions = useMemo(() => {
+    const map = new Map<string, MissionPerson>()
+    for (const item of visibleItems) {
+      for (const person of item.assignees) {
+        if (!map.has(person.id)) map.set(person.id, person)
+      }
     }
-    return (
-      <span className={`inline-block rounded-lg border px-2 py-0.5 text-xs font-bold ${tones[priority]}`}>
-        {t(`missions.priority.${priority}`)}
-      </span>
-    )
-  }
+    return [...map.values()].sort((a, b) => a.name.localeCompare(b.name, lang === 'ar' ? 'ar' : 'en'))
+  }, [visibleItems, lang])
 
-  function statusBadge(status: MissionStatus) {
-    const tones: Record<MissionStatus, string> = {
-      pending: 'bg-amber-500/15 text-amber-200 border-amber-500/30',
-      in_progress: 'bg-blue-500/15 text-blue-200 border-blue-500/30',
-      completed: 'bg-emerald-500/15 text-emerald-200 border-emerald-500/30',
-      cancelled: 'bg-slate-500/15 text-slate-400 border-slate-600/40'
-    }
-    return (
-      <span className={`inline-block rounded-lg border px-2 py-0.5 text-xs font-bold ${tones[status]}`}>
-        {t(`missions.status.${status}`)}
-      </span>
-    )
-  }
+  const stats = useMemo(() => missionListStats(visibleItems), [visibleItems])
 
   function openCreate() {
     setEditing(null)
@@ -187,6 +142,38 @@ export function MissionsBoardTab({ onChanged }: Props) {
     }
   }
 
+  function canRespondMission(row: TeamMission): boolean {
+    return canAssignMissions && isOpenMissionStatus(row.status)
+  }
+
+  function canReassignMission(row: TeamMission): boolean {
+    return canAssignMissions && assignableEmployees.length > 0 && isOpenMissionStatus(row.status)
+  }
+
+  async function reassignMission(assigneeIds: string[]) {
+    if (!delegateTarget) return
+    setSaving(true)
+    setError('')
+    try {
+      if (!assigneeIds.every(id => assignableEmployees.some(e => e.id === id))) {
+        setError(t('missions.errAssigneeNotSubordinate'))
+        throw new Error('ASSIGNEE_NOT_SUBORDINATE')
+      }
+      await reassignTeamMission(delegateTarget, assigneeIds)
+      notify(t('missions.delegate.success'))
+      setDelegateTarget(null)
+      setDetailTarget(null)
+      await load()
+      onChanged?.()
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : t('common.error')
+      if (msg !== 'ASSIGNEE_NOT_SUBORDINATE') setError(msg)
+      throw e
+    } finally {
+      setSaving(false)
+    }
+  }
+
   return (
     <div className="space-y-4">
       <div className="card-industrial flex flex-col gap-3 p-4 sm:flex-row sm:items-center sm:justify-between">
@@ -224,151 +211,56 @@ export function MissionsBoardTab({ onChanged }: Props) {
         </div>
       )}
 
-      <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-        <StatPill label={t('missions.stats.total')} value={String(stats.total)} />
-        <StatPill label={t('missions.status.pending')} value={String(stats.pending)} tone="amber" />
-        <StatPill label={t('missions.status.in_progress')} value={String(stats.inProgress)} tone="blue" />
-        <StatPill label={t('missions.status.completed')} value={String(stats.completed)} tone="emerald" />
-      </div>
+      <MissionStatPills stats={stats} />
 
-      <div className="card-industrial p-4">
-        <Field label={t('missions.filterStatus')}>
-          <select
-            className={inputCls()}
-            value={statusFilter}
-            onChange={e => setStatusFilter(e.target.value as MissionStatus | 'all')}
-          >
-            <option value="all">{t('common.all')}</option>
-            {MISSION_STATUSES.map(key => (
-              <option key={key} value={key}>
-                {t(`missions.status.${key}`)}
-              </option>
-            ))}
-          </select>
-        </Field>
-      </div>
+      <MissionsFilterBar
+        query={query}
+        onChange={setQuery}
+        assignees={assigneeOptions}
+        shownCount={filtered.length}
+        totalCount={visibleItems.length}
+      />
 
-      {setupRequired && (
-        <div className="rounded-xl border border-amber-500/30 bg-amber-500/10 p-4 text-sm text-amber-100">
-          <p className="font-bold">{t('missions.setupTitle')}</p>
-          <p className="mt-1 text-amber-200/80">{t('missions.setupHint')}</p>
-        </div>
-      )}
+      <MissionListAlerts setupRequired={setupRequired} success={success} error={error} />
 
-      {success && (
-        <div className="rounded-xl border border-emerald-500/30 bg-emerald-500/10 p-3 text-sm text-emerald-200">
-          {success}
-        </div>
-      )}
-      {error && !setupRequired && (
-        <div className="rounded-xl border border-red-500/30 bg-red-500/10 p-3 text-sm text-red-200">{error}</div>
-      )}
+      <MissionsBoardTable
+        query={query}
+        filtered={filtered}
+        loading={loading}
+        saving={saving}
+        canAssignMissions={canAssignMissions}
+        onOpenDetail={setDetailTarget}
+        onChangeStatus={changeStatus}
+        canRespond={canRespondMission}
+        canReassign={canReassignMission}
+        onRespond={setRespondTarget}
+        onReassign={setDelegateTarget}
+        onEdit={openEdit}
+        onDelete={setDeleteTarget}
+      />
 
-      <div className="card-industrial overflow-hidden">
-        <ExportableTable filename="missions" title={t('missions.title')} rowCount={filtered.length}>
-          <div className="overflow-x-auto">
-            <table className="w-full text-center text-sm">
-              <thead className="bg-slate-950/90">
-                <tr>
-                  <th className={`${cell} font-black text-slate-400`}>{t('missions.cols.title')}</th>
-                  <th className={`${cell} font-black text-slate-400`}>{t('missions.cols.assignee')}</th>
-                  <th className={`${cell} font-black text-slate-400`}>{t('missions.cols.priority')}</th>
-                  <th className={`${cell} font-black text-slate-400`}>{t('missions.cols.dueDate')}</th>
-                  <th className={`${cell} font-black text-slate-400`}>{t('missions.cols.status')}</th>
-                  {canAssignMissions && (
-                    <th data-export-skip className={`${cell} font-black text-slate-400`}>
-                      {t('common.actions')}
-                    </th>
-                  )}
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-800">
-                {loading ? (
-                  <tr>
-                    <td colSpan={canAssignMissions ? 6 : 5} className="px-4 py-12 text-slate-500">
-                      {t('common.loading')}
-                    </td>
-                  </tr>
-                ) : filtered.length === 0 ? (
-                  <tr>
-                    <td colSpan={canAssignMissions ? 6 : 5} className="px-4 py-12 text-slate-500">
-                      {t('missions.empty')}
-                    </td>
-                  </tr>
-                ) : (
-                  filtered.map(row => (
-                    <tr key={row.id} className="bg-slate-900/30 hover:bg-slate-800/40">
-                      <td className={`${cell} max-w-[14rem] text-start`}>
-                        <p className="font-bold text-white">{row.title}</p>
-                        {row.description && <p className="mt-0.5 truncate text-xs text-slate-500">{row.description}</p>}
-                      </td>
-                      <td className={cell}>
-                        {row.assignees.length > 1 ? (
-                          <div className="space-y-0.5">
-                            {row.assignees.map(a => (
-                              <p key={a.id} className="font-bold text-slate-200">
-                                {a.name}
-                                <span className="ms-1 font-mono text-[10px] text-slate-500" dir="ltr">
-                                  {a.code}
-                                </span>
-                              </p>
-                            ))}
-                          </div>
-                        ) : (
-                          <>
-                            <p className="font-bold text-slate-200">{row.assigneeName}</p>
-                            <p className="text-xs text-slate-500">{row.assigneeCode}</p>
-                          </>
-                        )}
-                      </td>
-                      <td className={cell}>{priorityBadge(row.priority)}</td>
-                      <td className={`${cell} text-slate-300`}>{formatDate(row.dueDate)}</td>
-                      <td className={cell}>
-                        {canAssignMissions ? (
-                          <select
-                            className="rounded-lg border border-slate-700 bg-slate-900 px-2 py-1 text-xs font-bold text-slate-200"
-                            value={row.status}
-                            disabled={saving}
-                            onChange={e => void changeStatus(row, e.target.value as MissionStatus)}
-                          >
-                            {MISSION_STATUSES.map(key => (
-                              <option key={key} value={key}>
-                                {t(`missions.status.${key}`)}
-                              </option>
-                            ))}
-                          </select>
-                        ) : (
-                          statusBadge(row.status)
-                        )}
-                      </td>
-                      {canAssignMissions && (
-                        <td data-export-skip className={cell}>
-                          <div className="flex items-center justify-center gap-1">
-                            <button
-                              type="button"
-                              onClick={() => openEdit(row)}
-                              className="rounded-lg bg-slate-800 p-2 text-cyan-300 hover:bg-slate-700"
-                            >
-                              <Pencil className="h-4 w-4" />
-                            </button>
-                            <button
-                              type="button"
-                              onClick={() => setDeleteTarget(row)}
-                              className="rounded-lg bg-slate-800 p-2 text-red-300 hover:bg-slate-700"
-                            >
-                              <Trash2 className="h-4 w-4" />
-                            </button>
-                          </div>
-                        </td>
-                      )}
-                    </tr>
-                  ))
-                )}
-              </tbody>
-            </table>
-          </div>
-        </ExportableTable>
-      </div>
+      <MissionListModals
+        mission={detailTarget}
+        onCloseDetail={() => setDetailTarget(null)}
+        canDelegate={detailTarget ? canReassignMission(detailTarget) : false}
+        onDelegate={
+          detailTarget && canReassignMission(detailTarget) ? () => setDelegateTarget(detailTarget) : undefined
+        }
+        canRespond={detailTarget ? canRespondMission(detailTarget) : false}
+        onRespond={
+          detailTarget && canRespondMission(detailTarget) ? () => setRespondTarget(detailTarget) : undefined
+        }
+        onOpenShortage={openShortage}
+        refreshKey={detailRefresh}
+        respondTarget={respondTarget}
+        saving={saving}
+        onCloseRespond={() => setRespondTarget(null)}
+        onSubmitRespond={respondMission}
+        delegateTarget={delegateTarget}
+        assignableEmployees={assignableEmployees}
+        onCloseDelegate={() => setDelegateTarget(null)}
+        onSubmitDelegate={reassignMission}
+      />
 
       <MissionFormModal
         open={formOpen}
@@ -388,29 +280,6 @@ export function MissionsBoardTab({ onChanged }: Props) {
         onCancel={() => setDeleteTarget(null)}
         busy={saving}
       />
-    </div>
-  )
-}
-
-function StatPill({
-  label,
-  value,
-  tone = 'slate'
-}: {
-  label: string
-  value: string
-  tone?: 'slate' | 'amber' | 'blue' | 'emerald'
-}) {
-  const tones = {
-    slate: 'border-slate-600/50 bg-slate-800/50 text-slate-200',
-    amber: 'border-amber-500/30 bg-amber-500/10 text-amber-100',
-    blue: 'border-blue-500/30 bg-blue-500/10 text-blue-100',
-    emerald: 'border-emerald-500/30 bg-emerald-500/10 text-emerald-100'
-  }
-  return (
-    <div className={`rounded-xl border p-3 ${tones[tone]}`}>
-      <p className="text-xs font-bold text-slate-400">{label}</p>
-      <p className="mt-1 text-xl font-black">{value}</p>
     </div>
   )
 }

@@ -204,7 +204,10 @@ export const translations = {
       detail: {
         title: 'تفاصيل المهمة',
         noDescription: 'لا توجد تفاصيل إضافية.',
-        createdAt: 'تاريخ الإنشاء'
+        createdAt: 'تاريخ الإنشاء',
+        nextOccurrence: 'الموعد التالي التلقائي',
+        shortage: 'السيارة / النقص',
+        openShortage: 'افتح النقص'
       },
       delegate: {
         open: 'تحويل لمرؤوس',
@@ -215,6 +218,26 @@ export const translations = {
         success: 'تم تحويل المهمة للموظف.',
         errNotAssignee: 'يمكنك تحويل المهام المكلّف بها أنت فقط.'
       },
+      respond: {
+        open: 'الرد على المشكلة',
+        title: 'الرد على المشكلة',
+        hint: 'اكتب ردك أو ما تم بخصوص المهمة. يُحفظ في سجل الردود ويُحوّل حالتها إلى قيد التنفيذ إن كانت معلّقة.',
+        field: 'الرد',
+        placeholder: 'مثال: تم تحليل السبب وبدأنا الإجراء…',
+        save: 'إرسال الرد',
+        success: 'تم حفظ الرد.',
+        errRequired: 'اكتب نص الرد.',
+        errNotAssignee: 'يمكنك الرد على المهام المكلّف بها أنت فقط.',
+        timeline: 'سجل الردود',
+        empty: 'لا توجد ردود بعد.',
+        count: '{n} رد',
+        attachments: 'مرفقات (اختياري)',
+        addImages: 'إضافة صور أو PDF',
+        removeImage: 'حذف المرفق',
+        errTooLarge: 'حجم الملف أكبر من 5 ميجا.',
+        errInvalidType: 'يُسمح بصور JPG أو PNG أو WEBP أو GIF أو ملف PDF فقط.',
+        errTooMany: 'يمكن إرفاق حتى 3 ملفات في الرد الواحد.'
+      },
       addMission: 'مهمة جديدة',
       editMission: 'تعديل المهمة',
       formSubtitle: 'تعيين مهمة لعضو من الفريق',
@@ -224,6 +247,12 @@ export const translations = {
       selectedCount: '{n} موظف محدد',
       empty: 'لا توجد مهام مسجلة.',
       filterStatus: 'تصفية حسب الحالة',
+      filterPriority: 'الأولوية',
+      filterAssignee: 'المكلف',
+      searchPh: 'ابحث بالعنوان أو الوصف…',
+      filterResultCount: '{shown} من {total}',
+      filterEmpty: 'لا توجد مهام مطابقة للبحث أو التصفية.',
+      filterClear: 'مسح التصفية',
       errTitle: 'عنوان المهمة مطلوب.',
       errAssignee: 'يجب اختيار الموظف المكلف.',
       deleteTitle: 'حذف المهمة',
@@ -235,7 +264,9 @@ export const translations = {
       leaderboardEmpty: 'لا توجد مهام مكتملة في هذا الشهر.',
       rank: 'المركز {n}',
       completedMissions: 'مهمة مكتملة',
-      stats: { total: 'إجمالي المهام' },
+      stats: { total: 'إجمالي المهام', overdue: 'متأخرة' },
+      overdue: 'متأخرة',
+      overdueEmpty: 'لا توجد مهام متأخرة.',
       cols: {
         title: 'المهمة',
         description: 'الوصف',
@@ -245,6 +276,8 @@ export const translations = {
         dueDate: 'الموعد',
         recurrence: 'التكرار',
         status: 'الحالة',
+        createdAt: 'تاريخ الإنشاء',
+        createdBy: 'أنشأها',
         rank: 'الترتيب',
         completed: 'المكتمل',
         active: 'النشط'
@@ -256,9 +289,12 @@ export const translations = {
         daily: 'يومي',
         weekly: 'أسبوعي',
         monthly: 'شهري',
-        custom: 'مخصص'
+        custom: 'مخصص',
+        occurrence: 'نسخة متكررة'
       },
-      recurrenceCustom: 'تفاصيل التكرار (مخصص)'
+      recurrenceCustom: 'تفاصيل التكرار (مخصص)',
+      recurrenceAutoHint: 'يُنشأ الموعد التالي تلقائيًا عند منتصف الليل (توقيت القاهرة) في يوم الاستحقاق، حتى لو لم تُغلق المهمة السابقة.',
+      recurrenceCustomHint: 'التكرار المخصص للعرض فقط ولا يُنشئ مهامًا تلقائيًا.'
     },
     requests: {
       title: 'الطلبات',
@@ -311,12 +347,29 @@ export const translations = {
       tabs: { record: 'السجل', summary: 'ملخص الخدوش' },
       addScratch: 'تسجيل خدش جديد',
       formTitle: 'تسجيل خدش جديد',
+      formEditTitle: 'تعديل خدش',
       formSubtitle: 'إدخال بيانات خدش على الهيكل أو الطلاء',
       recordHint: 'سجل الخدوش المسجلة على خط الإنتاج',
       empty: 'لا توجد خدوش مسجلة.',
-      vinPlaceholder: 'آخر 6 أحرف من الشاسيه أو الرقم الكامل',
+      saved: 'تم تسجيل الخدش.',
+      updated: 'تم تحديث سجل الخدش.',
+      deleteTitle: 'حذف خدش',
+      deleteConfirm: 'حذف خدش الشاسيه «{vin}»؟ لا يمكن التراجع.',
+      updateIssue: 'تحديث المشاكل',
+      complete: 'انتهاء من السيارة',
+      completeConfirm: 'إنهاء متابعة الخدش للسيارة {vin}؟',
+      completeSuccess: 'تم إنهاء السيارة {vin}.',
+      resolved: 'تم إنهاؤها',
+      willStop: {
+        label: 'هتقف العربية؟',
+        yes: 'هتقف',
+        no: 'هتمشي',
+        hint: 'لو هتقف هتظهر أيقونة إنهاء السيارة في عمود الإجراءات.'
+      },
+      vinPlaceholder: '4 أرقام',
+      vinHint: '4 أرقام بالضبط',
       areaOrgEmpty: 'أضف الأقسام (تريم أ، تريم ب، الشاسيه، الفاينال…) من الإعدادات → الإدارات.',
-      errVin: 'رقم الشاسيه يجب ألا يقل عن 4 أرقام.',
+      errVin: 'رقم الشاسيه يجب أن يكون 4 أرقام بالضبط.',
       errParentModel: 'يجب اختيار الموديل الأب.',
       errVariant: 'يجب اختيار الموديل الفرعي.',
       errArea: 'القسم مطلوب.',
@@ -325,6 +378,7 @@ export const translations = {
       removeImage: 'إزالة الصورة',
       errImageSize: 'حجم الصورة يجب ألا يتجاوز 5 ميجابايت.',
       errImageType: 'نوع الصورة غير مدعوم (JPEG, PNG, WebP, GIF).',
+      notesPlaceholder: 'صف تفاصيل العيب…',
       cols: {
         vin: 'الشاسيه',
         parentModel: 'الموديل الأب',
@@ -333,7 +387,9 @@ export const translations = {
         orgUnit: 'القسم',
         severity: 'الشدة',
         date: 'التاريخ',
-        image: 'الصورة'
+        image: 'الصورة',
+        notes: 'تفاصيل العيب',
+        willStop: 'هتقف؟'
       },
       severity: { light: 'خفيف', medium: 'متوسط', severe: 'شديد' },
       summaryTitle: 'ملخص الخدوش',
@@ -1189,7 +1245,9 @@ export const translations = {
       shortageDeleted: '{actor} حذف نقصاً على الشاسيه {vin}',
       shortageDeletedPart: '{actor} حذف نقص «{part}» على الشاسيه {vin}',
       transferRequested: '{actor} طلب ترحيل الشاسيه {vin}',
-      transferRequestedStation: '{actor} طلب ترحيل الشاسيه {vin} إلى {station}'
+      transferRequestedStation: '{actor} طلب ترحيل الشاسيه {vin} إلى {station}',
+      missionAssigned: '{actor} عيّن لك مهمة «{title}»',
+      missionDelegated: '{actor} حوّل إليك مهمة «{title}»'
     },
     home: {
       welcomeTitle: 'مرحباً بك في نظام متابعة خط الإنتاج',
@@ -1654,7 +1712,16 @@ export const translations = {
       vinListTitle: 'أرقام الشاسيه',
       vinCount: '{n} شاسيه',
       batchHintTotal: 'إجمالي سجلات النقص: {total}',
-      vinListModal: { title: 'أرقام الشاسيه', subtitle: '{n} سيارة', open: 'عرض أرقام الشاسيه' },
+      vinListModal: {
+        title: 'أرقام الشاسيه',
+        subtitle: '{n} سيارة',
+        open: 'عرض أرقام الشاسيه',
+        pickHint: 'حدّد الشاسيهات اللي عايز تمشيها. الباقي يفضل في نفس السطر.',
+        pickToComplete: 'اختيار شاسيهات للإنهاء',
+        completeSelectedN: 'إنهاء {n} شاسيه',
+        selectAll: 'تحديد الكل',
+        clearSelection: 'إلغاء التحديد'
+      },
       issuesListModal: {
         title: 'أسباب النقص',
         subtitle: '{n} سبب',
@@ -1730,7 +1797,11 @@ export const translations = {
       },
       assignMission: {
         open: 'تعيين مهمة للموظف',
-        success: 'تم إنشاء المهمة للموظف.'
+        success: 'تم إنشاء المهمة للموظف.',
+        linkedCount: '{n} مهام مربوطة',
+        linkedTitle: 'مهام هذا النقص',
+        openInMissions: 'افتح في المهام',
+        assignAnother: 'تعيين مهمة أخرى'
       },
       lookupNewPlaceholder: 'الاسم بالعربية',
       lookupLabelRequired: 'أدخل الاسم.',
@@ -1745,6 +1816,8 @@ export const translations = {
       filterFollowUpMine: 'متابعتي',
       filterFollowUpMineHint: 'عرض السيارات المعيّنة لمتابعتك',
       filterFollowUpMineNoEmployee: 'حسابك غير مربوط بموظف. اربطه من الصلاحيات أولاً.',
+      filterUnassigned: 'غير محدد',
+      filterUnassignedHint: 'عرض السيارات التي لا تحتوي على قيمة في هذا الحقل',
       filterMonth: 'كل الشهور',
       filterMonthLabel: 'الشهر',
       filterSelectedCount: '{n} محدد',
@@ -1793,6 +1866,30 @@ export const translations = {
         hint: 'نظرة عامة على السيارات المفتوحة والأسباب والأقسام والمحطات — مع احترام الفلاتر أعلاه.',
         hintDetailed:
           'جداول تفصيلية: الإجمالي، الموديل × تصنيف السبب، ثم تفصيل حسب الموديل والسبب والوصف والقسم والمبلّغ — مع احترام الفلاتر.',
+        hintRedesigned:
+          'ملخص سريع بأهم الموديلات والأسباب والأقسام، مع تبويب تفصيلي لجداول الموديل — مع احترام الفلاتر النشطة.',
+        filteredNote: 'الملخص يعكس الفلاتر النشطة فقط',
+        quickTab: 'ملخص سريع',
+        detailTab: 'تفاصيل حسب الموديل',
+        topNote: 'أعلى {n} عناصر في كل جدول',
+        rankVehicles: 'سيارات',
+        rankLines: 'سجلات',
+        rankQty: 'كمية متبقية',
+        rankPending: 'معلّق',
+        rankShare: 'النسبة %',
+        topModels: 'أكثر الموديلات تأثراً',
+        topReasons: 'أهم تصنيفات الأسباب',
+        topParts: 'أكثر أوصاف النقص',
+        topCausingDepartments: 'الأقسام المتسببة',
+        topCompletingDepartments: 'الأقسام المتممة',
+        topReporters: 'أكثر المبلّغين',
+        topStations: 'أكثر المحطات',
+        deptLevelTitle: 'مستوى تجميع الأقسام',
+        deptLevelHint: 'اختَر هل تُعرض الأقسام كما هي أو مجمعة على مستوى الإدارة أو القسم أو القسم الفرعي.',
+        deptLevelRaw: 'الاسم الحالي',
+        deptLevelAdministration: 'الإدارة',
+        deptLevelSection: 'القسم',
+        deptLevelSubsection: 'القسم الفرعي',
         archiveTitle: 'ملخص الأرشيف',
         archiveHint: 'نظرة عامة على السيارات المنتهية والأسباب والأقسام والمحطات — مع احترام الفلاتر أعلاه.',
         archiveHintDetailed:
@@ -1808,6 +1905,8 @@ export const translations = {
         share: 'النسبة %',
         byModel: 'حسب الموديل',
         byDepartment: 'حسب القسم المسؤول',
+        byCausingDepartment: 'حسب القسم المتسبب لكل موديل',
+        byCompletingDepartment: 'حسب القسم المتمم لكل موديل',
         byReason: 'حسب تصنيف السبب',
         byPart: 'حسب وصف السبب',
         byReporter: 'حسب المبلّغ',
@@ -3166,6 +3265,7 @@ export const translations = {
           training_matrix: 'الحضور والانصراف والتدريب والتأهيل',
           bom: 'قائمة الأجزاء IPL',
           missing_parts: 'تقارير نقص السيارات والقطع',
+          missions: 'تعيين المهمات وعرض مهام الفريق أو كل المهمات',
           qc: 'فحوصات الجودة والاعتماد',
           production: 'أوامر الإنتاج والتخطيط',
           inventory: 'المخزون والتغذية',
@@ -3246,6 +3346,7 @@ export const translations = {
           print: 'طباعة التقارير',
           manage: 'إدارة كاملة للوحدة والإعدادات المتقدمة',
           assign: 'تعيين مهام أو موارد لأشخاص',
+          view_all: 'عرض كل المهمات وليس شجرة المرؤوسين فقط',
           override: 'تجاوز قيود أو قواعد افتراضية'
         }
       },
@@ -3334,6 +3435,7 @@ export const translations = {
         training_matrix: 'العمالة',
         bom: 'IPL (قائمة الأجزاء)',
         missing_parts: 'نقص السيارات',
+        missions: 'المهمات',
         qc: 'الجودة',
         production: 'الإنتاج',
         inventory: 'المخزون',
@@ -3356,6 +3458,7 @@ export const translations = {
         manage: 'إدارة',
         print: 'طباعة',
         assign: 'تعيين',
+        view_all: 'عرض الكل',
         override: 'تجاوز'
       },
       user: 'المستخدم',
@@ -3614,7 +3717,10 @@ export const translations = {
       detail: {
         title: 'Mission details',
         noDescription: 'No additional details.',
-        createdAt: 'Created at'
+        createdAt: 'Created at',
+        nextOccurrence: 'Next automatic due date',
+        shortage: 'Vehicle / shortage',
+        openShortage: 'Open shortage'
       },
       delegate: {
         open: 'Delegate to subordinate',
@@ -3625,6 +3731,26 @@ export const translations = {
         success: 'Mission delegated to the employee.',
         errNotAssignee: 'You can only delegate missions assigned to you.'
       },
+      respond: {
+        open: 'Respond to issue',
+        title: 'Respond to issue',
+        hint: 'Write your response or what was done. Saved in the response history; pending missions move to in progress.',
+        field: 'Response',
+        placeholder: 'e.g. Root cause analyzed and action started…',
+        save: 'Send response',
+        success: 'Response saved.',
+        errRequired: 'Response text is required.',
+        errNotAssignee: 'You can only respond to missions assigned to you.',
+        timeline: 'Response history',
+        empty: 'No responses yet.',
+        count: '{n} responses',
+        attachments: 'Attachments (optional)',
+        addImages: 'Add photos or PDF',
+        removeImage: 'Remove attachment',
+        errTooLarge: 'File must be 5 MB or smaller.',
+        errInvalidType: 'Only JPG, PNG, WEBP, GIF, or PDF files are allowed.',
+        errTooMany: 'You can attach up to 3 files per response.'
+      },
       addMission: 'New mission',
       editMission: 'Edit mission',
       formSubtitle: 'Assign a task to a team member',
@@ -3634,6 +3760,12 @@ export const translations = {
       selectedCount: '{n} selected',
       empty: 'No missions recorded.',
       filterStatus: 'Filter by status',
+      filterPriority: 'Priority',
+      filterAssignee: 'Assignee',
+      searchPh: 'Search title or description…',
+      filterResultCount: '{shown} of {total}',
+      filterEmpty: 'No missions match the search or filters.',
+      filterClear: 'Clear filters',
       errTitle: 'Mission title is required.',
       errAssignee: 'Assignee is required.',
       deleteTitle: 'Delete mission',
@@ -3645,7 +3777,9 @@ export const translations = {
       leaderboardEmpty: 'No completed missions in this month.',
       rank: 'Rank {n}',
       completedMissions: 'completed missions',
-      stats: { total: 'Total missions' },
+      stats: { total: 'Total missions', overdue: 'Overdue' },
+      overdue: 'Overdue',
+      overdueEmpty: 'No overdue missions.',
       cols: {
         title: 'Mission',
         description: 'Description',
@@ -3655,6 +3789,8 @@ export const translations = {
         dueDate: 'Due date',
         recurrence: 'Recurrence',
         status: 'Status',
+        createdAt: 'Created at',
+        createdBy: 'Created by',
         rank: 'Rank',
         completed: 'Completed',
         active: 'Active'
@@ -3666,9 +3802,12 @@ export const translations = {
         daily: 'Daily',
         weekly: 'Weekly',
         monthly: 'Monthly',
-        custom: 'Custom'
+        custom: 'Custom',
+        occurrence: 'Recurring copy'
       },
-      recurrenceCustom: 'Custom recurrence details'
+      recurrenceCustom: 'Custom recurrence details',
+      recurrenceAutoHint: 'The next occurrence is created automatically at midnight (Cairo time) on the due date, even if the previous one is still open.',
+      recurrenceCustomHint: 'Custom recurrence is for display only and does not create missions automatically.'
     },
     requests: {
       title: 'Requests',
@@ -3721,12 +3860,29 @@ export const translations = {
       tabs: { record: 'Log', summary: 'Scratch summary' },
       addScratch: 'Register new scratch',
       formTitle: 'Register new scratch',
+      formEditTitle: 'Edit scratch',
       formSubtitle: 'Enter scratch details on body or paint',
       recordHint: 'Scratches recorded on the production line',
       empty: 'No scratches recorded.',
-      vinPlaceholder: 'Last 6 VIN characters or full number',
+      saved: 'Scratch recorded.',
+      updated: 'Scratch record updated.',
+      deleteTitle: 'Delete scratch',
+      deleteConfirm: 'Delete scratch for VIN “{vin}”? This cannot be undone.',
+      updateIssue: 'Update issues',
+      complete: 'Complete vehicle',
+      completeConfirm: 'End scratch follow-up for vehicle {vin}?',
+      completeSuccess: 'Vehicle {vin} completed.',
+      resolved: 'Completed',
+      willStop: {
+        label: 'Will the vehicle stop?',
+        yes: 'Will stop',
+        no: 'Will pass',
+        hint: 'If it will stop, a complete-vehicle action appears on the row.'
+      },
+      vinPlaceholder: '4 digits',
+      vinHint: 'Exactly 4 digits',
       areaOrgEmpty: 'Add areas (Trim A, Trim B, Chassis, Final…) in Settings → Administrations.',
-      errVin: 'VIN must contain at least 4 digits.',
+      errVin: 'VIN must be exactly 4 digits.',
       errParentModel: 'Parent model is required.',
       errVariant: 'Variant model is required.',
       errArea: 'Section is required.',
@@ -3735,6 +3891,7 @@ export const translations = {
       removeImage: 'Remove photo',
       errImageSize: 'Image must be 5 MB or smaller.',
       errImageType: 'Unsupported image type (JPEG, PNG, WebP, GIF).',
+      notesPlaceholder: 'Describe the defect…',
       cols: {
         vin: 'VIN',
         parentModel: 'Parent model',
@@ -3743,7 +3900,9 @@ export const translations = {
         orgUnit: 'Section',
         severity: 'Severity',
         date: 'Date',
-        image: 'Photo'
+        image: 'Photo',
+        notes: 'Defect details',
+        willStop: 'Will stop?'
       },
       severity: { light: 'Light', medium: 'Medium', severe: 'Severe' },
       summaryTitle: 'Scratch summary',
@@ -4601,7 +4760,9 @@ export const translations = {
       shortageDeleted: '{actor} deleted a shortage on VIN {vin}',
       shortageDeletedPart: '{actor} deleted shortage «{part}» on VIN {vin}',
       transferRequested: '{actor} requested a transfer for VIN {vin}',
-      transferRequestedStation: '{actor} requested transferring VIN {vin} to {station}'
+      transferRequestedStation: '{actor} requested transferring VIN {vin} to {station}',
+      missionAssigned: '{actor} assigned you the mission «{title}»',
+      missionDelegated: '{actor} delegated the mission «{title}» to you'
     },
     home: {
       welcomeTitle: 'Welcome to the assembly line tracking system',
@@ -5058,7 +5219,16 @@ export const translations = {
       vinListTitle: 'VIN numbers',
       vinCount: '{n} VINs',
       batchHintTotal: 'Total shortage records: {total}',
-      vinListModal: { title: 'VIN numbers', subtitle: '{n} vehicles', open: 'Show all VIN numbers' },
+      vinListModal: {
+        title: 'VIN numbers',
+        subtitle: '{n} vehicles',
+        open: 'Show all VIN numbers',
+        pickHint: 'Select the chassis numbers to complete. The rest stay on this row.',
+        pickToComplete: 'Choose chassis to complete',
+        completeSelectedN: 'Complete {n} chassis',
+        selectAll: 'Select all',
+        clearSelection: 'Clear selection'
+      },
       issuesListModal: {
         title: 'Shortage reasons',
         subtitle: '{n} reasons',
@@ -5134,7 +5304,11 @@ export const translations = {
       },
       assignMission: {
         open: 'Assign a task to an employee',
-        success: 'Task created for the employee.'
+        success: 'Task created for the employee.',
+        linkedCount: '{n} linked task(s)',
+        linkedTitle: 'Tasks for this shortage',
+        openInMissions: 'Open in missions',
+        assignAnother: 'Assign another task'
       },
       lookupNewPlaceholder: 'Arabic name',
       lookupLabelRequired: 'Enter a name.',
@@ -5149,6 +5323,8 @@ export const translations = {
       filterFollowUpMine: 'My follow-up',
       filterFollowUpMineHint: 'Show vehicles assigned to you for follow-up',
       filterFollowUpMineNoEmployee: 'Your account is not linked to an employee. Link it in permissions first.',
+      filterUnassigned: 'Unassigned',
+      filterUnassignedHint: 'Show vehicles with no value in this field',
       filterMonth: 'All months',
       filterMonthLabel: 'Month',
       filterSelectedCount: '{n} selected',
@@ -5198,6 +5374,30 @@ export const translations = {
         hint: 'Open vehicles, reasons, departments and stations — respects the filters above.',
         hintDetailed:
           'Detailed tables: totals, model × reason class, then breakdowns by model, reason, description, department and reporter — respects filters.',
+        hintRedesigned:
+          'Quick overview of top models, reasons and departments, plus a detail tab for per-model tables — respects active filters.',
+        filteredNote: 'Summary reflects active filters only',
+        quickTab: 'Quick summary',
+        detailTab: 'Per-model detail',
+        topNote: 'Top {n} items per table',
+        rankVehicles: 'Vehicles',
+        rankLines: 'Lines',
+        rankQty: 'Remaining qty',
+        rankPending: 'Pending',
+        rankShare: 'Share %',
+        topModels: 'Most affected models',
+        topReasons: 'Top reason classes',
+        topParts: 'Top shortage descriptions',
+        topCausingDepartments: 'Causing departments',
+        topCompletingDepartments: 'Completing departments',
+        topReporters: 'Top reporters',
+        topStations: 'Top stations',
+        deptLevelTitle: 'Department roll-up level',
+        deptLevelHint: 'Choose whether departments are shown as-is or grouped at the administration, section, or subsection level.',
+        deptLevelRaw: 'Current name',
+        deptLevelAdministration: 'Administration',
+        deptLevelSection: 'Section',
+        deptLevelSubsection: 'Subsection',
         archiveTitle: 'Archive overview',
         archiveHint: 'Completed vehicles, reasons, departments and stations — respects the filters above.',
         archiveHintDetailed:
@@ -5213,6 +5413,8 @@ export const translations = {
         share: 'Share %',
         byModel: 'By model',
         byDepartment: 'By department',
+        byCausingDepartment: 'By causing department per model',
+        byCompletingDepartment: 'By completing department per model',
         byReason: 'By reason class',
         byPart: 'By reason description',
         byReporter: 'By reporter',
@@ -6591,6 +6793,7 @@ export const translations = {
           training_matrix: 'Attendance, training and qualification',
           bom: 'IPL parts list',
           missing_parts: 'Vehicle and parts shortage reports',
+          missions: 'Assign missions and view team tasks or every mission',
           qc: 'Quality inspections and approvals',
           production: 'Production orders and planning',
           inventory: 'Inventory and feeding',
@@ -6671,6 +6874,7 @@ export const translations = {
           print: 'Print reports',
           manage: 'Full module administration and advanced settings',
           assign: 'Assign tasks or resources to people',
+          view_all: 'See every mission, not only the org-tree team',
           override: 'Override default rules or restrictions'
         }
       },
@@ -6761,6 +6965,7 @@ export const translations = {
         training_matrix: 'Workforce',
         bom: 'IPL (parts list)',
         missing_parts: 'Vehicle shortages',
+        missions: 'Missions',
         qc: 'Quality control',
         production: 'Production',
         inventory: 'Inventory',
@@ -6783,6 +6988,7 @@ export const translations = {
         manage: 'Manage',
         print: 'Print',
         assign: 'Assign',
+        view_all: 'View all',
         override: 'Override'
       },
       user: 'User',

@@ -2,7 +2,9 @@ export const APP_NOTIFICATION_EVENT_TYPES = [
   'shortage_added',
   'shortage_archived',
   'shortage_deleted',
-  'transfer_requested'
+  'transfer_requested',
+  'mission_assigned',
+  'mission_delegated'
 ] as const
 
 export type AppNotificationEventType = (typeof APP_NOTIFICATION_EVENT_TYPES)[number]
@@ -12,6 +14,8 @@ export type AppNotificationPayload = {
   part_description?: string | null
   to_station_name?: string | null
   request_id?: string
+  mission_id?: string
+  title?: string | null
 }
 
 export type AppNotificationItem = {
@@ -34,4 +38,8 @@ export function parseAppNotificationEventType(value: string | null | undefined):
   return (APP_NOTIFICATION_EVENT_TYPES as readonly string[]).includes(value)
     ? (value as AppNotificationEventType)
     : null
+}
+
+export function isMissionNotificationEvent(value: AppNotificationEventType): boolean {
+  return value === 'mission_assigned' || value === 'mission_delegated'
 }
