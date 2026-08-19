@@ -10,6 +10,7 @@ import { LanguageProvider, useLang } from './i18n/LanguageContext'
 import { AppSidebar } from './Components/AppSidebar'
 import { DepartmentTopBar } from './Components/layout/DepartmentTopBar'
 import { HeaderNotificationsBell } from './Components/layout/HeaderNotificationsBell'
+import { NotificationInboxProvider } from './Context/NotificationInboxProvider'
 import { HomePage } from './Pages/production/HomePage'
 import { MissingPartsPage } from './Pages/production/MissingPartsPage'
 import { LoginPage } from './Pages/shared/LoginPage'
@@ -139,6 +140,7 @@ function Shell() {
   const canViewEngineeringHome = navLoading || canViewPage(pagePermForEngineering('home'))
 
   return (
+    <NotificationInboxProvider>
     <VehiclesProvider>
       <AppSidebar />
       <main className="min-h-screen min-h-[100dvh] overflow-x-hidden bg-[radial-gradient(circle_at_top_left,_rgba(34,211,238,0.16),_transparent_35%),linear-gradient(135deg,_#020617,_#0f172a_45%,_#111827)] px-2 py-3 text-slate-100 sm:px-6 sm:py-6 lg:px-8 pb-[max(0.75rem,env(safe-area-inset-bottom))]">
@@ -406,6 +408,7 @@ function Shell() {
         </div>
       </main>
     </VehiclesProvider>
+    </NotificationInboxProvider>
   )
 }
 

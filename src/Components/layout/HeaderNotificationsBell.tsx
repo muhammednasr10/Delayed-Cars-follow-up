@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import { Bell } from 'lucide-react'
 import { useLang } from '../../i18n/LanguageContext'
 import { useNavigation } from '../../Context/NavigationContext'
-import { useAppNotificationInbox } from '../../hooks/useAppNotificationInbox'
+import { useNotificationInbox } from '../../Context/NotificationInboxProvider'
 import { isMissionNotificationEvent, type AppNotificationItem } from '../../Types/appNotification'
 import {
   dispatchOpenMissingPartsTab,
@@ -16,7 +16,7 @@ const MOBILE_MQ = '(max-width: 639px)'
 export function HeaderNotificationsBell() {
   const { t } = useLang()
   const nav = useNavigation()
-  const { items, counts, total, refresh, markItemRead, markAllRead } = useAppNotificationInbox()
+  const { items, counts, total, refresh, markItemRead, markAllRead } = useNotificationInbox()
   const [open, setOpen] = useState(false)
   const [mobile, setMobile] = useState(() =>
     typeof window !== 'undefined' ? window.matchMedia(MOBILE_MQ).matches : false

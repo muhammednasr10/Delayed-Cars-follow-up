@@ -157,8 +157,8 @@ export function applyFilters(
     .filter(i => {
       const followUp = filters.followUpEmployeeId
       if (!followUp) return true
-      if (followUp === MP_FILTER_UNASSIGNED) return !i.followUpEmployeeId
-      return i.followUpEmployeeId === followUp
+      if (followUp === MP_FILTER_UNASSIGNED) return (i.followUpEmployeeIds?.length ?? 0) === 0 && !i.followUpEmployeeId
+      return i.followUpEmployeeIds?.includes(followUp) || i.followUpEmployeeId === followUp
     })
     .filter(i => !month || resolvedMonthKey(i.shortageResolvedAt) === month)
     .filter(i => {

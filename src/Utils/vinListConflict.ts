@@ -11,6 +11,21 @@ export function normalizeVinKey(vin: string): string {
   return normalizeChassisVin(vin).toUpperCase()
 }
 
+/** Indices whose non-empty VIN key appears more than once in the list. */
+export function duplicateVinIndices(vins: readonly string[]): Set<number> {
+  const keys = vins.map(v => normalizeVinKey(v))
+  const counts = new Map<string, number>()
+  for (const key of keys) {
+    if (!key) continue
+    counts.set(key, (counts.get(key) ?? 0) + 1)
+  }
+  const dup = new Set<number>()
+  keys.forEach((key, i) => {
+    if (key && (counts.get(key) ?? 0) > 1) dup.add(i)
+  })
+  return dup
+}
+
 /** Active shortage lines for a VIN that are not part of the current edit context. */
 export function foreignActivePartsForVin(
   vin: string,

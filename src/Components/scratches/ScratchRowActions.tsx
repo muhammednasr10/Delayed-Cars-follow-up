@@ -108,7 +108,8 @@ export function ScratchRowActions({
         <MpIssueFollowUpButton
           assignment={{
             completingDepartment: row.completingDepartment ?? '',
-            followUpEmployeeId: row.followUpEmployeeId ?? ''
+            followUpEmployeeId: row.followUpEmployeeId ?? '',
+            followUpEmployeeIds: row.followUpEmployeeIds ?? (row.followUpEmployeeId ? [row.followUpEmployeeId] : [])
           }}
           employees={employees}
           title={t('mp.followUp.open')}

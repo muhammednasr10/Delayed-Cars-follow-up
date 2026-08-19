@@ -16,6 +16,8 @@ function part(overrides: Partial<MissingPartDetail> & Pick<MissingPartDetail, 'i
     completingDepartment: null,
     followUpEmployeeId: null,
     followUpEmployeeName: null,
+    followUpEmployeeIds: [],
+    followUpEmployeeNames: null,
     priority: 'normal',
     status: 'open',
     qcApproved: false,

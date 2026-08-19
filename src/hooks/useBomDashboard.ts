@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react'
-import { getBomDashboardStats } from '../services/bomService'
+import { getBomDashboardStats } from '../services/bomDashboardService'
 import type { BomDashboardStats } from '../Types/bom'
 
 export function useBomDashboard() {

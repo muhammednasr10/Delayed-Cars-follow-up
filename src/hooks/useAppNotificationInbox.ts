@@ -3,7 +3,6 @@ import { useAuth, profileIsAdmin } from '../Context/AuthContext'
 import type { AppNotificationItem } from '../Types/appNotification'
 import { fetchAppNotificationCounts, type AppNotificationCounts } from '../services/notificationService'
 import { listAppNotifications, markAppNotificationsRead } from '../services/appNotificationService'
-import { syncAppIconBadge } from '../Utils/appIconBadge'
 
 const POLL_MS = 30_000
 
@@ -57,16 +56,6 @@ export function useAppNotificationInbox() {
   const visibleMissions = Math.max(0, counts.pendingMissions - ackedCounts.missions)
   const visibleRequests = Math.max(0, counts.pendingRequests - ackedCounts.requests)
   const total = unreadEvents + visibleMissions + visibleRequests
-
-  useEffect(() => {
-    void syncAppIconBadge(total)
-  }, [total])
-
-  useEffect(() => {
-    return () => {
-      void syncAppIconBadge(0)
-    }
-  }, [])
 
   return {
     items,

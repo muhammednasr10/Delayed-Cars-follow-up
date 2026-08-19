@@ -13,6 +13,8 @@ export type MissingPartDetail = {
   completingDepartment: string | null
   followUpEmployeeId: string | null
   followUpEmployeeName: string | null
+  followUpEmployeeIds: string[]
+  followUpEmployeeNames: string | null
   priority: PriorityLevel
   status: MissingPartStatus
   qcApproved: boolean
@@ -57,6 +59,7 @@ export type UpdateMissingPartInput = {
   notes?: string
   completingDepartment?: string | null
   followUpEmployeeId?: string | null
+  followUpEmployeeIds?: string[]
   assignFollowUp?: boolean
 }
 
@@ -68,6 +71,7 @@ export type MissingPartBatchLineInput = {
   stationId: string | null
   completingDepartment?: string | null
   followUpEmployeeId?: string | null
+  followUpEmployeeIds?: string[]
 }
 
 /** Per-line input when each issue may target different VINs (legacy / grouped UI). */

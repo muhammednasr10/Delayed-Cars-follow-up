@@ -233,7 +233,7 @@ export function VehicleCardModal({
                         />
                         <Field
                           label={t('mp.cols.followUpEmployee')}
-                          value={p.followUpEmployeeName?.trim() || '—'}
+                          value={p.followUpEmployeeNames?.trim() || p.followUpEmployeeName?.trim() || '—'}
                         />
                         <Field
                           label={t('mp.cols.completingDepartment')}

@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { Filter } from 'lucide-react'
 import { useLang } from '../../i18n/LanguageContext'
-import { getBomDistinctValues, type BomExcelColumnFilters, type BomListFilters } from '../../services/bomService'
+import { getBomDistinctValues, type BomExcelColumnFilters, type BomListFilters } from '../../services/bomCrudService'
 import type { BomFilterColumn } from '../../Utils/bomFilterFields'
 import { displayBomStationCode } from '../../Utils/bomStationCode'
 

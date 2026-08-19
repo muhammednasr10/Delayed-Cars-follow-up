@@ -3,7 +3,8 @@ import { Pencil, Plus } from 'lucide-react'
 import { useLang } from '../../i18n/LanguageContext'
 import { Modal } from '../Modal'
 import { Field, inputCls } from '../FormField'
-import { getBomItemById, saveBomFromModelCards, fetchBomCardsForPartMaster } from '../../services/bomService'
+import { getBomItemById } from '../../services/bomCrudService'
+import { saveBomFromModelCards, fetchBomCardsForPartMaster } from '../../services/bomPartMasterService'
 import {
   loadStopperExclusionEntries,
   saveStopperExclusions,

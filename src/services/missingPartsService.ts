@@ -37,6 +37,8 @@ type DetailRow = {
   completing_department?: string | null
   follow_up_employee_id?: string | null
   follow_up_employee_name?: string | null
+  follow_up_employee_ids?: string[] | null
+  follow_up_employee_names?: string | null
   priority: MissingPartDetail['priority']
   status: MissingPartDetail['status']
   qc_approved: boolean
@@ -83,6 +85,8 @@ function mapDetail(row: DetailRow): MissingPartDetail {
     completingDepartment: row.completing_department ?? null,
     followUpEmployeeId: row.follow_up_employee_id ?? null,
     followUpEmployeeName: row.follow_up_employee_name ?? null,
+    followUpEmployeeIds: row.follow_up_employee_ids ?? [],
+    followUpEmployeeNames: row.follow_up_employee_names ?? null,
     priority: row.priority,
     status: row.status,
     qcApproved: row.qc_approved,
@@ -200,7 +204,8 @@ export async function updateMissingPartRecord(
     ...(input.assignFollowUp
       ? {
           p_completing_department: input.completingDepartment || null,
-          p_follow_up_employee_id: input.followUpEmployeeId || null,
+          p_follow_up_employee_id: input.followUpEmployeeIds?.length ? input.followUpEmployeeIds[0] : (input.followUpEmployeeId || null),
+          p_follow_up_employee_ids: input.followUpEmployeeIds ?? (input.followUpEmployeeId ? [input.followUpEmployeeId] : []),
           p_assign_follow_up: true
         }
       : {})
@@ -210,10 +215,10 @@ export async function updateMissingPartRecord(
   if (options?.skipActivityNote || !before) return
 
   if (input.assignFollowUp) {
-    const [deptLabel, empLabel] = await Promise.all([
-      resolveOrgUnitLabel(input.completingDepartment),
-      resolveEmployeeLabel(input.followUpEmployeeId)
-    ])
+    const empIds = input.followUpEmployeeIds ?? (input.followUpEmployeeId ? [input.followUpEmployeeId] : [])
+    const empLabels = await Promise.all(empIds.map(resolveEmployeeLabel))
+    const empLabel = empLabels.filter(Boolean).join('، ') || null
+    const deptLabel = await resolveOrgUnitLabel(input.completingDepartment)
     await logVehicleActivityNote(
       before.vehicle_id,
       formatShortageFollowUpNote({
@@ -236,10 +241,15 @@ export async function updateMissingPartRecord(
 export async function assignMissingPartFollowUp(
   parts: MissingPartDetail[],
   completingDepartment: string | null,
-  followUpEmployeeId: string | null
+  followUpEmployeeId: string | null,
+  opts?: { preserveCompletingDepartment?: boolean; followUpEmployeeIds?: string[] }
 ): Promise<number> {
+  const ids = opts?.followUpEmployeeIds ?? (followUpEmployeeId ? [followUpEmployeeId] : [])
   const targets = parts.filter(p => p.status !== 'closed' && p.status !== 'cancelled')
   for (const p of targets) {
+    const nextDept = opts?.preserveCompletingDepartment
+      ? (p.completingDepartment ?? null)
+      : completingDepartment
     await updateMissingPartRecord(
       p.id,
       {
@@ -250,17 +260,22 @@ export async function assignMissingPartFollowUp(
         priority: p.priority,
         stopperType: p.stopperType,
         notes: p.notes ?? undefined,
-        completingDepartment,
-        followUpEmployeeId,
+        completingDepartment: nextDept,
+        followUpEmployeeId: ids[0] || null,
+        followUpEmployeeIds: ids,
         assignFollowUp: true
       },
       { skipActivityNote: true }
     )
   }
 
-  const [deptLabel, empLabel] = await Promise.all([
-    resolveOrgUnitLabel(completingDepartment),
-    resolveEmployeeLabel(followUpEmployeeId)
+  const deptForNote = opts?.preserveCompletingDepartment
+    ? targets.map(p => p.completingDepartment).find(Boolean) ?? null
+    : completingDepartment
+  const empLabels = await Promise.all(ids.map(resolveEmployeeLabel))
+  const empLabel = empLabels.filter(Boolean).join('، ') || null
+  const [deptLabel] = await Promise.all([
+    resolveOrgUnitLabel(deptForNote)
   ])
   const byVehicle = new Map<string, string[]>()
   for (const p of targets) {
@@ -529,7 +544,8 @@ export async function reportMissingPartsBatch(
       department: p.department,
       station_id: p.stationId || null,
       completing_department: p.completingDepartment || null,
-      follow_up_employee_id: p.followUpEmployeeId || null
+      follow_up_employee_id: p.followUpEmployeeIds?.length ? p.followUpEmployeeIds[0] : (p.followUpEmployeeId || null),
+      follow_up_employee_ids: p.followUpEmployeeIds ?? (p.followUpEmployeeId ? [p.followUpEmployeeId] : [])
     }))
     .filter(p => p.part_description)
 

@@ -14,9 +14,10 @@ type Props = {
   assignees?: MissionPerson[]
   shownCount: number
   totalCount: number
+  archiveMode?: boolean
 }
 
-export function MissionsFilterBar({ query, onChange, assignees, shownCount, totalCount }: Props) {
+export function MissionsFilterBar({ query, onChange, assignees, shownCount, totalCount, archiveMode = false }: Props) {
   const { t } = useLang()
   const active = hasActiveMissionFilters(query)
   const showAssignee = Boolean(assignees)
@@ -40,8 +41,8 @@ export function MissionsFilterBar({ query, onChange, assignees, shownCount, tota
             onChange={e => onChange({ ...query, listFilter: e.target.value as MissionListFilter })}
           >
             <option value="all">{t('common.all')}</option>
-            <option value="overdue">{t('missions.overdue')}</option>
-            {MISSION_STATUSES.map(key => (
+            {!archiveMode && <option value="overdue">{t('missions.overdue')}</option>}
+            {(archiveMode ? (['completed', 'cancelled'] as const) : MISSION_STATUSES).map(key => (
               <option key={key} value={key}>
                 {t(`missions.status.${key}`)}
               </option>

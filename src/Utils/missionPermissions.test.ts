@@ -10,21 +10,27 @@ describe('canViewAllTeamMissions', () => {
 })
 
 describe('canAssignTeamMissions', () => {
-  it('follows admin, assign permission, or having subordinates when there is someone to assign', () => {
+  it('allows admin or engineer to assign missions', () => {
     expect(
-      canAssignTeamMissions({ isAdmin: true, hasAssignPermission: false, hasSubordinates: false, assignableCount: 2 })
+      canAssignTeamMissions({ isAdmin: true, isEngineer: false, hasAssignPermission: false, hasSubordinates: false, assignableCount: 2 })
     ).toBe(true)
     expect(
-      canAssignTeamMissions({ isAdmin: false, hasAssignPermission: true, hasSubordinates: false, assignableCount: 2 })
+      canAssignTeamMissions({ isAdmin: false, isEngineer: true, hasAssignPermission: false, hasSubordinates: false, assignableCount: 2 })
     ).toBe(true)
     expect(
-      canAssignTeamMissions({ isAdmin: false, hasAssignPermission: false, hasSubordinates: true, assignableCount: 1 })
+      canAssignTeamMissions({ isAdmin: false, isEngineer: false, hasAssignPermission: true, hasSubordinates: false, assignableCount: 2 })
     ).toBe(true)
+  })
+
+  it('does not allow subordinates-only users to assign', () => {
+    expect(
+      canAssignTeamMissions({ isAdmin: false, isEngineer: false, hasAssignPermission: false, hasSubordinates: true, assignableCount: 1 })
+    ).toBe(false)
   })
 
   it('is false when there is nobody to assign', () => {
     expect(
-      canAssignTeamMissions({ isAdmin: false, hasAssignPermission: true, hasSubordinates: false, assignableCount: 0 })
+      canAssignTeamMissions({ isAdmin: false, isEngineer: true, hasAssignPermission: false, hasSubordinates: false, assignableCount: 0 })
     ).toBe(false)
   })
 })

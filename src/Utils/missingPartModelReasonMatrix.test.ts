@@ -14,6 +14,8 @@ function part(
     completingDepartment: null,
     followUpEmployeeId: null,
     followUpEmployeeName: null,
+    followUpEmployeeIds: [],
+    followUpEmployeeNames: null,
     priority: 'normal',
     status: 'open',
     qcApproved: false,

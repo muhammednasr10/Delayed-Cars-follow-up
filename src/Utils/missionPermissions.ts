@@ -4,10 +4,11 @@ export function canViewAllTeamMissions(isAdmin: boolean, hasViewAllPermission: b
 
 export function canAssignTeamMissions(input: {
   isAdmin: boolean
+  isEngineer: boolean
   hasAssignPermission: boolean
   hasSubordinates: boolean
   assignableCount: number
 }): boolean {
   if (input.assignableCount <= 0) return false
-  return input.isAdmin || input.hasAssignPermission || input.hasSubordinates
+  return input.isAdmin || input.isEngineer || input.hasAssignPermission
 }

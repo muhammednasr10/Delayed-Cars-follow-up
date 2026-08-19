@@ -6,7 +6,6 @@ import { useMyOrgScope } from '../../hooks/useMyOrgScope'
 import { useMissingPartsUiPermissions } from '../../hooks/useMissingPartsUiPermissions'
 import type { MissingPartDetail } from '../../Types/missingPart'
 import { canCompleteVehicle, iconSize } from '../../Utils/missingPartPageUtils'
-import { MpIssueFollowUpButton } from './MpIssueFollowUpButton'
 import { MpAssignShortageMissionButton } from './MpAssignShortageMissionButton'
 import { shortageMissionsForParts } from '../../Utils/shortageMissionLinks'
 import { useOpenShortageMissions } from '../../hooks/useOpenShortageMissions'
@@ -103,23 +102,7 @@ export function MissingPartVehicleActions({
           onAssign={input => onAssignShortageMission?.(item, input)}
         />
       )}
-      {!archiveMode && rowOpen && canAssignFollowUp && onAssignFollowUp && (
-        <MpIssueFollowUpButton
-          assignment={{
-            completingDepartment: item.completingDepartment ?? '',
-            followUpEmployeeId: item.followUpEmployeeId ?? ''
-          }}
-          employees={employees}
-          title={t('mp.followUp.open')}
-          className={`relative rounded-md p-1.5 ${
-            item.completingDepartment || item.followUpEmployeeId
-              ? 'bg-cyan-500/15 text-cyan-200 hover:bg-cyan-500/20'
-              : 'text-cyan-300 hover:bg-cyan-500/20'
-          }`}
-          iconClassName={iconSize}
-          onSave={next => onAssignFollowUp(item, next)}
-        />
-      )}
+      {/* Follow-up employees are now assigned inline in the edit/report modals */}
       {!archiveMode && rowOpen && canNotes && (
         <IconBtn
           title={t('mp.thread.open')}

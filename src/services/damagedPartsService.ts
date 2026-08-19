@@ -1,5 +1,5 @@
 import { supabase } from '../lib/supabase'
-import { getBomItems } from './bomService'
+import { getBomItems } from './bomCrudService'
 import type { DamagedPartInput, DamagedPartRecord, IplPartHit } from '../Types/damagedPart'
 
 const IMAGE_BUCKET = 'damaged-parts'

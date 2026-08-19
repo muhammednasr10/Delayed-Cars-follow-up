@@ -36,6 +36,7 @@ type Props = {
   onReassign: (row: TeamMission) => void
   onEdit: (row: TeamMission) => void
   onDelete: (row: TeamMission) => void
+  emptyKey?: string
 }
 
 export function MissionsBoardTable({
@@ -51,7 +52,8 @@ export function MissionsBoardTable({
   onRespond,
   onReassign,
   onEdit,
-  onDelete
+  onDelete,
+  emptyKey = 'missions.empty'
 }: Props) {
   const { t, lang } = useLang()
   const colCount = canAssignMissions ? 9 : 8
@@ -89,14 +91,14 @@ export function MissionsBoardTable({
               ) : filtered.length === 0 ? (
                 <tr>
                   <td colSpan={colCount} className="px-4 py-12 text-slate-500">
-                    {t(missionListEmptyI18nKey(query, 'missions.empty'))}
+                    {t(missionListEmptyI18nKey(query, emptyKey))}
                   </td>
                 </tr>
               ) : (
                 filtered.map(row => {
                   const overdue = isMissionOverdue(row)
                   return (
-                    <tr key={row.id} className={missionRowClass(overdue)} onClick={() => onOpenDetail(row)}>
+                    <tr key={row.id} className={missionRowClass(overdue, row.status)} onClick={() => onOpenDetail(row)}>
                       <td className={`${cell} text-slate-300`} dir="ltr">
                         {formatMissionDateTime(row.createdAt, lang)}
                       </td>

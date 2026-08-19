@@ -1,6 +1,16 @@
 import { describe, expect, it } from 'vitest'
 import type { TeamMission } from '../Types/mission'
-import { missionDetailsPreview, missionListStats, mapMissionActionError, mapMissionDelegateError, missionRecurrenceLabel } from './missionDisplay'
+import {
+  filterActiveMissions,
+  filterArchivedMissions,
+  isArchivedMissionStatus,
+  missionDetailsPreview,
+  missionListStats,
+  mapMissionActionError,
+  mapMissionDelegateError,
+  missionRecurrenceLabel,
+  missionRowClass
+} from './missionDisplay'
 
 const now = new Date(2026, 7, 18, 15, 0, 0)
 
@@ -25,6 +35,25 @@ describe('missionListStats', () => {
       now
     )
     expect(stats).toEqual({ total: 3, pending: 1, inProgress: 1, completed: 1, overdue: 1 })
+  })
+})
+
+describe('mission archive helpers', () => {
+  const items = [
+    row({ status: 'pending' }),
+    row({ status: 'completed' }),
+    row({ status: 'cancelled' })
+  ]
+
+  it('splits active and archived missions', () => {
+    expect(filterActiveMissions(items).map(i => i.status)).toEqual(['pending'])
+    expect(filterArchivedMissions(items).map(i => i.status)).toEqual(['completed', 'cancelled'])
+    expect(isArchivedMissionStatus('cancelled')).toBe(true)
+    expect(isArchivedMissionStatus('pending')).toBe(false)
+  })
+
+  it('styles cancelled rows with red background', () => {
+    expect(missionRowClass(false, 'cancelled')).toContain('bg-red-950')
   })
 })
 

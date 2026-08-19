@@ -1,0 +1,7 @@
+{
+  "mcpServers": {
+    "afa-supabase": {
+      "url": "https://mcp.supabase.com/mcp?project_ref=gztpaeytqtarmcfspwvt&features=database,docs"
+    }
+  }
+}

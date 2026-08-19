@@ -14,6 +14,7 @@ import {
   withTimeout,
   type AppAuthSession
 } from '../services/authService'
+import { clearAppIconBadge } from '../Utils/appIconBadge'
 import { clearSentryUser, setSentryUser } from '../lib/sentry'
 
 export type Profile = {
@@ -360,6 +361,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     profileLoadedUidRef.current = null
     clearSession()
     clearSentryUser()
+    void clearAppIconBadge()
     setSession(null)
     setProfile(null)
     setAccessDeniedMessage(null)

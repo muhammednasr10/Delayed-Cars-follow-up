@@ -1,5 +1,5 @@
 import { supabase } from '../lib/supabase'
-import { getBomItemsForPartIds } from './bomService'
+import { getBomItemsForPartIds } from './bomCrudService'
 import { listPartsForIplModel } from './partsService'
 import type { BomItemDetail } from '../Types/bom'
 import { iplFieldsFromBomItem } from '../Utils/iplFeedingFields'

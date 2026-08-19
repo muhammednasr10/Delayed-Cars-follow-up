@@ -11,10 +11,11 @@ import {
 import { canAssignTeamMissions, canViewAllTeamMissions } from '../Utils/missionPermissions'
 
 export function useMyOrgScope(employees: Employee[]) {
-  const { profile, hasRole } = useAuth()
+  const { profile, hasRole, systemRoleCode } = useAuth()
   const { hasPermission } = usePermissions()
   const employeeId = profile?.employee_id ?? null
   const isAdmin = profileIsAdmin(profile) || hasRole('admin', 'production')
+  const isEngineer = systemRoleCode === 'engineer'
   const canViewAllMissions = canViewAllTeamMissions(isAdmin, hasPermission('missions', 'view_all'))
   const hasAssignPermission = hasPermission('missions', 'assign')
 
@@ -24,6 +25,7 @@ export function useMyOrgScope(employees: Employee[]) {
     const assignableEmployees = filterAssignableEmployees(employees, employeeId, canViewAllMissions)
     const canAssignMissions = canAssignTeamMissions({
       isAdmin,
+      isEngineer,
       hasAssignPermission,
       hasSubordinates: hasSubordinates(employees, employeeId),
       assignableCount: assignableEmployees.length
@@ -39,5 +41,5 @@ export function useMyOrgScope(employees: Employee[]) {
       canAssignMissions,
       isManager: subordinateIds.size > 0
     }
-  }, [employees, employeeId, isAdmin, canViewAllMissions, hasAssignPermission])
+  }, [employees, employeeId, isAdmin, isEngineer, canViewAllMissions, hasAssignPermission])
 }

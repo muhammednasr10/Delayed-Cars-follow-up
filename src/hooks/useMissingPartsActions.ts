@@ -69,7 +69,8 @@ export function useMissingPartsActions(opts: {
       const n = await assignMissingPartFollowUp(
         parts,
         assignment.completingDepartment || null,
-        assignment.followUpEmployeeId || null
+        assignment.followUpEmployeeIds?.[0] || assignment.followUpEmployeeId || null,
+        { followUpEmployeeIds: assignment.followUpEmployeeIds }
       )
       showSuccess(t('mp.followUp.applied', { n }))
       void load()
@@ -92,7 +93,8 @@ export function useMissingPartsActions(opts: {
       const n = await assignMissingPartFollowUp(
         parts,
         assignment.completingDepartment || null,
-        assignment.followUpEmployeeId || null
+        assignment.followUpEmployeeIds?.[0] || assignment.followUpEmployeeId || null,
+        { preserveCompletingDepartment: !assignment.completingDepartment, followUpEmployeeIds: assignment.followUpEmployeeIds }
       )
       showSuccess(t('mp.followUp.applied', { n }))
       void load()

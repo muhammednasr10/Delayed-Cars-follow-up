@@ -577,9 +577,3 @@ export const PERMISSIONS_MATRIX_TREE: MatrixTreeNode[] = [
     ]
   }
 ]
-
-export function parentPagePerm(pagePerm: string): AppPagePermissionKey | null {
-  const idx = pagePerm.indexOf('__')
-  if (idx === -1) return pagePerm as AppPagePermissionKey
-  return pagePerm.slice(0, idx) as AppPagePermissionKey
-}

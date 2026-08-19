@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react'
-import { getBomItems, getBomFilterOptions, type BomListFilters, type BomListResult } from '../services/bomService'
+import { getBomItems, getBomFilterOptions, type BomListFilters, type BomListResult } from '../services/bomCrudService'
 
 export function useBomItems(initialFilters: BomListFilters = {}) {
   const [filters, setFilters] = useState<BomListFilters>(initialFilters)

@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import type { MissingPartDetail } from '../Types/missingPart'
 import {
+  duplicateVinIndices,
   findUnresolvedVinConflict,
   foreignActivePartsForVin,
   normalizeVinKey,
@@ -21,6 +22,8 @@ function part(overrides: Partial<MissingPartDetail> & Pick<MissingPartDetail, 'i
     completingDepartment: null,
     followUpEmployeeId: null,
     followUpEmployeeName: null,
+    followUpEmployeeIds: [],
+    followUpEmployeeNames: null,
     priority: 'normal',
     status: 'open',
     qcApproved: false,
@@ -60,6 +63,12 @@ describe('vinListConflict', () => {
   it('sanitizes chassis digits', () => {
     expect(sanitizeChassisDigits('12ab34')).toBe('1234')
     expect(sanitizeChassisDigits('12345')).toBe('1234')
+  })
+
+  it('marks duplicate chassis indices', () => {
+    expect([...duplicateVinIndices(['7286', '7292', '7286'])].sort()).toEqual([0, 2])
+    expect(duplicateVinIndices(['7286', '', '7286']).has(1)).toBe(false)
+    expect(duplicateVinIndices(['7286', '7292']).size).toBe(0)
   })
 
   it('detects foreign active vins', () => {

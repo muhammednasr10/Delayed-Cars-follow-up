@@ -16,6 +16,7 @@ import { delegateMyTeamMission, updateMyTeamMissionStatus } from '../../services
 import { missionHasAssignee } from '../../Utils/missionPeople'
 import { filterMissions } from '../../Utils/missionFilters'
 import {
+  filterActiveMissions,
   isOpenMissionStatus,
   mapMissionActionError,
   mapMissionDelegateError,
@@ -61,7 +62,10 @@ export function MissionsMyTab({ onChanged, openedSearch, openedSearchKey = 0 }: 
   const [delegateTarget, setDelegateTarget] = useState<TeamMission | null>(null)
 
   const myItems = useMemo(
-    () => (employeeId ? items.filter(i => missionHasAssignee(i.assigneeIds, employeeId)) : []),
+    () =>
+      employeeId
+        ? filterActiveMissions(items.filter(i => missionHasAssignee(i.assigneeIds, employeeId)))
+        : [],
     [items, employeeId]
   )
 

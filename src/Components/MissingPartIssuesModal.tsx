@@ -63,7 +63,7 @@ export function MissingPartIssuesModal({ parts, vin, modelName, reasons, departm
               />
               <Field
                 label={t('mp.cols.followUpEmployee')}
-                value={part.followUpEmployeeName?.trim() || '—'}
+                value={part.followUpEmployeeNames?.trim() || part.followUpEmployeeName?.trim() || '—'}
               />
               <Field
                 label={t('mp.cols.completingDepartment')}

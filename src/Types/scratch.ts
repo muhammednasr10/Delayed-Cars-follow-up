@@ -18,6 +18,8 @@ export type ScratchRecord = {
   completingDepartment: string | null
   followUpEmployeeId: string | null
   followUpEmployeeName: string | null
+  followUpEmployeeIds: string[]
+  followUpEmployeeNames: string | null
   resolvedAt: string | null
 }
 

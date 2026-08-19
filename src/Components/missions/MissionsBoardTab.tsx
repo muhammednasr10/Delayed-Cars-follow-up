@@ -22,7 +22,7 @@ import {
 } from '../../services/missionService'
 import { missionVisibleToManager } from '../../Utils/missionPeople'
 import { filterMissions } from '../../Utils/missionFilters'
-import { isOpenMissionStatus, missionListStats } from '../../Utils/missionDisplay'
+import { filterActiveMissions, isOpenMissionStatus, missionListStats } from '../../Utils/missionDisplay'
 import type { MissionPerson, MissionStatus, TeamMission, TeamMissionInput } from '../../Types/mission'
 
 type Props = {
@@ -62,9 +62,10 @@ export function MissionsBoardTab({ onChanged, openedSearch, openedSearchKey = 0 
   const [delegateTarget, setDelegateTarget] = useState<TeamMission | null>(null)
 
   const visibleItems = useMemo(() => {
-    if (canViewAllMissions) return items
+    const active = filterActiveMissions(items)
+    if (canViewAllMissions) return active
     if (!employeeId) return []
-    return items.filter(i => missionVisibleToManager(i.assigneeIds, subordinateIds))
+    return active.filter(i => missionVisibleToManager(i.assigneeIds, subordinateIds))
   }, [items, canViewAllMissions, employeeId, subordinateIds])
 
   const filtered = useMemo(() => filterMissions(visibleItems, query), [visibleItems, query])

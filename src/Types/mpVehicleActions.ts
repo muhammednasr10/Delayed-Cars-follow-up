@@ -4,6 +4,7 @@ import type { ShortageMissionLink, TeamMissionInput } from './mission'
 export type MpFollowUpAssignment = {
   completingDepartment: string
   followUpEmployeeId: string
+  followUpEmployeeIds: string[]
 }
 
 export type ShortageMissionAssignInput = TeamMissionInput

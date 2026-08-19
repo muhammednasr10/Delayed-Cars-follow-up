@@ -268,14 +268,11 @@ export function MissingPartsPage() {
             listTab={listTab}
             canBulkInstall={canBulkInstall}
             canComplete={canComplete}
-            canAssignFollowUp={canAssignFollowUp}
             canDelete={canDelete}
             bulkActionBusy={actions.bulkActionBusy}
             completingVehicleId={actions.completingVehicleId}
-            employees={employees}
             onInstall={() => void actions.bulkInstallSelected()}
             onComplete={actions.bulkCompleteSelected}
-            onFollowUp={next => void actions.applyFollowUpSelected(next)}
             onDelete={() => void actions.bulkDeleteSelected()}
             onClear={() => setSelectedVehicleIds(new Set())}
           />

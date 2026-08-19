@@ -15,7 +15,6 @@ import { useMissingPartsUiPermissions } from '../hooks/useMissingPartsUiPermissi
 import { useFormatError } from '../hooks/useFormatError'
 import { useVinListConflict } from '../hooks/useVinListConflict'
 import { MpIssueLookupsFields } from './missingParts/MpIssueLookupsFields'
-import { MpIssueFollowUpButton } from './missingParts/MpIssueFollowUpButton'
 import { defaultDepartmentCode, defaultReasonCode } from '../Utils/mpLookupLabel'
 import { isValidVinLength } from '../Utils/vinValidation'
 import { normalizeVinKey, vinInActiveList } from '../Utils/vinListConflict'
@@ -36,6 +35,7 @@ type IssueDraft = {
   department: string
   completingDepartment: string
   followUpEmployeeId: string
+  followUpEmployeeIds: string[]
   isNew?: boolean
 }
 
@@ -123,7 +123,8 @@ export function EditReportGroupModal({ group, activeListParts = [], onClose, onS
         reason: rep.reason,
         department: rep.department,
         completingDepartment: rep.completingDepartment ?? '',
-        followUpEmployeeId: rep.followUpEmployeeId ?? ''
+        followUpEmployeeId: rep.followUpEmployeeId ?? '',
+        followUpEmployeeIds: rep.followUpEmployeeIds ?? (rep.followUpEmployeeId ? [rep.followUpEmployeeId] : [])
       }))
     )
     setVinRows(buildVinRows(editableParts))
@@ -267,7 +268,8 @@ export function EditReportGroupModal({ group, activeListParts = [], onClose, onS
             stopperType: part.stopperType,
             notes,
             completingDepartment: issue.completingDepartment || null,
-            followUpEmployeeId: issue.followUpEmployeeId || null,
+            followUpEmployeeId: issue.followUpEmployeeIds?.[0] || issue.followUpEmployeeId || null,
+            followUpEmployeeIds: issue.followUpEmployeeIds,
             assignFollowUp: canAssignFollowUp
           })
         }
@@ -280,7 +282,8 @@ export function EditReportGroupModal({ group, activeListParts = [], onClose, onS
         department: i.department,
         stationId: null as string | null,
         completingDepartment: i.completingDepartment || null,
-        followUpEmployeeId: i.followUpEmployeeId || null
+        followUpEmployeeId: i.followUpEmployeeIds?.[0] || i.followUpEmployeeId || null,
+        followUpEmployeeIds: i.followUpEmployeeIds
       }))
 
       if (newPartLines.length > 0 && remainingOriginalVins.length > 0) {
@@ -306,7 +309,8 @@ export function EditReportGroupModal({ group, activeListParts = [], onClose, onS
             department: i.department,
             stationId: null as string | null,
             completingDepartment: i.completingDepartment || null,
-            followUpEmployeeId: i.followUpEmployeeId || null
+            followUpEmployeeId: i.followUpEmployeeIds?.[0] || i.followUpEmployeeId || null,
+            followUpEmployeeIds: i.followUpEmployeeIds
           })),
           ...newPartLines
         ]
@@ -430,6 +434,7 @@ export function EditReportGroupModal({ group, activeListParts = [], onClose, onS
                       department: defaultDepartmentCode(departments) || prev[0]?.department || '',
                       completingDepartment: '',
                       followUpEmployeeId: '',
+                      followUpEmployeeIds: [],
                       isNew: true
                     }
                   ])
@@ -452,31 +457,14 @@ export function EditReportGroupModal({ group, activeListParts = [], onClose, onS
                     <p className="text-[10px] font-black uppercase text-cyan-400/90">
                       {issue.isNew ? t('mp.edit.newIssue') : t('mp.issueN', { n: idx + 1 })}
                     </p>
-                    <div className="flex items-center gap-1">
-                      {canAssignFollowUp && (
-                        <MpIssueFollowUpButton
-                          assignment={{
-                            completingDepartment: issue.completingDepartment,
-                            followUpEmployeeId: issue.followUpEmployeeId
-                          }}
-                          employees={employees}
-                          onSave={next =>
-                            patchIssue(issue.key, {
-                              completingDepartment: next.completingDepartment,
-                              followUpEmployeeId: next.followUpEmployeeId
-                            })
-                          }
-                        />
-                      )}
-                      <button
-                        type="button"
-                        onClick={() => removeIssue(issue)}
-                        className="rounded-lg bg-red-500/15 p-1.5 text-red-200 hover:bg-red-500/25"
-                        title={t('common.delete')}
-                      >
-                        <Trash2 className="h-3.5 w-3.5" />
-                      </button>
-                    </div>
+                    <button
+                      type="button"
+                      onClick={() => removeIssue(issue)}
+                      className="rounded-lg bg-red-500/15 p-1.5 text-red-200 hover:bg-red-500/25"
+                      title={t('common.delete')}
+                    >
+                      <Trash2 className="h-3.5 w-3.5" />
+                    </button>
                   </div>
                   <Field label={t('mp.cols.reason')} required>
                     <input
@@ -489,11 +477,22 @@ export function EditReportGroupModal({ group, activeListParts = [], onClose, onS
                   <MpIssueLookupsFields
                     department={issue.department}
                     reason={issue.reason}
+                    completingDepartment={issue.completingDepartment}
                     orgUnits={orgUnits}
                     reasons={reasons}
+                    showCompletingDepartment
                     onDepartmentChange={department => patchIssue(issue.key, { department })}
                     onReasonChange={code => patchIssue(issue.key, { reason: code })}
+                    onCompletingDepartmentChange={completingDepartment =>
+                      patchIssue(issue.key, { completingDepartment })
+                    }
                     onCreateReason={addReason}
+                    showFollowUpEmployees={canAssignFollowUp}
+                    employees={employees}
+                    followUpEmployeeIds={issue.followUpEmployeeIds}
+                    onFollowUpEmployeeIdsChange={followUpEmployeeIds =>
+                      patchIssue(issue.key, { followUpEmployeeIds })
+                    }
                   />
                 </div>
               ))}

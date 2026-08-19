@@ -24,6 +24,7 @@ type Row = {
   will_stop?: boolean | null
   completing_department?: string | null
   follow_up_employee_id?: string | null
+  follow_up_employee_ids?: string[] | null
   resolved_at?: string | null
   created_at: string
   updated_at: string
@@ -65,6 +66,8 @@ function mapRow(row: Row): ScratchRecord {
     completingDepartment: row.completing_department ?? null,
     followUpEmployeeId: row.follow_up_employee_id ?? null,
     followUpEmployeeName: followUp?.full_name ?? null,
+    followUpEmployeeIds: row.follow_up_employee_ids ?? (row.follow_up_employee_id ? [row.follow_up_employee_id] : []),
+    followUpEmployeeNames: null,
     resolvedAt: row.resolved_at ?? null
   }
 }
@@ -136,7 +139,8 @@ export async function assignScratchFollowUp(id: string, assignment: MpFollowUpAs
     .from('scratches')
     .update({
       completing_department: assignment.completingDepartment || null,
-      follow_up_employee_id: assignment.followUpEmployeeId || null
+      follow_up_employee_id: assignment.followUpEmployeeIds?.[0] || assignment.followUpEmployeeId || null,
+      follow_up_employee_ids: assignment.followUpEmployeeIds ?? (assignment.followUpEmployeeId ? [assignment.followUpEmployeeId] : [])
     })
     .eq('id', id)
   if (error) throw new Error(error.message)

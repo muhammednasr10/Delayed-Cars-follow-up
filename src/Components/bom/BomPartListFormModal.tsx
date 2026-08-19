@@ -10,7 +10,7 @@ import {
   type PartListStationOption,
   type PartMasterHit
 } from '../../services/partsService'
-import { fetchBomCardsForPartMaster } from '../../services/bomService'
+import { fetchBomCardsForPartMaster } from '../../services/bomPartMasterService'
 import { getStations, getVehicleModels } from '../../services/settingsService'
 import { isMostlyArabic, translateArabicPartName, translateEnglishPartName } from '../../Utils/partNameEn'
 import { displayBomStationCode, findMasterStationByCode, normalizeBomStationCodeText } from '../../Utils/bomStationCode'

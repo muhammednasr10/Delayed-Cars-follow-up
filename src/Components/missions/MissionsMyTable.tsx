@@ -93,7 +93,7 @@ export function MissionsMyTable({
             filtered.map(row => {
               const overdue = isMissionOverdue(row)
               return (
-                <tr key={row.id} className={missionRowClass(overdue)} onClick={() => onOpenDetail(row)}>
+                <tr key={row.id} className={missionRowClass(overdue, row.status)} onClick={() => onOpenDetail(row)}>
                   <td className={`${cell} whitespace-nowrap text-slate-300`} dir="ltr">
                     {formatMissionDateTime(row.createdAt, lang)}
                   </td>

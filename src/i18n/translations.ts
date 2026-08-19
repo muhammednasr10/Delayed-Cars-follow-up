@@ -190,9 +190,14 @@ export const translations = {
     missions: {
       title: 'المهمات',
       subtitle: 'توزيع المهام على الفريق ومتابعة الإنجاز',
-      tabs: { my: 'مهامى', board: 'توزيع المهام', leaderboard: 'لوحة الشرف' },
+      tabs: { my: 'مهامى', board: 'توزيع المهام', archive: 'أرشيف المهام', leaderboard: 'لوحة الشرف' },
       boardHint: 'إنشاء المهام وتوزيعها على المرؤوسين في الشجرة التنظيمية فقط',
       boardNoSubordinates: 'لا يوجد لديك مرؤوسون في الهيكل — يمكنك متابعة مهامك من تبويب «مهامى».',
+      archive: {
+        hint: 'المهام المكتملة والملغاة — خارج قوائم المهام النشطة.',
+        empty: 'لا توجد مهام في الأرشيف.',
+        summary: '{completed} مكتملة · {cancelled} ملغاة'
+      },
       errAssigneeNotSubordinate: 'يمكن تعيين المهام للمرؤوسين في شجرتك فقط.',
       my: {
         hint: 'المهام المكلّف بها حسابك الحالي',
@@ -1786,13 +1791,18 @@ export const translations = {
       searchReasonClass: 'ابحث عن تصنيف السبب…',
       followUp: {
         open: 'تحديد القسم المتمم وموظف المتابعة',
+        openEmployee: 'تحديد موظف المتابعة',
         title: 'متابعة المشكلة',
+        titleEmployee: 'موظف المتابعة',
         hint: 'حدد القسم الذي سيُنهي النقص والموظف المسؤول عن المتابعة.',
+        hintEmployee: 'حدد الموظف المسؤول عن متابعة هذه المشكلة.',
         noDepartment: 'بدون قسم متمم',
         noEmployee: 'بدون موظف متابعة',
         searchEmployee: 'ابحث بالاسم أو الرقم الوظيفي…',
+        addEmployee: 'إضافة موظف متابعة…',
         applied: 'تم تعيين المتابعة على {n} مشكلة.',
         bulk: 'تحديد القسم المتمم وموظف المتابعة للمحدد',
+        bulkEmployee: 'تحديد موظف المتابعة للمحدد',
         nothingSelected: 'لا توجد مشاكل مفتوحة على السيارات المحددة.'
       },
       assignMission: {
@@ -3703,9 +3713,14 @@ export const translations = {
     missions: {
       title: 'Missions',
       subtitle: 'Distribute tasks to the team and track completion',
-      tabs: { my: 'My tasks', board: 'Task board', leaderboard: 'Honor board' },
+      tabs: { my: 'My tasks', board: 'Task board', archive: 'Task archive', leaderboard: 'Honor board' },
       boardHint: 'Create and assign tasks to subordinates in your org tree only',
       boardNoSubordinates: 'You have no subordinates in the org chart — use the My tasks tab.',
+      archive: {
+        hint: 'Completed and cancelled missions — removed from active task lists.',
+        empty: 'No missions in the archive.',
+        summary: '{completed} completed · {cancelled} cancelled'
+      },
       errAssigneeNotSubordinate: 'Tasks can only be assigned to subordinates in your org tree.',
       my: {
         hint: 'Tasks assigned to your linked employee account',
@@ -5293,13 +5308,18 @@ export const translations = {
       searchReasonClass: 'Search reason class…',
       followUp: {
         open: 'Set completing department and follow-up employee',
+        openEmployee: 'Set follow-up employee',
         title: 'Issue follow-up',
+        titleEmployee: 'Follow-up employee',
         hint: 'Choose the department that will close the shortage and the employee who will follow it.',
+        hintEmployee: 'Choose the employee responsible for following this issue.',
         noDepartment: 'No completing department',
         noEmployee: 'No follow-up employee',
         searchEmployee: 'Search by name or employee code…',
+        addEmployee: 'Add follow-up employee…',
         applied: 'Follow-up assigned on {n} issue(s).',
         bulk: 'Set completing department and follow-up employee for selected',
+        bulkEmployee: 'Set follow-up employee for selected',
         nothingSelected: 'No open issues on the selected vehicles.'
       },
       assignMission: {

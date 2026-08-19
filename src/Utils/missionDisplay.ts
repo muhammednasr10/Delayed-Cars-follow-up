@@ -63,10 +63,26 @@ export function isOpenMissionStatus(status: MissionStatus): boolean {
   return status === 'pending' || status === 'in_progress'
 }
 
-export function missionRowClass(overdue: boolean): string {
-  return overdue
-    ? 'cursor-pointer bg-red-950/40 hover:bg-red-950/55'
-    : 'cursor-pointer bg-slate-900/30 hover:bg-slate-800/50'
+export function isArchivedMissionStatus(status: MissionStatus): boolean {
+  return status === 'completed' || status === 'cancelled'
+}
+
+export function filterActiveMissions<T extends { status: MissionStatus }>(items: T[]): T[] {
+  return items.filter(i => !isArchivedMissionStatus(i.status))
+}
+
+export function filterArchivedMissions<T extends { status: MissionStatus }>(items: T[]): T[] {
+  return items.filter(i => isArchivedMissionStatus(i.status))
+}
+
+export function missionRowClass(overdue: boolean, status?: MissionStatus): string {
+  if (status === 'cancelled') {
+    return 'cursor-pointer bg-red-950/55 hover:bg-red-950/70'
+  }
+  if (overdue) {
+    return 'cursor-pointer bg-red-950/40 hover:bg-red-950/55'
+  }
+  return 'cursor-pointer bg-slate-900/30 hover:bg-slate-800/50'
 }
 
 export function mapMissionActionError(code: string, t: (key: string) => string): string {

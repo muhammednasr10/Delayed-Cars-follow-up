@@ -1,6 +1,6 @@
 import { Plus, Trash2 } from 'lucide-react'
 import { useLang } from '../i18n/LanguageContext'
-import { normalizeVinKey, sanitizeChassisDigits } from '../Utils/vinListConflict'
+import { normalizeVinKey, sanitizeChassisDigits, duplicateVinIndices } from '../Utils/vinListConflict'
 
 type Props = {
   vins: string[]
@@ -31,6 +31,7 @@ export function EditableVinList({
   onVinDiscarded
 }: Props) {
   const { t } = useLang()
+  const duplicateIdx = duplicateVinIndices(vins)
 
   return (
     <section className="space-y-2 rounded-xl border border-slate-700 bg-slate-950/50 p-3">
@@ -50,15 +51,20 @@ export function EditableVinList({
       <div className="space-y-2">
         {vins.map((vin, i) => {
           const locked = isLocked?.(vin, i) ?? false
+          const isDuplicate = duplicateIdx.has(i)
           return (
             <div key={`${locked ? 'L' : 'U'}-${i}`} className="flex gap-2">
               <input
-                className="input-dark min-w-0 flex-1 font-mono"
+                className={`input-dark min-w-0 flex-1 font-mono ${
+                  isDuplicate ? 'border-red-500 text-red-300 focus:border-red-400 focus:ring-red-400/20' : ''
+                }`}
                 dir="ltr"
                 inputMode="numeric"
                 maxLength={4}
                 value={vin}
                 disabled={locked}
+                aria-invalid={isDuplicate || undefined}
+                title={isDuplicate ? t('mp.errDuplicateVin') : undefined}
                 onChange={e => {
                   const next = sanitizeChassisDigits(e.target.value)
                   const prevKey = normalizeVinKey(vin)
