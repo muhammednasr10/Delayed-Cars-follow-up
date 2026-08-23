@@ -9,6 +9,7 @@ import {
   isMissingPartRowOpen,
   completerNames,
   reporterNames,
+  shortageDurationDays,
   uniqueVehicleReps,
   uniqueIssueReps
 } from '../../Utils/missingPartPageUtils'
@@ -215,6 +216,7 @@ function PartDataRow({
     rowScope.map(p => p.vehicleId),
     noteCounts
   )
+  const daysInShortage = listTab === 'history' ? shortageDurationDays(rowScope) : null
 
   function handleRowClick(e: MouseEvent) {
     const target = e.target as HTMLElement
@@ -299,6 +301,9 @@ function PartDataRow({
           </td>
           <td className={`${cell} text-emerald-300/80`}>
             {item.shortageResolvedAt ? <DateTimeCell iso={item.shortageResolvedAt} lang={lang} /> : '-'}
+          </td>
+          <td className={`${cell} tabular-nums font-bold text-amber-200`}>
+            {daysInShortage == null ? '—' : daysInShortage}
           </td>
         </>
       )}

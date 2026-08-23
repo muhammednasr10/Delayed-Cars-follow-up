@@ -38,6 +38,7 @@ export const HISTORY_COLS = [
   'dateTime',
   'completer',
   'resolvedAt',
+  'daysInShortage',
   'actions'
 ] as const
 
@@ -255,6 +256,27 @@ export function formatDateTime(iso: string, lang: string) {
     date: d.toLocaleDateString(locale),
     time: d.toLocaleTimeString(locale, { hour: '2-digit', minute: '2-digit' })
   }
+}
+
+/** Inclusive calendar days from first shortage to resolution (same day = 1). */
+export function shortageDurationDays(parts: Pick<MissingPartDetail, 'createdAt' | 'shortageResolvedAt'>[]): number | null {
+  let firstCreatedMs = Number.POSITIVE_INFINITY
+  let lastResolvedMs = Number.NEGATIVE_INFINITY
+  for (const part of parts) {
+    const created = new Date(part.createdAt).getTime()
+    if (!Number.isNaN(created) && created < firstCreatedMs) firstCreatedMs = created
+    if (!part.shortageResolvedAt) continue
+    const resolved = new Date(part.shortageResolvedAt).getTime()
+    if (!Number.isNaN(resolved) && resolved > lastResolvedMs) lastResolvedMs = resolved
+  }
+  if (!Number.isFinite(firstCreatedMs) || !Number.isFinite(lastResolvedMs) || lastResolvedMs < firstCreatedMs) {
+    return null
+  }
+  const start = new Date(firstCreatedMs)
+  const end = new Date(lastResolvedMs)
+  const startDay = Date.UTC(start.getFullYear(), start.getMonth(), start.getDate())
+  const endDay = Date.UTC(end.getFullYear(), end.getMonth(), end.getDate())
+  return Math.floor((endDay - startDay) / 86_400_000) + 1
 }
 
 export type ModelVehicleCountRow = { model: string; count: number }

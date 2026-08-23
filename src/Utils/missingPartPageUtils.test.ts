@@ -13,7 +13,8 @@ import {
   MP_FILTER_UNASSIGNED,
   openVehicleShortageLines,
   uniqueVehicleReps,
-  completerNames
+  completerNames,
+  shortageDurationDays
 } from './missingPartPageUtils'
 import type { MissingPartFilters } from '../Types/missingPart'
 
@@ -236,6 +237,40 @@ describe('vehicle shortage helpers', () => {
     const open = openVehicleShortageLines('v1', items)
     expect(open).toHaveLength(1)
     expect(open[0].status).toBe('open')
+  })
+})
+
+describe('shortageDurationDays', () => {
+  it('counts inclusive calendar days from first created to last resolved', () => {
+    expect(
+      shortageDurationDays([
+        {
+          createdAt: '2026-08-20T09:19:00',
+          shortageResolvedAt: '2026-08-20T18:00:00'
+        }
+      ])
+    ).toBe(1)
+    expect(
+      shortageDurationDays([
+        {
+          createdAt: '2026-08-20T09:19:00',
+          shortageResolvedAt: '2026-08-23T08:00:00'
+        }
+      ])
+    ).toBe(4)
+  })
+
+  it('uses earliest created and latest resolved across parts', () => {
+    expect(
+      shortageDurationDays([
+        { createdAt: '2026-08-20T10:00:00', shortageResolvedAt: '2026-08-21T10:00:00' },
+        { createdAt: '2026-08-21T08:00:00', shortageResolvedAt: '2026-08-22T12:00:00' }
+      ])
+    ).toBe(3)
+  })
+
+  it('returns null when unresolved', () => {
+    expect(shortageDurationDays([{ createdAt: '2026-08-20T09:19:00', shortageResolvedAt: null }])).toBeNull()
   })
 })
 

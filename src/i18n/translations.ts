@@ -2046,7 +2046,8 @@ export const translations = {
         createdAt: 'التاريخ',
         actions: '',
         completer: 'المتمم',
-        resolvedAt: 'تاريخ الإنهاء'
+        resolvedAt: 'تاريخ الإنهاء',
+        daysInShortage: 'أيام النواقص'
       },
       success: 'تم تسجيل النقص بنجاح.',
       thread: {
@@ -5564,7 +5565,8 @@ export const translations = {
         createdAt: 'Date',
         actions: '',
         completer: 'Completer',
-        resolvedAt: 'Completed at'
+        resolvedAt: 'Completed at',
+        daysInShortage: 'Days in shortage'
       },
       f: {
         vin: 'VIN / Chassis number',
