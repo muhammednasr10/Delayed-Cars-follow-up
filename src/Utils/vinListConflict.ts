@@ -26,6 +26,42 @@ export function duplicateVinIndices(vins: readonly string[]): Set<number> {
   return dup
 }
 
+/**
+ * VIN keys that appear more than once across active + archive shortages:
+ * multiple vehicle records, or the same VIN present in both open and resolved lists.
+ */
+export function repeatedShortageVinKeys(
+  items: readonly Pick<MissingPartDetail, 'vin' | 'vehicleId' | 'shortageResolvedAt'>[]
+): Set<string> {
+  const vehiclesByVin = new Map<string, Set<string>>()
+  const openVins = new Set<string>()
+  const archivedVins = new Set<string>()
+
+  for (const item of items) {
+    const key = normalizeVinKey(item.vin)
+    if (!key) continue
+    let vehicles = vehiclesByVin.get(key)
+    if (!vehicles) {
+      vehicles = new Set()
+      vehiclesByVin.set(key, vehicles)
+    }
+    vehicles.add(item.vehicleId)
+    if (item.shortageResolvedAt) archivedVins.add(key)
+    else openVins.add(key)
+  }
+
+  const repeated = new Set<string>()
+  for (const [vin, vehicles] of vehiclesByVin) {
+    if (vehicles.size > 1 || (openVins.has(vin) && archivedVins.has(vin))) repeated.add(vin)
+  }
+  return repeated
+}
+
+export function isRepeatedShortageVin(vin: string, repeatedKeys: ReadonlySet<string>): boolean {
+  const key = normalizeVinKey(vin)
+  return Boolean(key && repeatedKeys.has(key))
+}
+
 /** Active shortage lines for a VIN that are not part of the current edit context. */
 export function foreignActivePartsForVin(
   vin: string,

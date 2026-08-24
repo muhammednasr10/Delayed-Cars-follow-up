@@ -187,9 +187,13 @@ export function applyFilters(
   })
 }
 
+export function isOpenShortageLine(part: Pick<MissingPartDetail, 'status' | 'shortageResolvedAt'>): boolean {
+  return !part.shortageResolvedAt && part.status !== 'closed' && part.status !== 'cancelled'
+}
+
 export function canCompleteVehicle(vehicleId: string, parts: MissingPartDetail[]): boolean {
   const lines = parts.filter(p => p.vehicleId === vehicleId)
-  return lines.some(p => !p.shortageResolvedAt && p.status !== 'closed' && p.status !== 'cancelled')
+  return lines.some(isOpenShortageLine)
 }
 
 export function reporterNames(parts: MissingPartDetail[]): string {
@@ -231,7 +235,7 @@ export function uniqueIssueReps(parts: MissingPartDetail[]): MissingPartDetail[]
 }
 
 export function isMissingPartRowOpen(parts: MissingPartDetail[]): boolean {
-  return parts.some(p => p.status !== 'closed' && p.status !== 'cancelled')
+  return parts.some(isOpenShortageLine)
 }
 
 export function openVehicleShortageLines(vehicleId: string, parts: MissingPartDetail[]): MissingPartDetail[] {

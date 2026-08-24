@@ -28,6 +28,7 @@ type Props = {
   activeItems: MissingPartDetail[]
   onSaved: () => void
   vinList: VinListModalPayload | null
+  repeatedVinKeys?: ReadonlySet<string>
   onCloseVinList: () => void
   canCompleteVinList?: boolean
   onCompleteVinListSelected?: (parts: MissingPartDetail[]) => void
@@ -74,6 +75,7 @@ export function MissingPartsPageDialogs({
   activeItems,
   onSaved,
   vinList,
+  repeatedVinKeys,
   onCloseVinList,
   canCompleteVinList = false,
   onCompleteVinListSelected,
@@ -129,6 +131,7 @@ export function MissingPartsPageDialogs({
       />
       <VinListModal
         payload={vinList}
+        repeatedVinKeys={repeatedVinKeys}
         canComplete={canCompleteVinList}
         completeBusy={Boolean(completingVehicleId)}
         onClose={onCloseVinList}

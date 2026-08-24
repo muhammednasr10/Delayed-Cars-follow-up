@@ -17,12 +17,14 @@ import { MissingPartVehicleActions } from './MissingPartVehicleActions'
 import { notesCountForVehicleIds } from '../../services/vehicleNotesService'
 import type { MissingPartDetail } from '../../Types/missingPart'
 import type { MpVehicleActionFlags, MpVehicleListActionProps } from '../../Types/mpVehicleActions'
+import { isRepeatedShortageVin } from '../../Utils/vinListConflict'
 
 export type MissingPartsTableListTab = 'active' | 'history'
 
 export type MissingPartsTableRowProps = {
   listTab: MissingPartsTableListTab
   filtered: MissingPartDetail[]
+  repeatedVinKeys?: ReadonlySet<string>
   canBulkSelect: boolean
   canBulkInstall: boolean
   noteCounts?: Record<string, number>
@@ -35,6 +37,15 @@ export type MissingPartsTableRowProps = {
   deleteTargets: MissingPartDetail[]
 } & MpVehicleActionFlags &
   MpVehicleListActionProps
+
+function VinText({ vin, repeatedVinKeys }: { vin: string; repeatedVinKeys?: ReadonlySet<string> }) {
+  const repeated = isRepeatedShortageVin(vin, repeatedVinKeys ?? new Set())
+  return (
+    <span dir="ltr" className={repeated ? 'font-black text-red-400' : undefined}>
+      {vin}
+    </span>
+  )
+}
 
 export function ReportGroupRow({
   displayRow,
@@ -52,6 +63,7 @@ export function ReportGroupRow({
   const vehicleReps = uniqueVehicleReps(displayRow.items)
   const uniqueIssues = uniqueIssueReps(displayRow.items)
   const multiIssues = uniqueIssues.length > 1
+  const hasRepeatedVin = groupVins.some(vin => isRepeatedShortageVin(vin, props.repeatedVinKeys ?? new Set()))
 
   return (
     <PartDataRow
@@ -60,7 +72,7 @@ export function ReportGroupRow({
       issueCount={issueCount}
       vinCell={
         groupVins.length === 1 ? (
-          <span dir="ltr">{groupVins[0]}</span>
+          <VinText vin={groupVins[0]} repeatedVinKeys={props.repeatedVinKeys} />
         ) : (
           <button
             type="button"
@@ -68,7 +80,11 @@ export function ReportGroupRow({
               e.stopPropagation()
               onOpenVinList(displayRow.items)
             }}
-            className="rounded-lg border border-cyan-500/30 bg-cyan-500/10 px-3 py-1.5 text-sm font-bold text-cyan-300 transition hover:border-cyan-400/50 hover:bg-cyan-500/20"
+            className={`rounded-lg border px-3 py-1.5 text-sm font-bold transition ${
+              hasRepeatedVin
+                ? 'border-red-500/40 bg-red-500/10 text-red-300 hover:border-red-400/50 hover:bg-red-500/20'
+                : 'border-cyan-500/30 bg-cyan-500/10 text-cyan-300 hover:border-cyan-400/50 hover:bg-cyan-500/20'
+            }`}
             title={t('mp.vinListModal.open')}
           >
             {t('mp.vinCount', { n: groupVins.length })}
@@ -106,7 +122,7 @@ export function VehicleRows({
       {...props}
       item={primary}
       issueCount={parts.length}
-      vinCell={<span dir="ltr">{primary.vin}</span>}
+      vinCell={<VinText vin={primary.vin} repeatedVinKeys={props.repeatedVinKeys} />}
       qty={qty}
       reporterLabel={reporterNames(parts)}
       completerLabel={completerNames(parts)}
@@ -144,7 +160,7 @@ export function SinglePartRow({ item, ...props }: MissingPartsTableRowProps & { 
       {...props}
       item={item}
       issueCount={1}
-      vinCell={<span dir="ltr">{item.vin}</span>}
+      vinCell={<VinText vin={item.vin} repeatedVinKeys={props.repeatedVinKeys} />}
       qty={{ installed: item.installedQty, required: item.requiredQty }}
       reporterLabel={reporterNames([item])}
       completerLabel={completerNames([item])}

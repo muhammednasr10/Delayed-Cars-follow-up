@@ -16,6 +16,7 @@ export type ListTab = MissingPartsTableListTab
 type Props = {
   listTab: ListTab
   filtered: MissingPartDetail[]
+  repeatedVinKeys?: ReadonlySet<string>
   loading: boolean
   canBulkSelect: boolean
   canBulkInstall: boolean
@@ -37,6 +38,7 @@ type Props = {
 export function MissingPartsTable({
   listTab,
   filtered,
+  repeatedVinKeys = new Set(),
   loading,
   canBulkSelect,
   canBulkInstall,
@@ -74,6 +76,7 @@ export function MissingPartsTable({
   const rowBase = {
     listTab,
     filtered,
+    repeatedVinKeys,
     canBulkSelect,
     canBulkInstall,
     canEdit,

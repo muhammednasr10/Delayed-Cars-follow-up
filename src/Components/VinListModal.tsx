@@ -4,6 +4,7 @@ import { useLang } from '../i18n/LanguageContext'
 import { Modal } from './Modal'
 import type { MissingPartDetail } from '../Types/missingPart'
 import { uniqueVehicleReps } from '../Utils/missingPartPageUtils'
+import { isRepeatedShortageVin } from '../Utils/vinListConflict'
 
 export type VinListModalPayload = {
   parts: MissingPartDetail[]
@@ -14,6 +15,7 @@ export type VinListModalPayload = {
 
 type Props = {
   payload: VinListModalPayload | null
+  repeatedVinKeys?: ReadonlySet<string>
   canComplete?: boolean
   completeBusy?: boolean
   onClose: () => void
@@ -24,7 +26,14 @@ function isCompletable(part: MissingPartDetail) {
   return !part.shortageResolvedAt && part.status !== 'closed' && part.status !== 'cancelled'
 }
 
-export function VinListModal({ payload, canComplete = false, completeBusy, onClose, onCompleteSelected }: Props) {
+export function VinListModal({
+  payload,
+  repeatedVinKeys = new Set(),
+  canComplete = false,
+  completeBusy,
+  onClose,
+  onCompleteSelected
+}: Props) {
   const { t } = useLang()
   const vehicles = useMemo(() => {
     if (!payload?.parts.length) return []
@@ -132,7 +141,12 @@ export function VinListModal({ payload, canComplete = false, completeBusy, onClo
               } ${canPick ? 'cursor-pointer' : 'cursor-default'}`}
             >
               <p className="text-[10px] font-bold uppercase text-slate-500">{i + 1}</p>
-              <p className="mt-1 font-mono text-base font-black text-cyan-100" dir="ltr">
+              <p
+                className={`mt-1 font-mono text-base font-black ${
+                  isRepeatedShortageVin(vehicle.vin, repeatedVinKeys) ? 'text-red-400' : 'text-cyan-100'
+                }`}
+                dir="ltr"
+              >
                 {vehicle.vin}
               </p>
               {canPick && (

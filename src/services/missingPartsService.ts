@@ -182,7 +182,9 @@ function buildEditChanges(before: ShortageRowLite, input: UpdateMissingPartInput
     changes.push(`نوع الإيقاف ${before.stopper_type ?? 'car_stopper'} ← ${input.stopperType}`)
   }
   const nextNotes = input.notes?.trim() || null
-  if ((before.notes ?? null) !== nextNotes) changes.push('تعديل الملاحظات')
+  if ((before.notes ?? null) !== nextNotes) {
+    changes.push(nextNotes ? `الملاحظات: ${nextNotes}` : 'حذف الملاحظات')
+  }
   return changes
 }
 
@@ -593,7 +595,10 @@ export async function reportMissingPartsBatch(
 
   const row = data as ReportMissingPartsBatchResult & { vehicle_ids?: string[] }
   const vehicleIds = Array.isArray(row.vehicle_ids) ? row.vehicle_ids.filter(Boolean) : []
-  const noteBody = formatShortageReportNote(parts.map(p => p.part_description))
+  const noteBody = formatShortageReportNote(
+    parts.map(p => p.part_description),
+    input.notes
+  )
   if (vehicleIds.length > 0) {
     await logVehicleActivityNotes(vehicleIds.map(vehicleId => ({ vehicleId, body: noteBody })))
   } else {

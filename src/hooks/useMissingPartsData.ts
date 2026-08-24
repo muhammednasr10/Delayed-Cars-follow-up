@@ -19,6 +19,7 @@ import {
   isSchemaMissing
 } from '../Utils/missingPartPageUtils'
 import { buildMissingPartTableRows } from '../Utils/missingPartDisplay'
+import { repeatedShortageVinKeys } from '../Utils/vinListConflict'
 import type { ListTab } from '../Components/missingParts/MissingPartsToolbar'
 
 export function useMissingPartsData() {
@@ -108,6 +109,7 @@ export function useMissingPartsData() {
 
   const activeItems = useMemo(() => scopedItems.filter(i => !i.shortageResolvedAt), [scopedItems])
   const historyItems = useMemo(() => scopedItems.filter(i => !!i.shortageResolvedAt), [scopedItems])
+  const repeatedVinKeys = useMemo(() => repeatedShortageVinKeys(scopedItems), [scopedItems])
   const activeVehicleCount = useMemo(() => new Set(activeItems.map(i => i.vehicleId)).size, [activeItems])
   const historyVehicleCount = useMemo(() => new Set(historyItems.map(i => i.vehicleId)).size, [historyItems])
 
@@ -191,6 +193,7 @@ export function useMissingPartsData() {
     scopedItems,
     activeItems,
     historyItems,
+    repeatedVinKeys,
     tabSource,
     filtered,
     tableRows,

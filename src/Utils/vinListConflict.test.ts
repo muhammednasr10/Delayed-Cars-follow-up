@@ -4,8 +4,10 @@ import {
   duplicateVinIndices,
   findUnresolvedVinConflict,
   foreignActivePartsForVin,
+  isRepeatedShortageVin,
   normalizeVinKey,
   partIdsToClearFromList,
+  repeatedShortageVinKeys,
   sanitizeChassisDigits,
   vinInActiveList
 } from './vinListConflict'
@@ -69,6 +71,29 @@ describe('vinListConflict', () => {
     expect([...duplicateVinIndices(['7286', '7292', '7286'])].sort()).toEqual([0, 2])
     expect(duplicateVinIndices(['7286', '', '7286']).has(1)).toBe(false)
     expect(duplicateVinIndices(['7286', '7292']).size).toBe(0)
+  })
+
+  it('marks vins repeated across open and archive or multiple vehicles', () => {
+    expect(
+      repeatedShortageVinKeys([
+        part({ id: 'a', vin: '6681', vehicleId: 'v1', shortageResolvedAt: null }),
+        part({ id: 'b', vin: '6681', vehicleId: 'v1', shortageResolvedAt: '2026-08-01T00:00:00Z' })
+      ]).has('6681')
+    ).toBe(true)
+    expect(
+      repeatedShortageVinKeys([
+        part({ id: 'a', vin: '6681', vehicleId: 'v1' }),
+        part({ id: 'b', vin: '6681', vehicleId: 'v2' })
+      ]).has('6681')
+    ).toBe(true)
+    expect(
+      repeatedShortageVinKeys([
+        part({ id: 'a', vin: '6681', vehicleId: 'v1' }),
+        part({ id: 'b', vin: '6681', vehicleId: 'v1' }),
+        part({ id: 'c', vin: '6683', vehicleId: 'v3' })
+      ]).has('6681')
+    ).toBe(false)
+    expect(isRepeatedShortageVin('6683', new Set(['6683']))).toBe(true)
   })
 
   it('detects foreign active vins', () => {

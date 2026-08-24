@@ -85,7 +85,8 @@ export function MissingPartsPage() {
     assignMissionBusy,
     workflowRequests,
     selectedVehicleIds,
-    setSelectedVehicleIds
+    setSelectedVehicleIds,
+    repeatedVinKeys
   } = data
 
   const [showReport, setShowReport] = useState(false)
@@ -320,6 +321,7 @@ export function MissingPartsPage() {
           <MissingPartsTable
             listTab={listTab === 'history' ? 'history' : 'active'}
             filtered={filtered}
+            repeatedVinKeys={repeatedVinKeys}
             loading={loading}
             canBulkSelect={canBulkSelectForTab}
             canBulkInstall={canBulkInstall}
@@ -371,6 +373,7 @@ export function MissingPartsPage() {
         activeItems={activeItems}
         onSaved={load}
         vinList={vinList}
+        repeatedVinKeys={repeatedVinKeys}
         onCloseVinList={() => setVinList(null)}
         canCompleteVinList={listTab === 'active' && canComplete}
         onCompleteVinListSelected={parts => {

@@ -24,11 +24,21 @@ export async function logVehicleActivityNotes(
   }
 }
 
-export function formatShortageReportNote(partLabels: string[]): string {
+function withUserNotes(head: string, userNotes?: string | null): string {
+  const extra = userNotes?.trim()
+  if (!extra) return head
+  return `${head}\nملاحظات: ${extra}`
+}
+
+export function formatShortageReportNote(partLabels: string[], userNotes?: string | null): string {
   const labels = partLabels.map(p => p.trim()).filter(Boolean)
-  if (labels.length === 0) return 'تبليغ نقص جديد.'
-  if (labels.length === 1) return `تبليغ نقص جديد: «${labels[0]}».`
-  return `تبليغ نقص جديد (${labels.length}): ${labels.map(l => `«${l}»`).join('، ')}.`
+  const head =
+    labels.length === 0
+      ? 'تبليغ نقص جديد.'
+      : labels.length === 1
+        ? `تبليغ نقص جديد: «${labels[0]}».`
+        : `تبليغ نقص جديد (${labels.length}): ${labels.map(l => `«${l}»`).join('، ')}.`
+  return withUserNotes(head, userNotes)
 }
 
 export function formatShortageFollowUpNote(opts: {

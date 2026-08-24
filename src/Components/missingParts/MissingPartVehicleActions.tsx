@@ -59,7 +59,9 @@ export function MissingPartVehicleActions({
   const { assignableEmployees, canAssignMissions } = useMyOrgScope(employees)
   const { canAssignFollowUp } = useMissingPartsUiPermissions()
   const openShortageMissions = useOpenShortageMissions()
-  const canAct = archiveMode || rowOpen
+  const onCurrentTab = !archiveMode
+  // Any visible row should expose its actions (edit/delete always; current-tab actions when not archive).
+  const canAct = true
   const target = completeRep ?? item
   const completeAll = completeAllReps && completeAllReps.length > 1
   const canArchiveSingle = canCompleteVehicle(target.vehicleId, allItems)
@@ -68,15 +70,15 @@ export function MissingPartVehicleActions({
   const singleBusy = completingVehicleId === target.vehicleId
   const linkedMissions = shortageMissionsForParts(deleteTargets, shortageMissions)
   const canAssign =
-    !archiveMode && rowOpen && canAssignMissions && Boolean(onAssignShortageMission) && assignableEmployees.length > 0
-  const showMissionBtn = !archiveMode && rowOpen && (canAssign || linkedMissions.length > 0)
+    onCurrentTab && canAssignMissions && Boolean(onAssignShortageMission) && assignableEmployees.length > 0
+  const showMissionBtn = onCurrentTab && (canAssign || linkedMissions.length > 0)
 
   const wrapClass =
     layout === 'stacked' ? 'flex flex-wrap items-center justify-end gap-1' : 'flex items-center justify-center gap-1'
 
   return (
     <div className={wrapClass}>
-      {!archiveMode && rowOpen && canUpdateStatus && (
+      {onCurrentTab && canUpdateStatus && (
         <IconBtn
           title={t('mp.act.updateVehicle', { n: issueCount })}
           onClick={() => onUpdate(item)}
@@ -103,7 +105,7 @@ export function MissingPartVehicleActions({
         />
       )}
       {/* Follow-up employees are now assigned inline in the edit/report modals */}
-      {!archiveMode && rowOpen && canNotes && (
+      {onCurrentTab && canNotes && (
         <IconBtn
           title={t('mp.thread.open')}
           onClick={() => onOpenNotes(item)}
@@ -131,7 +133,7 @@ export function MissingPartVehicleActions({
           <Trash2 className={iconSize} />
         </IconBtn>
       )}
-      {!archiveMode && rowOpen && canComplete && completeAll && onCompleteAll && (
+      {onCurrentTab && canComplete && completeAll && onCompleteAll && (
         <IconBtn
           title={canArchiveAnyInGroup ? t('mp.vinListModal.pickToComplete') : t('mp.completeDisabledHint')}
           disabled={!canArchiveAnyInGroup || groupBusy}
@@ -141,7 +143,7 @@ export function MissingPartVehicleActions({
           <CheckCircle2 className={iconSize} />
         </IconBtn>
       )}
-      {!archiveMode && rowOpen && canComplete && !completeAll && (
+      {onCurrentTab && canComplete && !completeAll && (
         <IconBtn
           title={canArchiveSingle ? t('mp.complete') : t('mp.completeDisabledHint')}
           disabled={!canArchiveSingle || singleBusy}
