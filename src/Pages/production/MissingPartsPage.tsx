@@ -23,6 +23,7 @@ import { MissingPartsBulkBar } from '../../Components/missingParts/MissingPartsB
 import { MissingPartsPageDialogs } from '../../Components/missingParts/MissingPartsPageDialogs'
 import { scratchAreaLabel } from '../../Utils/scratchAreaOptions'
 import type { MissingPartDetail } from '../../Types/missingPart'
+import type { MpFollowUpAssignment } from '../../Types/mpVehicleActions'
 import type { VehicleNoteTarget } from '../../Types/vehicleNote'
 import type { VinListModalPayload } from '../../Components/VinListModal'
 
@@ -213,10 +214,8 @@ export function MissingPartsPage() {
         pickComplete: true
       })
     },
-    onAssignFollowUp: (
-      row: MissingPartDetail,
-      assignment: { completingDepartment: string; followUpEmployeeId: string }
-    ) => void actions.applyFollowUp(row, assignment),
+    onAssignFollowUp: (row: MissingPartDetail, assignment: MpFollowUpAssignment) =>
+      void actions.applyFollowUp(row, assignment),
     onAssignShortageMission: assignShortageMission,
     assignMissionBusy,
     shortageMissions
