@@ -1977,7 +1977,14 @@ export const translations = {
         title: 'بيانات السيارة',
         vinCountSubtitle: '{n} شاسيه',
         chassisList: 'أرقام الشاسيه ({n})',
-        section: { vehicle: 'بيانات السيارة', issues: 'النواقص', station: 'المحطة', reporter: 'المبلّغ' },
+        section: {
+          vehicle: 'بيانات السيارة',
+          issues: 'النواقص',
+          sharedIssues: 'مشترك على كل الـ {n} شاسيه',
+          branchIssues: 'نواقص إضافية على شاسيه معيّن',
+          station: 'المحطة',
+          reporter: 'المبلّغ'
+        },
         noIssues: 'لا توجد نواقص مسجّلة.',
         archiveAction: 'ترحيل',
         archiveBadge: 'تم ترحيلها',
@@ -5515,7 +5522,14 @@ export const translations = {
         title: 'Vehicle details',
         vinCountSubtitle: '{n} chassis',
         chassisList: 'Chassis numbers ({n})',
-        section: { vehicle: 'Vehicle info', issues: 'Shortages', station: 'Station', reporter: 'Reporter' },
+        section: {
+          vehicle: 'Vehicle info',
+          issues: 'Shortages',
+          sharedIssues: 'Shared across all {n} chassis',
+          branchIssues: 'Extra shortages on specific chassis',
+          station: 'Station',
+          reporter: 'Reporter'
+        },
         noIssues: 'No shortages recorded.',
         archiveAction: 'Archive',
         archiveBadge: 'Archived',

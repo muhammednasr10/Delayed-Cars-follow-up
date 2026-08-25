@@ -177,8 +177,8 @@ export function MissingPartsPage() {
 
   useEffect(() => {
     if (!vehicleCardParts?.length) return
-    const vid = vehicleCardParts[0].vehicleId
-    const next = items.filter(p => p.vehicleId === vid)
+    const vids = new Set(vehicleCardParts.map(p => p.vehicleId))
+    const next = items.filter(p => vids.has(p.vehicleId))
     setVehicleCardParts(next.length ? next : null)
   }, [items])
 
@@ -358,7 +358,10 @@ export function MissingPartsPage() {
                 pickComplete: Boolean(pickComplete)
               })
             }}
-            onRowClick={setVehicleCardParts}
+            onRowClick={parts => {
+              const vids = new Set(parts.map(p => p.vehicleId))
+              setVehicleCardParts(tabSource.filter(p => vids.has(p.vehicleId)))
+            }}
             {...rowActions}
           />
         )}

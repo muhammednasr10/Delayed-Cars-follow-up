@@ -4,6 +4,10 @@ import { useMpLookups } from '../../hooks/useMpLookups'
 import { mpLookupLabel } from '../../Utils/mpLookupLabel'
 import { formatVehicleColorLabel } from '../../Utils/vehicleColorLabel'
 import { formatDateTime, uniqueVehicleReps } from '../../Utils/missingPartPageUtils'
+import {
+  branchPartsForGroupVehicle,
+  mainPartsForReportGroup
+} from '../../Utils/mergeShortageReportGroup'
 import { Modal } from '../Modal'
 import type { MissingPartDetail } from '../../Types/missingPart'
 
@@ -38,6 +42,85 @@ function uniqueLabels(values: Array<string | null | undefined>): string {
   return names.length > 0 ? names.join(' · ') : '—'
 }
 
+function IssueCard({
+  part,
+  lang,
+  reasons,
+  departments,
+  canTransferIssue,
+  onTransferIssue,
+  transferringPartId,
+  completingVehicleId,
+  t
+}: {
+  part: MissingPartDetail
+  lang: string
+  reasons: ReturnType<typeof useMpLookups>['reasons']
+  departments: ReturnType<typeof useMpLookups>['departments']
+  canTransferIssue?: boolean
+  onTransferIssue?: (part: MissingPartDetail) => void | Promise<void>
+  transferringPartId?: string | null
+  completingVehicleId?: string | null
+  t: (key: string, vars?: Record<string, string | number>) => string
+}) {
+  const { date, time } = formatDateTime(part.createdAt, lang)
+  const issueOpen = part.status !== 'closed' && part.status !== 'cancelled' && !part.shortageResolvedAt
+  const transferPending = Boolean(part.pendingTransferRequestId)
+
+  return (
+    <div className="rounded-lg border border-slate-800 bg-slate-900/60 px-3 py-2.5">
+      <div className="flex items-start justify-between gap-2">
+        <p className="font-medium text-slate-100">{part.partDescription}</p>
+        <div className="flex shrink-0 flex-col items-end gap-1.5">
+          <span className="font-mono text-xs tabular-nums text-slate-400">
+            <span className="text-cyan-200">{part.installedQty}</span>
+            <span className="text-slate-600">/</span>
+            <span>{part.requiredQty}</span>
+          </span>
+          {canTransferIssue && onTransferIssue && issueOpen && !transferPending && (
+            <button
+              type="button"
+              disabled={Boolean(transferringPartId) || completingVehicleId === part.vehicleId}
+              onClick={() => onTransferIssue(part)}
+              className="rounded-lg border border-emerald-500/40 bg-emerald-500/15 px-2.5 py-1 text-[11px] font-black text-emerald-200 hover:bg-emerald-500/25 disabled:opacity-40"
+            >
+              {transferringPartId === part.id ? '...' : t('mp.vehicleCard.transferIssue')}
+            </button>
+          )}
+          {transferPending && (
+            <span className="rounded-full bg-amber-500/15 px-2 py-0.5 text-[10px] font-black text-amber-200">
+              {t('mp.workflow.transferPending')}
+            </span>
+          )}
+          {!!part.transferredAt && (
+            <span className="rounded-full bg-emerald-500/15 px-2 py-0.5 text-[10px] font-black text-emerald-200">
+              {t('mp.vehicleCard.archiveBadge')}
+            </span>
+          )}
+        </div>
+      </div>
+      <dl className="mt-2 grid grid-cols-1 gap-2 sm:grid-cols-2">
+        <Field label={t('mp.cols.reasonClass')} value={mpLookupLabel(reasons, part.reason, lang)} />
+        <Field label={t('mp.cols.causingDepartment')} value={mpLookupLabel(departments, part.department, lang)} />
+        <Field
+          label={t('mp.cols.followUpEmployee')}
+          value={part.followUpEmployeeNames?.trim() || part.followUpEmployeeName?.trim() || '—'}
+        />
+        <Field
+          label={t('mp.cols.completingDepartment')}
+          value={mpLookupLabel(departments, part.completingDepartment ?? '', lang)}
+        />
+      </dl>
+      <p className="mt-2 text-xs text-slate-500">
+        {date} {time}
+      </p>
+      {part.notes?.trim() && (
+        <p className="mt-1.5 whitespace-pre-wrap text-xs text-slate-500">{part.notes}</p>
+      )}
+    </div>
+  )
+}
+
 export function VehicleCardModal({
   parts,
   orgUnitLabel,
@@ -68,8 +151,7 @@ export function VehicleCardModal({
   const restoreTarget = vehicles.find(v => v.shortageResolvedAt) ?? rep
   const models = uniqueLabels(vehicles.map(v => v.modelName))
   const colors = uniqueLabels(vehicles.map(v => formatVehicleColorLabel(v.colorName, v.colorCode)))
-  const orgLabel =
-    orgUnitLabelFor?.(rep.factoryOrgUnitId) || orgUnitLabel || '—'
+  const orgLabel = orgUnitLabelFor?.(rep.factoryOrgUnitId) || orgUnitLabel || '—'
   const mixedOrg = vehicles.some(
     v => (orgUnitLabelFor?.(v.factoryOrgUnitId) || orgUnitLabel || '—') !== orgLabel
   )
@@ -81,10 +163,32 @@ export function VehicleCardModal({
     )
   )
 
+  const sharedIssues = multiVin ? mainPartsForReportGroup(parts) : []
+  const useGroupLayout = multiVin && sharedIssues.length > 0
+  const branchBlocks = useGroupLayout
+    ? vehicles
+        .map(v => ({
+          vehicle: v,
+          issues: branchPartsForGroupVehicle(v.vehicleId, parts)
+        }))
+        .filter(b => b.issues.length > 0)
+    : []
+
   const partsByVehicle = vehicles.map(v => ({
     vehicle: v,
     issues: parts.filter(p => p.vehicleId === v.vehicleId)
   }))
+
+  const issueCardProps = {
+    lang,
+    reasons,
+    departments,
+    canTransferIssue,
+    onTransferIssue,
+    transferringPartId,
+    completingVehicleId,
+    t
+  }
 
   return (
     <Modal
@@ -144,7 +248,10 @@ export function VehicleCardModal({
                   className="rounded-xl border border-cyan-500/25 bg-cyan-500/5 px-3 py-2.5 text-center"
                 >
                   {multiVin && <p className="text-[10px] font-bold uppercase text-slate-500">{i + 1}</p>}
-                  <p className={`font-mono font-black text-cyan-100 ${multiVin ? 'mt-1 text-base' : 'text-xl'}`} dir="ltr">
+                  <p
+                    className={`font-mono font-black text-cyan-100 ${multiVin ? 'mt-1 text-base' : 'text-xl'}`}
+                    dir="ltr"
+                  >
                     {vin}
                   </p>
                   {multiVin && (
@@ -173,86 +280,68 @@ export function VehicleCardModal({
           </dl>
         </section>
 
-        <section className="rounded-xl border border-slate-700 bg-slate-950/60 p-4">
-          <h3 className="mb-3 text-xs font-black uppercase text-amber-400">
-            {t('mp.vehicleCard.section.issues')} ({parts.length})
-          </h3>
-          <div className="space-y-3">
-            {partsByVehicle.map(({ vehicle, issues }) => (
-              <div key={vehicle.vehicleId} className="space-y-2">
-                {multiVin && (
-                  <p className="text-xs font-black text-cyan-200">
-                    {t('mp.cols.vin')} <span className="font-mono" dir="ltr">{vehicle.vin}</span>
-                    <span className="ms-2 font-medium text-slate-400">{vehicle.modelName}</span>
-                  </p>
-                )}
-                {issues.map(p => {
-                  const { date, time } = formatDateTime(p.createdAt, lang)
-                  const issueOpen = p.status !== 'closed' && p.status !== 'cancelled' && !p.shortageResolvedAt
-                  const transferPending = Boolean(p.pendingTransferRequestId)
-                  return (
-                    <div key={p.id} className="rounded-lg border border-slate-800 bg-slate-900/60 px-3 py-2.5">
-                      <div className="flex items-start justify-between gap-2">
-                        <p className="font-medium text-slate-100">{p.partDescription}</p>
-                        <div className="flex shrink-0 flex-col items-end gap-1.5">
-                          <span className="font-mono text-xs tabular-nums text-slate-400">
-                            <span className="text-cyan-200">{p.installedQty}</span>
-                            <span className="text-slate-600">/</span>
-                            <span>{p.requiredQty}</span>
-                          </span>
-                          {canTransferIssue && onTransferIssue && issueOpen && !transferPending && (
-                            <button
-                              type="button"
-                              disabled={Boolean(transferringPartId) || completingVehicleId === p.vehicleId}
-                              onClick={() => onTransferIssue(p)}
-                              className="rounded-lg border border-emerald-500/40 bg-emerald-500/15 px-2.5 py-1 text-[11px] font-black text-emerald-200 hover:bg-emerald-500/25 disabled:opacity-40"
-                            >
-                              {transferringPartId === p.id ? '...' : t('mp.vehicleCard.transferIssue')}
-                            </button>
-                          )}
-                          {transferPending && (
-                            <span className="rounded-full bg-amber-500/15 px-2 py-0.5 text-[10px] font-black text-amber-200">
-                              {t('mp.workflow.transferPending')}
-                            </span>
-                          )}
-                          {!!p.transferredAt && (
-                            <span className="rounded-full bg-emerald-500/15 px-2 py-0.5 text-[10px] font-black text-emerald-200">
-                              {t('mp.vehicleCard.archiveBadge')}
-                            </span>
-                          )}
-                        </div>
-                      </div>
-                      <dl className="mt-2 grid grid-cols-1 gap-2 sm:grid-cols-2">
-                        <Field
-                          label={t('mp.cols.reasonClass')}
-                          value={mpLookupLabel(reasons, p.reason, lang)}
-                        />
-                        <Field
-                          label={t('mp.cols.causingDepartment')}
-                          value={mpLookupLabel(departments, p.department, lang)}
-                        />
-                        <Field
-                          label={t('mp.cols.followUpEmployee')}
-                          value={p.followUpEmployeeNames?.trim() || p.followUpEmployeeName?.trim() || '—'}
-                        />
-                        <Field
-                          label={t('mp.cols.completingDepartment')}
-                          value={mpLookupLabel(departments, p.completingDepartment ?? '', lang)}
-                        />
-                      </dl>
-                      <p className="mt-2 text-xs text-slate-500">
-                        {date} {time}
-                      </p>
-                      {p.notes?.trim() && (
-                        <p className="mt-1.5 whitespace-pre-wrap text-xs text-slate-500">{p.notes}</p>
-                      )}
-                    </div>
-                  )
-                })}
+        {useGroupLayout ? (
+          <>
+            <section className="rounded-xl border border-cyan-500/25 bg-cyan-500/5 p-4">
+              <h3 className="mb-3 text-xs font-black uppercase text-cyan-300">
+                {t('mp.vehicleCard.section.sharedIssues', { n: vins.length })}
+              </h3>
+              <div className="space-y-2">
+                {sharedIssues.map(p => (
+                  <IssueCard key={`shared-${p.partDescription}-${p.reason}`} part={p} {...issueCardProps} />
+                ))}
               </div>
-            ))}
-          </div>
-        </section>
+            </section>
+
+            {branchBlocks.length > 0 && (
+              <section className="rounded-xl border border-slate-700 bg-slate-950/60 p-4">
+                <h3 className="mb-3 text-xs font-black uppercase text-amber-400">
+                  {t('mp.vehicleCard.section.branchIssues')} ({branchBlocks.length})
+                </h3>
+                <div className="space-y-4">
+                  {branchBlocks.map(({ vehicle, issues }) => (
+                    <div
+                      key={vehicle.vehicleId}
+                      className="space-y-2 border-s-2 border-cyan-500/35 ps-3"
+                    >
+                      <p className="text-xs font-black text-cyan-200">
+                        <span className="me-1.5 font-mono text-slate-500" aria-hidden>
+                          └
+                        </span>
+                        {t('mp.cols.vin')} <span className="font-mono" dir="ltr">{vehicle.vin}</span>
+                        <span className="ms-2 font-medium text-slate-400">{vehicle.modelName}</span>
+                      </p>
+                      {issues.map(p => (
+                        <IssueCard key={p.id} part={p} {...issueCardProps} />
+                      ))}
+                    </div>
+                  ))}
+                </div>
+              </section>
+            )}
+          </>
+        ) : (
+          <section className="rounded-xl border border-slate-700 bg-slate-950/60 p-4">
+            <h3 className="mb-3 text-xs font-black uppercase text-amber-400">
+              {t('mp.vehicleCard.section.issues')} ({parts.length})
+            </h3>
+            <div className="space-y-3">
+              {partsByVehicle.map(({ vehicle, issues }) => (
+                <div key={vehicle.vehicleId} className="space-y-2">
+                  {multiVin && (
+                    <p className="text-xs font-black text-cyan-200">
+                      {t('mp.cols.vin')} <span className="font-mono" dir="ltr">{vehicle.vin}</span>
+                      <span className="ms-2 font-medium text-slate-400">{vehicle.modelName}</span>
+                    </p>
+                  )}
+                  {issues.map(p => (
+                    <IssueCard key={p.id} part={p} {...issueCardProps} />
+                  ))}
+                </div>
+              ))}
+            </div>
+          </section>
+        )}
       </div>
     </Modal>
   )
