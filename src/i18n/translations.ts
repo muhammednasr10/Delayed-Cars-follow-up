@@ -2017,7 +2017,8 @@ export const translations = {
         needIssueForNewVin: 'أضف سبب نقص واحد على الأقل قبل إضافة شاسيه جديد.',
         modelResolveHint: 'تعذّر مطابقة الموديل — احفظ بعد التأكد من بيانات السيارة.',
         vinConflictTitle: 'شاسيه موجود في القائمة',
-        vinConflictMessage: 'السيارة {vin} موجودة في قائمة النواقص. ماذا تريد؟',
+        vinConflictMessage:
+          'السيارة {vin} موجودة بالفعل في النواقص الحالية — غالباً ضمن تبليغ متعدد الشاسيه (زرار «عدد شاسيه» في الجدول). مش محتاج تضيف نفس الرقم تاني على نفس التبليغ.',
         vinConflictMove: 'شيله من القائمة وضيفه هنا',
         vinConflictKeep: 'سيبه في القائمة وضيفه هنا كمان',
         vinConflictSkip: 'متضيفوش'
@@ -5536,7 +5537,8 @@ export const translations = {
         needIssueForNewVin: 'Add at least one shortage reason before adding a new chassis.',
         modelResolveHint: 'Could not match the model — verify vehicle details before saving.',
         vinConflictTitle: 'Chassis already in the list',
-        vinConflictMessage: 'Vehicle {vin} is already in the shortages list. What do you want to do?',
+        vinConflictMessage:
+          'Vehicle {vin} is already in current shortages — usually inside a multi-chassis report (the chassis-count button in the table). You do not need to add the same number again on that report.',
         vinConflictMove: 'Remove from list and add here',
         vinConflictKeep: 'Keep in list and also add here',
         vinConflictSkip: 'Do not add'

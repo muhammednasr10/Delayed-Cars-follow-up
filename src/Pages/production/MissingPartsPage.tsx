@@ -150,9 +150,9 @@ export function MissingPartsPage() {
   }
 
   function openEdit(row: MissingPartDetail) {
-    const members = editableMembers(row, filtered, listTab)
+    const members = editableMembers(row, tabSource, listTab)
     if (members.length === 0) return
-    if (isReportGroup(row, filtered) && row.reportGroupId) {
+    if (isReportGroup(row, tabSource) && row.reportGroupId) {
       setEditGroup({
         reportGroupId: row.reportGroupId,
         modelName: row.modelName,
@@ -164,7 +164,7 @@ export function MissingPartsPage() {
       })
       setEditVehicle(null)
     } else {
-      setEditVehicle(vehicleIssuesContext(row, filtered, listTab))
+      setEditVehicle(vehicleIssuesContext(row, tabSource, listTab))
       setEditGroup(null)
     }
   }

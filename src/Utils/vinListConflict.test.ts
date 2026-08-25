@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import type { MissingPartDetail } from '../Types/missingPart'
 import {
+  chassisNeedingListConflictCheck,
   duplicateVinIndices,
   findUnresolvedVinConflict,
   foreignActivePartsForVin,
@@ -103,11 +104,29 @@ describe('vinListConflict', () => {
     expect(foreignActivePartsForVin('7292', list, owned).map(p => p.id)).toEqual(['b'])
   })
 
+  it('ignores closed, cancelled, and archived lines as list conflicts', () => {
+    const mixed = [
+      part({ id: 'c', vin: '6697', status: 'cancelled' }),
+      part({ id: 'd', vin: '6697', status: 'closed' }),
+      part({ id: 'e', vin: '6698', shortageResolvedAt: '2026-08-01T00:00:00Z' })
+    ]
+    expect(vinInActiveList('6697', mixed, new Set())).toBe(false)
+    expect(vinInActiveList('6698', mixed, new Set())).toBe(false)
+  })
+
   it('finds unresolved conflicts and clear ids', () => {
     const empty = new Set<string>()
     expect(findUnresolvedVinConflict(['7292'], empty, list, empty)).toBe('7292')
     expect(findUnresolvedVinConflict(['7292'], new Set(['7292']), list, empty)).toBe(null)
+    expect(findUnresolvedVinConflict(['7292'], empty, list, empty, new Set(['7292']))).toBe(null)
     expect(partIdsToClearFromList(new Set(['7292']), ['7292'], list, empty)).toEqual(['b'])
     expect(normalizeVinKey(' 7286 ')).toBe('7286')
+  })
+
+  it('does not treat chassis already on the report as list conflicts', () => {
+    const owned = new Set(['6697', '6698', '6699', '6700'])
+    expect(chassisNeedingListConflictCheck(['6697', '6698', '6699', '6700'], owned)).toEqual([])
+    expect(chassisNeedingListConflictCheck([], owned)).toEqual([])
+    expect(chassisNeedingListConflictCheck(['5555'], owned)).toEqual(['5555'])
   })
 })

@@ -17,7 +17,7 @@ import { useVinListConflict } from '../hooks/useVinListConflict'
 import { MpIssueLookupsFields } from './missingParts/MpIssueLookupsFields'
 import { defaultDepartmentCode, defaultReasonCode } from '../Utils/mpLookupLabel'
 import { isValidVinLength } from '../Utils/vinValidation'
-import { normalizeVinKey, vinInActiveList } from '../Utils/vinListConflict'
+import { normalizeVinKey, chassisNeedingListConflictCheck } from '../Utils/vinListConflict'
 import { uniqueIssueReps } from '../Utils/missingPartPageUtils'
 
 type Props = {
@@ -227,8 +227,11 @@ export function EditReportGroupModal({ group, activeListParts = [], onClose, onS
       }
     }
 
-    const conflictCandidates = normalizedVins.filter(v => vinInActiveList(v, activeListParts, ownedPartIds))
-    if (requireResolved(conflictCandidates, vins)) {
+    const conflictCandidates = chassisNeedingListConflictCheck(
+      [...newVins, ...renamedRows.map(r => r.vin)],
+      ownedVins
+    )
+    if (conflictCandidates.length > 0 && requireResolved(conflictCandidates, vins)) {
       setError(t('mp.edit.vinConflictTitle'))
       return
     }
@@ -414,7 +417,11 @@ export function EditReportGroupModal({ group, activeListParts = [], onClose, onS
               setVinRows(prev => prev.map((row, idx) => (idx === i ? { ...row, vin: next } : row)))
             }
             onRemove={removeVinAt}
-            onVinReady={promptIfNeeded}
+            onVinReady={(index, vin) => {
+              const row = vinRows[index]
+              if (row?.originalVin && normalizeVinKey(row.originalVin) === normalizeVinKey(vin)) return
+              promptIfNeeded(index, vin)
+            }}
             onVinDiscarded={forgetDecision}
           />
 

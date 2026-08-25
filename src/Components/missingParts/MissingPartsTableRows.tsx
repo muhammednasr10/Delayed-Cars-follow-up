@@ -80,14 +80,19 @@ export function ReportGroupRow({
               e.stopPropagation()
               onOpenVinList(displayRow.items)
             }}
-            className={`rounded-lg border px-3 py-1.5 text-sm font-bold transition ${
+            className={`max-w-[14rem] rounded-lg border px-3 py-1.5 text-sm font-bold transition ${
               hasRepeatedVin
                 ? 'border-red-500/40 bg-red-500/10 text-red-300 hover:border-red-400/50 hover:bg-red-500/20'
                 : 'border-cyan-500/30 bg-cyan-500/10 text-cyan-300 hover:border-cyan-400/50 hover:bg-cyan-500/20'
             }`}
             title={t('mp.vinListModal.open')}
           >
-            {t('mp.vinCount', { n: groupVins.length })}
+            <span className="flex flex-wrap items-center justify-center gap-x-2 gap-y-0.5 font-mono text-[13px] leading-tight">
+              {groupVins.map(vin => (
+                <VinText key={vin} vin={vin} repeatedVinKeys={props.repeatedVinKeys} />
+              ))}
+            </span>
+            <span className="mt-0.5 block text-[10px] font-bold opacity-80">{t('mp.vinCount', { n: groupVins.length })}</span>
           </button>
         )
       }

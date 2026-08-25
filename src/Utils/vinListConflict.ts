@@ -1,4 +1,5 @@
 import type { MissingPartDetail } from '../Types/missingPart'
+import { isOpenShortageLine } from './missingPartPageUtils'
 import { CHASSIS_VIN_LENGTH, isValidVinLength, normalizeChassisVin } from './vinValidation'
 
 export type VinConflictChoice = 'move' | 'keep' | 'skip'
@@ -62,7 +63,7 @@ export function isRepeatedShortageVin(vin: string, repeatedKeys: ReadonlySet<str
   return Boolean(key && repeatedKeys.has(key))
 }
 
-/** Active shortage lines for a VIN that are not part of the current edit context. */
+/** Open shortage lines for a VIN that are not part of the current edit context. */
 export function foreignActivePartsForVin(
   vin: string,
   activeListParts: MissingPartDetail[],
@@ -71,7 +72,10 @@ export function foreignActivePartsForVin(
   const key = normalizeVinKey(vin)
   if (!isValidVinLength(key)) return []
   return activeListParts.filter(
-    p => normalizeVinKey(p.vin) === key && !excludePartIds.has(p.id)
+    p =>
+      isOpenShortageLine(p) &&
+      normalizeVinKey(p.vin) === key &&
+      !excludePartIds.has(p.id)
   )
 }
 
@@ -83,16 +87,32 @@ export function vinInActiveList(
   return foreignActivePartsForVin(vin, activeListParts, excludePartIds).length > 0
 }
 
-/** First new VIN that still needs a move/keep/skip choice against the active list. */
+/** VINs newly added or renamed onto this report — never the chassis already on it. */
+export function chassisNeedingListConflictCheck(
+  addedOrRenamedVins: readonly string[],
+  ownedVins: ReadonlySet<string>
+): string[] {
+  const seen = new Set<string>()
+  const out: string[] = []
+  for (const vin of addedOrRenamedVins) {
+    const key = normalizeVinKey(vin)
+    if (!isValidVinLength(key) || ownedVins.has(key) || seen.has(key)) continue
+    seen.add(key)
+    out.push(key)
+  }
+  return out
+}
+
 export function findUnresolvedVinConflict(
   candidateVins: string[],
   resolvedConflicts: ReadonlySet<string>,
   activeListParts: MissingPartDetail[],
-  excludePartIds: ReadonlySet<string>
+  excludePartIds: ReadonlySet<string>,
+  ownedVins: ReadonlySet<string> = new Set()
 ): string | null {
   for (const vin of candidateVins) {
     const key = normalizeVinKey(vin)
-    if (!isValidVinLength(key) || resolvedConflicts.has(key)) continue
+    if (!isValidVinLength(key) || resolvedConflicts.has(key) || ownedVins.has(key)) continue
     if (vinInActiveList(key, activeListParts, excludePartIds)) return key
   }
   return null

@@ -1,4 +1,4 @@
-import { useCallback, useState } from 'react'
+import { useCallback, useMemo, useState } from 'react'
 import type { MissingPartDetail } from '../Types/missingPart'
 import {
   findUnresolvedVinConflict,
@@ -26,6 +26,14 @@ export function useVinListConflict({ activeListParts, ownedPartIds, ownedVins }:
   const [vinsToClear, setVinsToClear] = useState<Set<string>>(() => new Set())
   const [resolvedConflicts, setResolvedConflicts] = useState<Set<string>>(() => new Set())
   const [conflict, setConflict] = useState<ConflictState | null>(null)
+
+  const excludePartIds = useMemo(() => {
+    const ids = new Set(ownedPartIds)
+    for (const part of activeListParts) {
+      if (ownedVins.has(normalizeVinKey(part.vin))) ids.add(part.id)
+    }
+    return ids
+  }, [activeListParts, ownedPartIds, ownedVins])
 
   const reset = useCallback(() => {
     setVinsToClear(new Set())
@@ -55,10 +63,10 @@ export function useVinListConflict({ activeListParts, ownedPartIds, ownedVins }:
       const key = normalizeVinKey(raw)
       if (!isValidVinLength(key) || ownedVins.has(key) || conflict) return
       if (resolvedConflicts.has(key)) return
-      if (!vinInActiveList(key, activeListParts, ownedPartIds)) return
+      if (!vinInActiveList(key, activeListParts, excludePartIds)) return
       setConflict({ vin: key, index })
     },
-    [activeListParts, ownedPartIds, ownedVins, resolvedConflicts, conflict]
+    [activeListParts, excludePartIds, ownedVins, resolvedConflicts, conflict]
   )
 
   const choose = useCallback(
@@ -89,20 +97,21 @@ export function useVinListConflict({ activeListParts, ownedPartIds, ownedVins }:
         candidateVins,
         resolvedConflicts,
         activeListParts,
-        ownedPartIds
+        excludePartIds,
+        ownedVins
       )
       if (!unresolved) return null
       const idx = rows.findIndex(x => normalizeVinKey(x) === unresolved)
       setConflict({ vin: unresolved, index: Math.max(0, idx) })
       return unresolved
     },
-    [resolvedConflicts, activeListParts, ownedPartIds]
+    [resolvedConflicts, activeListParts, excludePartIds, ownedVins]
   )
 
   const clearPartIds = useCallback(
     (candidateVins: string[]) =>
-      partIdsToClearFromList(vinsToClear, candidateVins, activeListParts, ownedPartIds),
-    [vinsToClear, activeListParts, ownedPartIds]
+      partIdsToClearFromList(vinsToClear, candidateVins, activeListParts, excludePartIds),
+    [vinsToClear, activeListParts, excludePartIds]
   )
 
   return {
