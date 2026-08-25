@@ -1,6 +1,10 @@
 import { describe, expect, it } from 'vitest'
 import type { MissingPartDetail } from '../Types/missingPart'
-import { planMergeSelectedVehicles, shortageIssueKey } from './mergeShortageReportGroup'
+import {
+  listMergeIssueOptions,
+  planMergeSelectedVehicles,
+  shortageIssueKey
+} from './mergeShortageReportGroup'
 
 function part(
   overrides: Partial<MissingPartDetail> & Pick<MissingPartDetail, 'id' | 'vehicleId' | 'vin'>
@@ -59,10 +63,40 @@ describe('planMergeSelectedVehicles', () => {
     const plan = planMergeSelectedVehicles(['v1', 'v2'], pool)
     expect(plan.ok).toBe(true)
     if (!plan.ok) return
-    expect(plan.partIds).toEqual(['a', 'b'])
+    expect(plan.attachIds).toEqual(['a', 'b'])
+    expect(plan.detachIds).toEqual([])
     expect(plan.vehicleCount).toBe(2)
     expect(plan.issueLabel).toBe('بدون كراسي بالكامل')
     expect(plan.reportGroupId).toBeTruthy()
+  })
+
+  it('asks for a primary reason when issues differ', () => {
+    const pool = [
+      part({ id: 'a', vehicleId: 'v1', vin: '0001' }),
+      part({ id: 'b', vehicleId: 'v2', vin: '0002', partDescription: 'بدون حزام' })
+    ]
+    const plan = planMergeSelectedVehicles(['v1', 'v2'], pool)
+    expect(plan.ok).toBe(false)
+    if (plan.ok) return
+    expect(plan.error).toBe('needPrimaryReason')
+    expect(plan.options).toHaveLength(2)
+  })
+
+  it('merges mixed reasons with a chosen primary and detaches extras on shared VINs', () => {
+    const seat = 'بدون كراسي بالكامل|stock_shortage|trim'
+    const pool = [
+      part({ id: 'a', vehicleId: 'v1', vin: '0001' }),
+      part({ id: 'a2', vehicleId: 'v1', vin: '0001', partDescription: 'بدون حزام', reason: 'other' }),
+      part({ id: 'b', vehicleId: 'v2', vin: '0002' }),
+      part({ id: 'c', vehicleId: 'v3', vin: '0003', partDescription: 'بدون صاجة', reason: 'damage' })
+    ]
+    const plan = planMergeSelectedVehicles(['v1', 'v2', 'v3'], pool, seat)
+    expect(plan.ok).toBe(true)
+    if (!plan.ok) return
+    expect(plan.attachIds.sort()).toEqual(['a', 'b', 'c'].sort())
+    expect(plan.detachIds).toEqual(['a2'])
+    expect(plan.issueLabel).toBe('بدون كراسي بالكامل')
+    expect(plan.branchLineCount).toBe(1)
   })
 
   it('reuses an existing report group id when merging into a group', () => {
@@ -75,18 +109,7 @@ describe('planMergeSelectedVehicles', () => {
     expect(plan.ok).toBe(true)
     if (!plan.ok) return
     expect(plan.reportGroupId).toBe('grp-1')
-    expect(plan.partIds).toEqual(['a', 'b', 'c'])
-  })
-
-  it('rejects different reasons', () => {
-    const pool = [
-      part({ id: 'a', vehicleId: 'v1', vin: '0001' }),
-      part({ id: 'b', vehicleId: 'v2', vin: '0002', partDescription: 'بدون حزام' })
-    ]
-    expect(planMergeSelectedVehicles(['v1', 'v2'], pool)).toEqual({
-      ok: false,
-      error: 'differentReasons'
-    })
+    expect(plan.attachIds).toEqual(['a', 'b', 'c'])
   })
 
   it('rejects a single vehicle', () => {
@@ -94,7 +117,7 @@ describe('planMergeSelectedVehicles', () => {
     expect(planMergeSelectedVehicles(['v1'], pool)).toEqual({ ok: false, error: 'needAtLeastTwo' })
   })
 
-  it('rejects when selection is already one complete group', () => {
+  it('rejects when selection is already one complete group with one issue', () => {
     const pool = [
       part({ id: 'a', vehicleId: 'v1', vin: '0001', reportGroupId: 'grp-1' }),
       part({ id: 'b', vehicleId: 'v2', vin: '0002', reportGroupId: 'grp-1' })
@@ -103,6 +126,17 @@ describe('planMergeSelectedVehicles', () => {
       ok: false,
       error: 'alreadyGrouped'
     })
+  })
+
+  it('lists merge options by vehicle coverage', () => {
+    const parts = [
+      part({ id: 'a', vehicleId: 'v1', vin: '1' }),
+      part({ id: 'b', vehicleId: 'v2', vin: '2' }),
+      part({ id: 'c', vehicleId: 'v3', vin: '3', partDescription: 'بدون حزام' })
+    ]
+    const options = listMergeIssueOptions(parts)
+    expect(options[0]?.label).toBe('بدون كراسي بالكامل')
+    expect(options[0]?.vehicleCount).toBe(2)
   })
 
   it('builds a stable issue key', () => {

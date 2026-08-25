@@ -20,6 +20,7 @@ import { MissingPartsDailyJournalTab } from '../../Components/missingParts/Missi
 import { MissingPartsFamilyCardsTab } from '../../Components/missingParts/MissingPartsFamilyCardsTab'
 import { MissingPartsSummaryTab } from '../../Components/missingParts/MissingPartsSummaryTab'
 import { MissingPartsBulkBar } from '../../Components/missingParts/MissingPartsBulkBar'
+import { MergeShortageGroupModal } from '../../Components/missingParts/MergeShortageGroupModal'
 import { MissingPartsPageDialogs } from '../../Components/missingParts/MissingPartsPageDialogs'
 import { scratchAreaLabel } from '../../Utils/scratchAreaOptions'
 import type { MissingPartDetail } from '../../Types/missingPart'
@@ -419,6 +420,14 @@ export function MissingPartsPage() {
         restoreTarget={actions.restoreTarget}
         onConfirmRestore={() => void actions.confirmRestoreVehicle()}
         onCancelRestore={() => actions.setRestoreTarget(null)}
+      />
+      <MergeShortageGroupModal
+        open={Boolean(actions.mergePicker)}
+        options={actions.mergePicker?.options ?? []}
+        vehicleCount={actions.mergePicker?.vehicleCount ?? 0}
+        busy={actions.bulkActionBusy}
+        onClose={() => actions.setMergePicker(null)}
+        onConfirm={actions.confirmMergeWithPrimary}
       />
     </section>
   )

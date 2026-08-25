@@ -9,7 +9,8 @@ import {
   attachMissingPartsToReportGroup,
   bulkInstallVehiclesToFull,
   completeVehicleShortage,
-  deleteMissingPartRecord
+  deleteMissingPartRecord,
+  detachMissingPartsFromReportGroup
 } from '../services/missingPartsService'
 import {
   requestMissingPartTransfer,
@@ -18,7 +19,7 @@ import {
 } from '../services/missingPartWorkflowService'
 import { followUpPartsForRow } from '../Utils/missingPartRowContext'
 import { openVehicleShortageLines, remainingInstallLineCount, uniqueVehicleReps } from '../Utils/missingPartPageUtils'
-import { planMergeSelectedVehicles } from '../Utils/mergeShortageReportGroup'
+import { planMergeSelectedVehicles, rememberReportGroupPrimary, type MergeIssueOption } from '../Utils/mergeShortageReportGroup'
 
 export function useMissingPartsActions(opts: {
   items: MissingPartDetail[]
@@ -64,6 +65,9 @@ export function useMissingPartsActions(opts: {
   const [transferringPartId, setTransferringPartId] = useState<string | null>(null)
   const [transferPart, setTransferPart] = useState<MissingPartDetail | null>(null)
   const [reviewingRequestId, setReviewingRequestId] = useState<string | null>(null)
+  const [mergePicker, setMergePicker] = useState<{ options: MergeIssueOption[]; vehicleCount: number } | null>(
+    null
+  )
 
   async function applyFollowUp(row: MissingPartDetail, assignment: MpFollowUpAssignment) {
     const parts = followUpPartsForRow(row, filtered, listTab)
@@ -199,10 +203,15 @@ export function useMissingPartsActions(opts: {
     }
   }
 
-  async function bulkMergeSelected() {
+  async function executeMerge(primaryIssueKey?: string | null) {
     if (!canEdit || listTab !== 'active' || selectedVehicleIds.size < 2) return
-    const plan = planMergeSelectedVehicles(selectedVehicleIds, filtered)
+    const plan = planMergeSelectedVehicles(selectedVehicleIds, filtered, primaryIssueKey)
     if (!plan.ok) {
+      if (plan.error === 'needPrimaryReason' && plan.options?.length) {
+        setError('')
+        setMergePicker({ options: plan.options, vehicleCount: selectedVehicleIds.size })
+        return
+      }
       setError(t(`mp.bulk.merge.${plan.error}`))
       return
     }
@@ -211,23 +220,41 @@ export function useMissingPartsActions(opts: {
         t('mp.bulk.merge.confirm', {
           vehicles: plan.vehicleCount,
           lines: plan.lineCount,
-          issue: plan.issueLabel
+          issue: plan.issueLabel,
+          branches: plan.branchLineCount
         })
       )
     )
       return
     setBulkActionBusy(true)
     setError('')
+    setMergePicker(null)
     try {
-      await attachMissingPartsToReportGroup(plan.partIds, plan.reportGroupId)
+      await detachMissingPartsFromReportGroup(plan.detachIds)
+      await attachMissingPartsToReportGroup(plan.attachIds, plan.reportGroupId)
+      rememberReportGroupPrimary(plan.reportGroupId, plan.primaryIssueKey)
       setSelectedVehicleIds(new Set())
-      showSuccess(t('mp.bulk.merge.success', { vehicles: plan.vehicleCount, issue: plan.issueLabel }))
+      showSuccess(
+        t('mp.bulk.merge.success', {
+          vehicles: plan.vehicleCount,
+          issue: plan.issueLabel,
+          branches: plan.branchLineCount
+        })
+      )
       await load()
     } catch (err) {
       setError(formatError(err))
     } finally {
       setBulkActionBusy(false)
     }
+  }
+
+  async function bulkMergeSelected() {
+    await executeMerge(null)
+  }
+
+  function confirmMergeWithPrimary(primaryIssueKey: string) {
+    void executeMerge(primaryIssueKey)
   }
 
   function onReported(msg?: string) {
@@ -371,6 +398,9 @@ export function useMissingPartsActions(opts: {
     bulkCompleteSelected,
     bulkDeleteSelected,
     bulkMergeSelected,
+    mergePicker,
+    confirmMergeWithPrimary,
+    setMergePicker,
     onReported,
     removeParts,
     requestCompleteVehicle,

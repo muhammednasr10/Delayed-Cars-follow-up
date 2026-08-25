@@ -2,6 +2,7 @@
 import { useLang } from '../../i18n/LanguageContext'
 import { formatVehicleColorLabel } from '../../Utils/vehicleColorLabel'
 import { aggregateQty, primaryItem, type MissingPartDisplayRow } from '../../Utils/missingPartDisplay'
+import { primaryIssueKeyForGroup, shortageIssueKey } from '../../Utils/mergeShortageReportGroup'
 import {
   actionsCell,
   cell,
@@ -56,12 +57,15 @@ export function ReportGroupRow({
   onOpenVinList: (parts: MissingPartDetail[], pickComplete?: boolean) => void
 }) {
   const { t, lang } = useLang()
-  const i = primaryItem(displayRow)
   const groupVins = [...new Set(displayRow.items.map(x => x.vin))].sort((a, b) => a.localeCompare(b))
-  const qty = aggregateQty(displayRow.items)
-  const issueCount = displayRow.items.length
+  const primaryKey = primaryIssueKeyForGroup(displayRow.items, displayRow.items[0]?.reportGroupId)
+  const primaryParts = displayRow.items.filter(p => shortageIssueKey(p) === primaryKey)
+  const mainParts = primaryParts.length > 0 ? primaryParts : displayRow.items
+  const i = primaryItem({ kind: 'group', items: mainParts, key: displayRow.key })
+  const qty = aggregateQty(mainParts)
+  const issueCount = mainParts.length
   const vehicleReps = uniqueVehicleReps(displayRow.items)
-  const uniqueIssues = uniqueIssueReps(displayRow.items)
+  const uniqueIssues = uniqueIssueReps(mainParts)
   const multiIssues = uniqueIssues.length > 1
   const hasRepeatedVin = groupVins.some(vin => isRepeatedShortageVin(vin, props.repeatedVinKeys ?? new Set()))
 
@@ -92,9 +96,9 @@ export function ReportGroupRow({
         )
       }
       qty={qty}
-      reporterLabel={reporterNames(displayRow.items)}
+      reporterLabel={reporterNames(mainParts)}
       completerLabel={completerNames(displayRow.items)}
-      reasonCell={multiIssues ? <StackedShortageReasons parts={displayRow.items} /> : undefined}
+      reasonCell={multiIssues ? <StackedShortageReasons parts={mainParts} /> : undefined}
       deleteTargets={displayRow.items}
       lang={lang}
       relatedParts={displayRow.items}

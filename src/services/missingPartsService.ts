@@ -318,6 +318,13 @@ export async function attachMissingPartsToReportGroup(ids: string[], reportGroup
   if (error) throw new Error(error.message)
 }
 
+/** Clear report_group_id so lines can nest as branches under a grouped VIN. */
+export async function detachMissingPartsFromReportGroup(ids: string[]): Promise<void> {
+  if (ids.length === 0) return
+  const { error } = await requireClient().from('missing_parts').update({ report_group_id: null }).in('id', ids)
+  if (error) throw new Error(error.message)
+}
+
 export async function completeVehicleShortage(
   vehicleId: string,
   options?: { skipActivityNote?: boolean }

@@ -1856,13 +1856,19 @@ export const translations = {
         nothingToDelete: 'لا توجد سجلات للحذف على السيارات المحددة.',
         merge: {
           action: 'دمج المحدد',
-          hint: 'ادمج السيارات المحددة في صف مجموعة واحد إذا كان السبب واحداً',
-          confirm: 'دمج {vehicles} سيارة ({lines} سجل) بنفس السبب «{issue}» في مجموعة واحدة؟',
-          success: 'تم دمج {vehicles} سيارة تحت السبب «{issue}».',
+          hint: 'ادمج السيارات المحددة في صف مجموعة — اختر السبب الرئيسي وباقي الأسباب تظهر كفروع',
+          confirm: 'دمج {vehicles} سيارة تحت السبب «{issue}»؟ السجلات الإضافية ({branches}) هتظهر كفروع تحت الشاسيه.',
+          success: 'تم دمج {vehicles} سيارة تحت «{issue}».',
           needAtLeastTwo: 'اختر سيارتين على الأقل للدمج.',
           nothingToMerge: 'لا توجد نواقص مفتوحة على السيارات المحددة للدمج.',
           differentReasons: 'لا يمكن الدمج — السيارات المحددة ليس لها نفس السبب/الوصف.',
-          alreadyGrouped: 'السيارات المحددة مجمّعة معاً بالفعل.'
+          alreadyGrouped: 'السيارات المحددة مجمّعة معاً بالفعل.',
+          needPrimaryReason: 'اختَر السبب الرئيسي للدمج.',
+          unknownPrimary: 'السبب المختار غير موجود في التحديد.',
+          pickTitle: 'اختيار سبب الدمج',
+          pickSubtitle: '{n} سيارة محددة — اختر السبب اللي هيظهر على صف المجموعة',
+          pickHint: 'باقي الأسباب المختلفة هتظهر كفروع تحت أرقام الشاسيه.',
+          optionMeta: '{vehicles} سيارة · {lines} سجل'
         }
       },
       searchPlaceholder: 'بحث VIN / القطعة',
@@ -5387,13 +5393,20 @@ export const translations = {
         nothingToDelete: 'No records to delete on selected vehicles.',
         merge: {
           action: 'Merge selected',
-          hint: 'Merge selected vehicles into one group row when they share the same issue',
-          confirm: 'Merge {vehicles} vehicles ({lines} lines) with the same issue “{issue}” into one group?',
+          hint: 'Merge selected vehicles into one group — pick the main issue; others become branches',
+          confirm:
+            'Merge {vehicles} vehicles under “{issue}”? Extra records ({branches}) will show as branches under the chassis group.',
           success: 'Merged {vehicles} vehicles under “{issue}”.',
           needAtLeastTwo: 'Select at least two vehicles to merge.',
           nothingToMerge: 'No open shortages on the selected vehicles to merge.',
           differentReasons: 'Cannot merge — selected vehicles do not share the same issue/description.',
-          alreadyGrouped: 'The selected vehicles are already in the same group.'
+          alreadyGrouped: 'The selected vehicles are already in the same group.',
+          needPrimaryReason: 'Choose the main issue for the merge.',
+          unknownPrimary: 'The chosen issue is not in the selection.',
+          pickTitle: 'Choose merge issue',
+          pickSubtitle: '{n} vehicles selected — pick the issue shown on the group row',
+          pickHint: 'Other different issues will appear as branches under the chassis numbers.',
+          optionMeta: '{vehicles} vehicles · {lines} lines'
         }
       },
       searchPlaceholder: 'Search VIN / part',

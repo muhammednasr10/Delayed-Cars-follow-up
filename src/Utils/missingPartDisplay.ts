@@ -1,4 +1,5 @@
 import type { MissingPartDetail } from '../Types/missingPart'
+import { primaryIssueKeyForGroup, shortageIssueKey } from './mergeShortageReportGroup'
 
 export type MissingPartDisplayRow =
   { kind: 'single'; item: MissingPartDetail; key: string } | { kind: 'group'; items: MissingPartDetail[]; key: string }
@@ -126,20 +127,33 @@ export function buildMissingPartTableRows(
   const blocks: { sortParts: MissingPartDetail[]; rows: MissingPartTableRow[] }[] = []
 
   for (const displayRow of groups) {
+    const primaryKey = primaryIssueKeyForGroup(displayRow.items, displayRow.items[0]?.reportGroupId)
     const blockRows: MissingPartTableRow[] = [{ kind: 'report-group', displayRow }]
     const vehicleIds = [...new Set(displayRow.items.map(i => i.vehicleId))]
     for (const vehicleId of vehicleIds) {
       const extras = sortVehicleParts(
-        filtered.filter(p => p.vehicleId === vehicleId && !groupedPartIds.has(p.id)),
+        [
+          ...displayRow.items.filter(
+            p => p.vehicleId === vehicleId && shortageIssueKey(p) !== primaryKey
+          ),
+          ...filtered.filter(p => p.vehicleId === vehicleId && !groupedPartIds.has(p.id))
+        ],
         sort
       )
-      if (extras.length === 0) continue
+      // Dedupe by part id (a part can't be both in-group non-primary and ungrouped).
+      const seen = new Set<string>()
+      const uniqueExtras = extras.filter(p => {
+        if (seen.has(p.id)) return false
+        seen.add(p.id)
+        return true
+      })
+      if (uniqueExtras.length === 0) continue
       branchedVehicleIds.add(vehicleId)
       blockRows.push({
         kind: 'group-branch',
         parentKey: displayRow.key,
         vehicleId,
-        parts: extras
+        parts: uniqueExtras
       })
     }
     blocks.push({ sortParts: displayRow.items, rows: blockRows })
@@ -180,16 +194,21 @@ export function vehicleIdsFromTableRow(row: MissingPartTableRow): string[] {
   return [...new Set(partsFromTableRow(row).map(p => p.vehicleId))]
 }
 
-/** When opening edit/update from a group-branch row, keep only the extra (non-group) lines. */
+/** When opening edit/update from a group-branch row, keep only the extra (non-primary) lines. */
 export function partsForVehicleAction(
   row: MissingPartDetail,
   vehicleParts: MissingPartDetail[],
   pool: MissingPartDetail[]
 ): MissingPartDetail[] {
   const groupedIds = multiReportGroupPartIds(pool)
-  const vehicleHasGrouped = vehicleParts.some(p => groupedIds.has(p.id))
-  if (!vehicleHasGrouped || groupedIds.has(row.id)) return vehicleParts
-  const extras = vehicleParts.filter(p => !groupedIds.has(p.id))
+  const groupMembers = vehicleParts.filter(p => groupedIds.has(p.id))
+  if (groupMembers.length === 0) return vehicleParts
+
+  const primaryKey = primaryIssueKeyForGroup(groupMembers, groupMembers[0]?.reportGroupId)
+  const clickedIsBranch = shortageIssueKey(row) !== primaryKey || !groupedIds.has(row.id)
+  if (!clickedIsBranch) return vehicleParts
+
+  const extras = vehicleParts.filter(p => !groupedIds.has(p.id) || shortageIssueKey(p) !== primaryKey)
   return extras.length > 0 ? extras : vehicleParts
 }
 
