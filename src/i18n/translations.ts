@@ -1715,7 +1715,7 @@ export const translations = {
         partN: 'قطعة {n}'
       },
       vinListTitle: 'أرقام الشاسيه',
-      vinCount: '{n} شاسيه',
+      vinCount: '{n} أرقام شاسيه',
       groupBranchHint: 'نواقص إضافية على شاسيه من مجموعة التبليغ',
       batchHintTotal: 'إجمالي سجلات النقص: {total}',
       vinListModal: {
@@ -5245,7 +5245,7 @@ export const translations = {
       addIssueLine: 'Add issue',
       singleVinTitle: 'VIN number',
       vinListTitle: 'VIN numbers',
-      vinCount: '{n} VINs',
+      vinCount: '{n} chassis numbers',
       groupBranchHint: 'Extra shortages on a chassis from this report group',
       batchHintTotal: 'Total shortage records: {total}',
       vinListModal: {
