@@ -2,7 +2,7 @@
 import { useLang } from '../../i18n/LanguageContext'
 import { formatVehicleColorLabel } from '../../Utils/vehicleColorLabel'
 import { aggregateQty, primaryItem, type MissingPartDisplayRow } from '../../Utils/missingPartDisplay'
-import { mainPartsForReportGroup } from '../../Utils/mergeShortageReportGroup'
+import { mainPartsForReportGroup } from '../../Utils/shortageGroupDisplay'
 import {
   actionsCell,
   cell,

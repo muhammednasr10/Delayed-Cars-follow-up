@@ -311,18 +311,16 @@ export async function deleteMissingPartRecord(id: string): Promise<void> {
 /** Stamp open lines onto a shared report group (e.g. before adding more chassis). */
 export async function attachMissingPartsToReportGroup(ids: string[], reportGroupId: string): Promise<void> {
   if (ids.length === 0) return
-  const { error } = await requireClient()
+  const uniqueIds = [...new Set(ids)]
+  const { data, error } = await requireClient()
     .from('missing_parts')
     .update({ report_group_id: reportGroupId })
-    .in('id', ids)
+    .in('id', uniqueIds)
+    .select('id')
   if (error) throw new Error(error.message)
-}
-
-/** Clear report_group_id so lines can nest as branches under a grouped VIN. */
-export async function detachMissingPartsFromReportGroup(ids: string[]): Promise<void> {
-  if (ids.length === 0) return
-  const { error } = await requireClient().from('missing_parts').update({ report_group_id: null }).in('id', ids)
-  if (error) throw new Error(error.message)
+  if ((data?.length ?? 0) !== uniqueIds.length) {
+    throw new Error('تعذر حفظ دمج المجموعة — حدّث الصفحة وحاول مرة أخرى')
+  }
 }
 
 export async function completeVehicleShortage(

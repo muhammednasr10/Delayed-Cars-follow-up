@@ -1,12 +1,8 @@
 import { describe, expect, it } from 'vitest'
 import type { MissingPartDetail } from '../Types/missingPart'
-import {
-  branchPartsForGroupVehicle,
-  listMergeIssueOptions,
-  mainPartsForReportGroup,
-  planMergeSelectedVehicles,
-  shortageIssueKey
-} from './mergeShortageReportGroup'
+import { listMergeIssueOptions, planMergeSelectedVehicles } from './mergeShortageReportGroup'
+import { branchPartsForGroupVehicle, mainPartsForReportGroup } from './shortageGroupDisplay'
+import { shortageIssueKey } from './shortageIssueKeys'
 
 function part(
   overrides: Partial<MissingPartDetail> & Pick<MissingPartDetail, 'id' | 'vehicleId' | 'vin'>
@@ -66,7 +62,6 @@ describe('planMergeSelectedVehicles', () => {
     expect(plan.ok).toBe(true)
     if (!plan.ok) return
     expect(plan.attachIds).toEqual(['a', 'b'])
-    expect(plan.detachIds).toEqual([])
     expect(plan.vehicleCount).toBe(2)
     expect(plan.issueLabel).toBe('بدون كراسي بالكامل')
     expect(plan.reportGroupId).toBeTruthy()
@@ -84,8 +79,8 @@ describe('planMergeSelectedVehicles', () => {
     expect(plan.options).toHaveLength(2)
   })
 
-  it('merges mixed reasons with a chosen primary; display branches only unique issues', () => {
-    const seat = 'بدون كراسي بالكامل|stock_shortage|trim'
+  it('merges mixed reasons with a chosen primary label', () => {
+    const seat = 'بدون كراسي بالكامل'
     const pool = [
       part({ id: 'a', vehicleId: 'v1', vin: '0001' }),
       part({ id: 'a2', vehicleId: 'v1', vin: '0001', partDescription: 'بدون حزام', reason: 'other' }),
@@ -97,9 +92,7 @@ describe('planMergeSelectedVehicles', () => {
     expect(plan.ok).toBe(true)
     if (!plan.ok) return
     expect(plan.attachIds.sort()).toEqual(['a', 'a2', 'b', 'c', 'c2'].sort())
-    expect(plan.detachIds).toEqual([])
     expect(plan.issueLabel).toBe('بدون كراسي بالكامل')
-    // Seats shared by all 3; belt on v1 and صاجة on v3 branch.
     expect(plan.branchLineCount).toBe(2)
   })
 
@@ -148,7 +141,9 @@ describe('planMergeSelectedVehicles', () => {
       'بدون كراسي بالكامل|stock_shortage|trim'
     )
   })
+})
 
+describe('shortage group display', () => {
   it('treats reversed combined descriptions as the same when every chassis has them', () => {
     const a = part({
       id: 'a',
@@ -201,5 +196,31 @@ describe('planMergeSelectedVehicles', () => {
     expect(branchPartsForGroupVehicle('v0', scope)).toEqual([])
     expect(branchPartsForGroupVehicle('v8', scope).map(p => p.partDescription)).toEqual(['بدون اكصدام خلفي'])
     expect(branchPartsForGroupVehicle('v9', scope).map(p => p.partDescription)).toEqual(['بدون اكصدام امامي'])
+  })
+
+  it('does not branch seat-only cars when department codes differ', () => {
+    const a = part({ id: 'a', vehicleId: 'v1', vin: '0061', department: 'trim', partDescription: 'بدون كراسي بالكامل' })
+    const b = part({ id: 'b', vehicleId: 'v2', vin: '0067', department: 'body', partDescription: 'بدون كراسي بالكامل' })
+    const extra = part({
+      id: 'c',
+      vehicleId: 'v3',
+      vin: '0090',
+      department: 'trim',
+      partDescription: 'عيب في ماكينة زجاج باب امامي يمين'
+    })
+    const extraSeat = part({
+      id: 'd',
+      vehicleId: 'v3',
+      vin: '0090',
+      department: 'body',
+      partDescription: 'بدون كراسي بالكامل'
+    })
+    const scope = [a, b, extra, extraSeat]
+    expect(mainPartsForReportGroup(scope).map(p => p.partDescription)).toEqual(['بدون كراسي بالكامل'])
+    expect(branchPartsForGroupVehicle('v1', scope)).toEqual([])
+    expect(branchPartsForGroupVehicle('v2', scope)).toEqual([])
+    expect(branchPartsForGroupVehicle('v3', scope).map(p => p.partDescription)).toEqual([
+      'عيب في ماكينة زجاج باب امامي يمين'
+    ])
   })
 })
