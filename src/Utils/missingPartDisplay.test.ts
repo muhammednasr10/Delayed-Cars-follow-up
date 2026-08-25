@@ -196,14 +196,40 @@ describe('missingPartDisplay', () => {
     }
   })
 
-  it('does not duplicate a grouped VIN as a top-level vehicle row', () => {
+  it('does not branch when two chassis share the same reasons in different order', () => {
+    const items = [
+      part({ id: '1', vehicleId: 'v1', vin: '0087', reportGroupId: 'grp-1', partDescription: 'بدون كراسي بالكامل' }),
+      part({ id: '2', vehicleId: 'v2', vin: '0088', reportGroupId: 'grp-1', partDescription: 'بدون كراسي بالكامل' }),
+      part({
+        id: '3',
+        vehicleId: 'v3',
+        vin: '0092',
+        reportGroupId: 'grp-1',
+        partDescription: 'بدون اكصدام خلفي \\ بدون كراسي بالكامل'
+      }),
+      part({
+        id: '4',
+        vehicleId: 'v4',
+        vin: '0096',
+        reportGroupId: 'grp-1',
+        partDescription: 'بدون كراسي بالكامل \\ بدون اكصدام خلفي'
+      })
+    ]
+    const tableRows = buildMissingPartTableRows(items)
+    expect(tableRows.map(r => r.kind)).toEqual(['report-group'])
+  })
+
+  it('branches only a chassis with a reason no other group member shares', () => {
     const items = [
       part({ id: '1', vehicleId: 'v1', vin: '0087', reportGroupId: 'grp-1', partDescription: 'Seat' }),
       part({ id: '2', vehicleId: 'v2', vin: '0088', reportGroupId: 'grp-1', partDescription: 'Seat' }),
       part({ id: '3', vehicleId: 'v1', vin: '0087', partDescription: 'Belt', reason: 'other' })
     ]
     const tableRows = buildMissingPartTableRows(items)
-    expect(tableRows.some(r => r.kind === 'vehicle' || r.kind === 'single')).toBe(false)
     expect(tableRows.filter(r => r.kind === 'group-branch')).toHaveLength(1)
+    const branch = tableRows.find(r => r.kind === 'group-branch')
+    if (branch?.kind === 'group-branch') {
+      expect(branch.parts.map(p => p.id)).toEqual(['3'])
+    }
   })
 })

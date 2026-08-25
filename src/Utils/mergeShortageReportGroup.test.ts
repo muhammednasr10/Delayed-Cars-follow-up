@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import type { MissingPartDetail } from '../Types/missingPart'
 import {
+  branchPartsForGroupVehicle,
   listMergeIssueOptions,
   planMergeSelectedVehicles,
   shortageIssueKey
@@ -82,7 +83,7 @@ describe('planMergeSelectedVehicles', () => {
     expect(plan.options).toHaveLength(2)
   })
 
-  it('merges mixed reasons with a chosen primary and detaches extras on shared VINs', () => {
+  it('merges mixed reasons with a chosen primary; display branches only unique issues', () => {
     const seat = 'بدون كراسي بالكامل|stock_shortage|trim'
     const pool = [
       part({ id: 'a', vehicleId: 'v1', vin: '0001' }),
@@ -93,10 +94,10 @@ describe('planMergeSelectedVehicles', () => {
     const plan = planMergeSelectedVehicles(['v1', 'v2', 'v3'], pool, seat)
     expect(plan.ok).toBe(true)
     if (!plan.ok) return
-    expect(plan.attachIds.sort()).toEqual(['a', 'b', 'c'].sort())
-    expect(plan.detachIds).toEqual(['a2'])
+    expect(plan.attachIds.sort()).toEqual(['a', 'a2', 'b', 'c'].sort())
+    expect(plan.detachIds).toEqual([])
     expect(plan.issueLabel).toBe('بدون كراسي بالكامل')
-    expect(plan.branchLineCount).toBe(1)
+    expect(plan.branchLineCount).toBe(2)
   })
 
   it('reuses an existing report group id when merging into a group', () => {
@@ -143,5 +144,22 @@ describe('planMergeSelectedVehicles', () => {
     expect(shortageIssueKey(part({ id: 'a', vehicleId: 'v1', vin: '1' }))).toBe(
       'بدون كراسي بالكامل|stock_shortage|trim'
     )
+  })
+
+  it('treats reversed combined descriptions as the same issues', () => {
+    const a = part({
+      id: 'a',
+      vehicleId: 'v1',
+      vin: '0092',
+      partDescription: 'بدون اكصدام خلفي \\ بدون كراسي بالكامل'
+    })
+    const b = part({
+      id: 'b',
+      vehicleId: 'v2',
+      vin: '0096',
+      partDescription: 'بدون كراسي بالكامل \\ بدون اكصدام خلفي'
+    })
+    expect(branchPartsForGroupVehicle('v1', [a, b])).toEqual([])
+    expect(branchPartsForGroupVehicle('v2', [a, b])).toEqual([])
   })
 })

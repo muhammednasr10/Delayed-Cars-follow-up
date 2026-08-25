@@ -1,5 +1,5 @@
 import type { MissingPartDetail } from '../Types/missingPart'
-import { primaryIssueKeyForGroup, shortageIssueKey } from './mergeShortageReportGroup'
+import { branchPartsForGroupVehicle, mainPartsForReportGroup } from './mergeShortageReportGroup'
 
 export type MissingPartDisplayRow =
   { kind: 'single'; item: MissingPartDetail; key: string } | { kind: 'group'; items: MissingPartDetail[]; key: string }
@@ -127,33 +127,18 @@ export function buildMissingPartTableRows(
   const blocks: { sortParts: MissingPartDetail[]; rows: MissingPartTableRow[] }[] = []
 
   for (const displayRow of groups) {
-    const primaryKey = primaryIssueKeyForGroup(displayRow.items, displayRow.items[0]?.reportGroupId)
-    const blockRows: MissingPartTableRow[] = [{ kind: 'report-group', displayRow }]
     const vehicleIds = [...new Set(displayRow.items.map(i => i.vehicleId))]
+    const scopeParts = filtered.filter(p => vehicleIds.includes(p.vehicleId))
+    const blockRows: MissingPartTableRow[] = [{ kind: 'report-group', displayRow }]
     for (const vehicleId of vehicleIds) {
-      const extras = sortVehicleParts(
-        [
-          ...displayRow.items.filter(
-            p => p.vehicleId === vehicleId && shortageIssueKey(p) !== primaryKey
-          ),
-          ...filtered.filter(p => p.vehicleId === vehicleId && !groupedPartIds.has(p.id))
-        ],
-        sort
-      )
-      // Dedupe by part id (a part can't be both in-group non-primary and ungrouped).
-      const seen = new Set<string>()
-      const uniqueExtras = extras.filter(p => {
-        if (seen.has(p.id)) return false
-        seen.add(p.id)
-        return true
-      })
-      if (uniqueExtras.length === 0) continue
+      const branchParts = branchPartsForGroupVehicle(vehicleId, scopeParts)
+      if (branchParts.length === 0) continue
       branchedVehicleIds.add(vehicleId)
       blockRows.push({
         kind: 'group-branch',
         parentKey: displayRow.key,
         vehicleId,
-        parts: uniqueExtras
+        parts: sortVehicleParts(branchParts, sort)
       })
     }
     blocks.push({ sortParts: displayRow.items, rows: blockRows })
@@ -204,12 +189,13 @@ export function partsForVehicleAction(
   const groupMembers = vehicleParts.filter(p => groupedIds.has(p.id))
   if (groupMembers.length === 0) return vehicleParts
 
-  const primaryKey = primaryIssueKeyForGroup(groupMembers, groupMembers[0]?.reportGroupId)
-  const clickedIsBranch = shortageIssueKey(row) !== primaryKey || !groupedIds.has(row.id)
+  const vehicleIds = [...new Set(groupMembers.map(p => p.vehicleId))]
+  const scopeParts = pool.filter(p => vehicleIds.includes(p.vehicleId))
+  const branchParts = branchPartsForGroupVehicle(row.vehicleId, scopeParts)
+  const clickedIsBranch = branchParts.some(p => p.id === row.id)
   if (!clickedIsBranch) return vehicleParts
 
-  const extras = vehicleParts.filter(p => !groupedIds.has(p.id) || shortageIssueKey(p) !== primaryKey)
-  return extras.length > 0 ? extras : vehicleParts
+  return branchParts.length > 0 ? branchParts : vehicleParts
 }
 
 function primaryVinForTableRow(row: MissingPartTableRow): string {

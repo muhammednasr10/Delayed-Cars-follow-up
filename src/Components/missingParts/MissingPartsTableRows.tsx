@@ -2,7 +2,7 @@
 import { useLang } from '../../i18n/LanguageContext'
 import { formatVehicleColorLabel } from '../../Utils/vehicleColorLabel'
 import { aggregateQty, primaryItem, type MissingPartDisplayRow } from '../../Utils/missingPartDisplay'
-import { primaryIssueKeyForGroup, shortageIssueKey } from '../../Utils/mergeShortageReportGroup'
+import { mainPartsForReportGroup } from '../../Utils/mergeShortageReportGroup'
 import {
   actionsCell,
   cell,
@@ -58,12 +58,12 @@ export function ReportGroupRow({
 }) {
   const { t, lang } = useLang()
   const groupVins = [...new Set(displayRow.items.map(x => x.vin))].sort((a, b) => a.localeCompare(b))
-  const primaryKey = primaryIssueKeyForGroup(displayRow.items, displayRow.items[0]?.reportGroupId)
-  const primaryParts = displayRow.items.filter(p => shortageIssueKey(p) === primaryKey)
-  const mainParts = primaryParts.length > 0 ? primaryParts : displayRow.items
-  const i = primaryItem({ kind: 'group', items: mainParts, key: displayRow.key })
-  const qty = aggregateQty(mainParts)
-  const issueCount = mainParts.length
+  const vehicleIds = [...new Set(displayRow.items.map(i => i.vehicleId))]
+  const scopeParts = props.filtered.filter(p => vehicleIds.includes(p.vehicleId))
+  const mainParts = mainPartsForReportGroup(scopeParts)
+  const i = primaryItem({ kind: 'group', items: mainParts.length > 0 ? mainParts : displayRow.items, key: displayRow.key })
+  const qty = aggregateQty(mainParts.length > 0 ? mainParts : displayRow.items)
+  const issueCount = mainParts.length > 0 ? mainParts.length : displayRow.items.length
   const vehicleReps = uniqueVehicleReps(displayRow.items)
   const uniqueIssues = uniqueIssueReps(mainParts)
   const multiIssues = uniqueIssues.length > 1

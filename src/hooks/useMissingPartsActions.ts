@@ -9,8 +9,7 @@ import {
   attachMissingPartsToReportGroup,
   bulkInstallVehiclesToFull,
   completeVehicleShortage,
-  deleteMissingPartRecord,
-  detachMissingPartsFromReportGroup
+  deleteMissingPartRecord
 } from '../services/missingPartsService'
 import {
   requestMissingPartTransfer,
@@ -230,7 +229,6 @@ export function useMissingPartsActions(opts: {
     setError('')
     setMergePicker(null)
     try {
-      await detachMissingPartsFromReportGroup(plan.detachIds)
       await attachMissingPartsToReportGroup(plan.attachIds, plan.reportGroupId)
       rememberReportGroupPrimary(plan.reportGroupId, plan.primaryIssueKey)
       setSelectedVehicleIds(new Set())
