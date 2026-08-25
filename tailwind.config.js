@@ -4,7 +4,7 @@ export default {
   theme: {
     extend: {
       fontFamily: {
-        sans: ['Inter', 'ui-sans-serif', 'system-ui', 'sans-serif']
+        sans: ['Cairo', 'Segoe UI', 'Tahoma', 'ui-sans-serif', 'system-ui', 'sans-serif']
       }
     }
   },

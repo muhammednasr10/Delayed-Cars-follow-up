@@ -140,12 +140,70 @@ describe('missingPartDisplay', () => {
     expect(rows.map(r => (r.kind === 'single' ? r.item.id : ''))).toEqual(['3', '1', '2'])
   })
 
-  it('aggregates install quantities and pending state', () => {
+  it('nests extra issues on a grouped VIN under the report group', () => {
     const items = [
-      part({ id: '1', vehicleId: 'v1', vin: 'VIN001', requiredQty: 2, installedQty: 2 }),
-      part({ id: '2', vehicleId: 'v1', vin: 'VIN001', requiredQty: 1, installedQty: 0 })
+      part({
+        id: 'g1',
+        vehicleId: 'v1',
+        vin: '0087',
+        reportGroupId: 'grp-1',
+        partDescription: 'بدون كراسي بالكامل',
+        createdAt: '2026-01-01T10:00:00Z'
+      }),
+      part({
+        id: 'g2',
+        vehicleId: 'v2',
+        vin: '0888',
+        reportGroupId: 'grp-1',
+        partDescription: 'بدون كراسي بالكامل',
+        createdAt: '2026-01-01T10:00:00Z'
+      }),
+      part({
+        id: 'g3',
+        vehicleId: 'v3',
+        vin: '0889',
+        reportGroupId: 'grp-1',
+        partDescription: 'بدون كراسي بالكامل',
+        createdAt: '2026-01-01T10:00:00Z'
+      }),
+      part({
+        id: 'g4',
+        vehicleId: 'v4',
+        vin: '0890',
+        reportGroupId: 'grp-1',
+        partDescription: 'بدون كراسي بالكامل',
+        createdAt: '2026-01-01T10:00:00Z'
+      }),
+      part({
+        id: 'extra',
+        vehicleId: 'v1',
+        vin: '0087',
+        reportGroupId: null,
+        partDescription: 'بدون حزام امان',
+        requiredQty: 1,
+        installedQty: 0,
+        createdAt: '2026-01-02T10:00:00Z'
+      })
     ]
-    expect(hasPendingInstall(items)).toBe(true)
-    expect(aggregateQty(items)).toEqual({ installed: 2, required: 3 })
+    const tableRows = buildMissingPartTableRows(items)
+    expect(tableRows.map(r => r.kind)).toEqual(['report-group', 'group-branch'])
+    const branch = tableRows[1]
+    expect(branch?.kind).toBe('group-branch')
+    if (branch?.kind === 'group-branch') {
+      expect(branch.vehicleId).toBe('v1')
+      expect(branch.parts.map(p => p.id)).toEqual(['extra'])
+      expect(branch.parentKey).toBe('g-grp-1')
+    }
+  })
+
+  it('does not duplicate a grouped VIN as a top-level vehicle row', () => {
+    const items = [
+      part({ id: '1', vehicleId: 'v1', vin: '0087', reportGroupId: 'grp-1', partDescription: 'Seat' }),
+      part({ id: '2', vehicleId: 'v2', vin: '0088', reportGroupId: 'grp-1', partDescription: 'Seat' }),
+      part({ id: '3', vehicleId: 'v1', vin: '0087', partDescription: 'Belt', reason: 'other' })
+    ]
+    const tableRows = buildMissingPartTableRows(items)
+    expect(tableRows.some(r => r.kind === 'vehicle' || r.kind === 'single')).toBe(false)
+    expect(tableRows.filter(r => r.kind === 'group-branch')).toHaveLength(1)
   })
 })

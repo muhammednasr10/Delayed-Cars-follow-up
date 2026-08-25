@@ -11,7 +11,7 @@ import { SetupRequired } from '../../Components/SetupRequired'
 import type { ReportGroupContext, VehicleIssuesContext } from '../../Types/missingPart'
 import type { UpdateVehicleContext } from '../../Components/UpdateMissingPartModal'
 import { uniqueVehicleReps } from '../../Utils/missingPartPageUtils'
-import { isReportGroup } from '../../Utils/missingPartDisplay'
+import { isReportGroup, multiReportGroupPartIds, partsForVehicleAction } from '../../Utils/missingPartDisplay'
 import { notesTargetFromPart, vehicleIssuesContext, actionMembersForRow } from '../../Utils/missingPartRowContext'
 import { MissingPartsToolbar } from '../../Components/missingParts/MissingPartsToolbar'
 import { MissingPartsTable } from '../../Components/missingParts/MissingPartsTable'
@@ -52,7 +52,7 @@ export function MissingPartsPage() {
     [orgUnits]
   )
   const canBulkInstall = canBulkInstallAndUpdate
-  const canBulkSelectActive = canBulkInstall || canComplete || canDelete || canAssignFollowUp
+  const canBulkSelectActive = canBulkInstall || canComplete || canDelete || canAssignFollowUp || canEdit
   const canBulkSelectArchive = canDelete
   const data = useMissingPartsData()
   const {
@@ -117,6 +117,7 @@ export function MissingPartsPage() {
     canBulkInstall,
     canComplete,
     canDelete,
+    canEdit,
     canReviewWorkflow,
     setVehicleCardParts
   })
@@ -144,7 +145,7 @@ export function MissingPartsPage() {
       modelName: row.modelName,
       colorName: row.colorName,
       colorHex: row.colorHex,
-      parts: isReportGroup(row, tabSource) ? parts : ctx.parts
+      parts: isReportGroup(row, tabSource) ? parts : partsForVehicleAction(row, ctx.parts, tabSource)
     })
   }
 
@@ -163,7 +164,12 @@ export function MissingPartsPage() {
       })
       setEditVehicle(null)
     } else {
-      setEditVehicle(vehicleIssuesContext(row, tabSource, listTab))
+      const ctx = vehicleIssuesContext(row, tabSource, listTab)
+      setEditVehicle({
+        ...ctx,
+        parts: partsForVehicleAction(row, ctx.parts, tabSource),
+        allowArchived: ctx.allowArchived || allowArchived
+      })
       setEditGroup(null)
     }
   }
@@ -268,11 +274,13 @@ export function MissingPartsPage() {
             canBulkInstall={canBulkInstall}
             canComplete={canComplete}
             canDelete={canDelete}
+            canMerge={canEdit}
             bulkActionBusy={actions.bulkActionBusy}
             completingVehicleId={actions.completingVehicleId}
             onInstall={() => void actions.bulkInstallSelected()}
             onComplete={actions.bulkCompleteSelected}
             onDelete={() => void actions.bulkDeleteSelected()}
+            onMerge={() => void actions.bulkMergeSelected()}
             onClear={() => setSelectedVehicleIds(new Set())}
           />
         )}

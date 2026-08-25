@@ -9,7 +9,7 @@ import { ACTIVE_COLS, HISTORY_COLS, actionsCell, cell } from '../../Utils/missin
 import type { MissingPartDetail } from '../../Types/missingPart'
 import type { MpVehicleActionFlags, MpVehicleListActionProps } from '../../Types/mpVehicleActions'
 import { ExportableTable } from '../ExportableTable'
-import { ReportGroupRow, SinglePartRow, VehicleRows, type MissingPartsTableListTab } from './MissingPartsTableRows'
+import { ReportGroupRow, SinglePartRow, VehicleRows, GroupBranchRow, type MissingPartsTableListTab } from './MissingPartsTableRows'
 
 export type ListTab = MissingPartsTableListTab
 
@@ -165,6 +165,18 @@ export function MissingPartsTable({
                     displayRow={row.displayRow}
                     onOpenVinList={onOpenVinList}
                     deleteTargets={row.displayRow.items}
+                  />
+                )
+              }
+              if (row.kind === 'group-branch') {
+                return (
+                  <GroupBranchRow
+                    key={`gb-${row.parentKey}-${row.vehicleId}`}
+                    {...shared}
+                    parts={row.parts}
+                    primary={row.parts[0]}
+                    qty={aggregateQty(row.parts)}
+                    deleteTargets={row.parts}
                   />
                 )
               }

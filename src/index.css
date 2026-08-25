@@ -19,6 +19,10 @@ body {
   background: #0f172a;
   overflow-x: hidden;
   touch-action: manipulation;
+  font-family: Cairo, 'Segoe UI', Tahoma, ui-sans-serif, system-ui, sans-serif;
+  font-weight: 500;
+  -webkit-font-smoothing: auto;
+  -moz-osx-font-smoothing: auto;
 }
 
 input,

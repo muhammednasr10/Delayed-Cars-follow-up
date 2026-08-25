@@ -138,6 +138,47 @@ export function VehicleRows({
   )
 }
 
+/** Extra shortages on one VIN that already belongs to a multi-chassis report group. */
+export function GroupBranchRow({
+  parts,
+  primary,
+  qty,
+  ...props
+}: MissingPartsTableRowProps & {
+  parts: MissingPartDetail[]
+  primary: MissingPartDetail
+  qty: { installed: number; required: number }
+}) {
+  const { t, lang } = useLang()
+  const uniqueIssues = uniqueIssueReps(parts)
+
+  return (
+    <PartDataRow
+      {...props}
+      item={primary}
+      issueCount={parts.length}
+      vinCell={
+        <span className="inline-flex max-w-full items-center gap-1.5" title={t('mp.groupBranchHint')}>
+          <span className="font-mono text-slate-500" aria-hidden>
+            └
+          </span>
+          <VinText vin={primary.vin} repeatedVinKeys={props.repeatedVinKeys} />
+        </span>
+      }
+      qty={qty}
+      reporterLabel={reporterNames(parts)}
+      completerLabel={completerNames(parts)}
+      reasonCell={uniqueIssues.length > 1 ? <StackedShortageReasons parts={parts} /> : undefined}
+      deleteTargets={parts}
+      lang={lang}
+      relatedParts={parts}
+      completeRep={primary}
+      rowClassName="bg-slate-950/40"
+      nestUnderGroup
+    />
+  )
+}
+
 function StackedShortageReasons({ parts }: { parts: MissingPartDetail[] }) {
   const issues = uniqueIssueReps(parts)
   return (
@@ -212,7 +253,8 @@ function PartDataRow({
   rowClassName = '',
   relatedParts,
   completeRep,
-  completeAllReps
+  completeAllReps,
+  nestUnderGroup = false
 }: MissingPartsTableRowProps & {
   item: MissingPartDetail
   issueCount: number
@@ -226,6 +268,7 @@ function PartDataRow({
   relatedParts?: MissingPartDetail[]
   completeRep?: MissingPartDetail
   completeAllReps?: MissingPartDetail[]
+  nestUnderGroup?: boolean
 }) {
   const { t } = useLang()
   const rowScope = relatedParts ?? [item]
@@ -262,7 +305,11 @@ function PartDataRow({
         </td>
       )}
       <td className={`${cell} max-w-[12rem] overflow-hidden font-bold text-white`}>
-        <span className="inline-flex max-w-full items-center justify-center gap-2">
+        <span
+          className={`inline-flex max-w-full items-center justify-center gap-2 ${
+            nestUnderGroup ? 'ms-3 border-s-2 border-cyan-500/35 ps-2' : ''
+          }`}
+        >
           {vinCell}
           {rowScope.some(p => !!p.transferredAt) && (
             <span className="rounded-full bg-emerald-500/15 px-2 py-0.5 text-[11px] font-black text-emerald-200">

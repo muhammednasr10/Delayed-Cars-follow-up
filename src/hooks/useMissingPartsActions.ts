@@ -6,6 +6,7 @@ import type { MpFollowUpAssignment } from '../Types/mpVehicleActions'
 import type { MissingPartWorkflowRequest } from '../Types/missingPartWorkflow'
 import {
   assignMissingPartFollowUp,
+  attachMissingPartsToReportGroup,
   bulkInstallVehiclesToFull,
   completeVehicleShortage,
   deleteMissingPartRecord
@@ -17,6 +18,7 @@ import {
 } from '../services/missingPartWorkflowService'
 import { followUpPartsForRow } from '../Utils/missingPartRowContext'
 import { openVehicleShortageLines, remainingInstallLineCount, uniqueVehicleReps } from '../Utils/missingPartPageUtils'
+import { planMergeSelectedVehicles } from '../Utils/mergeShortageReportGroup'
 
 export function useMissingPartsActions(opts: {
   items: MissingPartDetail[]
@@ -30,6 +32,7 @@ export function useMissingPartsActions(opts: {
   canBulkInstall: boolean
   canComplete: boolean
   canDelete: boolean
+  canEdit: boolean
   canReviewWorkflow: boolean
   setVehicleCardParts: Dispatch<SetStateAction<MissingPartDetail[] | null>>
 }) {
@@ -45,6 +48,7 @@ export function useMissingPartsActions(opts: {
     canBulkInstall,
     canComplete,
     canDelete,
+    canEdit,
     canReviewWorkflow,
     setVehicleCardParts
   } = opts
@@ -195,6 +199,37 @@ export function useMissingPartsActions(opts: {
     }
   }
 
+  async function bulkMergeSelected() {
+    if (!canEdit || listTab !== 'active' || selectedVehicleIds.size < 2) return
+    const plan = planMergeSelectedVehicles(selectedVehicleIds, filtered)
+    if (!plan.ok) {
+      setError(t(`mp.bulk.merge.${plan.error}`))
+      return
+    }
+    if (
+      !window.confirm(
+        t('mp.bulk.merge.confirm', {
+          vehicles: plan.vehicleCount,
+          lines: plan.lineCount,
+          issue: plan.issueLabel
+        })
+      )
+    )
+      return
+    setBulkActionBusy(true)
+    setError('')
+    try {
+      await attachMissingPartsToReportGroup(plan.partIds, plan.reportGroupId)
+      setSelectedVehicleIds(new Set())
+      showSuccess(t('mp.bulk.merge.success', { vehicles: plan.vehicleCount, issue: plan.issueLabel }))
+      await load()
+    } catch (err) {
+      setError(formatError(err))
+    } finally {
+      setBulkActionBusy(false)
+    }
+  }
+
   function onReported(msg?: string) {
     showSuccess(msg ?? t('mp.success'))
     void load()
@@ -335,6 +370,7 @@ export function useMissingPartsActions(opts: {
     bulkInstallSelected,
     bulkCompleteSelected,
     bulkDeleteSelected,
+    bulkMergeSelected,
     onReported,
     removeParts,
     requestCompleteVehicle,
