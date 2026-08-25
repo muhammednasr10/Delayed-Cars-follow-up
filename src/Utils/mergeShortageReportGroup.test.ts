@@ -3,6 +3,7 @@ import type { MissingPartDetail } from '../Types/missingPart'
 import {
   branchPartsForGroupVehicle,
   listMergeIssueOptions,
+  mainPartsForReportGroup,
   planMergeSelectedVehicles,
   shortageIssueKey
 } from './mergeShortageReportGroup'
@@ -89,14 +90,16 @@ describe('planMergeSelectedVehicles', () => {
       part({ id: 'a', vehicleId: 'v1', vin: '0001' }),
       part({ id: 'a2', vehicleId: 'v1', vin: '0001', partDescription: 'بدون حزام', reason: 'other' }),
       part({ id: 'b', vehicleId: 'v2', vin: '0002' }),
-      part({ id: 'c', vehicleId: 'v3', vin: '0003', partDescription: 'بدون صاجة', reason: 'damage' })
+      part({ id: 'c', vehicleId: 'v3', vin: '0003' }),
+      part({ id: 'c2', vehicleId: 'v3', vin: '0003', partDescription: 'بدون صاجة', reason: 'damage' })
     ]
     const plan = planMergeSelectedVehicles(['v1', 'v2', 'v3'], pool, seat)
     expect(plan.ok).toBe(true)
     if (!plan.ok) return
-    expect(plan.attachIds.sort()).toEqual(['a', 'a2', 'b', 'c'].sort())
+    expect(plan.attachIds.sort()).toEqual(['a', 'a2', 'b', 'c', 'c2'].sort())
     expect(plan.detachIds).toEqual([])
     expect(plan.issueLabel).toBe('بدون كراسي بالكامل')
+    // Seats shared by all 3; belt on v1 and صاجة on v3 branch.
     expect(plan.branchLineCount).toBe(2)
   })
 
@@ -146,7 +149,7 @@ describe('planMergeSelectedVehicles', () => {
     )
   })
 
-  it('treats reversed combined descriptions as the same issues', () => {
+  it('treats reversed combined descriptions as the same when every chassis has them', () => {
     const a = part({
       id: 'a',
       vehicleId: 'v1',
@@ -161,5 +164,42 @@ describe('planMergeSelectedVehicles', () => {
     })
     expect(branchPartsForGroupVehicle('v1', [a, b])).toEqual([])
     expect(branchPartsForGroupVehicle('v2', [a, b])).toEqual([])
+    expect(mainPartsForReportGroup([a, b]).map(p => p.partDescription).sort()).toEqual([
+      'بدون اكصدام خلفي',
+      'بدون كراسي بالكامل'
+    ])
+  })
+
+  it('keeps only all-shared reasons on the main row and branches the rest', () => {
+    const seats = Array.from({ length: 8 }, (_, i) =>
+      part({
+        id: `s${i}`,
+        vehicleId: `v${i}`,
+        vin: `100${i}`,
+        reportGroupId: 'grp-10',
+        partDescription: 'بدون كراسي بالكامل'
+      })
+    )
+    const withBumpers = [
+      part({
+        id: 'b1',
+        vehicleId: 'v8',
+        vin: '0092',
+        reportGroupId: 'grp-10',
+        partDescription: 'بدون اكصدام خلفي \\ بدون كراسي بالكامل'
+      }),
+      part({
+        id: 'b2',
+        vehicleId: 'v9',
+        vin: '0096',
+        reportGroupId: 'grp-10',
+        partDescription: 'بدون كراسي بالكامل \\ بدون اكصدام امامي'
+      })
+    ]
+    const scope = [...seats, ...withBumpers]
+    expect(mainPartsForReportGroup(scope).map(p => p.partDescription)).toEqual(['بدون كراسي بالكامل'])
+    expect(branchPartsForGroupVehicle('v0', scope)).toEqual([])
+    expect(branchPartsForGroupVehicle('v8', scope).map(p => p.partDescription)).toEqual(['بدون اكصدام خلفي'])
+    expect(branchPartsForGroupVehicle('v9', scope).map(p => p.partDescription)).toEqual(['بدون اكصدام امامي'])
   })
 })

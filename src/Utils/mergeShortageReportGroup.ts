@@ -34,59 +34,84 @@ export function issueKeyVehicleCounts(parts: MissingPartDetail[]): Map<string, n
   return counts
 }
 
-/** Issue keys shared by at least `minVehicles` chassis in the group. */
-export function sharedIssueKeys(parts: MissingPartDetail[], minVehicles = 2): string[] {
+/** Issue keys shared by every chassis in the group (or at least `minVehicles` if passed). */
+export function sharedIssueKeys(parts: MissingPartDetail[], minVehicles?: number): string[] {
+  const vehicleCount = new Set(parts.map(p => p.vehicleId)).size
+  const threshold = minVehicles ?? Math.max(vehicleCount, 1)
   const counts = issueKeyVehicleCounts(parts)
   return [...counts.entries()]
-    .filter(([, n]) => n >= minVehicles)
+    .filter(([, n]) => n >= threshold)
     .map(([k]) => k)
+}
+
+function parseIssueKey(key: string): { label: string; reason: string; department: string } {
+  const parts = key.split('|')
+  const department = parts.pop() ?? ''
+  const reason = parts.pop() ?? ''
+  return { label: parts.join('|'), reason, department }
 }
 
 function partRepForIssueKey(parts: MissingPartDetail[], key: string): MissingPartDetail | undefined {
   return parts.find(p => issueKeysForPart(p).includes(key))
 }
 
-/** Lines shown on the main group row — reasons shared by 2+ chassis, not VIN-specific duplicates. */
+/** Lines shown on the main group row — only reasons present on every chassis. */
 export function mainPartsForReportGroup(scopeParts: MissingPartDetail[]): MissingPartDetail[] {
   const shared = sharedIssueKeys(scopeParts)
-  if (shared.length === 0) {
-    const dominant = dominantIssueKey(scopeParts)
-    if (!dominant) return scopeParts.slice(0, 1)
-    return scopeParts.filter(p => issueKeysForPart(p).includes(dominant))
-  }
+  const keys =
+    shared.length > 0
+      ? shared
+      : (() => {
+          const dominant = dominantIssueKey(scopeParts)
+          return dominant ? [dominant] : []
+        })()
+
   const reps: MissingPartDetail[] = []
   const seen = new Set<string>()
-  for (const key of shared) {
+  for (const key of keys) {
     if (seen.has(key)) continue
-    const rep = partRepForIssueKey(scopeParts, key)
-    if (rep) {
-      seen.add(key)
-      reps.push(rep)
-    }
+    seen.add(key)
+    const { label, reason, department } = parseIssueKey(key)
+    const sample = partRepForIssueKey(scopeParts, key) ?? scopeParts[0]
+    if (!sample) continue
+    // Keep one clean row per shared issue (avoid combined «A \ B» text and duplicates).
+    const matching = scopeParts.filter(p => issueKeysForPart(p).includes(key))
+    const installed = matching.reduce((s, p) => s + p.installedQty, 0)
+    const required = matching.reduce((s, p) => s + p.requiredQty, 0)
+    reps.push({
+      ...sample,
+      partDescription: label,
+      reason,
+      department,
+      installedQty: installed,
+      requiredQty: required,
+      remainingQty: Math.max(0, required - installed)
+    })
   }
   return reps
 }
 
 /**
- * Branch lines for one chassis — only issues that no other group member shares.
- * Same reasons with different word order do not branch (fragment keys match).
+ * Branch lines for one chassis — reasons not shared by the whole group.
+ * Same reasons on every member stay on the main row only.
  */
 export function branchPartsForGroupVehicle(vehicleId: string, scopeParts: MissingPartDetail[]): MissingPartDetail[] {
+  const vehicleCount = new Set(scopeParts.map(p => p.vehicleId)).size
   const counts = issueKeyVehicleCounts(scopeParts)
   const vehicleParts = scopeParts.filter(p => p.vehicleId === vehicleId)
   const branches: MissingPartDetail[] = []
 
   for (const p of vehicleParts) {
     const keys = issueKeysForPart(p)
-    const uniqueKeys = keys.filter(k => (counts.get(k) ?? 0) === 1)
-    if (uniqueKeys.length === 0) continue
+    const localOnly = keys.filter(k => (counts.get(k) ?? 0) < vehicleCount)
+    if (localOnly.length === 0) continue
 
-    if (uniqueKeys.length === keys.length) {
+    if (localOnly.length === keys.length) {
       branches.push(p)
       continue
     }
 
-    const label = uniqueKeys.map(k => k.split('|')[0]).join(' \\ ')
+    const label = localOnly.map(k => parseIssueKey(k).label).join(' \\ ')
     branches.push({ ...p, partDescription: label })
   }
 

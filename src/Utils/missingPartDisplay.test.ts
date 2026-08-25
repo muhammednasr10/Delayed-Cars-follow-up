@@ -196,7 +196,7 @@ describe('missingPartDisplay', () => {
     }
   })
 
-  it('does not branch when two chassis share the same reasons in different order', () => {
+  it('branches bumper-only extras when seats are shared by the whole group', () => {
     const items = [
       part({ id: '1', vehicleId: 'v1', vin: '0087', reportGroupId: 'grp-1', partDescription: 'بدون كراسي بالكامل' }),
       part({ id: '2', vehicleId: 'v2', vin: '0088', reportGroupId: 'grp-1', partDescription: 'بدون كراسي بالكامل' }),
@@ -216,7 +216,12 @@ describe('missingPartDisplay', () => {
       })
     ]
     const tableRows = buildMissingPartTableRows(items)
-    expect(tableRows.map(r => r.kind)).toEqual(['report-group'])
+    expect(tableRows[0]?.kind).toBe('report-group')
+    const branches = tableRows.filter(r => r.kind === 'group-branch')
+    expect(branches).toHaveLength(2)
+    expect(
+      branches.flatMap(r => (r.kind === 'group-branch' ? r.parts.map(p => p.partDescription) : []))
+    ).toEqual(['بدون اكصدام خلفي', 'بدون اكصدام خلفي'])
   })
 
   it('branches only a chassis with a reason no other group member shares', () => {
