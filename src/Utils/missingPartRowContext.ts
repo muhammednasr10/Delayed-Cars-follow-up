@@ -20,9 +20,11 @@ export function vehicleIssuesContext(
   filtered: MissingPartDetail[],
   listTab: MissingPartsListTab
 ): VehicleIssuesContext {
-  const parts = filtered.filter(
-    p => p.vehicleId === row.vehicleId && (isArchiveTab(listTab) || (p.status !== 'closed' && p.status !== 'cancelled'))
+  const all = filtered.filter(p => p.vehicleId === row.vehicleId)
+  const open = all.filter(
+    p => isArchiveTab(listTab) || (p.status !== 'closed' && p.status !== 'cancelled')
   )
+  const parts = open.length > 0 ? open : all
   return {
     vehicleId: row.vehicleId,
     vin: row.vin,
@@ -30,8 +32,19 @@ export function vehicleIssuesContext(
     colorName: row.colorName,
     colorHex: row.colorHex,
     parts,
-    allowArchived: isArchiveTab(listTab)
+    allowArchived: isArchiveTab(listTab) || open.length === 0
   }
+}
+
+/** Open lines when present; otherwise the closed/cancelled lines so edit/update still open. */
+export function actionMembersForRow(
+  row: MissingPartDetail,
+  pool: MissingPartDetail[],
+  listTab: MissingPartsListTab
+) {
+  const open = editableMembers(row, pool, listTab)
+  if (open.length > 0) return { parts: open, allowArchived: isArchiveTab(listTab) }
+  return { parts: reportGroupMembers(row, pool), allowArchived: true }
 }
 
 export function followUpPartsForRow(

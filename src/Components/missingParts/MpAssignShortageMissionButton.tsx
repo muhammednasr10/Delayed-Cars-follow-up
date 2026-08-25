@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useMemo, useState, type MouseEvent } from 'react'
 import { ListTodo } from 'lucide-react'
 import { useLang } from '../../i18n/LanguageContext'
 import { MissionFormModal } from '../missions/MissionFormModal'
@@ -55,7 +55,8 @@ export function MpAssignShortageMissionButton({
     setFormOpen(false)
   }
 
-  function onClick() {
+  function onClick(e: MouseEvent<HTMLButtonElement>) {
+    e.stopPropagation()
     if (linkedCount > 0) setLinkedOpen(true)
     else if (canAssign) setFormOpen(true)
   }

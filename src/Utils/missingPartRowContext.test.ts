@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import type { MissingPartDetail } from '../Types/missingPart'
-import { editableMembers, followUpPartsForRow, notesTargetFromPart, vehicleIssuesContext } from './missingPartRowContext'
+import { actionMembersForRow, editableMembers, followUpPartsForRow, notesTargetFromPart, vehicleIssuesContext } from './missingPartRowContext'
 
 function part(overrides: Partial<MissingPartDetail> & Pick<MissingPartDetail, 'id' | 'vehicleId' | 'vin'>): MissingPartDetail {
   return {
@@ -81,5 +81,18 @@ describe('missingPartRowContext', () => {
       colorName: null,
       colorHex: null
     })
+  })
+
+  it('falls back to closed parts so edit still opens on the current tab', () => {
+    const ctx = vehicleIssuesContext(closed, [closed], 'active')
+    expect(ctx.parts.map(p => p.id)).toEqual(['2'])
+    expect(ctx.allowArchived).toBe(true)
+  })
+
+  it('uses closed report-group members when no open lines remain', () => {
+    const allClosed = grouped.map(p => ({ ...p, status: 'closed' as const }))
+    const result = actionMembersForRow(allClosed[0], allClosed, 'active')
+    expect(result.parts.map(p => p.id)).toEqual(['a', 'b'])
+    expect(result.allowArchived).toBe(true)
   })
 })

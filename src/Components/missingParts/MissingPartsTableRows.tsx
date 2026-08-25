@@ -80,17 +80,15 @@ export function ReportGroupRow({
               e.stopPropagation()
               onOpenVinList(displayRow.items)
             }}
-            className={`max-w-[14rem] rounded-lg border px-3 py-1.5 text-sm font-bold transition ${
+            className={`relative z-0 max-w-[10.5rem] overflow-hidden rounded-lg border px-2 py-1 text-sm font-bold transition ${
               hasRepeatedVin
                 ? 'border-red-500/40 bg-red-500/10 text-red-300 hover:border-red-400/50 hover:bg-red-500/20'
                 : 'border-cyan-500/30 bg-cyan-500/10 text-cyan-300 hover:border-cyan-400/50 hover:bg-cyan-500/20'
             }`}
-            title={t('mp.vinListModal.open')}
+            title={`${groupVins.join(' · ')} — ${t('mp.vinListModal.open')}`}
           >
-            <span className="flex flex-wrap items-center justify-center gap-x-2 gap-y-0.5 font-mono text-[13px] leading-tight">
-              {groupVins.map(vin => (
-                <VinText key={vin} vin={vin} repeatedVinKeys={props.repeatedVinKeys} />
-              ))}
+            <span className="block truncate font-mono text-[12px] leading-tight" dir="ltr">
+              {groupVins.join(' · ')}
             </span>
             <span className="mt-0.5 block text-[10px] font-bold opacity-80">{t('mp.vinCount', { n: groupVins.length })}</span>
           </button>
@@ -263,8 +261,8 @@ function PartDataRow({
           )}
         </td>
       )}
-      <td className={`${cell} font-bold text-white`}>
-        <span className="inline-flex items-center justify-center gap-2">
+      <td className={`${cell} max-w-[12rem] overflow-hidden font-bold text-white`}>
+        <span className="inline-flex max-w-full items-center justify-center gap-2">
           {vinCell}
           {rowScope.some(p => !!p.transferredAt) && (
             <span className="rounded-full bg-emerald-500/15 px-2 py-0.5 text-[11px] font-black text-emerald-200">

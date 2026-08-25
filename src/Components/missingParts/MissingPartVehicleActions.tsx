@@ -1,4 +1,4 @@
-import { type ReactNode } from 'react'
+import { type MouseEvent, type ReactNode } from 'react'
 import { CheckCircle2, MessageSquare, Pencil, Settings2, Trash2 } from 'lucide-react'
 import { useLang } from '../../i18n/LanguageContext'
 import { useEmployees } from '../../hooks/useEmployees'
@@ -95,7 +95,7 @@ export function MissingPartVehicleActions({
           linkedMissions={linkedMissions}
           canAssign={canAssign}
           onOpenLinked={() => openShortageMissions(item.vin)}
-          className={`relative rounded-md p-1.5 ${
+          className={`relative z-[1] rounded-md p-1.5 ${
             linkedMissions.length > 0
               ? 'bg-amber-500/15 text-amber-200 hover:bg-amber-500/20'
               : 'text-amber-300 hover:bg-amber-500/20'
@@ -178,8 +178,11 @@ function IconBtn({
       type="button"
       title={title}
       disabled={disabled}
-      onClick={onClick}
-      className={`relative rounded-md p-1.5 ${className}`}
+      onClick={(e: MouseEvent<HTMLButtonElement>) => {
+        e.stopPropagation()
+        onClick()
+      }}
+      className={`relative z-[1] rounded-md p-1.5 ${className}`}
     >
       {children}
       {count != null && (

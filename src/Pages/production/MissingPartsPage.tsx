@@ -12,7 +12,7 @@ import type { ReportGroupContext, VehicleIssuesContext } from '../../Types/missi
 import type { UpdateVehicleContext } from '../../Components/UpdateMissingPartModal'
 import { uniqueVehicleReps } from '../../Utils/missingPartPageUtils'
 import { isReportGroup } from '../../Utils/missingPartDisplay'
-import { editableMembers, notesTargetFromPart, vehicleIssuesContext } from '../../Utils/missingPartRowContext'
+import { notesTargetFromPart, vehicleIssuesContext, actionMembersForRow } from '../../Utils/missingPartRowContext'
 import { MissingPartsToolbar } from '../../Components/missingParts/MissingPartsToolbar'
 import { MissingPartsTable } from '../../Components/missingParts/MissingPartsTable'
 import { MissingPartsApprovalsTab } from '../../Components/missingParts/MissingPartsApprovalsTab'
@@ -135,23 +135,22 @@ export function MissingPartsPage() {
   }, [listTab, visibleTabs, setListTab])
 
   function openUpdate(row: MissingPartDetail) {
-    const members = editableMembers(row, filtered, 'active').filter(
-      p => p.status !== 'closed' && p.status !== 'cancelled'
-    )
-    if (members.length === 0) return
+    const { parts } = actionMembersForRow(row, tabSource, 'active')
+    if (parts.length === 0) return
+    const ctx = vehicleIssuesContext(row, tabSource, listTab)
     setUpdateVehicle({
       vehicleId: row.vehicleId,
       vin: row.vin,
       modelName: row.modelName,
       colorName: row.colorName,
       colorHex: row.colorHex,
-      parts: isReportGroup(row, filtered) ? members : vehicleIssuesContext(row, filtered, listTab).parts
+      parts: isReportGroup(row, tabSource) ? parts : ctx.parts
     })
   }
 
   function openEdit(row: MissingPartDetail) {
-    const members = editableMembers(row, tabSource, listTab)
-    if (members.length === 0) return
+    const { parts, allowArchived } = actionMembersForRow(row, tabSource, listTab)
+    if (parts.length === 0) return
     if (isReportGroup(row, tabSource) && row.reportGroupId) {
       setEditGroup({
         reportGroupId: row.reportGroupId,
@@ -159,8 +158,8 @@ export function MissingPartsPage() {
         colorName: row.colorName,
         colorHex: row.colorHex,
         stationId: row.stationId,
-        parts: members,
-        allowArchived: listTab === 'history'
+        parts,
+        allowArchived
       })
       setEditVehicle(null)
     } else {
