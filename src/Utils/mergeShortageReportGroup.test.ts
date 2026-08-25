@@ -223,4 +223,49 @@ describe('shortage group display', () => {
       'عيب في ماكينة زجاج باب امامي يمين'
     ])
   })
+
+  it('keeps dominant seats on the main row when one chassis only has an extra defect', () => {
+    const seats = Array.from({ length: 12 }, (_, i) =>
+      part({
+        id: `s${i}`,
+        vehicleId: `v${i}`,
+        vin: `100${i}`,
+        reportGroupId: 'grp-13',
+        partDescription: 'بدون كراسي بالكامل'
+      })
+    )
+    const windowOnly = part({
+      id: 'w',
+      vehicleId: 'v12',
+      vin: '0090',
+      reportGroupId: 'grp-13',
+      partDescription: 'عيب في ماكينة زجاج باب امامي يمين'
+    })
+    const withBumpers = part({
+      id: 'b',
+      vehicleId: 'v8',
+      vin: '0092',
+      reportGroupId: 'grp-13',
+      partDescription: 'بدون اكصدام خلفي / بدون اكصدام أمامي / بدون كراسي بالكامل'
+    })
+    const scope = [...seats.filter(p => p.vehicleId !== 'v8'), withBumpers, windowOnly]
+    expect(mainPartsForReportGroup(scope).map(p => p.partDescription)).toEqual(['بدون كراسي بالكامل'])
+    expect(branchPartsForGroupVehicle('v0', scope)).toEqual([])
+    expect(branchPartsForGroupVehicle('v12', scope).map(p => p.partDescription)).toEqual([
+      'عيب في ماكينة زجاج باب امامي يمين'
+    ])
+    expect(branchPartsForGroupVehicle('v8', scope).map(p => p.partDescription)).toEqual([
+      'بدون اكصدام خلفي \\ بدون اكصدام أمامي'
+    ])
+  })
+
+  it('treats أمامي and امامي as the same label when merging options', () => {
+    const parts = [
+      part({ id: 'a', vehicleId: 'v1', vin: '1', partDescription: 'بدون اكصدام أمامي' }),
+      part({ id: 'b', vehicleId: 'v2', vin: '2', partDescription: 'بدون اكصدام امامي' })
+    ]
+    expect(listMergeIssueOptions(parts)).toHaveLength(1)
+    const plan = planMergeSelectedVehicles(['v1', 'v2'], parts)
+    expect(plan.ok).toBe(true)
+  })
 })

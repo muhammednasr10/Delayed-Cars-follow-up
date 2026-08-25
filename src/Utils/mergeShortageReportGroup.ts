@@ -1,6 +1,6 @@
 import type { MissingPartDetail } from '../Types/missingPart'
 import { branchPartsForGroupVehicle } from './shortageGroupDisplay'
-import { issueLabelsForPart, normalizeIssueLabel } from './shortageIssueKeys'
+import { displayLabelForKey, issueLabelsForPart, normalizeIssueLabel } from './shortageIssueKeys'
 
 export type MergeIssueOption = {
   key: string
@@ -71,7 +71,7 @@ export function listMergeIssueOptions(parts: MissingPartDetail[]): MergeIssueOpt
   return [...byLabel.entries()]
     .map(([label, v]) => ({
       key: label,
-      label,
+      label: displayLabelForKey(parts, label),
       reason: v.sample.reason,
       department: v.sample.department,
       vehicleCount: v.vehicles.size,
@@ -82,7 +82,8 @@ export function listMergeIssueOptions(parts: MissingPartDetail[]): MergeIssueOpt
 
 /**
  * Plan merging selected vehicles into one report_group_id.
- * Pass `primaryIssueKey` (issue label) when the selection has more than one wording.
+ * Pass `primaryIssueKey` (normalized issue label) when the selection has more than one wording —
+ * the UI asks the user to pick the main shared reason.
  */
 export function planMergeSelectedVehicles(
   selectedVehicleIds: ReadonlySet<string> | string[],
@@ -112,7 +113,10 @@ export function planMergeSelectedVehicles(
   }
 
   let chosenKey = primaryIssueKey?.trim() || ''
+  if (chosenKey) chosenKey = normalizeIssueLabel(chosenKey)
+
   if (!chosenKey) {
+    // Always ask when there is more than one distinct shortage wording.
     if (options.length === 1) chosenKey = options[0]!.key
     else return { ok: false, error: 'needPrimaryReason', options }
   }
@@ -123,7 +127,7 @@ export function planMergeSelectedVehicles(
   const reportGroupId = existingGroupIds[0] ?? crypto.randomUUID()
   const chosen = options.find(o => o.key === chosenKey)!
   const branchLineCount = [...vehiclesWithParts].reduce(
-    (n, vid) => n + branchPartsForGroupVehicle(vid, parts).length,
+    (n, vid) => n + branchPartsForGroupVehicle(vid, parts, chosenKey).length,
     0
   )
 

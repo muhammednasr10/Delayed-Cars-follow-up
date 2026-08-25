@@ -1866,8 +1866,8 @@ export const translations = {
           needPrimaryReason: 'اختَر السبب الرئيسي للدمج.',
           unknownPrimary: 'السبب المختار غير موجود في التحديد.',
           pickTitle: 'اختيار سبب الدمج',
-          pickSubtitle: '{n} سيارة محددة — اختر السبب اللي هيظهر على صف المجموعة',
-          pickHint: 'باقي الأسباب المختلفة هتظهر كفروع تحت أرقام الشاسيه.',
+          pickSubtitle: '{n} سيارة محددة — الأسباب متشابهة/مختلفة؛ اختر السبب الرئيسي للمجموعة',
+          pickHint: 'السبب المختار يظهر مرة واحدة على صف المجموعة. أي سبب زيادة على شاسيه معيّن يظهر كفرع تحته.',
           optionMeta: '{vehicles} سيارة · {lines} سجل'
         }
       },
@@ -5411,8 +5411,8 @@ export const translations = {
           needPrimaryReason: 'Choose the main issue for the merge.',
           unknownPrimary: 'The chosen issue is not in the selection.',
           pickTitle: 'Choose merge issue',
-          pickSubtitle: '{n} vehicles selected — pick the issue shown on the group row',
-          pickHint: 'Other different issues will appear as branches under the chassis numbers.',
+          pickSubtitle: '{n} vehicles selected — reasons differ or look similar; pick the main group issue',
+          pickHint: 'The chosen reason appears once on the group row. Extra reasons on a chassis appear as branches under it.',
           optionMeta: '{vehicles} vehicles · {lines} lines'
         }
       },

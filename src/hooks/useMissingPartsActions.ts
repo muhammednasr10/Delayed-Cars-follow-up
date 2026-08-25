@@ -19,6 +19,7 @@ import {
 import { followUpPartsForRow } from '../Utils/missingPartRowContext'
 import { openVehicleShortageLines, remainingInstallLineCount, uniqueVehicleReps } from '../Utils/missingPartPageUtils'
 import { planMergeSelectedVehicles, type MergeIssueOption } from '../Utils/mergeShortageReportGroup'
+import { rememberReportGroupPrimary } from '../Utils/reportGroupPrimary'
 
 export function useMissingPartsActions(opts: {
   items: MissingPartDetail[]
@@ -230,6 +231,7 @@ export function useMissingPartsActions(opts: {
     setMergePicker(null)
     try {
       await attachMissingPartsToReportGroup(plan.attachIds, plan.reportGroupId)
+      rememberReportGroupPrimary(plan.reportGroupId, plan.primaryIssueKey)
       setSelectedVehicleIds(new Set())
       showSuccess(
         t('mp.bulk.merge.success', {

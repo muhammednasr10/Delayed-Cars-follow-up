@@ -2,9 +2,14 @@ import type { MissingPartDetail } from '../Types/missingPart'
 
 const ISSUE_SEP = /\\|\||\/|\n|·|؛|\+/
 
+/** Normalize Arabic shortage text for comparison (hamza, alef, yeh, spaces). */
 export function normalizeIssueLabel(text: string): string {
   return text
     .replace(/["«»„“”']/g, '')
+    .replace(/[\u064B-\u065F\u0670]/g, '') // tashkeel
+    .replace(/[إأآٱ]/g, 'ا')
+    .replace(/ة/g, 'ه')
+    .replace(/[ىي]/g, 'ي')
     .replace(/\s+/g, ' ')
     .trim()
 }
@@ -63,6 +68,33 @@ export function dominantIssueLabel(parts: MissingPartDetail[]): string {
   return best
 }
 
+/**
+ * Labels for the group main row: all-shared reasons, else the user-picked
+ * primary (if still present), else the dominant wording.
+ */
+export function mainIssueLabels(parts: MissingPartDetail[], preferredPrimary?: string | null): string[] {
+  if (parts.length === 0) return []
+  const shared = sharedIssueLabels(parts)
+  if (shared.length > 0) return shared
+
+  const preferred = preferredPrimary?.trim() ? normalizeIssueLabel(preferredPrimary) : ''
+  if (preferred && issueLabelVehicleCounts(parts).has(preferred)) return [preferred]
+
+  const dominant = dominantIssueLabel(parts)
+  return dominant ? [dominant] : []
+}
+
 export function partSampleForLabel(parts: MissingPartDetail[], label: string): MissingPartDetail | undefined {
   return parts.find(p => issueLabelsForPart(p).includes(label))
+}
+
+/** Prefer a human-facing label that still normalizes to the same key. */
+export function displayLabelForKey(parts: MissingPartDetail[], key: string): string {
+  for (const p of parts) {
+    for (const frag of p.partDescription.split(ISSUE_SEP)) {
+      const raw = frag.replace(/["«»„“”']/g, '').replace(/\s+/g, ' ').trim()
+      if (raw && normalizeIssueLabel(raw) === key) return raw
+    }
+  }
+  return key
 }
