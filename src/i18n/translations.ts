@@ -1940,7 +1940,7 @@ export const translations = {
       actionsHint:
         'حدّد سيارات من عمود التحديد أو «تحديد الكل»، ثم نفّذ إجراءً جماعياً. بجانب الشاسيه: «انتهاء من السيارة» · عمود «إجراءات»: تعديل · تحديث · حذف.',
       complete: 'انتهاء من السيارة',
-      completeDisabledHint: 'لا توجد متابعة مفتوحة لهذه السيارة.',
+      completeDisabledHint: 'السيارة مؤرشفة بالفعل.',
       completeConfirm: 'إنهاء متابعة النقص للسيارة {vin} ونقلها للأرشيف؟',
       completePartialTitle: 'هل ركّبت كل الأجزاء؟',
       completePartialMessage:
@@ -5460,7 +5460,7 @@ export const translations = {
       actionsHint:
         'Next to VIN: «Complete vehicle». In «Actions»: Edit · Update · Delete. Use the Active tab, not Archive.',
       complete: 'Complete vehicle',
-      completeDisabledHint: 'No open shortage follow-up for this vehicle.',
+      completeDisabledHint: 'This vehicle is already archived.',
       completeConfirm: 'End shortage follow-up for {vin} and move to archive?',
       completePartialTitle: 'Did you install all parts?',
       completePartialMessage:

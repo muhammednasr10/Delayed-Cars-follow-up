@@ -17,7 +17,7 @@ export function useMissingPartsSelection(opts: {
     for (const row of tableRows) {
       const parts = partsFromTableRow(row).filter(p => {
         if (listTab === 'history') return !!p.shortageResolvedAt
-        return p.status !== 'closed' && p.status !== 'cancelled' && !p.shortageResolvedAt
+        return !p.shortageResolvedAt
       })
       if (parts.length === 0) continue
       for (const id of vehicleIdsFromTableRow(row)) ids.add(id)

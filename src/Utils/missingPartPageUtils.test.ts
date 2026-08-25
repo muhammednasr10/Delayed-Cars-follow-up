@@ -230,6 +230,11 @@ describe('vehicle shortage helpers', () => {
   it('detects completable vehicles and unique reps', () => {
     expect(canCompleteVehicle('v1', items)).toBe(true)
     expect(canCompleteVehicle('v2', items)).toBe(false)
+    expect(
+      canCompleteVehicle('v3', [
+        part({ id: '4', vehicleId: 'v3', vin: 'VIN003', status: 'closed', shortageResolvedAt: null })
+      ])
+    ).toBe(true)
     expect(uniqueVehicleReps(items)).toHaveLength(2)
   })
 

@@ -23,7 +23,7 @@ type Props = {
 }
 
 function isCompletable(part: MissingPartDetail) {
-  return !part.shortageResolvedAt && part.status !== 'closed' && part.status !== 'cancelled'
+  return !part.shortageResolvedAt
 }
 
 export function VinListModal({

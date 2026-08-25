@@ -138,13 +138,7 @@ export function useMissingPartsActions(opts: {
 
   function requestCompletePicked(parts: MissingPartDetail[]) {
     const reps = uniqueVehicleReps(parts).filter(p =>
-      items.some(
-        line =>
-          line.vehicleId === p.vehicleId &&
-          !line.shortageResolvedAt &&
-          line.status !== 'closed' &&
-          line.status !== 'cancelled'
-      )
+      items.some(line => line.vehicleId === p.vehicleId && !line.shortageResolvedAt)
     )
     if (reps.length === 0) {
       setError(t('mp.bulk.nothingToComplete'))
@@ -157,9 +151,7 @@ export function useMissingPartsActions(opts: {
   function bulkCompleteSelected() {
     const ids = [...selectedVehicleIds]
     const reps = uniqueVehicleReps(
-      filtered.filter(
-        p => ids.includes(p.vehicleId) && !p.shortageResolvedAt && p.status !== 'closed' && p.status !== 'cancelled'
-      )
+      filtered.filter(p => ids.includes(p.vehicleId) && !p.shortageResolvedAt)
     )
     if (reps.length === 0) {
       setError(t('mp.bulk.nothingToComplete'))

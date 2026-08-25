@@ -191,9 +191,13 @@ export function isOpenShortageLine(part: Pick<MissingPartDetail, 'status' | 'sho
   return !part.shortageResolvedAt && part.status !== 'closed' && part.status !== 'cancelled'
 }
 
+/** Still on the current-shortages list (vehicle not archived), even if every line is closed. */
+export function isUnarchivedShortageLine(part: Pick<MissingPartDetail, 'shortageResolvedAt'>): boolean {
+  return !part.shortageResolvedAt
+}
+
 export function canCompleteVehicle(vehicleId: string, parts: MissingPartDetail[]): boolean {
-  const lines = parts.filter(p => p.vehicleId === vehicleId)
-  return lines.some(isOpenShortageLine)
+  return parts.some(p => p.vehicleId === vehicleId && isUnarchivedShortageLine(p))
 }
 
 export function reporterNames(parts: MissingPartDetail[]): string {
