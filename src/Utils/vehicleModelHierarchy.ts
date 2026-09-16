@@ -107,3 +107,28 @@ export function variantModelsForLine(models: VehicleModel[], linePrefix: string)
   const p = linePrefix.toUpperCase()
   return models.filter(m => isAssignableModel(m) && (m.name.toUpperCase() === p || m.name.toUpperCase().startsWith(p)))
 }
+
+/** Family names left unselected when IPL compare filter initializes (matches default UI). */
+const IPL_DEFAULT_EXCLUDED_FAMILIES = new Set(['T70'])
+
+function isIplDefaultExcludedFamily(familyName: string): boolean {
+  return IPL_DEFAULT_EXCLUDED_FAMILIES.has(familyName.trim().toUpperCase())
+}
+
+/**
+ * Default open sub-models for IPL compare:
+ * all active variants except those under excluded parent families (e.g. T70).
+ */
+export function defaultIplCompareModelNames(
+  allModels: VehicleModel[],
+  assignable: VehicleModel[]
+): string[] {
+  const { groups } = buildModelFamilyGroups(allModels)
+  const excludedIds = new Set<string>()
+  for (const g of groups) {
+    if (!isIplDefaultExcludedFamily(g.family.name)) continue
+    for (const v of g.variants) excludedIds.add(v.id)
+  }
+  return assignable.filter(m => !excludedIds.has(m.id)).map(m => m.name)
+}
+

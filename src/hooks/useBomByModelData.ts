@@ -32,8 +32,13 @@ import {
   type PartListStationOption
 } from '../services/partsService'
 import { applicableModelsAfterRemoval } from '../Utils/bomQtyByModel'
-import { isIplNotFittedForModel } from '../Utils/iplFitStatus'
+import {
+  countIplFitForPartAcrossModels,
+  isIplNotFittedForModel,
+  type IplFitCounts
+} from '../Utils/iplFitStatus'
 import { isPendingBomItemId } from '../Utils/iplModelParts'
+import { buildIplCompareRows } from '../Utils/iplModelCompare'
 import {
   BOM_IPL_MODEL_ROW_COLUMNS,
   BOM_IPL_TABLE_COL_WIDTH,
@@ -51,11 +56,11 @@ import type { BomModelLineDraft } from '../Utils/bomModelBreakdown'
 import { effectiveBomStopperType } from '../Utils/bomStopper'
 import {
   buildModelFamilyGroups,
+  defaultIplCompareModelNames,
   isSelectableVehicleModel,
   selectableVehicleModels
 } from '../Utils/vehicleModelHierarchy'
 import { filterBomItemsByLineScope, filterModelFamilyPicker, isGdModelName, type BomLineScope } from '../Utils/bomModelScope'
-import { preferredIplModelName } from '../Utils/iplModelAliases'
 import { masterStationsForBom, normalizeBomStationCodeText, sortBomDisplayGroups } from '../Utils/bomStationCode'
 import type { BomFilterColumn } from '../Utils/bomFilterFields'
 import { DEFAULT_PART_KIND, DEFAULT_SUPPLY_SOURCE } from '../Utils/bomDefaults'
@@ -65,6 +70,8 @@ import type { BomIplFeedingCard } from '../Utils/iplBomLogistics'
 import type { VehicleModel, Station } from '../Types/settings'
 
 const PAGE_SIZE = 100
+/** IPL views show the full filtered list on one page (no hidden pages). */
+const IPL_PAGE_SIZE = 10_000
 
 const emptyPartForm = (): PartListFormState => ({
   common_station: '',
@@ -97,6 +104,7 @@ export function useBomByModelData({
   const [openModelTabs, setOpenModelTabs] = useState<string[]>([])
   const [activeModelTab, setActiveModelTab] = useState('')
   const [compareItemsByModel, setCompareItemsByModel] = useState<Map<string, BomItemDetail[]>>(new Map())
+  const [compareFitCountsByKey, setCompareFitCountsByKey] = useState<Map<string, IplFitCounts>>(new Map())
   const [stationId, setStationId] = useState('')
   const [search, setSearch] = useState('')
   const [searchDebounced, setSearchDebounced] = useState('')
@@ -135,16 +143,19 @@ export function useBomByModelData({
 
   const perModel = viewMode === 'perModel'
   const effectiveModelName = perModel ? activeModelTab : modelName
-  const modelPicker = useMemo(
-    () => filterModelFamilyPicker(buildModelFamilyGroups(models), lineScope),
-    [models, lineScope]
-  )
+  const modelPicker = useMemo(() => {
+    const picker = buildModelFamilyGroups(models)
+    // IPL models tab: main line + GD (Microbus) in one filter.
+    if (perModel) return picker
+    return filterModelFamilyPicker(picker, lineScope)
+  }, [models, lineScope, perModel])
   const masterStations = useMemo(() => masterStationsForBom(stations), [stations])
   const assignableModels = useMemo(() => {
     const all = selectableVehicleModels(models)
+    if (perModel) return all
     if (lineScope === 'gd') return all.filter(m => isGdModelName(m.name))
     return all.filter(m => !isGdModelName(m.name))
-  }, [models, lineScope])
+  }, [models, lineScope, perModel])
   const assignableModelNames = useMemo(() => new Set(assignableModels.map(m => m.name)), [assignableModels])
   const openTabsActive = useMemo(
     () => openModelTabs.filter(name => assignableModelNames.has(name)),
@@ -167,10 +178,12 @@ export function useBomByModelData({
     [scopedItems, stations, perModel]
   )
   const pagedGroups = useMemo(() => {
+    if (perModel) return displayGroups
     const start = (page - 1) * PAGE_SIZE
     return displayGroups.slice(start, start + PAGE_SIZE)
-  }, [displayGroups, page])
+  }, [displayGroups, page, perModel])
   const groupTotal = displayGroups.length
+  const effectivePageSize = perModel ? IPL_PAGE_SIZE : PAGE_SIZE
 
   const rowColumns = perModel ? BOM_IPL_MODEL_ROW_COLUMNS : BOM_MAIN_ROW_COLUMNS
   const colWidths = perModel ? BOM_IPL_TABLE_COL_WIDTH : BOM_TABLE_COL_WIDTH
@@ -204,15 +217,20 @@ export function useBomByModelData({
         for (const name of openTabsActive) {
           byModel.set(name, buildIplModelMergedRows(name, source.allBom, source.masters, filters))
         }
-        const uniqueParts = new Set<string>()
-        for (const rows of byModel.values()) {
-          for (const row of rows) uniqueParts.add(row.part_id || row.id)
+        const compareRows = buildIplCompareRows(openTabsActive, byModel, stations)
+        // Badge counts follow the models selected in the filter above.
+        const fitModelNames = openTabsActive
+        const fitCounts = new Map<string, IplFitCounts>()
+        for (const row of compareRows) {
+          const partIds = [...new Set([...row.byModel.values()].map(i => i.part_id).filter(Boolean))]
+          fitCounts.set(row.key, countIplFitForPartAcrossModels(partIds, fitModelNames, source.allBom))
         }
         startTransition(() => {
           setCompareItemsByModel(byModel)
+          setCompareFitCountsByKey(fitCounts)
           setItems([])
-          setTotal(uniqueParts.size)
-          setFilteredCount(uniqueParts.size)
+          setTotal(compareRows.length)
+          setFilteredCount(compareRows.length)
         })
         return
       }
@@ -220,16 +238,17 @@ export function useBomByModelData({
       const merged = buildIplModelMergedRows(activeModelTab, source.allBom, source.masters, filters).filter(
         row => !isIplNotFittedForModel(row, activeModelTab)
       )
-      const from = (page - 1) * PAGE_SIZE
       startTransition(() => {
         setCompareItemsByModel(new Map())
+        setCompareFitCountsByKey(new Map())
         setPartsCache(new Map())
-        setItems(merged.slice(from, from + PAGE_SIZE))
+        // Show every filtered IPL row on one page.
+        setItems(merged)
         setTotal(merged.length)
         setFilteredCount(merged.length)
       })
     },
-    [compareMode, openTabsActive, searchDebounced, stationCodeForLoad, activeModelTab, page]
+    [compareMode, openTabsActive, searchDebounced, stationCodeForLoad, activeModelTab, stations]
   )
 
   const load = useCallback(async (opts?: { force?: boolean }) => {
@@ -240,6 +259,7 @@ export function useBomByModelData({
       setTotal(0)
       setFilteredCount(0)
       setCompareItemsByModel(new Map())
+      setCompareFitCountsByKey(new Map())
       setLoading(false)
       setIplRefreshing(false)
       return
@@ -334,11 +354,11 @@ export function useBomByModelData({
   useEffect(() => {
     if (!perModel || assignableModels.length === 0 || didInitModelTabs.current) return
     didInitModelTabs.current = true
-    const allNames = assignableModels.map(m => m.name)
-    const preferred = preferredIplModelName(allNames)
-    setOpenModelTabs(preferred ? [preferred] : allNames.slice(0, 1))
-    setActiveModelTab((preferred ?? allNames[0]) || '')
-  }, [perModel, assignableModels])
+    const defaults = defaultIplCompareModelNames(models, assignableModels)
+    const names = defaults.length > 0 ? defaults : assignableModels.map(m => m.name)
+    setOpenModelTabs(names)
+    setActiveModelTab(names[0] ?? '')
+  }, [perModel, assignableModels, models])
 
   function toggleModelTab(name: string) {
     setOpenModelTabs(prev => {
@@ -699,6 +719,8 @@ export function useBomByModelData({
     canUpdate,
     canDelete,
     compareItemsByModel,
+    compareFitCountsByKey,
+    fitModelTotal: openTabsActive.length,
     partsCache,
     reload,
     setColumnFilter,
@@ -716,7 +738,7 @@ export function useBomByModelData({
     saveBreakdown,
     toggleModelTab,
     toggleFamilyTabs,
-    PAGE_SIZE,
+    PAGE_SIZE: effectivePageSize,
     lineScope
   }
 }

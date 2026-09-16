@@ -1,9 +1,15 @@
 import type { BomByModelDataReturn } from '../../hooks/useBomByModelData'
 
 export function BomByModelPagination({ data }: { data: BomByModelDataReturn }) {
-  const { t, compareMode, total, groupTotal, page, setPage, PAGE_SIZE } = data
+  const { t, compareMode, perModel, total, groupTotal, page, setPage, PAGE_SIZE } = data
 
-  if (compareMode) return null
+  if (compareMode || perModel) {
+    return (
+      <div className="text-center text-sm text-slate-400">
+        {t('bom.iplModelCompareShowing', { n: compareMode ? total : groupTotal })}
+      </div>
+    )
+  }
 
   return (
     <div className="flex items-center justify-between text-sm text-slate-400">

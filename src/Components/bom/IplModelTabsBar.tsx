@@ -1,7 +1,7 @@
 import { useMemo } from 'react'
 import { useLang } from '../../i18n/LanguageContext'
 import type { VehicleModel } from '../../Types/settings'
-import { buildModelFamilyGroups } from '../../Utils/vehicleModelHierarchy'
+import { buildModelFamilyGroups, isGdAggregateFamily } from '../../Utils/vehicleModelHierarchy'
 
 type Props = {
   models: VehicleModel[]
@@ -28,6 +28,11 @@ export function IplModelTabsBar({ models, allModels, openTabs, onToggleModel, on
     return { families, orphans }
   }, [allModels, variantIds])
 
+  function familyLabel(name: string): string {
+    if (isGdAggregateFamily(name)) return t('bom.iplFamilyMicrobusGd')
+    return name
+  }
+
   return (
     <div className="space-y-3">
       {families.length > 0 && (
@@ -53,7 +58,7 @@ export function IplModelTabsBar({ models, allModels, openTabs, onToggleModel, on
                         : 'border-slate-700 bg-slate-800/80 text-slate-400 hover:border-slate-600 hover:text-slate-200'
                   }`}
                 >
-                  {family.name}
+                  {familyLabel(family.name)}
                   <span className="ms-1.5 text-[10px] font-black opacity-70">
                     {selectedCount}/{names.length}
                   </span>

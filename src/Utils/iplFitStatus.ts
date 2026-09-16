@@ -73,6 +73,71 @@ export function iplFitStatusForModel(item: BomItemDetail | undefined, model: str
   return 'unset'
 }
 
+export type IplFitCounts = { fitted: number; notFitted: number; unset: number }
+
+/** Count fitted / not_fitted / unset across the selected compare models. */
+export function countIplFitStatuses(
+  models: string[],
+  byModel: Map<string, BomItemDetail | undefined>
+): IplFitCounts {
+  let fitted = 0
+  let notFitted = 0
+  let unset = 0
+  for (const model of models) {
+    const status = iplFitStatusForModel(byModel.get(model), model)
+    if (status === 'fitted') fitted += 1
+    else if (status === 'not_fitted') notFitted += 1
+    else unset += 1
+  }
+  return { fitted, notFitted, unset }
+}
+
+/**
+ * Count fit status for a part across every model in scope (edit-form semantics):
+ * - fitted: BOM line with qty > 0 for that model
+ * - not_fitted: explicit NA / not-fitted marker
+ * - unset: no BOM assignment for that model yet
+ */
+export function countIplFitForPartAcrossModels(
+  partIds: Iterable<string>,
+  modelNames: string[],
+  allBom: BomItemDetail[]
+): IplFitCounts {
+  const ids = new Set([...partIds].filter(Boolean))
+  if (ids.size === 0 || modelNames.length === 0) {
+    return { fitted: 0, notFitted: 0, unset: modelNames.length }
+  }
+
+  const partRows = allBom.filter(r => ids.has(r.part_id))
+  let fitted = 0
+  let notFitted = 0
+  let unset = 0
+
+  for (const model of modelNames) {
+    const rows = partRows.filter(r => bomRowAssignedToIplModel(r, model))
+    if (rows.length === 0) {
+      unset += 1
+      continue
+    }
+
+    let status: IplFitStatus = 'unset'
+    for (const row of rows) {
+      const next = iplFitStatusForModel(row, model)
+      if (next === 'fitted') {
+        status = 'fitted'
+        break
+      }
+      if (next === 'not_fitted') status = 'not_fitted'
+    }
+
+    if (status === 'fitted') fitted += 1
+    else if (status === 'not_fitted') notFitted += 1
+    else unset += 1
+  }
+
+  return { fitted, notFitted, unset }
+}
+
 export function compareTokenForFitStatus(status: IplFitStatus): string | null {
   if (status === 'unset') return IPL_COMPARE_UNSET
   if (status === 'not_fitted') return IPL_COMPARE_NOT_FITTED

@@ -8,7 +8,7 @@ import type { BomByModelDataReturn } from '../../hooks/useBomByModelData'
 export function BomByModelTable({ data }: { data: BomByModelDataReturn }) {
   const {
     t, perModel, loading, iplRefreshing, compareMode, openTabsActive,
-    compareItemsByModel, canUpdate, canDelete, openPartEditById,
+    compareItemsByModel, compareFitCountsByKey, fitModelTotal, canUpdate, canDelete, openPartEditById,
     pagedGroups, colCount, rowColumns, colWidths, baseFilters,
     excelFilters, setColumnFilter, expandedKeys, toggleExpanded,
     models, stations, stationOptions, onIplStationChange, onIplFieldSave,
@@ -18,7 +18,7 @@ export function BomByModelTable({ data }: { data: BomByModelDataReturn }) {
   } = data
 
   return (
-    <div className="card-industrial relative overflow-hidden">
+    <div className="card-industrial relative overflow-x-auto">
       {perModel && (loading || iplRefreshing) && (
         <div className="pointer-events-none absolute inset-x-0 top-0 z-20 h-0.5 bg-slate-800">
           <div className="h-full w-full animate-pulse bg-cyan-400/90" />
@@ -28,6 +28,9 @@ export function BomByModelTable({ data }: { data: BomByModelDataReturn }) {
         <IplModelCompareTable
           openTabs={openTabsActive}
           itemsByModel={compareItemsByModel}
+          stations={stations}
+          fitCountsByKey={compareFitCountsByKey}
+          fitModelTotal={fitModelTotal}
           loading={loading && compareItemsByModel.size === 0}
           canUpdate={canUpdate}
           onEditPart={partId => void openPartEditById(partId)}

@@ -1,4 +1,4 @@
-import { useDeferredValue, useMemo, useState } from 'react'
+import { useMemo, useState } from 'react'
 import { Pencil } from 'lucide-react'
 import { useLang } from '../../i18n/LanguageContext'
 import {
@@ -9,14 +9,20 @@ import {
   type FieldCompareResult,
   type IplCompareRow
 } from '../../Utils/iplModelCompare'
+import type { IplFitCounts } from '../../Utils/iplFitStatus'
 import { IplCompareFieldCell } from './IplCompareFieldCell'
 import { IplCompareDetailCard } from './IplCompareDetailCard'
 import { IplComparePartCard, partIdFromCompareRow } from './IplComparePartCard'
+import { IplFitCountBadges } from './IplFitCountBadges'
 import type { BomItemDetail } from '../../Types/bom'
+import type { Station } from '../../Types/settings'
 
 type Props = {
   openTabs: string[]
   itemsByModel: Map<string, BomItemDetail[]>
+  stations?: Station[]
+  fitCountsByKey?: Map<string, IplFitCounts>
+  fitModelTotal?: number
   loading?: boolean
   canUpdate?: boolean
   onEditPart?: (partId: string) => void
@@ -29,14 +35,25 @@ type DetailModalState = {
   mono?: boolean
 }
 
-export function IplModelCompareTable({ openTabs, itemsByModel, loading, canUpdate, onEditPart }: Props) {
+const EMPTY_COUNTS: IplFitCounts = { fitted: 0, notFitted: 0, unset: 0 }
+
+export function IplModelCompareTable({
+  openTabs,
+  itemsByModel,
+  stations = [],
+  fitCountsByKey,
+  fitModelTotal = 0,
+  loading,
+  canUpdate,
+  onEditPart
+}: Props) {
   const { t } = useLang()
   const [detailModal, setDetailModal] = useState<DetailModalState | null>(null)
   const [partCard, setPartCard] = useState<IplCompareRow | null>(null)
-  const deferredTabs = useDeferredValue(openTabs)
-  const deferredItems = useDeferredValue(itemsByModel)
-  const rows = useMemo(() => buildIplCompareRows(deferredTabs, deferredItems), [deferredTabs, deferredItems])
-  const pending = deferredTabs !== openTabs || deferredItems !== itemsByModel
+  const rows = useMemo(
+    () => buildIplCompareRows(openTabs, itemsByModel, stations),
+    [openTabs, itemsByModel, stations]
+  )
 
   function openDetail(row: IplCompareRow, field: 'part_number' | 'station' | 'qty', result: FieldCompareResult, mono?: boolean) {
     const titles = {
@@ -62,7 +79,7 @@ export function IplModelCompareTable({ openTabs, itemsByModel, loading, canUpdat
 
   return (
     <>
-      <div className={`overflow-x-auto transition-opacity duration-200 ${pending ? 'opacity-70' : 'opacity-100'}`}>
+      <div className="overflow-x-auto">
         <table className="w-full min-w-[640px] text-sm">
           <thead>
             <tr className="border-b border-slate-800 text-[10px] font-black uppercase text-slate-500">
@@ -76,9 +93,10 @@ export function IplModelCompareTable({ openTabs, itemsByModel, loading, canUpdat
           </thead>
           <tbody>
             {rows.map(row => {
-              const partNumbers = comparePartNumbers(row, deferredTabs)
-              const stations = compareStations(row, deferredTabs)
-              const quantities = compareQuantities(row, deferredTabs)
+              const partNumbers = comparePartNumbers(row, openTabs)
+              const stations = compareStations(row, openTabs)
+              const quantities = compareQuantities(row, openTabs)
+              const counts = fitCountsByKey?.get(row.key) ?? EMPTY_COUNTS
 
               return (
                 <tr
@@ -86,7 +104,12 @@ export function IplModelCompareTable({ openTabs, itemsByModel, loading, canUpdat
                   className="cursor-pointer border-b border-slate-800/60 hover:bg-slate-900/40"
                   onClick={() => setPartCard(row)}
                 >
-                  <td className="sticky start-0 z-10 bg-slate-950/95 px-3 py-2 font-medium text-white">{row.partNameAr}</td>
+                  <td className="sticky start-0 z-10 bg-slate-950/95 px-3 py-2 font-medium text-white">
+                    <span className="inline-flex max-w-full flex-wrap items-center gap-y-1">
+                      <span>{row.partNameAr}</span>
+                      <IplFitCountBadges counts={counts} modelTotal={fitModelTotal} />
+                    </span>
+                  </td>
                   <td className="px-3 py-2 text-slate-400" dir="ltr">
                     {row.partNameEn}
                   </td>
@@ -135,6 +158,9 @@ export function IplModelCompareTable({ openTabs, itemsByModel, loading, canUpdat
           </tbody>
         </table>
       </div>
+      <p className="border-t border-slate-800 px-4 py-2 text-center text-xs text-slate-500">
+        {t('bom.iplModelCompareShowing', { n: rows.length })}
+      </p>
 
       {detailModal && (
         <IplCompareDetailCard
@@ -150,7 +176,7 @@ export function IplModelCompareTable({ openTabs, itemsByModel, loading, canUpdat
         <IplComparePartCard
           open={Boolean(partCard)}
           row={partCard}
-          models={deferredTabs}
+          models={openTabs}
           canUpdate={canUpdate}
           onEdit={onEditPart}
           onClose={() => setPartCard(null)}
