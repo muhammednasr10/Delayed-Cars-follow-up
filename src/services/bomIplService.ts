@@ -215,13 +215,32 @@ export function buildIplModelMergedRows(
   return merged
 }
 
+const IPL_BOM_FETCH_PAGE = 1000
+
+/** Load every active BOM detail row (no silent 8k cap — not-fitted markers must not be dropped). */
+async function fetchAllActiveBomDetails(): Promise<BomItemDetail[]> {
+  const all: BomItemDetail[] = []
+  let from = 0
+  for (;;) {
+    const to = from + IPL_BOM_FETCH_PAGE - 1
+    const { data, error } = await client()
+      .from('v_bom_items_detail')
+      .select('*')
+      .eq('is_active', true)
+      .order('id', { ascending: true })
+      .range(from, to)
+    if (error) throw new Error(error.message)
+    const batch = (data ?? []) as BomItemDetail[]
+    all.push(...batch)
+    if (batch.length < IPL_BOM_FETCH_PAGE) break
+    from += IPL_BOM_FETCH_PAGE
+  }
+  return all
+}
+
 export async function fetchIplBomAndMasters(search?: string): Promise<{ allBom: BomItemDetail[]; masters: Part[] }> {
-  const [bomRes, masters] = await Promise.all([
-    client().from('v_bom_items_detail').select('*').eq('is_active', true).limit(8000),
-    listPartMastersLite({ search })
-  ])
-  if (bomRes.error) throw new Error(bomRes.error.message)
-  return { allBom: (bomRes.data ?? []) as BomItemDetail[], masters }
+  const [allBom, masters] = await Promise.all([fetchAllActiveBomDetails(), listPartMastersLite({ search })])
+  return { allBom, masters }
 }
 
 export async function listIplModelViewRows(filters: {

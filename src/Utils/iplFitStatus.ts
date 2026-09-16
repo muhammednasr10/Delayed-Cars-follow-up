@@ -1,6 +1,7 @@
 import type { BomItemDetail } from '../Types/bom'
 import { isPendingBomItemId } from './iplModelParts'
 import { bomRowAppliesToModel, modelQtyForBomRow, parseApplicableModelNames } from './bomQtyByModel'
+import { iplModelNamesMatch } from './iplModelAliases'
 
 export const IPL_NOT_FITTED_QTY = 'NA'
 export const IPL_NOT_FITTED_PN = 'NA'
@@ -57,9 +58,9 @@ export function notFittedModelsFromBomRow(row: FitRow): string[] {
 }
 
 export function isIplNotFittedForModel(row: FitRow, modelName: string): boolean {
-  const target = modelName.trim().toUpperCase()
+  const target = modelName.trim()
   if (!target) return false
-  return notFittedModelsFromBomRow(row).some(n => n.trim().toUpperCase() === target)
+  return notFittedModelsFromBomRow(row).some(n => iplModelNamesMatch(n, target))
 }
 
 export function bomRowAssignedToIplModel(row: FitRow, modelName: string): boolean {

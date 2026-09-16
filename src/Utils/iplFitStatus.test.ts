@@ -90,4 +90,39 @@ describe('countIplFitForPartAcrossModels', () => {
       )
     ).toEqual({ fitted: 3, notFitted: 0, unset: 3 })
   })
+
+  it('counts not_fitted from qty NA tokens including T4 aliases', () => {
+    const allBom = [
+      item({
+        id: '1',
+        part_id: 'br',
+        quantity: 1,
+        vehicle_model_name: 'T4-PRO C',
+        qty_by_model_raw: 'T4-PRO C=1'
+      }),
+      item({
+        id: '2',
+        part_id: 'br',
+        part_number: 'NA',
+        quantity: 0,
+        source_sheet: 'ipl_not_fitted',
+        vehicle_model_name: 'T4T',
+        qty_by_model_raw: 'T4T=NA',
+        applicable_models_text: 'T4T'
+      }),
+      item({
+        id: '3',
+        part_id: 'br',
+        part_number: 'NA',
+        quantity: 0,
+        source_sheet: 'ipl_not_fitted',
+        vehicle_model_name: 'T4-PRO L',
+        qty_by_model_raw: 'T4-PRO L=NA',
+        applicable_models_text: 'T4-PRO L'
+      })
+    ]
+    expect(
+      countIplFitForPartAcrossModels(['br'], ['T4-PRO C', 'T4-PRO T', 'T4-PRO L'], allBom)
+    ).toEqual({ fitted: 1, notFitted: 2, unset: 0 })
+  })
 })

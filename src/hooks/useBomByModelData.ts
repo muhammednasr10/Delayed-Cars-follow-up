@@ -38,7 +38,7 @@ import {
   type IplFitCounts
 } from '../Utils/iplFitStatus'
 import { isPendingBomItemId } from '../Utils/iplModelParts'
-import { buildIplCompareRows } from '../Utils/iplModelCompare'
+import { buildIplCompareRows, partCompareNameKey } from '../Utils/iplModelCompare'
 import {
   BOM_IPL_MODEL_ROW_COLUMNS,
   BOM_IPL_TABLE_COL_WIDTH,
@@ -219,10 +219,28 @@ export function useBomByModelData({
         }
         const compareRows = buildIplCompareRows(openTabsActive, byModel, stations)
         // Badge counts follow the models selected in the filter above.
+        // Collect every part_id under the compare name (not only the picked cell),
+        // so not-fitted lines on a sibling master still count after edit.
+        const partIdsByKey = new Map<string, Set<string>>()
+        for (const items of byModel.values()) {
+          for (const item of items) {
+            const key = partCompareNameKey(item)
+            if (!item.part_id) continue
+            let set = partIdsByKey.get(key)
+            if (!set) {
+              set = new Set()
+              partIdsByKey.set(key, set)
+            }
+            set.add(item.part_id)
+          }
+        }
         const fitModelNames = openTabsActive
         const fitCounts = new Map<string, IplFitCounts>()
         for (const row of compareRows) {
-          const partIds = [...new Set([...row.byModel.values()].map(i => i.part_id).filter(Boolean))]
+          const fromBucket = partIdsByKey.get(row.key)
+          const partIds = fromBucket?.size
+            ? [...fromBucket]
+            : [...new Set([...row.byModel.values()].map(i => i.part_id).filter(Boolean))]
           fitCounts.set(row.key, countIplFitForPartAcrossModels(partIds, fitModelNames, source.allBom))
         }
         startTransition(() => {
