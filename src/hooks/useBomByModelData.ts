@@ -38,7 +38,14 @@ import {
   type IplFitCounts
 } from '../Utils/iplFitStatus'
 import { isPendingBomItemId } from '../Utils/iplModelParts'
-import { buildIplCompareRows, partCompareNameKey } from '../Utils/iplModelCompare'
+import { buildIplCompareRows, partCompareNameKey, type IplCompareRow } from '../Utils/iplModelCompare'
+import {
+  buildIplSearchSuggestions,
+  filterIplCompareRows,
+  summarizeIplCompareFit,
+  type IplDiffFilter,
+  type IplFitClassFilter
+} from '../Utils/iplCompareFilters'
 import {
   BOM_IPL_MODEL_ROW_COLUMNS,
   BOM_IPL_TABLE_COL_WIDTH,
@@ -105,6 +112,9 @@ export function useBomByModelData({
   const [activeModelTab, setActiveModelTab] = useState('')
   const [compareItemsByModel, setCompareItemsByModel] = useState<Map<string, BomItemDetail[]>>(new Map())
   const [compareFitCountsByKey, setCompareFitCountsByKey] = useState<Map<string, IplFitCounts>>(new Map())
+  const [compareRowsAll, setCompareRowsAll] = useState<IplCompareRow[]>([])
+  const [iplFitFilter, setIplFitFilter] = useState<IplFitClassFilter>('')
+  const [iplDiffFilter, setIplDiffFilter] = useState<IplDiffFilter>('')
   const [stationId, setStationId] = useState('')
   const [search, setSearch] = useState('')
   const [searchDebounced, setSearchDebounced] = useState('')
@@ -163,6 +173,35 @@ export function useBomByModelData({
   )
   const openTabsKey = openTabsActive.join('\u0001')
   const compareMode = perModel && openTabsActive.length > 1
+  const fitModelTotal = openTabsActive.length
+  const compareRowsFiltered = useMemo(() => {
+    if (!compareMode) return [] as IplCompareRow[]
+    return filterIplCompareRows(compareRowsAll, {
+      openTabs: openTabsActive,
+      search: searchDebounced,
+      fitFilter: iplFitFilter,
+      diffFilter: iplDiffFilter,
+      fitCountsByKey: compareFitCountsByKey,
+      modelTotal: fitModelTotal
+    })
+  }, [
+    compareMode,
+    compareRowsAll,
+    openTabsActive,
+    searchDebounced,
+    iplFitFilter,
+    iplDiffFilter,
+    compareFitCountsByKey,
+    fitModelTotal
+  ])
+  const compareFitSummary = useMemo(
+    () => summarizeIplCompareFit(compareRowsFiltered, compareFitCountsByKey, fitModelTotal),
+    [compareRowsFiltered, compareFitCountsByKey, fitModelTotal]
+  )
+  const iplSearchSuggestions = useMemo(
+    () => (compareMode ? buildIplSearchSuggestions(compareRowsAll, openTabsActive, search, 12) : []),
+    [compareMode, compareRowsAll, openTabsActive, search]
+  )
   const stationCodeForLoad = useMemo(() => {
     if (!stationId) return undefined
     const st = masterStations.find(s => s.id === stationId)
@@ -211,7 +250,11 @@ export function useBomByModelData({
 
   const applyIplFromSource = useCallback(
     (source: { allBom: BomItemDetail[]; masters: Part[] }) => {
-      const filters = { search: searchDebounced, stationCode: stationCodeForLoad }
+      // Compare mode filters search client-side so suggestions/totals stay accurate.
+      const filters = {
+        search: compareMode ? undefined : searchDebounced,
+        stationCode: stationCodeForLoad
+      }
       if (compareMode) {
         const byModel = new Map<string, BomItemDetail[]>()
         for (const name of openTabsActive) {
@@ -246,6 +289,7 @@ export function useBomByModelData({
         startTransition(() => {
           setCompareItemsByModel(byModel)
           setCompareFitCountsByKey(fitCounts)
+          setCompareRowsAll(compareRows)
           setItems([])
           setTotal(compareRows.length)
           setFilteredCount(compareRows.length)
@@ -259,6 +303,7 @@ export function useBomByModelData({
       startTransition(() => {
         setCompareItemsByModel(new Map())
         setCompareFitCountsByKey(new Map())
+        setCompareRowsAll([])
         setPartsCache(new Map())
         // Show every filtered IPL row on one page.
         setItems(merged)
@@ -266,7 +311,7 @@ export function useBomByModelData({
         setFilteredCount(merged.length)
       })
     },
-    [compareMode, openTabsActive, searchDebounced, stationCodeForLoad, activeModelTab, stations]
+    [compareMode, openTabsActive, compareMode ? '' : searchDebounced, stationCodeForLoad, activeModelTab, stations]
   )
 
   const load = useCallback(async (opts?: { force?: boolean }) => {
@@ -278,6 +323,7 @@ export function useBomByModelData({
       setFilteredCount(0)
       setCompareItemsByModel(new Map())
       setCompareFitCountsByKey(new Map())
+      setCompareRowsAll([])
       setLoading(false)
       setIplRefreshing(false)
       return
@@ -687,8 +733,8 @@ export function useBomByModelData({
     setNoOperationOnly,
     page,
     setPage,
-    total,
-    filteredCount,
+    total: compareMode ? compareRowsAll.length : total,
+    filteredCount: compareMode ? compareRowsFiltered.length : filteredCount,
     loading,
     iplRefreshing,
     formMode,
@@ -738,7 +784,14 @@ export function useBomByModelData({
     canDelete,
     compareItemsByModel,
     compareFitCountsByKey,
-    fitModelTotal: openTabsActive.length,
+    compareRowsFiltered,
+    compareFitSummary,
+    iplFitFilter,
+    setIplFitFilter,
+    iplDiffFilter,
+    setIplDiffFilter,
+    iplSearchSuggestions,
+    fitModelTotal,
     partsCache,
     reload,
     setColumnFilter,

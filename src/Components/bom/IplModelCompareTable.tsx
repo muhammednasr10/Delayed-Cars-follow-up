@@ -20,6 +20,7 @@ import type { Station } from '../../Types/settings'
 type Props = {
   openTabs: string[]
   itemsByModel: Map<string, BomItemDetail[]>
+  rows?: IplCompareRow[]
   stations?: Station[]
   fitCountsByKey?: Map<string, IplFitCounts>
   fitModelTotal?: number
@@ -40,6 +41,7 @@ const EMPTY_COUNTS: IplFitCounts = { fitted: 0, notFitted: 0, unset: 0 }
 export function IplModelCompareTable({
   openTabs,
   itemsByModel,
+  rows: rowsProp,
   stations = [],
   fitCountsByKey,
   fitModelTotal = 0,
@@ -50,10 +52,11 @@ export function IplModelCompareTable({
   const { t } = useLang()
   const [detailModal, setDetailModal] = useState<DetailModalState | null>(null)
   const [partCard, setPartCard] = useState<IplCompareRow | null>(null)
-  const rows = useMemo(
+  const builtRows = useMemo(
     () => buildIplCompareRows(openTabs, itemsByModel, stations),
     [openTabs, itemsByModel, stations]
   )
+  const rows = rowsProp ?? builtRows
 
   function openDetail(row: IplCompareRow, field: 'part_number' | 'station' | 'qty', result: FieldCompareResult, mono?: boolean) {
     const titles = {

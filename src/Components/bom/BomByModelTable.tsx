@@ -8,7 +8,7 @@ import type { BomByModelDataReturn } from '../../hooks/useBomByModelData'
 export function BomByModelTable({ data }: { data: BomByModelDataReturn }) {
   const {
     t, perModel, loading, iplRefreshing, compareMode, openTabsActive,
-    compareItemsByModel, compareFitCountsByKey, fitModelTotal, canUpdate, canDelete, openPartEditById,
+    compareItemsByModel, compareFitCountsByKey, compareRowsFiltered, fitModelTotal, canUpdate, canDelete, openPartEditById,
     pagedGroups, colCount, rowColumns, colWidths, baseFilters,
     excelFilters, setColumnFilter, expandedKeys, toggleExpanded,
     models, stations, stationOptions, onIplStationChange, onIplFieldSave,
@@ -28,6 +28,7 @@ export function BomByModelTable({ data }: { data: BomByModelDataReturn }) {
         <IplModelCompareTable
           openTabs={openTabsActive}
           itemsByModel={compareItemsByModel}
+          rows={compareRowsFiltered}
           stations={stations}
           fitCountsByKey={compareFitCountsByKey}
           fitModelTotal={fitModelTotal}
