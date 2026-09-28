@@ -3,9 +3,16 @@ export type TableExportColumn<T> = {
   value: (row: T) => string | number | null | undefined
 }
 
+export type TableExportSummary = {
+  title: string
+  headers: string[]
+  values: Array<string | number>
+}
+
 export type TableExportData = {
   headers: string[]
   rows: string[][]
+  summary?: TableExportSummary
 }
 
 function cellText(value: string | number | null | undefined): string {

@@ -1,6 +1,7 @@
 import { Car, Undo2 } from 'lucide-react'
 import { useLang } from '../../i18n/LanguageContext'
 import { useMpLookups } from '../../hooks/useMpLookups'
+import { formatDateTime } from '../../Utils/missingPartPageUtils'
 import { formatVehicleColorLabel } from '../../Utils/vehicleColorLabel'
 import { uniqueVehicleReps } from '../../Utils/missingPartPageUtils'
 import {
@@ -9,7 +10,7 @@ import {
 } from '../../Utils/shortageGroupDisplay'
 import { Modal } from '../Modal'
 import type { MissingPartDetail } from '../../Types/missingPart'
-import { uniqueCardLabels, VehicleCardField, VehicleCardIssueCard } from './VehicleCardBits'
+import { ChassisChipMeta, uniqueCardLabels, VehicleCardField, VehicleCardIssueCard } from './VehicleCardBits'
 
 type Props = {
   parts: MissingPartDetail[] | null
@@ -75,6 +76,13 @@ export function VehicleCardModal({
     vehicle: v,
     issues: parts.filter(p => p.vehicleId === v.vehicleId)
   }))
+  const entryAtByVehicle = new Map<string, string>()
+  for (const part of parts) {
+    const current = entryAtByVehicle.get(part.vehicleId)
+    if (part.createdAt && (!current || part.createdAt < current)) {
+      entryAtByVehicle.set(part.vehicleId, part.createdAt)
+    }
+  }
 
   const issueCardProps = {
     lang,
@@ -152,15 +160,17 @@ export function VehicleCardModal({
                     {vin}
                   </p>
                   {multiVin && (
-                    <p className="mt-1 text-[11px] text-slate-400">
-                      {vehicles[i]!.modelName}
-                      {formatVehicleColorLabel(vehicles[i]!.colorName, vehicles[i]!.colorCode)
-                        ? ` · ${formatVehicleColorLabel(vehicles[i]!.colorName, vehicles[i]!.colorCode)}`
-                        : ''}
-                      {mixedOrg
-                        ? ` · ${orgUnitLabelFor?.(vehicles[i]!.factoryOrgUnitId) || orgUnitLabel || '—'}`
-                        : ''}
-                    </p>
+                    <ChassisChipMeta
+                      vehicle={vehicles[i]!}
+                      enteredAt={entryAtByVehicle.get(vehicles[i]!.vehicleId) ?? vehicles[i]!.createdAt}
+                      lang={lang}
+                      dateTimeLabel={t('mp.cols.dateTime')}
+                      orgLabel={
+                        mixedOrg
+                          ? orgUnitLabelFor?.(vehicles[i]!.factoryOrgUnitId) || orgUnitLabel || '—'
+                          : ''
+                      }
+                    />
                   )}
                 </div>
               ))}
@@ -188,6 +198,7 @@ export function VehicleCardModal({
                   <VehicleCardIssueCard
                     key={`shared-${p.partDescription}-${p.reason}`}
                     part={p}
+                    showWhen={false}
                     {...issueCardProps}
                   />
                 ))}

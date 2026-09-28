@@ -5,6 +5,7 @@ import { OPEN_MISSING_PARTS_EVENT } from '../Types/appNotification'
 export type OpenMissingPartsDetail = {
   tab?: MissingPartsListTab
   search?: string
+  vins?: string[]
 }
 
 export function missingPartsTabForNotification(item: AppNotificationItem): MissingPartsListTab {
@@ -13,8 +14,12 @@ export function missingPartsTabForNotification(item: AppNotificationItem): Missi
   return 'active'
 }
 
-export function dispatchOpenMissingPartsTab(tab: MissingPartsListTab, search?: string) {
-  window.dispatchEvent(new CustomEvent(OPEN_MISSING_PARTS_EVENT, { detail: { tab, search } satisfies OpenMissingPartsDetail }))
+export function dispatchOpenMissingPartsTab(tab: MissingPartsListTab, search?: string, vins?: string[]) {
+  window.dispatchEvent(
+    new CustomEvent(OPEN_MISSING_PARTS_EVENT, {
+      detail: { tab, search, vins } satisfies OpenMissingPartsDetail
+    })
+  )
 }
 
 export function productionNavigatePatch(page: 'missing' | 'missions' | 'requests') {

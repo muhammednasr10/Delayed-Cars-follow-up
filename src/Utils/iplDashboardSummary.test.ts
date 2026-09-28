@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import { buildIplDashboardSummaryFromCompare } from './iplDashboardSummary'
 import type { IplCompareRow } from './iplModelCompare'
 import type { BomItemDetail } from '../Types/bom'
+import type { Station } from '../Types/settings'
 
 function item(overrides: Partial<BomItemDetail> & Pick<BomItemDetail, 'id' | 'part_id'>): BomItemDetail {
   return {
@@ -96,5 +97,27 @@ describe('buildIplDashboardSummaryFromCompare', () => {
     expect(summary.differences.differentPn).toBeGreaterThanOrEqual(1)
     expect(summary.byModel).toHaveLength(2)
     expect(summary.byStation.some(s => s.station.includes('PBS') || s.parts > 0)).toBe(true)
+  })
+
+  it('sorts the station table by settings order, not by part count', () => {
+    const models = ['A']
+    const late = item({ id: '1', part_id: 'p1', station_code_text: 'ST-06', vehicle_model_name: 'A' })
+    const early = item({ id: '2', part_id: 'p2', station_code_text: 'ST-01', vehicle_model_name: 'A' })
+    const rows: IplCompareRow[] = [
+      { key: 'late', partNameAr: 'متأخر', partNameEn: 'Late', byModel: new Map([['A', late]]) },
+      { key: 'early', partNameAr: 'بدري', partNameEn: 'Early', byModel: new Map([['A', early]]) },
+      {
+        key: 'late2',
+        partNameAr: 'متأخر ٢',
+        partNameEn: 'Late 2',
+        byModel: new Map([['A', { ...late, id: '3', part_id: 'p3' }]])
+      }
+    ]
+    const stations = [
+      { id: 's6', station_number: 'ST-06', station_name: 'ST-06', is_active: true, sort_order: 20, parent_station_id: null },
+      { id: 's1', station_number: 'ST-01', station_name: 'ST-01', is_active: true, sort_order: 10, parent_station_id: null }
+    ] as Station[]
+    const summary = buildIplDashboardSummaryFromCompare(rows, new Map(), models, stations)
+    expect(summary.byStation.map(row => row.station)).toEqual(['ST-01', 'ST-06'])
   })
 })

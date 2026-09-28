@@ -1,5 +1,14 @@
 import type { ProductionOrderStatus } from './enums'
 
+export type ProductionOrderColorLine = {
+  id?: string
+  colorId: string
+  colorName?: string | null
+  colorCode?: string | null
+  hexCode?: string | null
+  qty: number
+}
+
 export type ProductionOrder = {
   id: string
   orderNumber: string
@@ -13,8 +22,16 @@ export type ProductionOrder = {
   plannedStart?: string | null
   plannedEnd?: string | null
   notes?: string | null
+  /** When the order was opened on the line / for planning. */
+  openedAt?: string | null
+  colors?: ProductionOrderColorLine[]
   createdAt?: string
   updatedAt?: string
+}
+
+export type ProductionOrderColorInput = {
+  colorId: string
+  qty: number
 }
 
 export type ProductionOrderInput = {
@@ -26,4 +43,6 @@ export type ProductionOrderInput = {
   plannedStart?: string | null
   plannedEnd?: string | null
   notes?: string
+  openedAt?: string | null
+  colors?: ProductionOrderColorInput[]
 }

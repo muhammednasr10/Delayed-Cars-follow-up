@@ -1,26 +1,43 @@
 import { addVehicleNote } from '../services/vehicleNotesService'
 
+/** Local date and time written into the notes thread for a later change. */
+export function formatActivityStamp(when = new Date()): string {
+  const date = `${String(when.getDate()).padStart(2, '0')}/${String(when.getMonth() + 1).padStart(2, '0')}/${when.getFullYear()}`
+  const time = `${String(when.getHours()).padStart(2, '0')}:${String(when.getMinutes()).padStart(2, '0')}`
+  return `${date} ${time}`
+}
+
+export function withActivityWhen(body: string, when = new Date()): string {
+  return `${body.trim()}\n${formatActivityStamp(when)}`
+}
+
 /** Best-effort system note on the vehicle thread; never blocks the main action. */
-export async function logVehicleActivityNote(vehicleId: string | null | undefined, body: string): Promise<void> {
+export async function logVehicleActivityNote(
+  vehicleId: string | null | undefined,
+  body: string,
+  opts?: { includeWhen?: boolean }
+): Promise<void> {
   if (!vehicleId) return
   const trimmed = body.trim()
   if (!trimmed) return
+  const text = opts?.includeWhen === false ? trimmed : withActivityWhen(trimmed)
   try {
-    await addVehicleNote(vehicleId, trimmed)
+    await addVehicleNote(vehicleId, text)
   } catch {
     /* activity log must not fail the primary mutation */
   }
 }
 
 export async function logVehicleActivityNotes(
-  entries: Array<{ vehicleId: string; body: string }>
+  entries: Array<{ vehicleId: string; body: string }>,
+  opts?: { includeWhen?: boolean }
 ): Promise<void> {
   const seen = new Set<string>()
   for (const entry of entries) {
     const key = `${entry.vehicleId}::${entry.body}`
     if (seen.has(key)) continue
     seen.add(key)
-    await logVehicleActivityNote(entry.vehicleId, entry.body)
+    await logVehicleActivityNote(entry.vehicleId, entry.body, opts)
   }
 }
 

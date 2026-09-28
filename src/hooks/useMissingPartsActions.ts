@@ -9,7 +9,8 @@ import {
   attachMissingPartsToReportGroup,
   bulkInstallVehiclesToFull,
   completeVehicleShortage,
-  deleteMissingPartRecord
+  deleteMissingPartRecord,
+  updateMissingPartRecord
 } from '../services/missingPartsService'
 import {
   requestMissingPartTransfer,
@@ -18,7 +19,11 @@ import {
 } from '../services/missingPartWorkflowService'
 import { followUpPartsForRow } from '../Utils/missingPartRowContext'
 import { openVehicleShortageLines, remainingInstallLineCount, uniqueVehicleReps } from '../Utils/missingPartPageUtils'
-import { planMergeSelectedVehicles, type MergeIssueOption } from '../Utils/mergeShortageReportGroup'
+import {
+  descriptionsToUnify,
+  planMergeSelectedVehicles,
+  type MergeIssueOption
+} from '../Utils/mergeShortageReportGroup'
 import { rememberReportGroupPrimary } from '../Utils/reportGroupPrimary'
 
 export function useMissingPartsActions(opts: {
@@ -232,6 +237,30 @@ export function useMissingPartsActions(opts: {
     try {
       await attachMissingPartsToReportGroup(plan.attachIds, plan.reportGroupId)
       rememberReportGroupPrimary(plan.reportGroupId, plan.primaryIssueKey)
+      const unify = descriptionsToUnify(
+        filtered.filter(part => plan.attachIds.includes(part.id)),
+        plan.primaryIssueKey,
+        plan.issueLabel
+      )
+      for (const part of unify) {
+        await updateMissingPartRecord(
+          part.id,
+          {
+            partDescription: plan.issueLabel,
+            requiredQty: part.requiredQty,
+            reason: part.reason,
+            department: part.department,
+            priority: part.priority,
+            stopperType: part.stopperType,
+            notes: part.notes ?? undefined,
+            completingDepartment: part.completingDepartment,
+            followUpEmployeeId: part.followUpEmployeeIds?.[0] || part.followUpEmployeeId,
+            followUpEmployeeIds: part.followUpEmployeeIds,
+            assignFollowUp: false
+          },
+          { skipActivityNote: true }
+        )
+      }
       setSelectedVehicleIds(new Set())
       showSuccess(
         t('mp.bulk.merge.success', {

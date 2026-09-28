@@ -99,30 +99,51 @@ export function countIplFitStatuses(
  * - not_fitted: explicit NA / not-fitted marker
  * - unset: no BOM assignment for that model yet
  */
+/** One pass over BOM so fit counts do not rescan the full list for every part. */
+export function indexBomByPartId(allBom: BomItemDetail[]): Map<string, BomItemDetail[]> {
+  const index = new Map<string, BomItemDetail[]>()
+  for (const row of allBom) {
+    if (!row.part_id) continue
+    const bucket = index.get(row.part_id)
+    if (bucket) bucket.push(row)
+    else index.set(row.part_id, [row])
+  }
+  return index
+}
+
 export function countIplFitForPartAcrossModels(
   partIds: Iterable<string>,
   modelNames: string[],
-  allBom: BomItemDetail[]
+  allBom: BomItemDetail[],
+  partIndex?: Map<string, BomItemDetail[]>
 ): IplFitCounts {
-  const ids = new Set([...partIds].filter(Boolean))
-  if (ids.size === 0 || modelNames.length === 0) {
+  const ids = [...partIds].filter(Boolean)
+  if (ids.length === 0 || modelNames.length === 0) {
     return { fitted: 0, notFitted: 0, unset: modelNames.length }
   }
 
-  const partRows = allBom.filter(r => ids.has(r.part_id))
+  let partRows: BomItemDetail[]
+  if (partIndex) {
+    partRows = []
+    for (const id of ids) {
+      const bucket = partIndex.get(id)
+      if (bucket) partRows.push(...bucket)
+    }
+  } else {
+    const idSet = new Set(ids)
+    partRows = allBom.filter(row => idSet.has(row.part_id))
+  }
+
   let fitted = 0
   let notFitted = 0
   let unset = 0
 
   for (const model of modelNames) {
-    const rows = partRows.filter(r => bomRowAssignedToIplModel(r, model))
-    if (rows.length === 0) {
-      unset += 1
-      continue
-    }
-
+    let seen = false
     let status: IplFitStatus = 'unset'
-    for (const row of rows) {
+    for (const row of partRows) {
+      if (!bomRowAssignedToIplModel(row, model)) continue
+      seen = true
       const next = iplFitStatusForModel(row, model)
       if (next === 'fitted') {
         status = 'fitted'
@@ -130,10 +151,9 @@ export function countIplFitForPartAcrossModels(
       }
       if (next === 'not_fitted') status = 'not_fitted'
     }
-
-    if (status === 'fitted') fitted += 1
-    else if (status === 'not_fitted') notFitted += 1
-    else unset += 1
+    if (!seen || status === 'unset') unset += 1
+    else if (status === 'fitted') fitted += 1
+    else notFitted += 1
   }
 
   return { fitted, notFitted, unset }

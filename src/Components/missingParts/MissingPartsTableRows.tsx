@@ -1,7 +1,10 @@
 ﻿import { type MouseEvent, type ReactNode } from 'react'
 import { useLang } from '../../i18n/LanguageContext'
 import { formatVehicleColorLabel } from '../../Utils/vehicleColorLabel'
+import { departmentLeafLabel, mpLookupLabel } from '../../Utils/mpLookupLabel'
+import type { FactoryOrgUnit } from '../../Types/factoryOrg'
 import { aggregateQty, primaryItem, type MissingPartDisplayRow } from '../../Utils/missingPartDisplay'
+import type { MpLookupOption } from '../../Types/mpLookup'
 import { mainPartsForReportGroup } from '../../Utils/shortageGroupDisplay'
 import {
   actionsCell,
@@ -9,7 +12,6 @@ import {
   formatDateTime,
   isMissingPartRowOpen,
   completerNames,
-  reporterNames,
   shortageDurationDays,
   uniqueVehicleReps,
   uniqueIssueReps
@@ -24,6 +26,9 @@ export type MissingPartsTableListTab = 'active' | 'history'
 
 export type MissingPartsTableRowProps = {
   listTab: MissingPartsTableListTab
+  reasons: MpLookupOption[]
+  departments: MpLookupOption[]
+  orgUnits: FactoryOrgUnit[]
   filtered: MissingPartDetail[]
   repeatedVinKeys?: ReadonlySet<string>
   canBulkSelect: boolean
@@ -96,7 +101,6 @@ export function ReportGroupRow({
         )
       }
       qty={qty}
-      reporterLabel={reporterNames(mainParts)}
       completerLabel={completerNames(displayRow.items)}
       reasonCell={multiIssues ? <StackedShortageReasons parts={mainParts} /> : undefined}
       deleteTargets={displayRow.items}
@@ -128,7 +132,6 @@ export function VehicleRows({
       issueCount={parts.length}
       vinCell={<VinText vin={primary.vin} repeatedVinKeys={props.repeatedVinKeys} />}
       qty={qty}
-      reporterLabel={reporterNames(parts)}
       completerLabel={completerNames(parts)}
       reasonCell={uniqueIssues.length > 1 ? <StackedShortageReasons parts={parts} /> : undefined}
       deleteTargets={parts}
@@ -167,7 +170,6 @@ export function GroupBranchRow({
         </span>
       }
       qty={qty}
-      reporterLabel={reporterNames(parts)}
       completerLabel={completerNames(parts)}
       reasonCell={uniqueIssues.length > 1 ? <StackedShortageReasons parts={parts} /> : undefined}
       deleteTargets={parts}
@@ -207,7 +209,6 @@ export function SinglePartRow({ item, ...props }: MissingPartsTableRowProps & { 
       issueCount={1}
       vinCell={<VinText vin={item.vin} repeatedVinKeys={props.repeatedVinKeys} />}
       qty={{ installed: item.installedQty, required: item.requiredQty }}
-      reporterLabel={reporterNames([item])}
       completerLabel={completerNames([item])}
       deleteTargets={[item]}
       lang={lang}
@@ -216,14 +217,73 @@ export function SinglePartRow({ item, ...props }: MissingPartsTableRowProps & { 
   )
 }
 
+function lookupLabels(
+  parts: MissingPartDetail[],
+  pick: (part: MissingPartDetail) => string | null | undefined,
+  options: MpLookupOption[],
+  lang: string
+): string[] {
+  const seen = new Set<string>()
+  const labels: string[] = []
+  for (const part of parts) {
+    const label = mpLookupLabel(options, pick(part)?.trim() ?? '', lang)
+    if (!label || label === '—') continue
+    if (seen.has(label)) continue
+    seen.add(label)
+    labels.push(label)
+  }
+  return labels
+}
+
+function departmentLabels(
+  parts: MissingPartDetail[],
+  pick: (part: MissingPartDetail) => string | null | undefined,
+  options: MpLookupOption[],
+  orgUnits: FactoryOrgUnit[],
+  lang: string
+): { labels: string[]; title: string } {
+  const seen = new Set<string>()
+  const labels: string[] = []
+  const titles: string[] = []
+  for (const part of parts) {
+    const code = pick(part)?.trim() ?? ''
+    const label = departmentLeafLabel(code, options, orgUnits, lang)
+    if (!label || label === '—') continue
+    if (seen.has(label)) continue
+    seen.add(label)
+    labels.push(label)
+    const full = mpLookupLabel(options, code, lang)
+    titles.push(full && full !== '—' ? full : label)
+  }
+  return { labels, title: titles.join('\n') }
+}
+
+function LookupCell({ labels, title }: { labels: string[]; title?: string }) {
+  if (labels.length === 0) return <span className="text-slate-500">—</span>
+  return (
+    <span
+      className="mx-auto flex max-w-[11rem] flex-col items-center gap-0.5 text-sm leading-snug text-slate-200"
+      title={title ?? labels.join('\n')}
+    >
+      {labels.map(label => (
+        <span key={label} className="block w-full truncate text-center">
+          {label}
+        </span>
+      ))}
+    </span>
+  )
+}
+
 function PartDataRow({
   listTab,
   filtered,
+  reasons,
+  departments,
+  orgUnits,
   item,
   issueCount,
   vinCell,
   qty,
-  reporterLabel,
   completerLabel,
   reasonCell,
   lang,
@@ -261,7 +321,6 @@ function PartDataRow({
   issueCount: number
   vinCell: ReactNode
   qty: { installed: number; required: number }
-  reporterLabel: string
   completerLabel: string
   reasonCell?: ReactNode
   lang: string
@@ -280,6 +339,9 @@ function PartDataRow({
     noteCounts
   )
   const daysInShortage = listTab === 'history' ? shortageDurationDays(rowScope) : null
+  const causing = departmentLabels(rowScope, part => part.department, departments, orgUnits, lang)
+  const reasonClassLabels = lookupLabels(rowScope, part => part.reason, reasons, lang)
+  const completing = departmentLabels(rowScope, part => part.completingDepartment, departments, orgUnits, lang)
 
   function handleRowClick(e: MouseEvent) {
     const target = e.target as HTMLElement
@@ -343,9 +405,6 @@ function PartDataRow({
           '—'
         )}
       </td>
-      <td className={cell} title={reporterLabel}>
-        <span className="mx-auto block max-w-[10rem] truncate text-slate-300">{reporterLabel}</span>
-      </td>
       <td className={cell}>
         <span className="font-mono tabular-nums">
           <span className="text-cyan-200">{qty.installed}</span>
@@ -358,8 +417,17 @@ function PartDataRow({
           <span className="mx-auto block max-w-[140px] truncate text-slate-200">{item.partDescription}</span>
         )}
       </td>
+      <td className={cell}>
+        <LookupCell labels={causing.labels} title={causing.title} />
+      </td>
+      <td className={cell}>
+        <LookupCell labels={reasonClassLabels} />
+      </td>
+      <td className={cell}>
+        <LookupCell labels={completing.labels} title={completing.title} />
+      </td>
       <td className={`${cell} text-slate-400`}>
-        <DateTimeCell iso={item.createdAt} lang={lang} />
+        <DateTimeCell iso={earliestCreatedAt(rowScope)} lang={lang} />
       </td>
       {listTab === 'history' && (
         <>
@@ -407,6 +475,14 @@ function PartDataRow({
       )}
     </tr>
   )
+}
+
+function earliestCreatedAt(parts: MissingPartDetail[]): string {
+  let min = parts[0]?.createdAt ?? ''
+  for (const part of parts) {
+    if (part.createdAt && (!min || part.createdAt < min)) min = part.createdAt
+  }
+  return min
 }
 
 function DateTimeCell({ iso, lang }: { iso: string; lang: string }) {

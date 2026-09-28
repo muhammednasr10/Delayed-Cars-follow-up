@@ -1,4 +1,5 @@
 import { formatDateTime } from '../../Utils/missingPartPageUtils'
+import { formatVehicleColorLabel } from '../../Utils/vehicleColorLabel'
 import { mpLookupLabel } from '../../Utils/mpLookupLabel'
 import { useMpLookups } from '../../hooks/useMpLookups'
 import type { MissingPartDetail } from '../../Types/missingPart'
@@ -24,6 +25,38 @@ export function VehicleCardField({
   )
 }
 
+export function ChassisChipMeta({
+  vehicle,
+  enteredAt,
+  lang,
+  dateTimeLabel,
+  orgLabel
+}: {
+  vehicle: MissingPartDetail
+  enteredAt: string
+  lang: string
+  dateTimeLabel: string
+  orgLabel: string
+}) {
+  const { date, time } = formatDateTime(enteredAt, lang)
+  const color = formatVehicleColorLabel(vehicle.colorName, vehicle.colorCode)
+  return (
+    <>
+      <p className="mt-1 text-[11px] text-slate-400">
+        {vehicle.modelName}
+        {color ? ` · ${color}` : ''}
+        {orgLabel ? ` · ${orgLabel}` : ''}
+      </p>
+      <p className="mt-1 text-[11px] text-slate-300">
+        <span className="text-slate-500">{dateTimeLabel}</span>
+        <span className="mt-0.5 block font-mono tabular-nums">
+          {date} {time}
+        </span>
+      </p>
+    </>
+  )
+}
+
 export function uniqueCardLabels(values: Array<string | null | undefined>): string {
   const names = [...new Set(values.map(v => v?.trim()).filter((n): n is string => Boolean(n)))]
   return names.length > 0 ? names.join(' · ') : '—'
@@ -38,6 +71,7 @@ type IssueCardProps = {
   onTransferIssue?: (part: MissingPartDetail) => void | Promise<void>
   transferringPartId?: string | null
   completingVehicleId?: string | null
+  showWhen?: boolean
   t: (key: string, vars?: Record<string, string | number>) => string
 }
 
@@ -50,6 +84,7 @@ export function VehicleCardIssueCard({
   onTransferIssue,
   transferringPartId,
   completingVehicleId,
+  showWhen = true,
   t
 }: IssueCardProps) {
   const { date, time } = formatDateTime(part.createdAt, lang)
@@ -103,9 +138,11 @@ export function VehicleCardIssueCard({
           value={mpLookupLabel(departments, part.completingDepartment ?? '', lang)}
         />
       </dl>
-      <p className="mt-2 text-xs text-slate-500">
-        {date} {time}
-      </p>
+      {showWhen && (
+        <p className="mt-2 text-xs text-slate-500">
+          {date} {time}
+        </p>
+      )}
       {part.notes?.trim() && (
         <p className="mt-1.5 whitespace-pre-wrap text-xs text-slate-500">{part.notes}</p>
       )}

@@ -5,6 +5,7 @@ import {
   applyFilters,
   buildFamilyVehicleCounts,
   buildModelVehicleCounts,
+  modelCountExportSummary,
   buildVariantVehicleSummaries,
   canCompleteVehicle,
   hasActiveMissingPartFilters,
@@ -324,6 +325,38 @@ describe('model and family counts', () => {
     expect(byFamily[0].familyName).toBe('Family X')
     expect(byFamily[0].count).toBe(2)
     expect(byFamily[0].variants[0].count).toBe(2)
+  })
+
+  it('builds the export summary with a total column then each model', () => {
+    const models: VehicleModel[] = [
+      {
+        id: 'fam-1',
+        name: 'Family X',
+        model_kind: 'family',
+        parent_model_id: null,
+        parent_company: null,
+        agency: null,
+        is_active: true
+      },
+      {
+        id: 'var-1',
+        name: 'Variant 1',
+        model_kind: 'variant',
+        parent_model_id: 'fam-1',
+        parent_company: null,
+        agency: null,
+        is_active: true
+      }
+    ]
+    const familyItems = [
+      part({ id: '1', vehicleId: 'v1', vin: 'VIN001', modelName: 'Variant 1' }),
+      part({ id: '2', vehicleId: 'v2', vin: 'VIN002', modelName: 'Variant 1' })
+    ]
+    expect(modelCountExportSummary(familyItems, models, 'الإجمالي')).toEqual({
+      headers: ['الإجمالي', 'Family X'],
+      values: [2, 2]
+    })
+    expect(modelCountExportSummary([], models, 'الإجمالي')).toBeNull()
   })
 
   it('builds per-variant vehicle summaries', () => {

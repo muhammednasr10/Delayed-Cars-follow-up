@@ -4,14 +4,17 @@ import { useLang } from '../../i18n/LanguageContext'
 import { useBomDashboard } from '../../hooks/useBomDashboard'
 import { useEngineeringDashboard } from '../../hooks/useEngineeringDashboard'
 import { StatCard } from '../StatCard'
+import { IplDashboardFilterBar } from './IplDashboardFilterBar'
 
 function SummaryTable({
   title,
+  note,
   headers,
   children,
   empty
 }: {
   title: string
+  note?: string
   headers: string[]
   children: ReactNode
   empty?: boolean
@@ -20,6 +23,7 @@ function SummaryTable({
     <div className="card-industrial overflow-hidden">
       <div className="border-b border-slate-800 px-4 py-3">
         <h3 className="text-sm font-black text-white">{title}</h3>
+        {note ? <p className="mt-1 text-xs font-bold text-cyan-200">{note}</p> : null}
       </div>
       <div className="overflow-x-auto">
         <table className="w-full min-w-[480px] text-sm">
@@ -51,7 +55,27 @@ function SummaryTable({
 
 export function BomDashboardTab() {
   const { t } = useLang()
-  const { stats, iplSummary, loading, error } = useBomDashboard()
+  const {
+    stats,
+    iplSummary,
+    loading,
+    error,
+    models,
+    assignableModels,
+    masterStations,
+    openTabs,
+    toggleModelTab,
+    toggleFamilyTabs,
+    stationId,
+    setStationId,
+    fitFilter,
+    setFitFilter,
+    diffFilter,
+    setDiffFilter,
+    search,
+    setSearch,
+    suggestions
+  } = useBomDashboard()
   const eng = useEngineeringDashboard()
 
   if (loading) return <p className="text-slate-400">{t('common.loading')}</p>
@@ -74,6 +98,23 @@ export function BomDashboardTab() {
 
       {ipl && (
         <>
+          <IplDashboardFilterBar
+            models={models}
+            assignableModels={assignableModels}
+            openTabs={openTabs}
+            onToggleModel={toggleModelTab}
+            onToggleFamily={toggleFamilyTabs}
+            stations={masterStations}
+            stationId={stationId}
+            onStationId={setStationId}
+            fitFilter={fitFilter}
+            onFitFilter={setFitFilter}
+            diffFilter={diffFilter}
+            onDiffFilter={setDiffFilter}
+            search={search}
+            onSearch={setSearch}
+            suggestions={suggestions}
+          />
           <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
             <StatCard
               title={t('bom.iplDashCardFullyFits')}
@@ -149,12 +190,12 @@ export function BomDashboardTab() {
 
           <SummaryTable
             title={t('bom.iplDashByModelTable')}
+            note={`${t('bom.iplDashPartCount')}: ${ipl.totalParts}`}
             headers={[
               t('bom.iplPartCardModel'),
               t('bom.iplFitYes'),
               t('bom.iplFitNo'),
-              t('bom.iplFitUnset'),
-              t('bom.iplDashPartCount')
+              t('bom.iplFitUnset')
             ]}
             empty={ipl.byModel.length === 0}
           >
@@ -166,7 +207,6 @@ export function BomDashboardTab() {
                 <td className="px-3 py-2 text-emerald-300">{row.fitted}</td>
                 <td className="px-3 py-2 text-rose-300">{row.notFitted}</td>
                 <td className="px-3 py-2 text-slate-400">{row.unset}</td>
-                <td className="px-3 py-2 text-slate-300">{row.totalParts}</td>
               </tr>
             ))}
           </SummaryTable>

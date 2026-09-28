@@ -1,7 +1,9 @@
 import { supabase } from '../lib/supabase'
 import { normalizePartNumber } from '../Utils/partNumberNormalize'
+import { iplStationKey } from '../Utils/iplStationParts'
 import { formatStationDisplayCode, normalizeStationReferenceCode } from '../Utils/stationHierarchy'
 import { modelBelongsToLine, type ModelLine } from '../Utils/modelLines'
+import { fetchIplFittedPartsByStation } from './iplStationPartsService'
 import type { OperationPartInput, OperationPartRow } from '../Types/engineering'
 
 function client() {
@@ -71,41 +73,78 @@ export async function removeOperationPart(id: string): Promise<void> {
   if (error) throw new Error(error.message)
 }
 
+async function stationKeysForIpl(stationId: string): Promise<Set<string>> {
+  const keys = new Set<string>()
+  const { data: st, error } = await client()
+    .from('stations')
+    .select('station_number, parent_station_id')
+    .eq('id', stationId)
+    .maybeSingle()
+  if (error) throw new Error(error.message)
+  if (!st) return keys
+  const add = (code: string | null | undefined) => {
+    const key = iplStationKey(code)
+    if (key) keys.add(key)
+  }
+  add(st.station_number as string)
+  if (st.parent_station_id) {
+    const { data: parent, error: parentErr } = await client()
+      .from('stations')
+      .select('station_number')
+      .eq('id', st.parent_station_id)
+      .maybeSingle()
+    if (parentErr) throw new Error(parentErr.message)
+    add(parent?.station_number as string | undefined)
+  }
+  return keys
+}
+
+/** Fitted IPL parts for this operation's model, at its station (worker line maps to the master station). */
 export async function suggestPartsFromBom(operationId: string, stationId: string): Promise<OperationPartRow[]> {
   const { data: op, error: opErr } = await client()
     .from('station_operations')
-    .select('station_id')
+    .select('station_id, parent_model_id')
     .eq('id', operationId)
     .maybeSingle()
   if (opErr) throw new Error(opErr.message)
 
   const stId = stationId || op?.station_id
-  if (!stId) return []
+  const modelId = op?.parent_model_id as string | null
+  if (!stId || !modelId) return []
 
-  const { data, error } = await client()
-    .from('bom_items')
-    .select('id, part_id, part_number, quantity, parts(part_name_ar, normalized_part_number)')
-    .eq('station_id', stId)
-    .eq('is_active', true)
-    .limit(100)
-  if (error) throw new Error(error.message)
+  const { data: model, error: modelErr } = await client()
+    .from('vehicle_models')
+    .select('name')
+    .eq('id', modelId)
+    .maybeSingle()
+  if (modelErr) throw new Error(modelErr.message)
+  const modelName = String(model?.name ?? '').trim()
+  if (!modelName) return []
 
-  return (data ?? []).map(bi => {
-    const p = bi.parts as unknown as { part_name_ar: string | null; normalized_part_number: string } | null
-    return {
-      id: '',
-      operation_id: operationId,
-      part_id: bi.part_id,
-      bom_item_id: bi.id,
-      quantity: Number(bi.quantity),
-      unit: 'pcs',
-      usage_type: 'main_part' as const,
-      notes: null,
-      is_active: true,
-      part_number: bi.part_number,
-      part_name_ar: p?.part_name_ar,
-      normalized_part_number: p?.normalized_part_number
-    }
+  const keys = await stationKeysForIpl(stId)
+  if (keys.size === 0) return []
+  const byStation = await fetchIplFittedPartsByStation(modelName)
+  const parts = [...keys].flatMap(key => byStation.get(key) ?? [])
+  const seen = new Set<string>()
+  return parts.flatMap(part => {
+    if (seen.has(part.partId)) return []
+    seen.add(part.partId)
+    return [
+      {
+        id: '',
+        operation_id: operationId,
+        part_id: part.partId,
+        bom_item_id: part.bomItemId,
+        quantity: part.quantity,
+        unit: 'pcs',
+        usage_type: 'main_part' as const,
+        notes: null,
+        is_active: true,
+        part_number: part.partNumber,
+        part_name_ar: part.partName,
+        normalized_part_number: normalizePartNumber(part.partNumber)
+      }
+    ]
   })
 }
 

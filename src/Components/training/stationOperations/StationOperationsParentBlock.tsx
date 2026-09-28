@@ -5,12 +5,14 @@ import { inputCls } from '../../FormField'
 import { formatStationWorkerDisplayCode } from '../../../Utils/stationHierarchy'
 import { updateStationWorker1Summary } from '../../../services/stationOperationsService'
 import type { ModelLine } from '../../../Utils/modelLines'
+import type { IplStationPart } from '../../../Utils/iplStationParts'
 import type {
   ParentStationOperationsGroup,
   StationOperationDetail,
   WorkerOperationsGroup
 } from '../../../Types/timeStudy'
 import { HeaderCell } from './StationOperationsLineFilter'
+import { StationIplPartsTable } from './StationIplPartsTable'
 
 function CrudActions({
   canManage,
@@ -207,6 +209,8 @@ export function ParentStationBlock({
   onMoveOp,
   onDeleteWorker,
   onReload,
+  iplParts,
+  onAssignIplPart,
   t
 }: {
   parent: ParentStationOperationsGroup
@@ -220,9 +224,12 @@ export function ParentStationBlock({
   onMoveOp: (op: StationOperationDetail, workerStationId: string) => void
   onDeleteWorker: (worker: WorkerOperationsGroup) => void
   onReload: () => void
+  iplParts?: IplStationPart[]
+  onAssignIplPart?: (part: IplStationPart, workerStationId: string | null) => Promise<void>
   t: (key: string, vars?: Record<string, string | number>) => string
 }) {
   const [open, setOpen] = useState(false)
+  const [assigningPartId, setAssigningPartId] = useState<string | null>(null)
   const workplace = parent.workAreaName || parent.lineName || '—'
   const avgText = parent.avgStationTimeMinutes != null ? `${parent.avgStationTimeMinutes.toFixed(1)}` : '—'
   const totalOps = parent.workers.reduce((n, w) => n + w.operations.length, 0)
@@ -263,6 +270,11 @@ export function ParentStationBlock({
             </div>
           </button>
           <div className="flex shrink-0 items-center justify-end gap-2">
+            {!open && iplParts && (
+              <span className="rounded-lg bg-cyan-500/10 px-2.5 py-1 text-xs font-bold text-cyan-200">
+                {t('operations.iplPartCount', { count: iplParts.length })}
+              </span>
+            )}
             {!open && (
               <span className="rounded-lg bg-slate-800/80 px-2.5 py-1 text-xs font-bold text-slate-400">
                 {totalOps} {t('operations.opsCount')}
@@ -278,6 +290,20 @@ export function ParentStationBlock({
           </div>
         </div>
       </div>
+      {open && iplParts && (
+        <StationIplPartsTable
+          parent={parent}
+          parts={iplParts}
+          canManage={canManage && Boolean(onAssignIplPart)}
+          assigningPartId={assigningPartId}
+          onAssign={(part, workerStationId) => {
+            if (!onAssignIplPart) return
+            setAssigningPartId(part.partId)
+            void onAssignIplPart(part, workerStationId).finally(() => setAssigningPartId(null))
+          }}
+          t={t}
+        />
+      )}
       {open && (
         <div className="space-y-4 p-4">
           {parent.workers.length === 0 ? (

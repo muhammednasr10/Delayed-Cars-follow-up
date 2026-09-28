@@ -65,8 +65,12 @@ export function useMissingPartsData() {
     void load()
   }, [load])
 
-  const onOpenMissingParts = useCallback((detail: { tab?: ListTab; search?: string }) => {
+  const onOpenMissingParts = useCallback((detail: { tab?: ListTab; search?: string; vins?: string[] }) => {
     if (detail.tab) setListTab(detail.tab)
+    if (detail.vins) {
+      setFilters({ ...EMPTY_MISSING_PART_FILTERS, vins: detail.vins, search: detail.search?.trim() ?? '' })
+      return
+    }
     if (detail.search?.trim()) {
       setFilters(prev => ({ ...prev, search: detail.search!.trim() }))
     }

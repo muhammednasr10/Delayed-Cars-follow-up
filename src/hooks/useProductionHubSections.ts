@@ -92,29 +92,45 @@ export function useProductionHubSections(refreshKey = 0) {
         footerAction: canReport ? { label: t('home.reportMissing'), onClick: () => setReportOpen(true) } : undefined
       },
       showHomeCard('production_home__entry', canViewModule('production')) && {
-        key: 'productivity',
-        title: t('home.productivitiesTitle'),
-        description: t('home.productivitiesDesc'),
+        key: 'entryProductivity',
+        title: t('home.entryProductivityShort'),
+        description: t('home.entryProductivityCardDesc'),
         icon: LogIn,
         tone: 'text-emerald-300 bg-emerald-500/15',
         accent: 'emerald' as const,
-        wide: true,
         onClick: () =>
           go({
             productionArea: 'assembly',
             productionPage: 'vehicles',
             productivityTab: 'productivity'
           }),
-        statsLayout: 'productivity-pairs',
+        statsLayout: 'stack',
         stats: [
-          { label: t('home.entryProductivityVehicles'), value: productivityLoading ? '…' : String(entryVehicles) },
+          { label: t('home.productivityVehiclesShort'), value: productivityLoading ? '…' : String(entryVehicles) },
           {
-            label: t('home.entryProductivityEfficiency'),
+            label: t('home.productivityEfficiencyShort'),
             value: formatEfficiencyPct(entryEfficiency, productivityLoading)
-          },
-          { label: t('home.exitProductivityVehicles'), value: productivityLoading ? '…' : String(exitVehicles) },
+          }
+        ]
+      },
+      showHomeCard('production_home__exit', canViewModule('production')) && {
+        key: 'exitProductivity',
+        title: t('home.exitProductivityShort'),
+        description: t('home.exitProductivityCardDesc'),
+        icon: LogOut,
+        tone: 'text-cyan-300 bg-cyan-500/15',
+        accent: 'cyan' as const,
+        onClick: () =>
+          go({
+            productionArea: 'assembly',
+            productionPage: 'vehicles',
+            productivityTab: 'productivity'
+          }),
+        statsLayout: 'stack',
+        stats: [
+          { label: t('home.productivityVehiclesShort'), value: productivityLoading ? '…' : String(exitVehicles) },
           {
-            label: t('home.exitProductivityEfficiency'),
+            label: t('home.productivityEfficiencyShort'),
             value: formatEfficiencyPct(exitEfficiency, productivityLoading)
           }
         ]

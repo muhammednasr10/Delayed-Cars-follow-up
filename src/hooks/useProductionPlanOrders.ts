@@ -17,7 +17,7 @@ import {
 } from '../services/productionOrdersService'
 import { getMonthProductivityDetail } from '../services/productionPlanWorkDayDailyService'
 import { getExitProductivityYear } from '../services/exitProductivityService'
-import { getVehicleModels } from '../services/settingsService'
+import { getVehicleColors, getVehicleModels } from '../services/settingsService'
 import { chassisRangeCount, vinInChassisRange } from '../Utils/chassisRange'
 import { getProductionPlanWorkDays } from '../services/productionPlanWorkDaysService'
 import { computeTaktMinutes } from '../Utils/productionLineRate'
@@ -33,14 +33,34 @@ import {
 } from '../Utils/productionPlanSummary'
 import type { PlanEntryMode } from '../Components/production/ProductionPlanEntryModal'
 import { buildPlanOrdersCoverage, coverageByKey } from '../Utils/planOrdersCoverage'
+import { orderVisibleInPlanMonth } from '../Utils/productionOrderMonth'
 import { buildOrdersExportRows, buildPlanSummaryExportRows } from '../Utils/planningExport'
-import type { ProductionOrder } from '../Types/production'
-import type { VehicleModel } from '../Types/settings'
+import type { ProductionOrder, ProductionOrderColorInput } from '../Types/production'
+import type { VehicleColor, VehicleModel } from '../Types/settings'
+import type { VehicleOverview } from '../Types/vehicle'
 
 function currentYm(): { year: number; month: number } {
   const d = new Date()
   return { year: d.getFullYear(), month: d.getMonth() + 1 }
 }
+
+function toDatetimeLocalValue(iso: string | null | undefined): string {
+  if (!iso) return ''
+  const d = new Date(iso)
+  if (Number.isNaN(d.getTime())) return ''
+  const pad = (n: number) => String(n).padStart(2, '0')
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`
+}
+
+function fromDatetimeLocalValue(v: string): string | null {
+  if (!v.trim()) return null
+  const d = new Date(v)
+  if (Number.isNaN(d.getTime())) return null
+  return d.toISOString()
+}
+
+export type OrderColorDraft = { colorId: string; qty: string }
+export type AssemblyEntrySort = 'desc' | 'asc'
 
 export function useProductionPlanOrders(view: 'plan' | 'orders') {
   const { t } = useLang()
@@ -52,6 +72,7 @@ export function useProductionPlanOrders(view: 'plan' | 'orders') {
   const [planMonth, setPlanMonth] = useState(initYm.month)
   const [orders, setOrders] = useState<ProductionOrder[]>([])
   const [models, setModels] = useState<VehicleModel[]>([])
+  const [vehicleColors, setVehicleColors] = useState<VehicleColor[]>([])
   const [planTargets, setPlanTargets] = useState<Map<string, number>>(new Map())
   const [annualSections, setAnnualSections] = useState<PlanSection[]>([])
   const [wipCarryover, setWipCarryover] = useState<Map<string, number>>(new Map())
@@ -66,12 +87,15 @@ export function useProductionPlanOrders(view: 'plan' | 'orders') {
   const [planSuccess, setPlanSuccess] = useState('')
   const [planModalOpen, setPlanModalOpen] = useState(false)
   const [planEntryMode, setPlanEntryMode] = useState<PlanEntryMode>('monthly')
+  const [assemblyEntrySort, setAssemblyEntrySort] = useState<AssemblyEntrySort>('desc')
 
   const [orderNumber, setOrderNumber] = useState('')
   const [familyId, setFamilyId] = useState('')
   const [modelId, setModelId] = useState('')
   const [chassisStart, setChassisStart] = useState('')
   const [chassisEnd, setChassisEnd] = useState('')
+  const [openedAtLocal, setOpenedAtLocal] = useState('')
+  const [colorDrafts, setColorDrafts] = useState<OrderColorDraft[]>([])
 
   const [expandedMonthlyFamilies, setExpandedMonthlyFamilies] = useState<Set<string>>(new Set())
   const [expandedAnnualFamilies, setExpandedAnnualFamilies] = useState<Set<string>>(new Set())
@@ -80,6 +104,11 @@ export function useProductionPlanOrders(view: 'plan' | 'orders') {
   const [lineJph, setLineJph] = useState(0)
 
   const carCount = useMemo(() => chassisRangeCount(chassisStart, chassisEnd), [chassisStart, chassisEnd])
+
+  const colorQtyTotal = useMemo(
+    () => colorDrafts.reduce((sum, row) => sum + (Number(row.qty) > 0 ? Math.floor(Number(row.qty)) : 0), 0),
+    [colorDrafts]
+  )
 
   const assemblyEntryByOrderId = useMemo(() => {
     const counts = new Map<string, number>()
@@ -95,6 +124,35 @@ export function useProductionPlanOrders(view: 'plan' | 'orders') {
     }
     return counts
   }, [orders, vehicles])
+
+  const shortageVehiclesByOrderId = useMemo(() => {
+    const map = new Map<string, VehicleOverview[]>()
+    for (const order of orders) {
+      const start = order.chassisStart ?? ''
+      const end = order.chassisEnd ?? ''
+      const list = vehicles.filter(v => {
+        const inRange = Boolean(start && end && vinInChassisRange(v.vin, start, end))
+        const linked = v.productionOrderId === order.id
+        return (inRange || linked) && v.openMissingCount > 0
+      })
+      map.set(order.id, list)
+    }
+    return map
+  }, [orders, vehicles])
+
+  const visibleOrders = useMemo(() => {
+    const filtered = orders.filter(order =>
+      orderVisibleInPlanMonth(order, planYear, planMonth, assemblyEntryByOrderId.get(order.id) ?? 0)
+    )
+    return [...filtered].sort((a, b) => {
+      const ea = assemblyEntryByOrderId.get(a.id) ?? 0
+      const eb = assemblyEntryByOrderId.get(b.id) ?? 0
+      if (ea !== eb) return assemblyEntrySort === 'desc' ? eb - ea : ea - eb
+      const oa = a.openedAt ?? a.createdAt ?? ''
+      const ob = b.openedAt ?? b.createdAt ?? ''
+      return ob.localeCompare(oa)
+    })
+  }, [orders, planYear, planMonth, assemblyEntryByOrderId, assemblyEntrySort])
 
   const planSections = useMemo(
     () => buildPlanSections(models, planTargets, achievedByModelId, wipCarryover),
@@ -154,10 +212,11 @@ export function useProductionPlanOrders(view: 'plan' | 'orders') {
     setPlanSuccess('')
     try {
       if (view === 'orders') await refreshVehicles()
-      const [orderRows, modelRows, dbTargets, yearMonthlyTargets, yearExitRows, workConfig, productivity] =
+      const [orderRows, modelRows, colorRows, dbTargets, yearMonthlyTargets, yearExitRows, workConfig, productivity] =
         await Promise.all([
           getProductionOrders(),
           getVehicleModels(),
+          view === 'orders' ? getVehicleColors().catch(() => []) : Promise.resolve([] as VehicleColor[]),
           getModelPlanTargets(planYear, planMonth).catch(() => []),
           view === 'plan' ? getYearMonthlyPlanTargets(planYear).catch(() => []) : Promise.resolve([]),
           view === 'plan' ? getExitProductivityYear(planYear).catch(() => []) : Promise.resolve([]),
@@ -166,6 +225,7 @@ export function useProductionPlanOrders(view: 'plan' | 'orders') {
         ])
       setOrders(orderRows)
       setModels(modelRows)
+      setVehicleColors(colorRows)
       setPlanTargets(planTargetsMap(dbTargets))
       setWipCarryover(wipCarryoverMap(dbTargets))
       setAvailableDays(workConfig?.availableDays ?? 0)
@@ -192,8 +252,11 @@ export function useProductionPlanOrders(view: 'plan' | 'orders') {
   useEffect(() => {
     if (!formOpen) return
     setListsLoading(true)
-    getVehicleModels()
-      .then(setModels)
+    Promise.all([getVehicleModels(), getVehicleColors()])
+      .then(([m, c]) => {
+        setModels(m)
+        setVehicleColors(c)
+      })
       .catch(e => setError(e instanceof Error ? e.message : t('common.error')))
       .finally(() => setListsLoading(false))
   }, [formOpen, t])
@@ -212,6 +275,7 @@ export function useProductionPlanOrders(view: 'plan' | 'orders') {
   function openCreateOrder() {
     setEditingOrder(null)
     resetForm()
+    setOpenedAtLocal(toDatetimeLocalValue(new Date().toISOString()))
     setFormOpen(true)
   }
 
@@ -223,6 +287,13 @@ export function useProductionPlanOrders(view: 'plan' | 'orders') {
     setFamilyId(fam ?? '')
     setChassisStart(row.chassisStart ?? '')
     setChassisEnd(row.chassisEnd ?? '')
+    setOpenedAtLocal(toDatetimeLocalValue(row.openedAt ?? row.createdAt))
+    setColorDrafts(
+      (row.colors ?? []).map(c => ({
+        colorId: c.colorId,
+        qty: String(c.qty)
+      }))
+    )
     setError('')
     setFormOpen(true)
   }
@@ -248,8 +319,22 @@ export function useProductionPlanOrders(view: 'plan' | 'orders') {
     setModelId('')
     setChassisStart('')
     setChassisEnd('')
+    setOpenedAtLocal('')
+    setColorDrafts([])
     setEditingOrder(null)
     setError('')
+  }
+
+  function addColorDraft() {
+    setColorDrafts(prev => [...prev, { colorId: '', qty: '' }])
+  }
+
+  function patchColorDraft(index: number, patch: Partial<OrderColorDraft>) {
+    setColorDrafts(prev => prev.map((row, i) => (i === index ? { ...row, ...patch } : row)))
+  }
+
+  function removeColorDraft(index: number) {
+    setColorDrafts(prev => prev.filter((_, i) => i !== index))
   }
 
   async function submit() {
@@ -270,6 +355,18 @@ export function useProductionPlanOrders(view: 'plan' | 'orders') {
       setError(t('productionOrders.invalidRange'))
       return
     }
+    if (colorDrafts.some(c => c.colorId && !(Number(c.qty) > 0))) {
+      setError(t('productionOrders.colorQtyRequired'))
+      return
+    }
+    if (colorQtyTotal > 0 && colorQtyTotal !== qty) {
+      setError(t('productionOrders.colorQtyMismatch', { colors: colorQtyTotal, cars: qty }))
+      return
+    }
+
+    const colors: ProductionOrderColorInput[] = colorDrafts
+      .filter(c => c.colorId && Number(c.qty) > 0)
+      .map(c => ({ colorId: c.colorId, qty: Math.floor(Number(c.qty)) }))
 
     setSubmitting(true)
     try {
@@ -278,7 +375,9 @@ export function useProductionPlanOrders(view: 'plan' | 'orders') {
         modelId,
         plannedQty: qty,
         chassisStart: chassisStart.trim(),
-        chassisEnd: chassisEnd.trim()
+        chassisEnd: chassisEnd.trim(),
+        openedAt: fromDatetimeLocalValue(openedAtLocal) ?? new Date().toISOString(),
+        colors
       }
       if (editingOrder) await updateProductionOrder(editingOrder.id, payload)
       else await createProductionOrder(payload)
@@ -299,14 +398,22 @@ export function useProductionPlanOrders(view: 'plan' | 'orders') {
     return row.modelName || '—'
   }
 
+  function formatOpenedAt(row: ProductionOrder): string {
+    const raw = row.openedAt ?? row.createdAt
+    if (!raw) return '—'
+    const d = new Date(raw)
+    if (Number.isNaN(d.getTime())) return '—'
+    return d.toLocaleString()
+  }
+
   const planExportRows = useMemo(
     () => buildPlanSummaryExportRows(planSections, ordersCoverageMap),
     [planSections, ordersCoverageMap]
   )
 
   const ordersExportRows = useMemo(
-    () => buildOrdersExportRows(orders, assemblyEntryByOrderId, modelLabel),
-    [orders, assemblyEntryByOrderId]
+    () => buildOrdersExportRows(visibleOrders, assemblyEntryByOrderId, modelLabel),
+    [visibleOrders, assemblyEntryByOrderId]
   )
 
   return {
@@ -316,8 +423,10 @@ export function useProductionPlanOrders(view: 'plan' | 'orders') {
     setPlanYear,
     planMonth,
     setPlanMonth,
-    orders,
+    orders: visibleOrders,
+    allOrders: orders,
     models,
+    vehicleColors,
     planTargets,
     annualSections,
     wipCarryover,
@@ -345,6 +454,15 @@ export function useProductionPlanOrders(view: 'plan' | 'orders') {
     setChassisStart,
     chassisEnd,
     setChassisEnd,
+    openedAtLocal,
+    setOpenedAtLocal,
+    colorDrafts,
+    addColorDraft,
+    patchColorDraft,
+    removeColorDraft,
+    colorQtyTotal,
+    assemblyEntrySort,
+    setAssemblyEntrySort,
     expandedMonthlyFamilies,
     expandedAnnualFamilies,
     availableDays,
@@ -352,6 +470,7 @@ export function useProductionPlanOrders(view: 'plan' | 'orders') {
     lineJph,
     carCount,
     assemblyEntryByOrderId,
+    shortageVehiclesByOrderId,
     planSections,
     planMonthValue,
     planTotals,
@@ -369,6 +488,7 @@ export function useProductionPlanOrders(view: 'plan' | 'orders') {
     resetForm,
     submit,
     modelLabel,
+    formatOpenedAt,
     planExportRows,
     ordersExportRows
   }

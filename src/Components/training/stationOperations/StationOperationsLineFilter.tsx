@@ -90,16 +90,12 @@ export function ClassificationLegend({
 export function StationOperationsLineFilter({
   activeLine,
   lineVariants,
-  activeVariant,
   onSelectLine,
-  onSelectVariant,
   t
 }: {
   activeLine: ModelLine
   lineVariants: string[]
-  activeVariant: string
   onSelectLine: (line: ModelLine) => void
-  onSelectVariant: (v: string) => void
   t: (key: string, vars?: Record<string, string | number>) => string
 }) {
   const lines = MODEL_LINES
@@ -118,15 +114,6 @@ export function StationOperationsLineFilter({
           />
         ))}
       </div>
-      {lineVariants.length > 0 && (
-        <VariantFilter
-          line={activeLine}
-          variants={lineVariants}
-          activeVariant={activeVariant}
-          onSelect={onSelectVariant}
-          t={t}
-        />
-      )}
       {lineVariants.length >= 3 && <ClassificationLegend line={activeLine} t={t} />}
     </div>
   )

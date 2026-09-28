@@ -27,6 +27,45 @@ export function issueLabelsForPart(part: Pick<MissingPartDetail, 'partDescriptio
   return [...new Set(issueFragments(part.partDescription))]
 }
 
+function issueTokens(text: string): string[] {
+  return normalizeIssueLabel(text).split(' ').filter(Boolean)
+}
+
+/**
+ * Same shortage with different writing: spacing, an extra word, or mostly the same words.
+ * Unrelated shortages (different action) stay distinct.
+ */
+export function sameIssueWording(a: string, b: string): boolean {
+  const na = normalizeIssueLabel(a)
+  const nb = normalizeIssueLabel(b)
+  if (!na || !nb) return false
+  if (na.replace(/\s+/g, '') === nb.replace(/\s+/g, '')) return true
+
+  const setA = new Set(issueTokens(na))
+  const setB = new Set(issueTokens(nb))
+  const [small, large] = setA.size <= setB.size ? [setA, setB] : [setB, setA]
+  if (small.size >= 3 && [...small].every(token => large.has(token))) return true
+
+  let shared = 0
+  for (const token of setA) if (setB.has(token)) shared += 1
+  const union = setA.size + setB.size - shared
+  return shared >= 3 && union > 0 && shared / union >= 0.6
+}
+
+export function labelMatchesMain(label: string, mainLabels: Iterable<string>): boolean {
+  for (const main of mainLabels) {
+    if (main === label || sameIssueWording(main, label)) return true
+  }
+  return false
+}
+
+/** Pending transfer/restore keeps its own row so its action stays separate. */
+export function partHasDistinctAction(
+  part: Pick<MissingPartDetail, 'pendingTransferRequestId' | 'pendingRestoreRequestId' | 'transferredAt'>
+): boolean {
+  return Boolean(part.pendingTransferRequestId || part.pendingRestoreRequestId || part.transferredAt)
+}
+
 export function shortageIssueKey(
   part: Pick<MissingPartDetail, 'partDescription' | 'reason' | 'department'>
 ): string {

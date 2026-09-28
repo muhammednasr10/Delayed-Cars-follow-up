@@ -148,6 +148,8 @@ export type MissingPartFilters = {
   resolvedMonth: string | null
   dateFrom: string
   dateTo: string
+  /** Exact VINs from a production-order shortage drill-down. */
+  vins?: string[]
 }
 
 export const EMPTY_MISSING_PART_FILTERS: MissingPartFilters = {

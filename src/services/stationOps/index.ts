@@ -5,3 +5,4 @@ export { updateStationOperation, createStationOperation, updateStationWorker1Sum
 export type { OperationHardwareInput, StationOperationUpdate } from './operationsCrud'
 
 export { syncWorkerLinesToHeadcount, ensureFirstWorkerLine, syncAllWorkerHeadcountsFromGroups, createParentStation, createWorkerStation, deactivateStationWithWorkers } from './workerLineSync'
+export { assignIplPartToWorkerLine } from './assignIplPartLine'

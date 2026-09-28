@@ -1,4 +1,5 @@
 import { departmentLabel, reasonLabel } from '../Types/enums'
+import type { FactoryOrgUnit } from '../Types/factoryOrg'
 import type { MpDepartmentReasonLink, MpLookupOption } from '../Types/mpLookup'
 
 /** Survives remounts / brief empty option arrays so the table never flashes raw codes. */
@@ -56,6 +57,23 @@ export function mpLookupLabel(options: MpLookupOption[], code: string, lang: str
   // Never show generator codes / UUIDs in the UI.
   if (isOpaqueLookupCode(key)) return '—'
   return key
+}
+
+/** Table cell: last chosen org level only. Full path stays on the lookup options used by filters. */
+export function departmentLeafLabel(
+  code: string | null | undefined,
+  options: MpLookupOption[],
+  orgUnits: FactoryOrgUnit[],
+  lang: string
+): string {
+  const key = (code ?? '').trim()
+  if (!key) return '—'
+  const unitName = orgUnits.find(unit => unit.id === key)?.name?.trim()
+  if (unitName) return unitName
+  const full = mpLookupLabel(options, key, lang)
+  if (!full || full === '—') return '—'
+  const parts = full.split(/\s*\/\s*/).map(part => part.trim()).filter(Boolean)
+  return parts[parts.length - 1] || full
 }
 
 export function defaultReasonCode(options: MpLookupOption[]): string {

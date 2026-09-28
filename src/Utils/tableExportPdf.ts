@@ -15,6 +15,33 @@ function buildPrintableTableHtml(title: string, data: TableExportData, rtl: bool
   heading.style.cssText = 'margin:0 0 14px;font-size:18px;font-weight:700'
   wrapper.appendChild(heading)
 
+  if (data.summary && data.summary.headers.length > 0) {
+    const summaryTitle = document.createElement('h2')
+    summaryTitle.textContent = data.summary.title
+    summaryTitle.style.cssText = 'margin:0 0 8px;font-size:14px;font-weight:700'
+    wrapper.appendChild(summaryTitle)
+
+    const summary = document.createElement('table')
+    summary.style.cssText = 'width:auto;border-collapse:collapse;margin:0 0 18px'
+    const summaryHead = document.createElement('tr')
+    const summaryBody = document.createElement('tr')
+    data.summary.headers.forEach((header, index) => {
+      const th = document.createElement('th')
+      th.textContent = header
+      th.style.cssText =
+        'border:1px solid #cbd5e1;padding:6px 12px;background:#e0f2fe;font-weight:700;text-align:center;white-space:nowrap'
+      summaryHead.appendChild(th)
+      const td = document.createElement('td')
+      td.textContent = String(data.summary?.values[index] ?? '')
+      td.style.cssText =
+        'border:1px solid #e2e8f0;padding:6px 12px;text-align:center;font-weight:700;white-space:nowrap'
+      summaryBody.appendChild(td)
+    })
+    summary.appendChild(summaryHead)
+    summary.appendChild(summaryBody)
+    wrapper.appendChild(summary)
+  }
+
   const table = document.createElement('table')
   table.style.cssText = 'width:100%;border-collapse:collapse'
 

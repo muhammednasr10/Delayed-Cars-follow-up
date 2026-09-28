@@ -1,5 +1,5 @@
 import { useState, type ReactNode, useRef } from 'react'
-import { Pencil, Plus, Trash2 } from 'lucide-react'
+import { GripVertical, Pencil, Plus, Trash2 } from 'lucide-react'
 import { useLang } from '../i18n/LanguageContext'
 import { Modal } from './Modal'
 import { ConfirmDialog } from './ConfirmDialog'
@@ -38,6 +38,7 @@ export type CrudSectionProps<T> = {
   onUpdate: (id: string, values: CrudValues) => Promise<boolean>
   onDelete: (id: string) => Promise<boolean>
   canManage?: boolean
+  onReorder?: (orderedIds: string[]) => Promise<boolean>
   getCreateValues?: (items: T[]) => CrudValues
   renderWizard?: (args: {
     open: boolean
@@ -70,6 +71,7 @@ export function CrudSection<T>({
   onUpdate,
   onDelete,
   canManage = true,
+  onReorder,
   getCreateValues,
   renderWizard
 }: CrudSectionProps<T>) {
@@ -81,6 +83,9 @@ export function CrudSection<T>({
   const [formError, setFormError] = useState('')
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({})
   const [deleteTarget, setDeleteTarget] = useState<T | null>(null)
+  const [dragId, setDragId] = useState<string | null>(null)
+  const [overId, setOverId] = useState<string | null>(null)
+  const canReorder = Boolean(canManage && onReorder && !busy)
 
   function openAdd() {
     setEditingId(null)
@@ -132,6 +137,23 @@ export function CrudSection<T>({
     return ok
   }
 
+  function dropOn(fromId: string, targetId: string) {
+    if (!onReorder || !fromId || fromId === targetId) {
+      setDragId(null)
+      setOverId(null)
+      return
+    }
+    const from = items.findIndex(item => getId(item) === fromId)
+    const to = items.findIndex(item => getId(item) === targetId)
+    setDragId(null)
+    setOverId(null)
+    if (from < 0 || to < 0) return
+    const next = [...items]
+    const [moved] = next.splice(from, 1)
+    next.splice(to, 0, moved)
+    void onReorder(next.map(getId))
+  }
+
   async function confirmDelete() {
     if (!deleteTarget) return
     const ok = await onDelete(getId(deleteTarget))
@@ -146,6 +168,7 @@ export function CrudSection<T>({
           <div>
             <h3 className="text-lg font-black text-white">{title}</h3>
             <p className="text-xs text-slate-400">{t('common.items', { n: items.length })}</p>
+            {canManage && onReorder ? <p className="mt-1 text-xs text-cyan-300/80">{t('settings.dragToReorder')}</p> : null}
           </div>
         </div>
         {canManage && (
@@ -168,6 +191,7 @@ export function CrudSection<T>({
         <table className="w-full min-w-[600px] text-start">
           <thead className="bg-slate-950">
             <tr>
+              {canReorder && <th data-export-skip className="table-cell w-10" />}
               {columns.map(col => (
                 <th
                   key={col.header}
@@ -186,13 +210,48 @@ export function CrudSection<T>({
           <tbody className="divide-y divide-slate-800">
             {items.length === 0 ? (
               <tr>
-                <td className="table-cell text-slate-400" colSpan={columns.length + (canManage ? 1 : 0)}>
+                <td className="table-cell text-slate-400" colSpan={columns.length + (canManage ? 1 : 0) + (canReorder ? 1 : 0)}>
                   {t('common.noData')}
                 </td>
               </tr>
             ) : (
-              items.map(item => (
-                <tr key={getId(item)} className="bg-slate-900/30 hover:bg-slate-800/40">
+              items.map(item => {
+                const id = getId(item)
+                return (
+                <tr
+                  key={id}
+                  className={`bg-slate-900/30 hover:bg-slate-800/40 ${dragId === id ? 'opacity-40' : ''} ${overId === id && dragId !== id ? 'outline outline-1 outline-cyan-400/70' : ''}`}
+                  onDragOver={event => {
+                    if (!canReorder || !dragId) return
+                    event.preventDefault()
+                    if (overId !== id) setOverId(id)
+                  }}
+                  onDrop={event => {
+                    event.preventDefault()
+                    dropOn(event.dataTransfer.getData('text/plain'), id)
+                  }}
+                >
+                  {canReorder && (
+                    <td data-export-skip className="table-cell w-10 text-center">
+                      <button
+                        type="button"
+                        draggable
+                        title={t('settings.dragToReorder')}
+                        className="cursor-grab rounded-lg p-1 text-slate-500 hover:bg-slate-800 hover:text-cyan-200 active:cursor-grabbing"
+                        onDragStart={event => {
+                          setDragId(id)
+                          event.dataTransfer.effectAllowed = 'move'
+                          event.dataTransfer.setData('text/plain', id)
+                        }}
+                        onDragEnd={() => {
+                          setDragId(null)
+                          setOverId(null)
+                        }}
+                      >
+                        <GripVertical className="h-4 w-4" />
+                      </button>
+                    </td>
+                  )}
                   {columns.map(col => (
                     <td key={col.header} className={`table-cell ${col.className ?? ''}`}>
                       {col.render(item)}
@@ -219,7 +278,8 @@ export function CrudSection<T>({
                     </td>
                   )}
                 </tr>
-              ))
+                )
+              })
             )}
           </tbody>
         </table>

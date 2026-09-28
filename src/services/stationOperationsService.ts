@@ -9,6 +9,7 @@ export {
   updateStationWorker1Summary,
   deactivateStationOperation,
   moveStationOperation,
+  assignIplPartToWorkerLine,
   syncWorkerLinesToHeadcount,
   ensureFirstWorkerLine,
   syncAllWorkerHeadcountsFromGroups,

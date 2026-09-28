@@ -23,6 +23,8 @@ export type Part = {
   common_supply_source: string | null
   unit: string | null
   notes: string | null
+  image_path?: string | null
+  compare_traits?: unknown
   is_active: boolean
 }
 

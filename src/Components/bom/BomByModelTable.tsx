@@ -14,7 +14,7 @@ export function BomByModelTable({ data }: { data: BomByModelDataReturn }) {
     models, stations, stationOptions, onIplStationChange, onIplFieldSave,
     setIplLogisticsGroup, setIplDeleteTarget, openPartEdit,
     setFormMode, setEditId, setEditIds, setDeleteTarget,
-    saveBreakdown, saveIplLogistics, breakdownSaving, iplSaving
+    saveBreakdown, saveIplLogistics, breakdownSaving, iplSaving, reload
   } = data
 
   return (
@@ -35,6 +35,7 @@ export function BomByModelTable({ data }: { data: BomByModelDataReturn }) {
           loading={loading && compareItemsByModel.size === 0}
           canUpdate={canUpdate}
           onEditPart={partId => void openPartEditById(partId)}
+          onRefresh={() => reload(t('settings.updated'))}
         />
       ) : (
         <ExportableTable filename="bom-parts" title={t('bom.title')} rowCount={pagedGroups.length}>

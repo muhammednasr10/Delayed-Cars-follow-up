@@ -108,6 +108,37 @@ export function variantModelsForLine(models: VehicleModel[], linePrefix: string)
   return models.filter(m => isAssignableModel(m) && (m.name.toUpperCase() === p || m.name.toUpperCase().startsWith(p)))
 }
 
+/**
+ * Sub-models for an operations line tab.
+ * Uses the family parent (so T4-PRO L under T4, and K50 under GD) and also
+ * names that start with the line, because a hyphen breaks the old T4L-style match.
+ */
+export function catalogVariantsForLine(models: VehicleModel[], line: string): VehicleModel[] {
+  const key = line.trim().toUpperCase()
+  if (!key) return []
+  const { groups } = buildModelFamilyGroups(models)
+  const fromParent = groups
+    .filter(g => {
+      const name = g.family.name.trim().toUpperCase()
+      if (name === key) return true
+      if (key === 'FOTON' && name.includes('FOTON')) return true
+      if (key === 'GD' && isGdAggregateFamily(name)) return true
+      return false
+    })
+    .flatMap(g => g.variants.filter(v => v.is_active))
+
+  const byName = selectableVehicleModels(models).filter(m => {
+    const n = m.name.trim().toUpperCase()
+    if (key === 'FOTON') return n.includes('FOTON')
+    if (key === 'GD') return GD_VARIANT_NAMES.has(n) || n.startsWith('GD')
+    return n.startsWith(key) && n !== key
+  })
+
+  const byId = new Map<string, VehicleModel>()
+  for (const variant of [...fromParent, ...byName]) byId.set(variant.id, variant)
+  return [...byId.values()].sort((a, b) => a.name.localeCompare(b.name, 'en'))
+}
+
 /** Family names left unselected when IPL compare filter initializes (matches default UI). */
 const IPL_DEFAULT_EXCLUDED_FAMILIES = new Set(['T70'])
 

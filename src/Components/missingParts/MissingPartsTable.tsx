@@ -1,11 +1,15 @@
+import { useEffect, useMemo, useState } from 'react'
 import { useLang } from '../../i18n/LanguageContext'
+import { useMpLookups } from '../../hooks/useMpLookups'
+import type { VehicleModel } from '../../Types/settings'
+import { getVehicleModels } from '../../services/settingsService'
 import {
   aggregateQty,
   buildMissingPartTableRows,
   vehicleIdsFromTableRow,
   type MissingPartTableRow
 } from '../../Utils/missingPartDisplay'
-import { ACTIVE_COLS, HISTORY_COLS, actionsCell, cell } from '../../Utils/missingPartPageUtils'
+import { ACTIVE_COLS, HISTORY_COLS, actionsCell, cell, modelCountExportSummary } from '../../Utils/missingPartPageUtils'
 import type { MissingPartDetail } from '../../Types/missingPart'
 import type { MpVehicleActionFlags, MpVehicleListActionProps } from '../../Types/mpVehicleActions'
 import { ExportableTable } from '../ExportableTable'
@@ -71,10 +75,25 @@ export function MissingPartsTable({
   shortageMissions = []
 }: Props) {
   const { t } = useLang()
+  const { reasons, departments, orgUnits } = useMpLookups()
+  const [models, setModels] = useState<VehicleModel[]>([])
+  useEffect(() => {
+    getVehicleModels()
+      .then(setModels)
+      .catch(() => setModels([]))
+  }, [])
+  const exportSummary = useMemo(() => {
+    const counts = modelCountExportSummary(filtered, models, t('mp.modelSummary.total'))
+    if (!counts) return undefined
+    return { title: t('mp.modelSummary.exportTitle'), ...counts }
+  }, [filtered, models, t])
   const cols = listTab === 'history' ? HISTORY_COLS : ACTIVE_COLS
   const tableRows = buildMissingPartTableRows(filtered, listTab === 'history' ? 'resolved-desc' : 'created-asc')
   const rowBase = {
     listTab,
+    reasons,
+    departments,
+    orgUnits,
     filtered,
     repeatedVinKeys,
     canBulkSelect,
@@ -115,6 +134,7 @@ export function MissingPartsTable({
       filename={listTab === 'history' ? 'missing-parts-archive' : 'missing-parts'}
       title={t('mp.title')}
       rowCount={loading ? 0 : tableRows.length}
+      summary={exportSummary}
       showExport={canExport}
     >
       <div className="overflow-x-auto">

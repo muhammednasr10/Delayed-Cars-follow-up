@@ -1,5 +1,6 @@
 import type { BomItemDetail } from '../Types/bom'
-import { displayBomStationCode } from './bomStationCode'
+import type { Station } from '../Types/settings'
+import { buildStationOrderMap, displayBomStationCode, resolveBomStationSortRank } from './bomStationCode'
 import { summarizeIplCompareFit, type IplCompareFitSummary } from './iplCompareFilters'
 import {
   comparePartNumbers,
@@ -64,10 +65,22 @@ function primaryStation(row: IplCompareRow, models: string[]): string {
 }
 
 /** Build IPL summary tables from compare rows already built like the IPL page. */
+function stationSortRank(code: string, orderMap: Map<string, number>): number {
+  return resolveBomStationSortRank(
+    {
+      station_sort_order: null,
+      station_code_text: code === '—' ? '' : code,
+      station_number: null
+    },
+    orderMap
+  )
+}
+
 export function buildIplDashboardSummaryFromCompare(
   rows: IplCompareRow[],
   fitCountsByKey: Map<string, IplFitCounts>,
-  modelNames: string[]
+  modelNames: string[],
+  stations: Station[] = []
 ): IplDashboardSummary {
   const fitSummary = summarizeIplCompareFit(rows, fitCountsByKey, modelNames.length)
 
@@ -112,8 +125,10 @@ export function buildIplDashboardSummaryFromCompare(
     entry.notFittedSlots += counts.notFitted
     entry.unsetSlots += counts.unset
   }
+  const stationOrder = buildStationOrderMap(stations)
   const byStation = [...stationMap.values()].sort((a, b) => {
-    if (b.parts !== a.parts) return b.parts - a.parts
+    const rank = stationSortRank(a.station, stationOrder) - stationSortRank(b.station, stationOrder)
+    if (rank !== 0) return rank
     return a.station.localeCompare(b.station, undefined, { numeric: true })
   })
 

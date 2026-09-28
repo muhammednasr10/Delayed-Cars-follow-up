@@ -14,6 +14,7 @@ import {
   deactivateAllBomItemsForPart,
   deactivateBomItemsForPartModel,
   fetchIplBomAndMasters,
+  invalidateIplBomCache,
   buildIplModelMergedRows,
   updateBomIplFeedingCard,
   updateBomItemStationForPart,
@@ -33,12 +34,12 @@ import {
 } from '../services/partsService'
 import { applicableModelsAfterRemoval } from '../Utils/bomQtyByModel'
 import {
-  countIplFitForPartAcrossModels,
   isIplNotFittedForModel,
   type IplFitCounts
 } from '../Utils/iplFitStatus'
 import { isPendingBomItemId } from '../Utils/iplModelParts'
-import { buildIplCompareRows, partCompareNameKey, type IplCompareRow } from '../Utils/iplModelCompare'
+import { buildIplCompareRows, type IplCompareRow } from '../Utils/iplModelCompare'
+import { fitCountsForCompareRows, partIdsByCompareKey } from '../Utils/iplCompareAssembly'
 import {
   buildIplSearchSuggestions,
   filterIplCompareRows,
@@ -261,31 +262,12 @@ export function useBomByModelData({
           byModel.set(name, buildIplModelMergedRows(name, source.allBom, source.masters, filters))
         }
         const compareRows = buildIplCompareRows(openTabsActive, byModel, stations)
-        // Badge counts follow the models selected in the filter above.
-        // Collect every part_id under the compare name (not only the picked cell),
-        // so not-fitted lines on a sibling master still count after edit.
-        const partIdsByKey = new Map<string, Set<string>>()
-        for (const items of byModel.values()) {
-          for (const item of items) {
-            const key = partCompareNameKey(item)
-            if (!item.part_id) continue
-            let set = partIdsByKey.get(key)
-            if (!set) {
-              set = new Set()
-              partIdsByKey.set(key, set)
-            }
-            set.add(item.part_id)
-          }
-        }
-        const fitModelNames = openTabsActive
-        const fitCounts = new Map<string, IplFitCounts>()
-        for (const row of compareRows) {
-          const fromBucket = partIdsByKey.get(row.key)
-          const partIds = fromBucket?.size
-            ? [...fromBucket]
-            : [...new Set([...row.byModel.values()].map(i => i.part_id).filter(Boolean))]
-          fitCounts.set(row.key, countIplFitForPartAcrossModels(partIds, fitModelNames, source.allBom))
-        }
+        const fitCounts = fitCountsForCompareRows(
+          compareRows,
+          partIdsByCompareKey(byModel),
+          openTabsActive,
+          source.allBom
+        )
         startTransition(() => {
           setCompareItemsByModel(byModel)
           setCompareFitCountsByKey(fitCounts)
@@ -351,7 +333,7 @@ export function useBomByModelData({
         if (iplPaintedRef.current) setIplRefreshing(true)
         else setLoading(true)
 
-        const source = await fetchIplBomAndMasters()
+        const source = await fetchIplBomAndMasters(undefined, { force: opts?.force })
         if (seq !== loadSeq.current) return
         iplSourceRef.current = source
         applyIplFromSource(source)
@@ -458,6 +440,7 @@ export function useBomByModelData({
 
   function reload(msg?: string) {
     iplSourceRef.current = null
+    invalidateIplBomCache()
     void load({ force: true }).then(() => {
       if (msg) notify(msg)
     })

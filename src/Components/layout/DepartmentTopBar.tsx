@@ -144,7 +144,7 @@ export function DepartmentTopBar() {
                             ? t('departments.hrTabs')
                             : t(`departments.${currentDepartment}`)}
                 </p>
-                <div className="flex gap-1.5 overflow-x-auto pb-0.5 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+                <div className="flex flex-wrap gap-1 pb-0.5">
                   {sectionPages.map(page => (
                     <NavTabButton
                       key={page.key}

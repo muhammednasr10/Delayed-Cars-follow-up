@@ -21,9 +21,11 @@ export const ACTIVE_COLS = [
   'vin',
   'model',
   'color',
-  'createdBy',
   'qty',
   'reason',
+  'causingDepartment',
+  'reasonClass',
+  'completingDepartment',
   'dateTime',
   'actions'
 ] as const
@@ -32,9 +34,11 @@ export const HISTORY_COLS = [
   'vin',
   'model',
   'color',
-  'createdBy',
   'qty',
   'reason',
+  'causingDepartment',
+  'reasonClass',
+  'completingDepartment',
   'dateTime',
   'completer',
   'resolvedAt',
@@ -136,7 +140,8 @@ export function hasActiveMissingPartFilters(filters: MissingPartFilters): boolea
       filters.followUpEmployeeId ||
       filters.resolvedMonth ||
       filters.dateFrom ||
-      filters.dateTo
+      filters.dateTo ||
+      (filters.vins?.length ?? 0) > 0
   )
 }
 
@@ -171,17 +176,20 @@ export function applyFilters(
       return true
     })
 
+  const vinSet = new Set((filters.vins ?? []).map(v => v.trim().toUpperCase()).filter(Boolean))
+  const scoped = vinSet.size === 0 ? base : base.filter(i => vinSet.has(i.vin.trim().toUpperCase()))
+
   const q = filters.search.trim().toLowerCase()
-  if (!q) return base
+  if (!q) return scoped
 
   const matchingGroups = new Set<string>()
-  for (const i of base) {
+  for (const i of scoped) {
     if ([i.vin, i.partDescription, i.modelName].join(' ').toLowerCase().includes(q) && i.reportGroupId) {
       matchingGroups.add(i.reportGroupId)
     }
   }
 
-  return base.filter(i => {
+  return scoped.filter(i => {
     if ([i.vin, i.partDescription, i.modelName].join(' ').toLowerCase().includes(q)) return true
     return Boolean(i.reportGroupId && matchingGroups.has(i.reportGroupId))
   })
@@ -398,5 +406,19 @@ export function buildFamilyVehicleCounts(
   return {
     total: new Set(items.map(i => i.vehicleId)).size,
     byFamily
+  }
+}
+
+/** One header row and one count row for the shortages PDF/Excel preamble. */
+export function modelCountExportSummary(
+  items: MissingPartDetail[],
+  models: VehicleModel[],
+  totalLabel: string
+): { headers: string[]; values: Array<string | number> } | null {
+  const summary = buildFamilyVehicleCounts(items, models)
+  if (summary.total === 0 || summary.byFamily.length === 0) return null
+  return {
+    headers: [totalLabel, ...summary.byFamily.map(row => row.familyName)],
+    values: [summary.total, ...summary.byFamily.map(row => row.count)]
   }
 }

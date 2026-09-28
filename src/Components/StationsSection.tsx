@@ -19,6 +19,7 @@ import type { Station, WorkArea } from '../Types/settings'
 import { supabase } from '../lib/supabase'
 import type { StationType } from '../Types/enums'
 import { normalizeStationType, stationTypeLabel } from '../Utils/stationDisplay'
+import { getStationTypeOptions, type StationTypeOption } from '../services/stationTypeOptionsService'
 
 type Props = {
   canManage: boolean
@@ -48,6 +49,7 @@ export const StationsSection = forwardRef<StationsSectionHandle, Props>(function
   const [loading, setLoading] = useState(false)
   const [localError, setLocalError] = useState('')
   const [localSuccess, setLocalSuccess] = useState('')
+  const [typeOptions, setTypeOptions] = useState<StationTypeOption[]>([])
 
   function showSuccess(message: string) {
     setLocalSuccess(message)
@@ -74,6 +76,7 @@ export const StationsSection = forwardRef<StationsSectionHandle, Props>(function
       setStations(stationsData)
       setWorkAreas(areasData)
       setAllStationNumbers(numbers)
+      void getStationTypeOptions().then(setTypeOptions).catch(() => setTypeOptions([]))
     } catch (err) {
       const raw = err instanceof Error ? err.message : t('common.error')
       const msg = raw === 'station_duplicate' ? t('settings.stationDuplicate') : raw
@@ -109,7 +112,9 @@ export const StationsSection = forwardRef<StationsSectionHandle, Props>(function
 
   const visibleStations = useMemo(() => {
     if (!stationTypes?.length) return displayStations
-    return displayStations.filter(s => stationTypes.includes(normalizeStationType(s.station_type)))
+    return displayStations.filter(s =>
+      (stationTypes as readonly string[]).includes(normalizeStationType(s.station_type))
+    )
   }, [displayStations, stationTypes])
 
   const lockedStationType = stationTypes?.length === 1 ? stationTypes[0] : null
@@ -187,6 +192,16 @@ export const StationsSection = forwardRef<StationsSectionHandle, Props>(function
         items={visibleStations}
         busy={loading}
         canManage={manage}
+        onReorder={
+          manage
+            ? orderedIds =>
+                runAction(async () => {
+                  const rank = new Map(orderedIds.map((id, index) => [id, (index + 1) * 10]))
+                  setStations(prev => prev.map(station => (rank.has(station.id) ? { ...station, sort_order: rank.get(station.id)! } : station)))
+                  await Promise.all([...rank].map(([id, sort_order]) => updateStation(id, { sort_order })))
+                }, t('settings.updated'))
+            : undefined
+        }
         getId={s => s.id}
         getLabel={s => `${s.station_number} - ${s.station_name}`}
         fields={[
@@ -219,7 +234,7 @@ export const StationsSection = forwardRef<StationsSectionHandle, Props>(function
           {
             header: t('settings.fields.stationType'),
             className: 'text-center',
-            render: s => stationTypeLabel(t, s.station_type)
+            render: s => stationTypeLabel(t, s.station_type, typeOptions)
           }
         ]}
         toValues={stationToWizardValues}
@@ -272,6 +287,9 @@ export const StationsSection = forwardRef<StationsSectionHandle, Props>(function
             busy={p.busy}
             onClose={p.onClose}
             onSubmit={p.onSubmit}
+            onTypesChanged={() => {
+              void getStationTypeOptions().then(setTypeOptions).catch(() => setTypeOptions([]))
+            }}
           />
         )}
       />

@@ -1,6 +1,7 @@
 import type { ProductionOrder } from '../Types/production'
 import type { VehicleModel } from '../Types/settings'
 import type { PlanFamilyGroup, PlanSection } from './productionPlanSummary'
+import { orderVisibleInPlanMonth } from './productionOrderMonth'
 
 export type PlanOrdersCoverageStatus = 'ok' | 'over' | 'short' | 'no_plan' | 'no_orders'
 
@@ -15,22 +16,9 @@ export type PlanOrdersCoverageRow = {
   orderCount: number
 }
 
-function monthPrefix(year: number, month: number): string {
-  return `${year}-${String(month).padStart(2, '0')}`
-}
-
-/** هل الأمر يخص شهر الخطة؟ */
+/** هل الأمر يخص شهر الخطة؟ (يشمل ترحيل الأوامر غير المكتملة) */
 export function orderBelongsToPlanMonth(order: ProductionOrder, year: number, month: number): boolean {
-  if (order.status === 'cancelled') return false
-  const prefix = monthPrefix(year, month)
-  const candidates = [order.plannedStart, order.plannedEnd, order.createdAt?.slice(0, 10)].filter((d): d is string =>
-    Boolean(d)
-  )
-  if (candidates.length === 0) {
-    const now = new Date()
-    return now.getFullYear() === year && now.getMonth() + 1 === month
-  }
-  return candidates.some(d => d.slice(0, 7) === prefix)
+  return orderVisibleInPlanMonth(order, year, month, 0)
 }
 
 export function sumOrdersQtyByModelId(

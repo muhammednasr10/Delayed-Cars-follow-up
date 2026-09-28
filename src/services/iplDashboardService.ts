@@ -1,6 +1,14 @@
-import type { IplFitCounts } from '../Utils/iplFitStatus'
-import { countIplFitForPartAcrossModels } from '../Utils/iplFitStatus'
-import { buildIplCompareRows, partCompareNameKey } from '../Utils/iplModelCompare'
+import type { BomItemDetail, Part } from '../Types/bom'
+import type { Station, VehicleModel } from '../Types/settings'
+import { buildIplCompareRows } from '../Utils/iplModelCompare'
+import { fitCountsForCompareRows, partIdsByCompareKey } from '../Utils/iplCompareAssembly'
+import {
+  buildIplSearchSuggestions,
+  filterIplCompareRows,
+  type IplDiffFilter,
+  type IplFitClassFilter,
+  type IplSearchSuggestion
+} from '../Utils/iplCompareFilters'
 import { buildIplDashboardSummaryFromCompare, type IplDashboardSummary } from '../Utils/iplDashboardSummary'
 import {
   defaultIplCompareModelNames,
@@ -11,45 +19,77 @@ import { getStations, getVehicleModels } from './settingsService'
 
 export type { IplDashboardSummary }
 
-export async function getIplDashboardSummary(): Promise<IplDashboardSummary> {
+export type IplDashboardDataset = {
+  allBom: BomItemDetail[]
+  masters: Part[]
+  models: VehicleModel[]
+  stations: Station[]
+}
+
+export type IplDashboardFilters = {
+  modelNames: string[]
+  stationCode?: string
+  search: string
+  fitFilter: IplFitClassFilter
+  diffFilter: IplDiffFilter
+}
+
+export async function loadIplDashboardDataset(): Promise<IplDashboardDataset> {
   const [source, models, stations] = await Promise.all([
     fetchIplBomAndMasters(),
     getVehicleModels(),
     getStations()
   ])
+  return { allBom: source.allBom, masters: source.masters, models, stations }
+}
 
-  const assignable = selectableVehicleModels(models)
-  const modelNames = defaultIplCompareModelNames(models, assignable)
-
-  const byModel = new Map<string, import('../Types/bom').BomItemDetail[]>()
+export function prepareIplDashboardBase(dataset: IplDashboardDataset, modelNames: string[], stationCode?: string) {
+  const byModel = new Map<string, BomItemDetail[]>()
   for (const name of modelNames) {
-    byModel.set(name, buildIplModelMergedRows(name, source.allBom, source.masters, {}))
+    byModel.set(
+      name,
+      buildIplModelMergedRows(name, dataset.allBom, dataset.masters, {
+        stationCode
+      })
+    )
   }
 
-  const rows = buildIplCompareRows(modelNames, byModel, stations)
-
-  const partIdsByKey = new Map<string, Set<string>>()
-  for (const items of byModel.values()) {
-    for (const item of items) {
-      const key = partCompareNameKey(item)
-      if (!item.part_id) continue
-      let set = partIdsByKey.get(key)
-      if (!set) {
-        set = new Set()
-        partIdsByKey.set(key, set)
-      }
-      set.add(item.part_id)
-    }
+  const rows = buildIplCompareRows(modelNames, byModel, dataset.stations)
+  return {
+    rows,
+    fitCounts: fitCountsForCompareRows(rows, partIdsByCompareKey(byModel), modelNames, dataset.allBom)
   }
+}
 
-  const fitCounts = new Map<string, IplFitCounts>()
-  for (const row of rows) {
-    const fromBucket = partIdsByKey.get(row.key)
-    const partIds = fromBucket?.size
-      ? [...fromBucket]
-      : [...new Set([...row.byModel.values()].map(i => i.part_id).filter(Boolean))]
-    fitCounts.set(row.key, countIplFitForPartAcrossModels(partIds, modelNames, source.allBom))
+export function composeIplDashboard(
+  dataset: IplDashboardDataset,
+  filters: IplDashboardFilters
+): { summary: IplDashboardSummary; suggestions: IplSearchSuggestion[] } {
+  const modelNames = filters.modelNames
+  const { rows, fitCounts } = prepareIplDashboardBase(dataset, modelNames, filters.stationCode)
+  const filtered = filterIplCompareRows(rows, {
+    openTabs: modelNames,
+    search: filters.search,
+    fitFilter: filters.fitFilter,
+    diffFilter: filters.diffFilter,
+    fitCountsByKey: fitCounts,
+    modelTotal: modelNames.length
+  })
+
+  return {
+    summary: buildIplDashboardSummaryFromCompare(filtered, fitCounts, modelNames, dataset.stations),
+    suggestions: buildIplSearchSuggestions(rows, modelNames, filters.search)
   }
+}
 
-  return buildIplDashboardSummaryFromCompare(rows, fitCounts, modelNames)
+export async function getIplDashboardSummary(): Promise<IplDashboardSummary> {
+  const dataset = await loadIplDashboardDataset()
+  const assignable = selectableVehicleModels(dataset.models)
+  const modelNames = defaultIplCompareModelNames(dataset.models, assignable)
+  return composeIplDashboard(dataset, {
+    modelNames,
+    search: '',
+    fitFilter: '',
+    diffFilter: ''
+  }).summary
 }

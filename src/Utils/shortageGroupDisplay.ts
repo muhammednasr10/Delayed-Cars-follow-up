@@ -3,7 +3,9 @@ import { rememberedPrimaryForGroup } from './reportGroupPrimary'
 import {
   displayLabelForKey,
   issueLabelsForPart,
+  labelMatchesMain,
   mainIssueLabels,
+  partHasDistinctAction,
   partSampleForLabel
 } from './shortageIssueKeys'
 
@@ -28,11 +30,18 @@ export function mainPartsForReportGroup(
 ): MissingPartDetail[] {
   if (scopeParts.length === 0) return []
 
-  const labels = mainIssueLabels(scopeParts, preferredPrimaryForScope(scopeParts, preferredPrimary))
+  const labelSource = scopeParts.some(p => !partHasDistinctAction(p))
+    ? scopeParts.filter(p => !partHasDistinctAction(p))
+    : scopeParts
+  const labels = mainIssueLabels(labelSource, preferredPrimaryForScope(scopeParts, preferredPrimary))
   const reps: MissingPartDetail[] = []
   for (const label of labels) {
     const sample = partSampleForLabel(scopeParts, label) ?? scopeParts[0]!
-    const matching = scopeParts.filter(p => issueLabelsForPart(p).includes(label))
+    const matching = scopeParts.filter(p => {
+      const labels = issueLabelsForPart(p)
+      if (partHasDistinctAction(p)) return false
+      return labels.some(item => item === label || labelMatchesMain(item, [label]))
+    })
     const installed = matching.reduce((s, p) => s + p.installedQty, 0)
     const required = matching.reduce((s, p) => s + p.requiredQty, 0)
     reps.push({
@@ -55,14 +64,20 @@ export function branchPartsForGroupVehicle(
   scopeParts: MissingPartDetail[],
   preferredPrimary?: string | null
 ): MissingPartDetail[] {
-  const mainLabels = new Set(mainIssueLabels(scopeParts, preferredPrimaryForScope(scopeParts, preferredPrimary)))
+  const labelSource = scopeParts.some(p => !partHasDistinctAction(p))
+    ? scopeParts.filter(p => !partHasDistinctAction(p))
+    : scopeParts
+  const mainLabels = new Set(mainIssueLabels(labelSource, preferredPrimaryForScope(scopeParts, preferredPrimary)))
   const vehicleParts = scopeParts.filter(p => p.vehicleId === vehicleId)
   const branches: MissingPartDetail[] = []
 
   for (const part of vehicleParts) {
     const labels = issueLabelsForPart(part)
-    const localOnly = labels.filter(label => !mainLabels.has(label))
-    if (localOnly.length === 0) continue
+    const localOnly = labels.filter(label => !labelMatchesMain(label, mainLabels))
+    if (localOnly.length === 0) {
+      if (partHasDistinctAction(part)) branches.push(part)
+      continue
+    }
 
     if (localOnly.length === labels.length) {
       branches.push(part)

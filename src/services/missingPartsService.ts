@@ -605,7 +605,10 @@ export async function reportMissingPartsBatch(
     input.notes
   )
   if (vehicleIds.length > 0) {
-    await logVehicleActivityNotes(vehicleIds.map(vehicleId => ({ vehicleId, body: noteBody })))
+    await logVehicleActivityNotes(
+      vehicleIds.map(vehicleId => ({ vehicleId, body: noteBody })),
+      { includeWhen: false }
+    )
   } else {
     // Fallback: resolve vehicles by reported VINs
     const { data: vehicleRows } = await requireClient()
@@ -614,7 +617,7 @@ export async function reportMissingPartsBatch(
       .in('vin', vins.map(v => v.toUpperCase()))
       .eq('is_deleted', false)
     for (const v of vehicleRows ?? []) {
-      await logVehicleActivityNote((v as { id: string }).id, noteBody)
+      await logVehicleActivityNote((v as { id: string }).id, noteBody, { includeWhen: false })
     }
   }
 

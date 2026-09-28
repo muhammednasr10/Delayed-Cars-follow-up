@@ -1,6 +1,12 @@
 import type { MissingPartDetail } from '../Types/missingPart'
 import { branchPartsForGroupVehicle } from './shortageGroupDisplay'
-import { displayLabelForKey, issueLabelsForPart, normalizeIssueLabel } from './shortageIssueKeys'
+import {
+  displayLabelForKey,
+  issueLabelsForPart,
+  normalizeIssueLabel,
+  partHasDistinctAction,
+  sameIssueWording
+} from './shortageIssueKeys'
 
 export type MergeIssueOption = {
   key: string
@@ -45,6 +51,27 @@ export function mergeablePartsForVehicles(
       p.status !== 'closed' &&
       p.status !== 'cancelled'
   )
+}
+
+/**
+ * Lines whose wording is the same shortage with different writing.
+ * They can be rewritten to the chosen label so the group is one row.
+ * A line with its own transfer action is left unchanged.
+ */
+export function descriptionsToUnify(
+  parts: MissingPartDetail[],
+  primaryKey: string,
+  primaryLabel: string
+): MissingPartDetail[] {
+  const key = normalizeIssueLabel(primaryKey)
+  return parts.filter(part => {
+    if (partHasDistinctAction(part)) return false
+    const labels = issueLabelsForPart(part)
+    if (labels.length !== 1) return false
+    const label = labels[0]!
+    if (label === key) return false
+    return sameIssueWording(label, primaryLabel) || sameIssueWording(label, key)
+  })
 }
 
 /** Unique shortage wordings in the selection (for the merge primary picker). */

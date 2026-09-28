@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import type { MissingPartDetail } from '../Types/missingPart'
-import { listMergeIssueOptions, planMergeSelectedVehicles } from './mergeShortageReportGroup'
+import { descriptionsToUnify, listMergeIssueOptions, planMergeSelectedVehicles } from './mergeShortageReportGroup'
 import { branchPartsForGroupVehicle, mainPartsForReportGroup } from './shortageGroupDisplay'
 import { shortageIssueKey } from './shortageIssueKeys'
 
@@ -140,6 +140,38 @@ describe('planMergeSelectedVehicles', () => {
     expect(shortageIssueKey(part({ id: 'a', vehicleId: 'v1', vin: '1' }))).toBe(
       'بدون كراسي بالكامل|stock_shortage|trim'
     )
+  })
+})
+
+describe('near-duplicate shortage wording', () => {
+  it('folds the same reason with different writing into one row and keeps a different action branched', () => {
+    const main = part({
+      id: 'a',
+      vehicleId: 'v1',
+      vin: '1',
+      reportGroupId: 'g',
+      partDescription: 'صوت نقره بالمحرك'
+    })
+    const variant = part({
+      id: 'b',
+      vehicleId: 'v2',
+      vin: '2',
+      reportGroupId: 'g',
+      partDescription: 'صوت نقره بالمحرك تغير'
+    })
+    const otherAction = part({
+      id: 'c',
+      vehicleId: 'v3',
+      vin: '3',
+      reportGroupId: 'g',
+      partDescription: 'صوت نقره شديد بالمحرك',
+      pendingTransferRequestId: 'req-1'
+    })
+    const scope = [main, variant, otherAction]
+    expect(branchPartsForGroupVehicle('v1', scope)).toEqual([])
+    expect(branchPartsForGroupVehicle('v2', scope)).toEqual([])
+    expect(branchPartsForGroupVehicle('v3', scope).map(p => p.id)).toEqual(['c'])
+    expect(descriptionsToUnify(scope, 'صوت نقره بالمحرك', 'صوت نقره بالمحرك').map(p => p.id)).toEqual(['b'])
   })
 })
 

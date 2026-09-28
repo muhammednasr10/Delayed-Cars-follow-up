@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest'
 import type { MpDepartmentReasonLink, MpLookupOption } from '../Types/mpLookup'
+import type { FactoryOrgUnit } from '../Types/factoryOrg'
 import {
+  departmentLeafLabel,
   ingestMpLookupOptions,
   isOpaqueLookupCode,
   mpLookupLabel,
@@ -58,5 +60,32 @@ describe('mpLookupLabel', () => {
   it('uses ingested cache when options are empty', () => {
     ingestMpLookupOptions(reasons)
     expect(mpLookupLabel([], 'opt_1786943995064', 'ar')).toBe('عيب دهان')
+  })
+})
+
+describe('departmentLeafLabel', () => {
+  const orgUnits: FactoryOrgUnit[] = [
+    { id: 'wh', name: 'المخازن', parentId: null, unitKind: 'administration', sortOrder: 1, isActive: true },
+    { id: 'ckd', name: 'مخزن CKD', parentId: 'wh', unitKind: 'section', sortOrder: 1, isActive: true },
+    { id: 'feed', name: 'تغذية CKD', parentId: 'ckd', unitKind: 'subsection', sortOrder: 1, isActive: true }
+  ]
+  const departments: MpLookupOption[] = [
+    {
+      id: 'feed',
+      code: 'feed',
+      labelAr: 'المخازن / مخزن CKD / تغذية CKD',
+      labelEn: 'المخازن / مخزن CKD / تغذية CKD',
+      sortOrder: 1,
+      isActive: true
+    }
+  ]
+
+  it('shows only the last selected department in the table', () => {
+    expect(departmentLeafLabel('feed', departments, orgUnits, 'ar')).toBe('تغذية CKD')
+    expect(mpLookupLabel(departments, 'feed', 'ar')).toBe('المخازن / مخزن CKD / تغذية CKD')
+  })
+
+  it('falls back to the last path segment when the unit list is empty', () => {
+    expect(departmentLeafLabel('feed', departments, [], 'ar')).toBe('تغذية CKD')
   })
 })

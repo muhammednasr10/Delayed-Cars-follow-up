@@ -98,7 +98,7 @@ export async function updateStationOperation(id: string, input: StationOperation
   await replaceOperationHardware(id, input.hardware)
 }
 
-export async function createStationOperation(stationId: string, input: StationOperationUpdate): Promise<void> {
+export async function createStationOperation(stationId: string, input: StationOperationUpdate): Promise<string> {
   const { data: st } = await client().from('stations').select('station_number').eq('id', stationId).single()
   if (!st) throw new Error('Station not found')
 
@@ -141,7 +141,9 @@ export async function createStationOperation(stationId: string, input: StationOp
   if (insertRes.error) throw new Error(insertRes.error.message)
 
   const operationId = insertRes.data?.id as string
-  if (operationId) await replaceOperationHardware(operationId, input.hardware)
+  if (!operationId) throw new Error('Operation was not created')
+  await replaceOperationHardware(operationId, input.hardware)
+  return operationId
 }
 
 export async function updateStationWorker1Summary(stationId: string, summary: string): Promise<void> {

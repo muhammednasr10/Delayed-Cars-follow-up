@@ -15,6 +15,7 @@ import { useMissingPartsUiPermissions } from '../hooks/useMissingPartsUiPermissi
 import { useFormatError } from '../hooks/useFormatError'
 import { useVinListConflict } from '../hooks/useVinListConflict'
 import { MpIssueLookupsFields } from './missingParts/MpIssueLookupsFields'
+import { ReasonItemsField } from './missingParts/ReasonItemsField'
 import { defaultDepartmentCode, defaultReasonCode } from '../Utils/mpLookupLabel'
 import { isValidVinLength } from '../Utils/vinValidation'
 import { normalizeVinKey, chassisNeedingListConflictCheck } from '../Utils/vinListConflict'
@@ -30,13 +31,30 @@ type Props = {
 type IssueDraft = {
   key: string
   ids: string[]
-  partDescription: string
+  partItems: string[]
   reason: string
   department: string
   completingDepartment: string
   followUpEmployeeId: string
   followUpEmployeeIds: string[]
   isNew?: boolean
+}
+
+function filledReasons(items: string[]): string[] {
+  return items.map(item => item.trim()).filter(Boolean)
+}
+
+function issuePartLines(issue: IssueDraft, descriptions: string[]) {
+  return descriptions.map(partDescription => ({
+    partDescription,
+    requiredQty: 1,
+    reason: issue.reason,
+    department: issue.department,
+    stationId: null as string | null,
+    completingDepartment: issue.completingDepartment || null,
+    followUpEmployeeId: issue.followUpEmployeeIds?.[0] || issue.followUpEmployeeId || null,
+    followUpEmployeeIds: issue.followUpEmployeeIds
+  }))
 }
 
 type VinRow = {
@@ -119,7 +137,7 @@ export function EditReportGroupModal({ group, activeListParts = [], onClose, onS
               p.department === rep.department
           )
           .map(p => p.id),
-        partDescription: rep.partDescription,
+        partItems: [rep.partDescription],
         reason: rep.reason,
         department: rep.department,
         completingDepartment: rep.completingDepartment ?? '',
@@ -162,14 +180,40 @@ export function EditReportGroupModal({ group, activeListParts = [], onClose, onS
     .map(r => normalizeVinKey(r.vin))
     .filter(isValidVinLength)
   const existingIssues = issues.filter(i => !i.isNew)
-  const newIssues = issues.filter(i => i.isNew && i.partDescription.trim())
+  const newIssues = issues.filter(i => i.isNew && filledReasons(i.partItems).length > 0)
 
   function patchIssue(key: string, patch: Partial<IssueDraft>) {
     setIssues(prev => prev.map(i => (i.key === key ? { ...i, ...patch } : i)))
   }
 
+  function updateReasonItem(key: string, index: number, value: string) {
+    setIssues(prev =>
+      prev.map(issue =>
+        issue.key === key
+          ? { ...issue, partItems: issue.partItems.map((item, i) => (i === index ? value : item)) }
+          : issue
+      )
+    )
+  }
+
+  function addReasonItem(key: string) {
+    setIssues(prev =>
+      prev.map(issue => (issue.key === key ? { ...issue, partItems: [...issue.partItems, ''] } : issue))
+    )
+  }
+
+  function removeReasonItem(key: string, index: number) {
+    setIssues(prev =>
+      prev.map(issue => {
+        if (issue.key !== key || issue.partItems.length <= 1) return issue
+        return { ...issue, partItems: issue.partItems.filter((_, i) => i !== index) }
+      })
+    )
+  }
+
   function removeIssue(issue: IssueDraft) {
-    if (!window.confirm(t('mp.deleteConfirm', { part: issue.partDescription || '—' }))) return
+    const label = filledReasons(issue.partItems)[0] || '—'
+    if (!window.confirm(t('mp.deleteConfirm', { part: label }))) return
     if (issue.ids.length > 0) setRemovedIds(prev => [...prev, ...issue.ids])
     setIssues(prev => prev.filter(i => i.key !== issue.key))
   }
@@ -221,7 +265,7 @@ export function EditReportGroupModal({ group, activeListParts = [], onClose, onS
       return
     }
     for (const issue of issues) {
-      if (!issue.partDescription.trim()) {
+      if (filledReasons(issue.partItems).length === 0) {
         setError(t('mp.edit.partRequired'))
         return
       }
@@ -255,7 +299,11 @@ export function EditReportGroupModal({ group, activeListParts = [], onClose, onS
         })
       }
 
+      const extraExistingLines: ReturnType<typeof issuePartLines> = []
       for (const issue of existingIssues) {
+        const labels = filledReasons(issue.partItems)
+        const primary = labels[0] ?? ''
+        extraExistingLines.push(...issuePartLines(issue, labels.slice(1)))
         for (const id of issue.ids) {
           if (removedIdSet.has(id)) continue
           const part = editableParts.find(p => p.id === id)
@@ -263,7 +311,7 @@ export function EditReportGroupModal({ group, activeListParts = [], onClose, onS
           // Skip parts belonging to deleted original VINs
           if (part.vin && !keptOriginalKeys.has(normalizeVinKey(part.vin))) continue
           await updateMissingPartRecord(id, {
-            partDescription: issue.partDescription.trim(),
+            partDescription: primary,
             requiredQty: part.requiredQty,
             reason: issue.reason,
             department: issue.department,
@@ -278,16 +326,10 @@ export function EditReportGroupModal({ group, activeListParts = [], onClose, onS
         }
       }
 
-      const newPartLines = newIssues.map(i => ({
-        partDescription: i.partDescription.trim(),
-        requiredQty: 1,
-        reason: i.reason,
-        department: i.department,
-        stationId: null as string | null,
-        completingDepartment: i.completingDepartment || null,
-        followUpEmployeeId: i.followUpEmployeeIds?.[0] || i.followUpEmployeeId || null,
-        followUpEmployeeIds: i.followUpEmployeeIds
-      }))
+      const newPartLines = [
+        ...extraExistingLines,
+        ...newIssues.flatMap(issue => issuePartLines(issue, filledReasons(issue.partItems)))
+      ]
 
       if (newPartLines.length > 0 && remainingOriginalVins.length > 0) {
         await reportMissingPartsBatch({
@@ -305,17 +347,8 @@ export function EditReportGroupModal({ group, activeListParts = [], onClose, onS
 
       if (newVins.length > 0) {
         const partsForNew = [
-          ...existingIssues.map(i => ({
-            partDescription: i.partDescription.trim(),
-            requiredQty: 1,
-            reason: i.reason,
-            department: i.department,
-            stationId: null as string | null,
-            completingDepartment: i.completingDepartment || null,
-            followUpEmployeeId: i.followUpEmployeeIds?.[0] || i.followUpEmployeeId || null,
-            followUpEmployeeIds: i.followUpEmployeeIds
-          })),
-          ...newPartLines
+          ...existingIssues.flatMap(issue => issuePartLines(issue, filledReasons(issue.partItems))),
+          ...newIssues.flatMap(issue => issuePartLines(issue, filledReasons(issue.partItems)))
         ]
         if (partsForNew.length === 0) {
           setError(t('mp.edit.needIssueForNewVin'))
@@ -436,7 +469,7 @@ export function EditReportGroupModal({ group, activeListParts = [], onClose, onS
                     {
                       key: crypto.randomUUID(),
                       ids: [],
-                      partDescription: '',
+                      partItems: [''],
                       reason: defaultReasonCode(reasons) || prev[0]?.reason || '',
                       department: defaultDepartmentCode(departments) || prev[0]?.department || '',
                       completingDepartment: '',
@@ -473,14 +506,12 @@ export function EditReportGroupModal({ group, activeListParts = [], onClose, onS
                       <Trash2 className="h-3.5 w-3.5" />
                     </button>
                   </div>
-                  <Field label={t('mp.cols.reason')} required>
-                    <input
-                      className="input-dark w-full"
-                      value={issue.partDescription}
-                      onChange={e => patchIssue(issue.key, { partDescription: e.target.value })}
-                      placeholder={t('mp.issueReasonPlaceholder')}
-                    />
-                  </Field>
+                  <ReasonItemsField
+                    items={issue.partItems}
+                    onUpdate={(index, value) => updateReasonItem(issue.key, index, value)}
+                    onAdd={() => addReasonItem(issue.key)}
+                    onRemove={index => removeReasonItem(issue.key, index)}
+                  />
                   <MpIssueLookupsFields
                     department={issue.department}
                     reason={issue.reason}

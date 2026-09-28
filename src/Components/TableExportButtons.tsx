@@ -7,7 +7,8 @@ import {
   exportTableToPdf,
   extractTableData,
   type TableExportColumn,
-  type TableExportData
+  type TableExportData,
+  type TableExportSummary
 } from '../Utils/tableExport'
 
 type Props<T> = {
@@ -16,6 +17,7 @@ type Props<T> = {
   containerRef?: RefObject<HTMLElement | null>
   columns?: TableExportColumn<T>[]
   rows?: T[]
+  summary?: TableExportSummary
   disabled?: boolean
   className?: string
 }
@@ -26,6 +28,7 @@ export function TableExportButtons<T>({
   containerRef,
   columns,
   rows,
+  summary,
   disabled = false,
   className = ''
 }: Props<T>) {
@@ -33,10 +36,12 @@ export function TableExportButtons<T>({
   const [busy, setBusy] = useState<'excel' | 'pdf' | null>(null)
 
   function resolveData(): TableExportData | null {
-    if (columns && rows) return buildExportData(rows, columns)
-    const table = containerRef?.current?.querySelector('table')
-    if (!table) return null
-    return extractTableData(table)
+    const base = columns && rows ? buildExportData(rows, columns) : null
+    const fromDom = !base ? containerRef?.current?.querySelector('table') : null
+    const data = base ?? (fromDom ? extractTableData(fromDom) : null)
+    if (!data) return null
+    if (!summary || summary.headers.length === 0) return data
+    return { ...data, summary }
   }
 
   async function run(kind: 'excel' | 'pdf') {

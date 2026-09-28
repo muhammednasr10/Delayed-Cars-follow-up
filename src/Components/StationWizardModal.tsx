@@ -1,9 +1,15 @@
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
-import { MapPin } from 'lucide-react'
+import { MapPin, Plus } from 'lucide-react'
 import { useLang } from '../i18n/LanguageContext'
 import { Modal } from './Modal'
-import { STATION_TYPES } from '../Types/enums'
 import type { WorkArea } from '../Types/settings'
+import {
+  fallbackStationTypeOptions,
+  getStationTypeOptions,
+  newStationTypeCode,
+  saveStationTypeOptions,
+  type StationTypeOption
+} from '../services/stationTypeOptionsService'
 import {
   composeStationNumber,
   formatStationReferenceCode,
@@ -35,6 +41,7 @@ type Props = {
   excludeStationNumbers?: string[]
   onClose: () => void
   onSubmit: (values: Values) => Promise<boolean>
+  onTypesChanged?: () => void
 }
 
 export function StationWizardModal({
@@ -50,12 +57,18 @@ export function StationWizardModal({
   linkFromSettingsOnly = false,
   excludeStationNumbers,
   onClose,
-  onSubmit
+  onSubmit,
+  onTypesChanged
 }: Props) {
   const { t } = useLang()
   const [values, setValues] = useState<Values>(initialValues)
   const [errors, setErrors] = useState<Record<string, string>>({})
   const [formError, setFormError] = useState('')
+  const [typeOptions, setTypeOptions] = useState<StationTypeOption[]>(() => fallbackStationTypeOptions())
+  const [typesOpen, setTypesOpen] = useState(false)
+  const [typeDrafts, setTypeDrafts] = useState<StationTypeOption[]>([])
+  const [typesError, setTypesError] = useState('')
+  const [typesSaving, setTypesSaving] = useState(false)
   const lastSeedKeyRef = useRef('')
 
   useEffect(() => {
@@ -76,6 +89,13 @@ export function StationWizardModal({
     setErrors({})
     setFormError('')
   }, [open, initialValues])
+
+  useEffect(() => {
+    if (!open) return
+    void getStationTypeOptions()
+      .then(setTypeOptions)
+      .catch(() => setTypeOptions(fallbackStationTypeOptions()))
+  }, [open])
 
   const isActive = values.is_active !== 'false'
 
@@ -169,6 +189,29 @@ export function StationWizardModal({
     if (!ok) return
   }
 
+  async function saveTypes() {
+    const next = typeDrafts
+      .map(option => ({ ...option, labelAr: option.labelAr.trim(), labelEn: option.labelAr.trim() || option.labelEn }))
+      .filter(option => option.labelAr)
+    if (next.length === 0) return
+    setTypesSaving(true)
+    setTypesError('')
+    try {
+      await saveStationTypeOptions(next)
+      setTypeOptions(next)
+      onTypesChanged?.()
+      if (!next.some(option => option.code === values.station_type)) {
+        set('station_type', next[0].code)
+      }
+      setTypesOpen(false)
+    } catch (error) {
+      const message = error instanceof Error ? error.message : t('common.error')
+      setTypesError(/station_type_options/i.test(message) ? t('settings.stationTypeNeedsTable') : message)
+    } finally {
+      setTypesSaving(false)
+    }
+  }
+
   return (
     <Modal
       open={open}
@@ -215,18 +258,7 @@ export function StationWizardModal({
             {t('operations.pickStationHint')}
           </p>
         )}
-        <div className="flex items-start gap-3">
-          <Field label={t('settings.fields.sortOrder')} className="w-24 shrink-0">
-            <input
-              type="number"
-              min={0}
-              className={inputCls()}
-              value={values.sort_order ?? '0'}
-              onChange={e => set('sort_order', e.target.value)}
-            />
-          </Field>
-
-          <Field label={t('settings.cols.stationName')} className="min-w-0 flex-1">
+        <Field label={t('settings.cols.stationName')}>
             {masterStations && masterStations.length > 0 && !lockStationBase ? (
               <StationNameAutocomplete
                 value={values.station_base ?? ''}
@@ -257,8 +289,7 @@ export function StationWizardModal({
                 {stationPreview}
               </span>
             )}
-          </Field>
-        </div>
+        </Field>
 
         <Field label={t('settings.fields.commonName')} required error={errors.station_name}>
           <input
@@ -286,17 +317,33 @@ export function StationWizardModal({
         )}
 
         <Field label={t('settings.fields.stationType')}>
-          <select
-            className={inputCls()}
-            value={normalizeStationType(values.station_type)}
-            onChange={e => set('station_type', e.target.value)}
-          >
-            {STATION_TYPES.map(s => (
-              <option key={s} value={s}>
-                {t(`stationType.${s}`)}
-              </option>
-            ))}
-          </select>
+          <div className="flex items-center gap-2">
+            <select
+              className={inputCls()}
+              value={normalizeStationType(values.station_type)}
+              onChange={e => set('station_type', e.target.value)}
+            >
+              {typeOptions.map(option => (
+                <option key={option.code} value={option.code}>
+                  {option.labelAr}
+                </option>
+              ))}
+              {!typeOptions.some(option => option.code === normalizeStationType(values.station_type)) && (
+                <option value={normalizeStationType(values.station_type)}>{normalizeStationType(values.station_type)}</option>
+              )}
+            </select>
+            <button
+              type="button"
+              className="shrink-0 rounded-xl bg-slate-800 px-3 py-2 text-xs font-black text-cyan-100 hover:bg-slate-700"
+              onClick={() => {
+                setTypeDrafts(typeOptions.map(option => ({ ...option })))
+                setTypesError('')
+                setTypesOpen(true)
+              }}
+            >
+              {t('settings.stationTypeManage')}
+            </button>
+          </div>
         </Field>
 
         {!withWorkerSuffix && (
@@ -336,6 +383,59 @@ export function StationWizardModal({
           </p>
         )}
       </div>
+      <Modal
+        open={typesOpen}
+        title={t('settings.stationTypeManage')}
+        subtitle={t('settings.stationTypeManageHint')}
+        icon={<MapPin className="h-5 w-5" />}
+        onClose={() => setTypesOpen(false)}
+        maxWidthClass="max-w-md"
+        zIndexClass="z-[140]"
+        footer={
+          <div className="flex justify-end gap-2">
+            <button type="button" className="rounded-xl bg-slate-800 px-4 py-2 text-sm font-bold text-slate-200" onClick={() => setTypesOpen(false)}>
+              {t('common.cancel')}
+            </button>
+            <button
+              type="button"
+              disabled={typesSaving}
+              className="rounded-xl bg-cyan-500 px-4 py-2 text-sm font-black text-slate-950 disabled:opacity-50"
+              onClick={() => void saveTypes()}
+            >
+              {typesSaving ? t('common.loading') : t('common.save')}
+            </button>
+          </div>
+        }
+      >
+        <div className="space-y-2">
+          {typesError && <p className="text-xs font-bold text-rose-300">{typesError}</p>}
+          {typeDrafts.map((option, index) => (
+            <input
+              key={option.code}
+              className={inputCls()}
+              value={option.labelAr}
+              onChange={event =>
+                setTypeDrafts(current =>
+                  current.map((row, rowIndex) => (rowIndex === index ? { ...row, labelAr: event.target.value, labelEn: event.target.value } : row))
+                )
+              }
+            />
+          ))}
+          <button
+            type="button"
+            className="inline-flex items-center gap-1 rounded-xl bg-slate-800 px-3 py-1.5 text-xs font-black text-slate-100"
+            onClick={() =>
+              setTypeDrafts(current => [
+                ...current,
+                { code: newStationTypeCode(), labelAr: '', labelEn: '', sortOrder: (current.length + 1) * 10 }
+              ])
+            }
+          >
+            <Plus className="h-3.5 w-3.5" />
+            {t('settings.stationTypeAdd')}
+          </button>
+        </div>
+      </Modal>
     </Modal>
   )
 }

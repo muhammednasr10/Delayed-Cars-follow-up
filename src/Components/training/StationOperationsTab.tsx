@@ -7,6 +7,7 @@ import { StationWizardModal } from '../StationWizardModal'
 import { StationOperationForm } from './StationOperationForm'
 import { MoveOperationModal } from './MoveOperationModal'
 import {
+  assignIplPartToWorkerLine,
   createStationOperation,
   deactivateStationOperation,
   deactivateStationWithWorkers,
@@ -28,7 +29,7 @@ import {
   formatStationWorkerDisplayCode
 } from '../../Utils/stationHierarchy'
 import { MODEL_LINES, MODEL_LINE_STYLES, type ModelLine } from '../../Utils/modelLines'
-import { getVariantsForLine } from '../../Utils/lineClassifications'
+import { catalogVariantsForLine } from '../../Utils/vehicleModelHierarchy'
 import { familyModelIdForLine } from '../../Utils/operationClassificationBuilder'
 import { operationMatchesLineFilter } from '../../Utils/operationClassification'
 import {
@@ -40,7 +41,9 @@ import {
 import type { ParentStationOperationsGroup, StationOperationDetail } from '../../Types/timeStudy'
 import type { Station, VehicleModel, WorkArea } from '../../Types/settings'
 import { normalizeStationType } from '../../Utils/stationDisplay'
-import { StationOperationsLineFilter } from './stationOperations/StationOperationsLineFilter'
+import { iplStationKey, type IplStationPart } from '../../Utils/iplStationParts'
+import { fetchIplFittedPartsByStation } from '../../services/iplStationPartsService'
+import { StationOperationsLineFilter, VariantFilter } from './stationOperations/StationOperationsLineFilter'
 import { ParentStationBlock } from './stationOperations/StationOperationsParentBlock'
 
 type Props = {
@@ -71,6 +74,7 @@ export function StationOperationsTab({ parentGroups, models, loading, loadError,
   const [deleteTarget, setDeleteTarget] = useState<DeleteTarget | null>(null)
   const [moveOp, setMoveOp] = useState<{ op: StationOperationDetail; workerStationId: string } | null>(null)
   const [busy, setBusy] = useState(false)
+  const [iplByStation, setIplByStation] = useState<Record<string, IplStationPart[]>>({})
 
   const stationNumbers = useMemo(() => allStations.map(s => s.station_number), [allStations])
 
@@ -161,8 +165,36 @@ export function StationOperationsTab({ parentGroups, models, loading, loadError,
     await onReload()
   }
 
-  const lineVariants = useMemo(() => getVariantsForLine(models, activeLine), [models, activeLine])
+  const lineVariantModels = useMemo(
+    () => catalogVariantsForLine(models, activeLine),
+    [models, activeLine]
+  )
+  const lineVariants = useMemo(() => lineVariantModels.map(m => m.name), [lineVariantModels])
   const lineFamilyId = useMemo(() => familyModelIdForLine(models, activeLine), [models, activeLine])
+  const selectedVariantId = useMemo(
+    () => (activeVariant ? lineVariantModels.find(m => m.name === activeVariant)?.id ?? null : null),
+    [lineVariantModels, activeVariant]
+  )
+  const lineVariantIds = useMemo(() => new Set(lineVariantModels.map(m => m.id)), [lineVariantModels])
+
+  useEffect(() => {
+    if (!activeVariant) {
+      setIplByStation({})
+      return
+    }
+    let cancelled = false
+    fetchIplFittedPartsByStation(activeVariant)
+      .then(grouped => {
+        if (cancelled) return
+        setIplByStation(Object.fromEntries(grouped))
+      })
+      .catch(() => {
+        if (!cancelled) setIplByStation({})
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [activeVariant])
 
   const filteredParents = useMemo(() => {
     return parentGroups
@@ -171,13 +203,29 @@ export function StationOperationsTab({ parentGroups, models, loading, loadError,
         workers: p.workers.map(w => ({
           ...w,
           operations: w.operations.filter(op => {
-            if (lineFamilyId && op.parentModelId && op.parentModelId !== lineFamilyId) return false
-            return operationMatchesLineFilter(op.operationType, activeLine, activeVariant, lineVariants)
+            if (selectedVariantId && op.parentModelId === selectedVariantId) return true
+            if (
+              op.parentModelId &&
+              lineVariantIds.has(op.parentModelId) &&
+              op.parentModelId !== selectedVariantId
+            ) {
+              return false
+            }
+            if (
+              !selectedVariantId &&
+              op.parentModelId &&
+              lineFamilyId &&
+              op.parentModelId !== lineFamilyId &&
+              !lineVariantIds.has(op.parentModelId)
+            ) {
+              return false
+            }
+            return operationMatchesLineFilter(op.operationType, activeLine, '', lineVariants)
           })
         }))
       }))
       .filter(p => p.workers.length > 0)
-  }, [parentGroups, activeLine, activeVariant, lineVariants, lineFamilyId])
+  }, [parentGroups, activeLine, activeVariant, lineVariants, lineFamilyId, selectedVariantId, lineVariantIds])
 
   const stats = useMemo(() => {
     const workers = filteredParents.reduce((n, p) => n + p.workers.length, 0)
@@ -241,22 +289,29 @@ export function StationOperationsTab({ parentGroups, models, loading, loadError,
       <StationOperationsLineFilter
         activeLine={activeLine}
         lineVariants={lineVariants}
-        activeVariant={activeVariant}
         onSelectLine={selectLine}
-        onSelectVariant={setActiveVariant}
         t={t}
       />
 
       <div className="card-industrial flex flex-wrap items-center justify-between gap-3 p-4">
         <div>
           <h3 className={`text-lg font-black ${MODEL_LINE_STYLES[activeLine].titleText}`}>
-            {t('operations.modelPageTitle', { model: activeLine })}
+            {t('operations.modelPageTitle', { model: activeVariant || activeLine })}
           </h3>
           <p className="text-xs text-slate-500">
             {activeVariant
               ? t('operations.variantPageHint', { line: activeLine, variant: activeVariant })
-              : t('operations.modelPageFullCopy')}
+              : t('operations.pickModelForIpl', { line: activeLine })}
           </p>
+          {lineVariants.length > 0 && (
+            <VariantFilter
+              line={activeLine}
+              variants={lineVariants}
+              activeVariant={activeVariant}
+              onSelect={setActiveVariant}
+              t={t}
+            />
+          )}
         </div>
         <div className="flex flex-wrap items-center gap-3">
           <span className="text-sm text-slate-400">
@@ -290,6 +345,13 @@ export function StationOperationsTab({ parentGroups, models, loading, loadError,
             parent={parent}
             contextLine={activeLine}
             canManage={canManage}
+            iplParts={
+              activeVariant
+                ? iplByStation[iplStationKey(parent.displayCode)] ??
+                  iplByStation[iplStationKey(parent.stationNumber)] ??
+                  []
+                : undefined
+            }
             onEditParent={() => setEditParent(parent)}
             onDeleteParent={() => {
               const ids = resolveParentDeleteIds(parent)
@@ -305,6 +367,10 @@ export function StationOperationsTab({ parentGroups, models, loading, loadError,
               })
             }}
             onAddOp={worker => {
+              if (!selectedVariantId) {
+                notify(t('operations.pickModelForIpl', { line: activeLine }), true)
+                return
+              }
               void (async () => {
                 let stationId = worker.stationId
                 let label = formatStationWorkerDisplayCode(worker.displayCode || worker.stationNumber)
@@ -333,6 +399,25 @@ export function StationOperationsTab({ parentGroups, models, loading, loadError,
               setDeleteTarget({ kind: 'worker', workerId: worker.stationId, label: worker.displayCode })
             }
             onReload={() => void reload()}
+            onAssignIplPart={async (part, workerStationId) => {
+              if (!selectedVariantId) {
+                notify(t('operations.pickModelForIpl', { line: activeLine }), true)
+                return
+              }
+              try {
+                await assignIplPartToWorkerLine({
+                  part,
+                  workerStationId,
+                  parentModelId: selectedVariantId,
+                  operationType: activeVariant || 'common',
+                  operations: parent.workers.flatMap(worker => worker.operations)
+                })
+                await reload()
+              } catch (e) {
+                const message = e instanceof Error ? e.message : t('common.error')
+                notify(message === 'OPERATION_NAME_EXISTS_ON_TARGET' ? t('operations.moveDuplicate') : message, true)
+              }
+            }}
             t={t}
           />
         ))
@@ -463,7 +548,12 @@ export function StationOperationsTab({ parentGroups, models, loading, loadError,
         onSubmit={async input => {
           setBusy(true)
           try {
-            const payload = { ...input, parentModelId: lineFamilyId ?? input.parentModelId }
+            const payload = {
+              ...input,
+              parentModelId: creatingOpContext
+                ? selectedVariantId ?? lineFamilyId ?? input.parentModelId
+                : editingOp?.parentModelId ?? input.parentModelId
+            }
             if (creatingOpContext) {
               await createStationOperation(creatingOpContext.stationId, payload)
               setCreatingOpContext(null)

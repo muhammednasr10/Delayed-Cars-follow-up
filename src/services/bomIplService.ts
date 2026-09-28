@@ -238,8 +238,48 @@ async function fetchAllActiveBomDetails(): Promise<BomItemDetail[]> {
   return all
 }
 
-export async function fetchIplBomAndMasters(search?: string): Promise<{ allBom: BomItemDetail[]; masters: Part[] }> {
-  const [allBom, masters] = await Promise.all([fetchAllActiveBomDetails(), listPartMastersLite({ search })])
+type IplBomSource = { allBom: BomItemDetail[]; masters: Part[] }
+
+let fullIplSource: IplBomSource | null = null
+let fullIplInflight: Promise<IplBomSource> | null = null
+let fullIplGeneration = 0
+
+/** Drop the shared IPL list so the next open reads the database again. */
+export function invalidateIplBomCache() {
+  fullIplSource = null
+  fullIplInflight = null
+  fullIplGeneration += 1
+}
+
+async function loadFullIplSource(): Promise<IplBomSource> {
+  const [allBom, masters] = await Promise.all([fetchAllActiveBomDetails(), listPartMastersLite()])
+  return { allBom, masters }
+}
+
+export async function fetchIplBomAndMasters(
+  search?: string,
+  opts?: { force?: boolean }
+): Promise<IplBomSource> {
+  const query = search?.trim()
+  if (!query) {
+    if (!opts?.force && fullIplSource) return fullIplSource
+    if (!opts?.force && fullIplInflight) return fullIplInflight
+    const ticket = opts?.force ? ++fullIplGeneration : fullIplGeneration
+    if (opts?.force) fullIplSource = null
+    const request = loadFullIplSource()
+      .then(source => {
+        if (ticket === fullIplGeneration) fullIplSource = source
+        return source
+      })
+      .finally(() => {
+        if (fullIplInflight === request) fullIplInflight = null
+      })
+    fullIplInflight = request
+    return request
+  }
+
+  const allBom = !opts?.force && fullIplSource ? fullIplSource.allBom : await fetchAllActiveBomDetails()
+  const masters = await listPartMastersLite({ search: query })
   return { allBom, masters }
 }
 

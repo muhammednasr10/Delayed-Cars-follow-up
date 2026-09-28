@@ -6,15 +6,22 @@ const LEGACY_STATION_TYPE_MAP: Record<string, StationType> = {
   other: 'main_line'
 }
 
-/** يوحّد أنواع المحطات القديمة (مثل pbs) إلى القيم المعتمدة في الواجهة */
-export function normalizeStationType(type: string | null | undefined): StationType {
+/** يوحّد الأنواع القديمة ويبقي الأنواع المضافة من الإعدادات كما هي. */
+export function normalizeStationType(type: string | null | undefined): string {
   const raw = type?.trim() || 'main_line'
-  if ((STATION_TYPES as readonly string[]).includes(raw)) return raw as StationType
-  return LEGACY_STATION_TYPE_MAP[raw] ?? 'main_line'
+  if ((STATION_TYPES as readonly string[]).includes(raw)) return raw
+  return LEGACY_STATION_TYPE_MAP[raw] ?? raw
 }
 
 /** Localized station type with fallback when DB has legacy/custom values. */
-export function stationTypeLabel(t: (key: string) => string, type: string | null | undefined): string {
+export function stationTypeLabel(
+  t: (key: string) => string,
+  type: string | null | undefined,
+  options?: { code: string; labelAr: string }[]
+): string {
   const normalized = normalizeStationType(type)
-  return t(`stationType.${normalized}`)
+  const custom = options?.find(option => option.code === normalized)
+  if (custom?.labelAr) return custom.labelAr
+  if ((STATION_TYPES as readonly string[]).includes(normalized)) return t(`stationType.${normalized}`)
+  return normalized
 }

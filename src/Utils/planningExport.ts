@@ -66,6 +66,8 @@ export function buildPlanSummaryExportRows(
 export type OrderExportRow = {
   orderNumber: string
   model: string
+  openedAt: string
+  colors: string
   chassisStart: string
   chassisEnd: string
   carCount: string
@@ -80,6 +82,10 @@ export function buildOrdersExportRows(
   return orders.map(row => ({
     orderNumber: row.orderNumber,
     model: modelLabel(row),
+    openedAt: row.openedAt ? new Date(row.openedAt).toLocaleString() : row.createdAt ? new Date(row.createdAt).toLocaleString() : '',
+    colors: (row.colors ?? [])
+      .map(c => `${c.colorName ?? c.colorCode ?? c.colorId}:${c.qty}`)
+      .join(' · '),
     chassisStart: row.chassisStart ?? '',
     chassisEnd: row.chassisEnd ?? '',
     carCount: String(row.plannedQty ?? ''),
