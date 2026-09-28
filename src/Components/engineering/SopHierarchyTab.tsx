@@ -3,7 +3,7 @@ import { ChevronDown, MapPin, Save, Users } from 'lucide-react'
 import { useLang } from '../../i18n/LanguageContext'
 import { EmptyState } from '../EmptyState'
 import { inputCls } from '../FormField'
-import { StationOperationsLineFilter } from '../training/stationOperations/StationOperationsLineFilter'
+import { StationOperationsLineFilter, VariantFilter } from '../training/stationOperations/StationOperationsLineFilter'
 import { HeaderCell } from '../training/stationOperations/StationOperationsLineFilter'
 import { formatStationWorkerDisplayCode } from '../../Utils/stationHierarchy'
 import { filterParentGroupsByLine } from '../../Utils/filterStationOperationsByLine'
@@ -334,14 +334,21 @@ export function SopHierarchyTab({ parentGroups, models, loading, loadError, canM
       <StationOperationsLineFilter
         activeLine={activeLine}
         lineVariants={lineVariants}
-        activeVariant={activeVariant}
         onSelectLine={line => {
           setActiveLine(line)
           setActiveVariant('')
         }}
-        onSelectVariant={setActiveVariant}
         t={t}
       />
+      {lineVariants.length > 0 && (
+        <VariantFilter
+          line={activeLine}
+          variants={lineVariants}
+          activeVariant={activeVariant}
+          onSelect={setActiveVariant}
+          t={t}
+        />
+      )}
 
       <p className="text-center text-xs text-slate-500">
         {t('sop.countLineView', {
