@@ -3,11 +3,7 @@ import { AlertTriangle } from 'lucide-react'
 import { useLang } from '../../i18n/LanguageContext'
 import { Modal } from '../Modal'
 import { ProductivityDailyStopsSummary } from './ProductivityDailyStopsSummary'
-import {
-  DAILY_PRODUCTIVITY_TARGET,
-  computeProductivityLossRemainder,
-  computeProductivityLostCars
-} from '../../Utils/productionPlanWorkDayDaily'
+import { DAILY_PRODUCTIVITY_TARGET, computeProductivityLostCars } from '../../Utils/productionPlanWorkDayDaily'
 import type { ProductivityDelayKind } from '../../Types/productivityDelayReason'
 import type { ProductionLineStop } from '../../Types/productionStop'
 
@@ -19,6 +15,7 @@ type Props = {
   stopLostVehicles: number
   stops: ProductionLineStop[]
   reasons: string
+  dailyTarget?: number
   onClose: () => void
 }
 
@@ -66,17 +63,19 @@ export function ProductivityLossReasonsModal({
   stopLostVehicles,
   stops,
   reasons,
+  dailyTarget,
   onClose
 }: Props) {
   const { t } = useLang()
   const [tab, setTab] = useState<TabKey>('stops')
   const trimmed = reasons.trim()
-  const totalLost = computeProductivityLostCars(productivity)
-  const remainder = computeProductivityLossRemainder(productivity, stopLostVehicles)
+  const target = dailyTarget && dailyTarget > 0 ? dailyTarget : DAILY_PRODUCTIVITY_TARGET
+  const totalLost = computeProductivityLostCars(productivity, target)
+  const remainder = Math.max(0, totalLost - stopLostVehicles)
 
   const tabs: { key: TabKey; label: string }[] = [
     { key: 'stops', label: t('productivity.lossReasonsTabStops') },
-    { key: 'remainder', label: t('productivity.lossReasonsTabRemainder', { target: DAILY_PRODUCTIVITY_TARGET }) }
+    { key: 'remainder', label: t('productivity.lossReasonsTabRemainder', { target }) }
   ]
 
   return (
@@ -92,7 +91,7 @@ export function ProductivityLossReasonsModal({
         <div className="grid grid-cols-2 gap-2 sm:grid-cols-5">
           <BreakdownStat
             label={t('productivity.lossReasonsTarget')}
-            value={String(DAILY_PRODUCTIVITY_TARGET)}
+            value={String(target)}
             tone="violet"
           />
           <BreakdownStat
@@ -102,13 +101,13 @@ export function ProductivityLossReasonsModal({
           />
           <BreakdownStat
             label={t('productivity.lossReasonsTotalLost')}
-            value={productivity > 0 ? String(totalLost) : '—'}
+            value={totalLost > 0 || productivity > 0 ? String(totalLost) : '—'}
             tone="rose"
           />
           <BreakdownStat label={t('productivity.lossReasonsFromStops')} value={String(stopLostVehicles)} tone="amber" />
           <BreakdownStat
             label={t('productivity.lossReasonsRemainder')}
-            value={productivity > 0 ? String(remainder) : '—'}
+            value={totalLost > 0 || productivity > 0 ? String(remainder) : '—'}
             tone={remainder > 0 ? 'rose' : 'slate'}
           />
         </div>
@@ -138,7 +137,7 @@ export function ProductivityLossReasonsModal({
               <h3 className="text-sm font-black text-slate-200">{t('productivity.lossReasonsRemainderSection')}</h3>
               <p className="text-xs text-slate-500">
                 {t('productivity.lossReasonsRemainderHint', {
-                  target: DAILY_PRODUCTIVITY_TARGET,
+                  target,
                   lost: totalLost,
                   stops: stopLostVehicles,
                   remainder

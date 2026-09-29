@@ -338,7 +338,7 @@ export function useDepartmentNavPages() {
         label: t('productionOrders.title'),
         icon: ClipboardList,
         visible: navLoading || canViewPage(pagePermForPlanning('plan')),
-        onNavigate: () => navTo({ department: 'planning', planningTab: 'plan', planScope: 'hub' })
+        onNavigate: () => navTo({ department: 'planning', planningTab: 'plan', planScope: 'monthly' })
       },
       {
         key: 'workDays',

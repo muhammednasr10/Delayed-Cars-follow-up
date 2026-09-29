@@ -1,5 +1,6 @@
 import type { VehicleModel } from '../Types/settings'
 import type { ModelPlanTarget } from '../Types/modelProductionPlan'
+import { expandPlanTargetsWithBundles } from './planBundles'
 import {
   buildModelFamilyGroups,
   inferParentNameFromVariant,
@@ -23,6 +24,8 @@ export type PlanFamilyGroup = {
   planned: number
   achieved: number
   wipCarryover: number
+  /** Set when this parent shares one quantity with other parents. */
+  planGroupId: string | null
   variants: PlanVariantRow[]
 }
 
@@ -72,7 +75,8 @@ function buildFamilyGroup(
   variants: VehicleModel[],
   planTargets: Map<string, number>,
   achievedByModelId: Map<string, number>,
-  wipCarryover: Map<string, number>
+  wipCarryover: Map<string, number>,
+  planGroupId: string | null
 ): PlanFamilyGroup {
   const variantIds = variants.map(v => v.id)
   const entryMode = resolvePlanEntryMode(familyId, variantIds, planTargets)
@@ -97,6 +101,7 @@ function buildFamilyGroup(
     planned,
     achieved,
     wipCarryover: groupWipCarryover(familyId, entryMode, variantRows),
+    planGroupId,
     variants: variantRows
   }
 }
@@ -105,16 +110,28 @@ function buildRawFamilyGroups(
   allModels: VehicleModel[],
   planTargets: Map<string, number>,
   achievedByModelId: Map<string, number>,
-  wipCarryover: Map<string, number>
+  wipCarryover: Map<string, number>,
+  planGroups: Map<string, string>
 ): PlanFamilyGroup[] {
   const active = allModels.filter(m => m.is_active)
   const { groups, orphanVariants } = buildModelFamilyGroups(active)
   const result: PlanFamilyGroup[] = []
 
   for (const { family, variants } of groups) {
-    if (variants.length === 0) continue
+    const hasOwnPlan = (planTargets.get(family.id) ?? 0) > 0 || (wipCarryover.get(family.id) ?? 0) > 0
+    if (variants.length === 0 && !hasOwnPlan) continue
+    const listed = variants.length > 0 ? variants : [family]
     result.push(
-      buildFamilyGroup(family.id, family.id, family.name, variants, planTargets, achievedByModelId, wipCarryover)
+      buildFamilyGroup(
+        family.id,
+        family.id,
+        family.name,
+        listed,
+        planTargets,
+        achievedByModelId,
+        wipCarryover,
+        planGroups.get(family.id) ?? null
+      )
     )
   }
 
@@ -130,11 +147,30 @@ function buildRawFamilyGroups(
     const sorted = [...variants].sort((a, b) => a.name.localeCompare(b.name, 'ar'))
     const familyId = sorted.find(v => v.parent_model_id)?.parent_model_id ?? sorted[0].id
     result.push(
-      buildFamilyGroup(`orphan:${label}`, familyId, label, sorted, planTargets, achievedByModelId, wipCarryover)
+      buildFamilyGroup(
+        `orphan:${label}`,
+        familyId,
+        label,
+        sorted,
+        planTargets,
+        achievedByModelId,
+        wipCarryover,
+        planGroups.get(familyId) ?? null
+      )
     )
   }
 
   return result
+}
+
+/** Active parent families only. Variant cards and inactive models stay out of the plan. */
+export function onlyActiveParentSections(sections: PlanSection[], models: VehicleModel[]): PlanSection[] {
+  const parentIds = new Set(
+    models.filter(model => model.is_active && model.model_kind === 'family').map(model => model.id)
+  )
+  return sections.filter(
+    section => parentIds.has(section.group.familyId) && !section.group.key.startsWith('orphan:')
+  )
 }
 
 /** GD / T4 / T7 / T8: one target per family; other lines per variant. */
@@ -142,9 +178,10 @@ export function buildPlanSections(
   allModels: VehicleModel[],
   planTargets: Map<string, number>,
   achievedByModelId: Map<string, number>,
-  wipCarryover: Map<string, number> = new Map()
+  wipCarryover: Map<string, number> = new Map(),
+  planGroups: Map<string, string> = new Map()
 ): PlanSection[] {
-  return buildRawFamilyGroups(allModels, planTargets, achievedByModelId, wipCarryover)
+  return buildRawFamilyGroups(allModels, planTargets, achievedByModelId, wipCarryover, planGroups)
     .sort((a, b) => a.label.localeCompare(b.label, 'ar'))
     .map(group => ({ kind: 'family' as const, group }))
 }
@@ -154,17 +191,32 @@ export function buildPlanFamilyGroups(
   allModels: VehicleModel[],
   planTargets: Map<string, number>,
   achievedByModelId: Map<string, number>,
-  wipCarryover: Map<string, number> = new Map()
+  wipCarryover: Map<string, number> = new Map(),
+  planGroups: Map<string, string> = new Map()
 ): PlanFamilyGroup[] {
-  return buildRawFamilyGroups(allModels, planTargets, achievedByModelId, wipCarryover)
+  return buildRawFamilyGroups(allModels, planTargets, achievedByModelId, wipCarryover, planGroups)
+}
+
+function sumSectionsOnce(sections: PlanSection[], pick: (group: PlanFamilyGroup) => number): number {
+  const seen = new Set<string>()
+  let sum = 0
+  for (const section of sections) {
+    const groupId = section.group.planGroupId
+    if (groupId) {
+      if (seen.has(groupId)) continue
+      seen.add(groupId)
+    }
+    sum += pick(section.group)
+  }
+  return sum
 }
 
 export function sumPlanSectionsWip(sections: PlanSection[]): number {
-  return sections.reduce((sum, section) => sum + section.group.wipCarryover, 0)
+  return sumSectionsOnce(sections, group => group.wipCarryover)
 }
 
 export function sumPlanSectionsPlanned(sections: PlanSection[]): number {
-  return sections.reduce((sum, section) => sum + section.group.planned, 0)
+  return sumSectionsOnce(sections, group => group.planned)
 }
 
 export function sumPlanSectionsAchieved(sections: PlanSection[]): number {
@@ -242,7 +294,7 @@ export function buildAnnualSectionsFromMonthlyPlans(
   yearExitRecords: { modelId: string; workDate: string; quantity: number }[] = []
 ): PlanSection[] {
   const byMonth = new Map<number, ModelPlanTarget[]>()
-  for (const target of yearMonthlyTargets) {
+  for (const target of expandPlanTargetsWithBundles(yearMonthlyTargets)) {
     const list = byMonth.get(target.planMonth) ?? []
     list.push(target)
     byMonth.set(target.planMonth, list)
@@ -261,26 +313,44 @@ export function buildAnnualSectionsFromMonthlyPlans(
 
   for (let month = 1; month <= 12; month++) {
     const planTargets = new Map<string, number>()
+    const planGroups = new Map<string, string>()
     for (const target of byMonth.get(month) ?? []) {
       planTargets.set(target.modelId, target.targetQty)
+      if (target.planGroupId) planGroups.set(target.modelId, target.planGroupId)
     }
 
     const achievedByModelId = buildAchievedByModelIdFromExitRecords(exitByMonth.get(month) ?? [])
-    const sections = buildPlanSections(allModels, planTargets, achievedByModelId)
+    const sections = buildPlanSections(allModels, planTargets, achievedByModelId, new Map(), planGroups)
+    const seenGroups = new Set<string>()
     for (const { group } of sections) {
-      if (group.planned <= 0 && group.achieved <= 0) continue
+      let next = group
+      if (group.planGroupId) {
+        if (seenGroups.has(group.planGroupId)) {
+          next = {
+            ...group,
+            planned: 0,
+            wipCarryover: 0,
+            planGroupId: null,
+            variants: group.variants.map(variant => ({ ...variant, planned: 0, wipCarryover: 0 }))
+          }
+        } else {
+          seenGroups.add(group.planGroupId)
+          next = { ...group, planGroupId: null }
+        }
+      }
+      if (next.planned <= 0 && next.achieved <= 0) continue
 
-      const existing = merged.get(group.key)
+      const existing = merged.get(next.key)
       if (!existing) {
-        merged.set(group.key, {
-          ...group,
+        merged.set(next.key, {
+          ...next,
           wipCarryover: 0,
-          variants: group.variants.map(v => ({ ...v, wipCarryover: 0 }))
+          variants: next.variants.map(v => ({ ...v, wipCarryover: 0 }))
         })
         continue
       }
 
-      mergeFamilyGroup(existing, group)
+      mergeFamilyGroup(existing, next)
     }
   }
 

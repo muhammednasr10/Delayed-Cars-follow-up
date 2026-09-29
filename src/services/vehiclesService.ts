@@ -89,19 +89,19 @@ export async function updateVehicle(vehicleId: string, input: VehicleUpdateInput
   const changes: string[] = []
   if (input.vin !== undefined) {
     patch.vin = input.vin.trim().toUpperCase()
-    changes.push(`الشاسيه ← ${String(patch.vin)}`)
+    changes.push(`رقم الشاسيه بقى ${String(patch.vin)}.`)
   }
   if (input.modelId !== undefined) {
     patch.model_id = input.modelId
-    changes.push('تغيير الموديل')
+    changes.push('اتغير موديل السيارة.')
   }
   if (input.vehicleColorId !== undefined) {
     patch.vehicle_color_id = input.vehicleColorId || null
-    changes.push('تغيير اللون')
+    changes.push('اتغير لون السيارة.')
   }
   if (input.productionOrderId !== undefined) {
     patch.production_order_id = input.productionOrderId || null
-    changes.push('تغيير أمر الإنتاج')
+    changes.push('اتغير أمر الإنتاج.')
   }
 
   if (Object.keys(patch).length === 0) return
@@ -114,7 +114,7 @@ export async function updateVehicle(vehicleId: string, input: VehicleUpdateInput
 export async function softDeleteVehicle(vehicleId: string): Promise<void> {
   const { error } = await requireClient().from('vehicles').update({ is_deleted: true }).eq('id', vehicleId)
   if (error) throw new Error(error.message)
-  await logVehicleActivityNote(vehicleId, 'حذف ناعم للسيارة من النظام.')
+  await logVehicleActivityNote(vehicleId, 'تم حذف السيارة من النظام.')
 }
 
 export async function releaseVehicleForDelivery(vehicleId: string): Promise<void> {

@@ -1,4 +1,4 @@
-﻿import { type MouseEvent, type ReactNode } from 'react'
+import { type MouseEvent, type ReactNode } from 'react'
 import { useLang } from '../../i18n/LanguageContext'
 import { formatVehicleColorLabel } from '../../Utils/vehicleColorLabel'
 import { departmentLeafLabel, mpLookupLabel } from '../../Utils/mpLookupLabel'
@@ -95,6 +95,7 @@ export function ReportGroupRow({
                 : 'border-cyan-500/30 bg-cyan-500/10 text-cyan-300 hover:border-cyan-400/50 hover:bg-cyan-500/20'
             }`}
             title={`${t('mp.vinListModal.open')}: ${groupVins.join(' · ')}`}
+            data-export-value={groupVins.join('\n')}
           >
             {t('mp.vinCount', { n: groupVins.length })}
           </button>

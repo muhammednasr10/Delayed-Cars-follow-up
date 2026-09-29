@@ -119,7 +119,6 @@ function normalizeProductivityTab(tab: string | undefined): ProductivityTab {
   return initialState.productivityTab
 }
 const PLANNING_TABS: PlanningTab[] = ['plan', 'workDays', 'tracking', 'orders']
-const PLAN_SCOPES: PlanScope[] = ['hub', 'monthly', 'annual']
 
 const initialState: NavState = {
   department: 'production',
@@ -139,7 +138,7 @@ const initialState: NavState = {
   productivityStopFormOpen: false,
   attendanceSubTab: 'today',
   planningTab: 'plan',
-  planScope: 'hub',
+  planScope: 'monthly',
   warehousesTab: 'home',
   warehousesFeedingSubTab: 'plan',
   warehousesEquipmentSubTab: 'racks',
@@ -167,9 +166,7 @@ function loadNavState(): NavState {
     const planningTab = PLANNING_TABS.includes(parsed.planningTab as PlanningTab)
       ? (parsed.planningTab as PlanningTab)
       : (legacyToPlanning ?? initialState.planningTab)
-    const planScope = PLAN_SCOPES.includes(parsed.planScope as PlanScope)
-      ? (parsed.planScope as PlanScope)
-      : initialState.planScope
+    const planScope: PlanScope = 'monthly'
 
     const legacyWorkerPage = parsed.productionPage === 'workerProfile'
     const profileTab: ProfileTab = legacyWorkerPage
@@ -288,7 +285,7 @@ export function NavigationProvider({ children }: { children: ReactNode }) {
           ? { productionArea: 'assembly' as const, productionPage: 'home' as const }
           : {}),
         ...(changed && department === 'engineering' ? { engineeringPage: 'home' as const } : {}),
-        ...(changed && department === 'planning' ? { planningTab: 'plan' as const, planScope: 'hub' as const } : {}),
+        ...(changed && department === 'planning' ? { planningTab: 'plan' as const, planScope: 'monthly' as const } : {}),
         ...(changed && department === 'warehouses' ? { warehousesTab: 'home' as const } : {}),
         ...(changed && department === 'quality' ? { qualityTab: 'record' as const } : {}),
         sidebarOpen: keepSidebarOpen ? prev.sidebarOpen : false
@@ -330,7 +327,7 @@ export function NavigationProvider({ children }: { children: ReactNode }) {
         setState(prev => ({
           ...prev,
           planningTab,
-          planScope: planningTab === 'plan' ? prev.planScope : 'hub'
+          planScope: 'monthly'
         })),
       setPlanScope: planScope => setState(prev => ({ ...prev, planScope, planningTab: 'plan' })),
       setWarehousesTab: warehousesTab => setState(prev => ({ ...prev, warehousesTab })),

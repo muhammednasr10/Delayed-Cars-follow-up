@@ -72,6 +72,8 @@ export function PlanFamilyCard({ group, scope, isExpanded, onToggle, t }: Props)
   const plannedDisplay =
     !familyIsLeaf && group.entryMode === 'per_variant' && group.planned <= 0 ? '—' : displayQty(group.planned)
 
+  const showWipCol =
+    scope === 'monthly' && (group.wipCarryover > 0 || group.variants.some(variant => variant.wipCarryover > 0))
   const statsBorder = scope === 'annual' ? 'border-cyan-500/20 bg-cyan-500/5' : 'border-violet-500/20 bg-violet-500/5'
 
   return (
@@ -103,6 +105,11 @@ export function PlanFamilyCard({ group, scope, isExpanded, onToggle, t }: Props)
               {!familyIsLeaf && (
                 <p className="mt-0.5 truncate text-[10px] font-bold text-slate-500">
                   {t('productionOrders.planCard.variants', { n: group.variants.length })} · {modeLabel}
+                </p>
+              )}
+              {group.planGroupId && (
+                <p className="mt-0.5 truncate text-[10px] font-bold text-violet-300">
+                  {t('productionOrders.planSharedBadge')}
                 </p>
               )}
             </div>
@@ -155,7 +162,11 @@ export function PlanFamilyCard({ group, scope, isExpanded, onToggle, t }: Props)
               return (
                 <div
                   key={variant.modelId}
-                  className="grid grid-cols-[1fr_repeat(3,minmax(3.5rem,auto))] items-center gap-2 rounded-lg border border-slate-800/70 bg-slate-900/60 px-3 py-2"
+                  className={`grid items-center gap-2 rounded-lg border border-slate-800/70 bg-slate-900/60 px-3 py-2 ${
+                    showWipCol
+                      ? 'grid-cols-[1fr_repeat(3,minmax(3.5rem,auto))]'
+                      : 'grid-cols-[1fr_repeat(2,minmax(3.5rem,auto))]'
+                  }`}
                 >
                   <p className="truncate text-sm font-bold text-slate-200">{variant.label}</p>
                   <div className="text-center">
@@ -164,12 +175,14 @@ export function PlanFamilyCard({ group, scope, isExpanded, onToggle, t }: Props)
                       {showVariantQty ? displayQty(variant.planned) : '—'}
                     </p>
                   </div>
-                  <div className="text-center">
-                    <p className="text-[9px] font-bold text-slate-500">{t('productionOrders.wipCarryoverShort')}</p>
-                    <p className="text-sm font-black tabular-nums text-rose-300">
-                      {showVariantQty ? displayQty(variant.wipCarryover) : '—'}
-                    </p>
-                  </div>
+                  {showWipCol && (
+                    <div className="text-center">
+                      <p className="text-[9px] font-bold text-slate-500">{t('productionOrders.wipCarryoverShort')}</p>
+                      <p className="text-sm font-black tabular-nums text-rose-300">
+                        {showVariantQty ? displayQty(variant.wipCarryover) : '—'}
+                      </p>
+                    </div>
+                  )}
                   <div className="text-center">
                     <p className="text-[9px] font-bold text-slate-500">{t('productionOrders.achievedQty')}</p>
                     <p className="text-sm font-black tabular-nums text-emerald-300">

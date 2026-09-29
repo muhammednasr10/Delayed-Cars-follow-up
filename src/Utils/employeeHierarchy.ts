@@ -46,6 +46,28 @@ export function getMyManagers(employees: Employee[], employeeId: string): Employ
   return employees.filter(e => ids.has(e.id))
 }
 
+/** المدير المباشر وكل مدير فوقه. الموظف نفسه مش ضمنهم. */
+export function collectAncestorIds(employees: Employee[], employeeId: string): Set<string> {
+  const byId = new Map(employees.map(e => [e.id, e]))
+  const out = new Set<string>()
+  const stack = [...(byId.get(employeeId)?.directManagerIds ?? [])]
+  while (stack.length > 0) {
+    const id = stack.pop()
+    if (!id || id === employeeId || out.has(id)) continue
+    out.add(id)
+    for (const managerId of byId.get(id)?.directManagerIds ?? []) stack.push(managerId)
+  }
+  return out
+}
+
+/** القائمة لا تعرض مدير المستخدم الحالي ولا من فوقه. */
+export function excludeAncestorManagers(employees: Employee[], viewerEmployeeId: string | null): Employee[] {
+  if (!viewerEmployeeId) return employees
+  const hidden = collectAncestorIds(employees, viewerEmployeeId)
+  if (hidden.size === 0) return employees
+  return employees.filter(e => !hidden.has(e.id))
+}
+
 export function filterAssignableEmployees(
   employees: Employee[],
   managerId: string | null,

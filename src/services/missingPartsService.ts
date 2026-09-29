@@ -167,23 +167,77 @@ async function resolveOrgUnitLabel(unitId: string | null | undefined): Promise<s
   return legacy ? (legacy as { label_ar: string }).label_ar : unitId
 }
 
-function buildEditChanges(before: ShortageRowLite, input: UpdateMissingPartInput): string[] {
+const PRIORITY_LABELS: Record<string, string> = {
+  low: 'منخفض',
+  normal: 'عادي',
+  high: 'مرتفع',
+  critical: 'حرج'
+}
+const STOPPER_LABELS: Record<string, string> = {
+  line_stopper: 'موقف خط',
+  car_stopper: 'موقف سيارة'
+}
+const REASON_LABELS: Record<string, string> = {
+  stock_shortage: 'نقص مخزون',
+  supplier_delay: 'تأخر مورد',
+  damaged_part: 'قطعة تالفة',
+  qc_rejection: 'رفض جودة',
+  wrong_part: 'قطعة خاطئة',
+  production_mistake: 'خطأ إنتاج',
+  other: 'أخرى'
+}
+
+async function resolveReasonLabel(code: string | null | undefined): Promise<string> {
+  const key = (code ?? '').trim()
+  if (!key) return '—'
+  if (REASON_LABELS[key]) return REASON_LABELS[key]
+  const { data } = await requireClient()
+    .from('mp_reason_options')
+    .select('label_ar')
+    .eq('code', key)
+    .maybeSingle()
+  return data ? (data as { label_ar: string }).label_ar : key
+}
+
+function named(code: string | null | undefined, labels: Record<string, string>): string {
+  const key = (code ?? '').trim()
+  return labels[key] || key || '—'
+}
+
+async function buildEditChanges(
+  before: ShortageRowLite,
+  input: UpdateMissingPartInput,
+  skipNotes = false
+): Promise<string[]> {
   const changes: string[] = []
   if (before.part_description.trim() !== input.partDescription.trim()) {
-    changes.push(`الوصف «${before.part_description}» ← «${input.partDescription.trim()}»`)
+    changes.push(`اتغير نص السبب من «${before.part_description}» إلى «${input.partDescription.trim()}».`)
   }
   if (Number(before.required_qty) !== Number(input.requiredQty)) {
-    changes.push(`الكمية ${before.required_qty} ← ${input.requiredQty}`)
+    changes.push(`اتغيرت الكمية من ${before.required_qty} إلى ${input.requiredQty}.`)
   }
-  if (before.reason !== input.reason) changes.push(`تصنيف السبب ${before.reason} ← ${input.reason}`)
-  if (before.department !== input.department) changes.push(`القسم المتسبب ${before.department} ← ${input.department}`)
-  if (before.priority !== input.priority) changes.push(`الأولوية ${before.priority} ← ${input.priority}`)
+  if (before.reason !== input.reason) {
+    const [from, to] = await Promise.all([resolveReasonLabel(before.reason), resolveReasonLabel(input.reason)])
+    changes.push(`اتغير تصنيف السبب من «${from}» إلى «${to}».`)
+  }
+  if (before.department !== input.department) {
+    const [from, to] = await Promise.all([
+      resolveOrgUnitLabel(before.department),
+      resolveOrgUnitLabel(input.department)
+    ])
+    changes.push(`اتغير القسم المتسبب من «${from ?? '—'}» إلى «${to ?? '—'}».`)
+  }
+  if (before.priority !== input.priority) {
+    changes.push(`اتغيرت الأولوية من «${named(before.priority, PRIORITY_LABELS)}» إلى «${named(input.priority, PRIORITY_LABELS)}».`)
+  }
   if ((before.stopper_type ?? 'car_stopper') !== input.stopperType) {
-    changes.push(`نوع الإيقاف ${before.stopper_type ?? 'car_stopper'} ← ${input.stopperType}`)
+    changes.push(
+      `اتغير نوع الإيقاف من «${named(before.stopper_type ?? 'car_stopper', STOPPER_LABELS)}» إلى «${named(input.stopperType, STOPPER_LABELS)}».`
+    )
   }
   const nextNotes = input.notes?.trim() || null
-  if ((before.notes ?? null) !== nextNotes) {
-    changes.push(nextNotes ? `الملاحظات: ${nextNotes}` : 'حذف الملاحظات')
+  if (!skipNotes && (before.notes ?? null) !== nextNotes) {
+    changes.push(nextNotes ? `اتضافت ملاحظة: ${nextNotes}` : 'اتمسحت الملاحظة المكتوبة على النقص.')
   }
   return changes
 }
@@ -191,7 +245,7 @@ function buildEditChanges(before: ShortageRowLite, input: UpdateMissingPartInput
 export async function updateMissingPartRecord(
   id: string,
   input: UpdateMissingPartInput,
-  options?: { skipActivityNote?: boolean }
+  options?: { skipActivityNote?: boolean; skipNotesInActivity?: boolean }
 ): Promise<void> {
   const before = options?.skipActivityNote ? null : await fetchShortageRow(id)
   const { error } = await requireClient().rpc('update_missing_part_record', {
@@ -232,7 +286,7 @@ export async function updateMissingPartRecord(
     return
   }
 
-  const changes = buildEditChanges(before, input)
+  const changes = await buildEditChanges(before, input, options?.skipNotesInActivity)
   if (changes.length === 0) return
   await logVehicleActivityNote(
     before.vehicle_id,

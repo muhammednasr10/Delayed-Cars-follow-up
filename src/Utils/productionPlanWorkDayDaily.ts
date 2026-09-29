@@ -46,8 +46,10 @@ export function buildMonthWorkDayRows(
       const workDespiteVacation = row.workDespiteVacation || row.actualHours > 0
       return { ...row, plannedHours: 0, workDespiteVacation }
     }
-    if ((row.dayType === 'work' || row.dayType === 'overtime') && row.plannedHours === 0) {
-      return { ...row, plannedHours: defaultPlannedHoursForDayType(row.dayType) }
+    if (row.dayType === 'work' || row.dayType === 'overtime') {
+      const plannedHours = row.plannedHours > 0 ? row.plannedHours : defaultPlannedHoursForDayType(row.dayType)
+      const actualHours = row.actualHours > 0 ? row.actualHours : plannedHours
+      return { ...row, plannedHours, actualHours }
     }
     return row
   })
@@ -89,9 +91,9 @@ export function mergeProductivityIntoRows(
 /** الهدف اليومي لإنتاجية الدخول/الخروج — السيارات الضائعة = الهدف − الإنتاجية */
 export const DAILY_PRODUCTIVITY_TARGET = 75
 
-export function computeProductivityLostCars(productivity: number): number {
-  if (productivity <= 0) return 0
-  return Math.max(0, DAILY_PRODUCTIVITY_TARGET - productivity)
+export function computeProductivityLostCars(productivity: number, target = DAILY_PRODUCTIVITY_TARGET): number {
+  if (productivity <= 0) return target === DAILY_PRODUCTIVITY_TARGET ? 0 : Math.max(0, target)
+  return Math.max(0, target - productivity)
 }
 
 /** الباقي من الضائع بعد خصم سيارات التوقفات */

@@ -4,6 +4,7 @@ import { useAuth } from '../Context/AuthContext'
 import { usePermissions } from '../Context/PermissionsContext'
 import { useLang } from '../i18n/LanguageContext'
 import { Modal } from './Modal'
+import { presentActivityNote } from '../Utils/vehicleActivityNote'
 import { addVehicleNote, clearVehicleNotes, deleteVehicleNote, getVehicleNotes } from '../services/vehicleNotesService'
 import type { VehicleNote, VehicleNoteTarget } from '../Types/vehicleNote'
 
@@ -37,28 +38,35 @@ export function VehicleNotesModal({ target, onClose }: Props) {
   const [clearing, setClearing] = useState(false)
   const [error, setError] = useState('')
   const [draft, setDraft] = useState('')
+  const [noteVehicleId, setNoteVehicleId] = useState('')
   const scrollRef = useRef<HTMLDivElement>(null)
+  const chassis = target?.chassis && target.chassis.length > 1 ? target.chassis : null
+  const vinByVehicle = new Map((chassis ?? []).map(item => [item.vehicleId, item.vin]))
 
   const load = useCallback(async () => {
     if (!target) return
     setLoading(true)
     setError('')
     try {
-      setNotes(await getVehicleNotes(target.vehicleId))
+      const ids = chassis?.map(item => item.vehicleId) ?? [target.vehicleId]
+      const lists = await Promise.all(ids.map(id => getVehicleNotes(id)))
+      setNotes(lists.flat().sort((a, b) => a.createdAt.localeCompare(b.createdAt)))
     } catch (err) {
       setError(err instanceof Error ? err.message : t('common.error'))
     } finally {
       setLoading(false)
     }
-  }, [target, t])
+  }, [target, chassis, t])
 
   useEffect(() => {
     if (!target) {
       setNotes([])
       setDraft('')
+      setNoteVehicleId('')
       setError('')
       return
     }
+    setNoteVehicleId(target.chassis?.[0]?.vehicleId || target.vehicleId)
     void load()
   }, [target, load])
 
@@ -87,7 +95,8 @@ export function VehicleNotesModal({ target, onClose }: Props) {
     setClearing(true)
     setError('')
     try {
-      await clearVehicleNotes(target.vehicleId)
+      const ids = chassis?.map(item => item.vehicleId) ?? [target.vehicleId]
+      await Promise.all(ids.map(id => clearVehicleNotes(id)))
       setNotes([])
     } catch (err) {
       const msg = err instanceof Error ? err.message : t('common.error')
@@ -103,7 +112,7 @@ export function VehicleNotesModal({ target, onClose }: Props) {
     setSending(true)
     setError('')
     try {
-      const note = await addVehicleNote(target.vehicleId, draft)
+      const note = await addVehicleNote(noteVehicleId || target.vehicleId, draft)
       setNotes(prev => [...prev, note])
       setDraft('')
     } catch (err) {
@@ -126,7 +135,20 @@ export function VehicleNotesModal({ target, onClose }: Props) {
       icon={<Car className="h-5 w-5" />}
       footer={
         <form onSubmit={submit} className="flex w-full flex-col gap-2 sm:flex-row sm:items-end">
-          <textarea
+            {chassis && (
+              <select
+                className="input-dark sm:w-36"
+                value={noteVehicleId}
+                onChange={e => setNoteVehicleId(e.target.value)}
+              >
+                {chassis.map(item => (
+                  <option key={item.vehicleId} value={item.vehicleId}>
+                    {item.vin}
+                  </option>
+                ))}
+              </select>
+            )}
+            <textarea
             className="input-dark min-h-[72px] flex-1 resize-y"
             placeholder={t('mp.thread.placeholder')}
             value={draft}
@@ -186,6 +208,11 @@ export function VehicleNotesModal({ target, onClose }: Props) {
                       <User className="h-3 w-3 text-slate-500" />
                       {authorLabel(note)}
                     </span>
+                    {vinByVehicle.get(note.vehicleId) && (
+                      <span className="font-mono font-bold text-cyan-200" dir="ltr">
+                        {vinByVehicle.get(note.vehicleId)}
+                      </span>
+                    )}
                     <span className="text-slate-600">·</span>
                     <time dateTime={note.createdAt}>{formatWhen(note.createdAt, lang)}</time>
                   </div>
@@ -201,7 +228,7 @@ export function VehicleNotesModal({ target, onClose }: Props) {
                     </button>
                   )}
                 </div>
-                <p className="whitespace-pre-wrap text-sm leading-relaxed text-slate-100">{note.body}</p>
+                <p className="whitespace-pre-wrap text-sm leading-relaxed text-slate-100">{presentActivityNote(note.body)}</p>
               </div>
             )
           })}

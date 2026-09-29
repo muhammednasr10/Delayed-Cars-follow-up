@@ -41,20 +41,48 @@ export async function logVehicleActivityNotes(
   }
 }
 
+const ACTIVITY_CODE_LABELS: Record<string, string> = {
+  stock_shortage: 'نقص مخزون',
+  supplier_delay: 'تأخر مورد',
+  damaged_part: 'قطعة تالفة',
+  qc_rejection: 'رفض جودة',
+  wrong_part: 'قطعة خاطئة',
+  production_mistake: 'خطأ إنتاج',
+  other: 'أخرى',
+  low: 'منخفض',
+  normal: 'عادي',
+  high: 'مرتفع',
+  critical: 'حرج',
+  line_stopper: 'موقف خط',
+  car_stopper: 'موقف سيارة'
+}
+
+function quoted(label: string): string {
+  const name = label.trim() || 'بدون وصف'
+  return `«${name}»`
+}
+
+function shortageSubject(partLabels: string[]): string {
+  const names = partLabels.map(p => p.trim()).filter(Boolean)
+  if (names.length === 0) return 'النواقص المفتوحة'
+  if (names.length === 1) return `النقص ${quoted(names[0]!)}`
+  return `النواقص ${names.map(quoted).join('، ')}`
+}
+
 function withUserNotes(head: string, userNotes?: string | null): string {
   const extra = userNotes?.trim()
   if (!extra) return head
-  return `${head}\nملاحظات: ${extra}`
+  return `${head}\nملاحظة مع التبليغ: ${extra}`
 }
 
 export function formatShortageReportNote(partLabels: string[], userNotes?: string | null): string {
   const labels = partLabels.map(p => p.trim()).filter(Boolean)
   const head =
     labels.length === 0
-      ? 'تبليغ نقص جديد.'
+      ? 'تم تبليغ نقص جديد على السيارة.'
       : labels.length === 1
-        ? `تبليغ نقص جديد: «${labels[0]}».`
-        : `تبليغ نقص جديد (${labels.length}): ${labels.map(l => `«${l}»`).join('، ')}.`
+        ? `تم تبليغ نقص جديد على السيارة.\nالسبب: ${quoted(labels[0]!)}`
+        : `تم تبليغ ${labels.length} نواقص جديدة على السيارة.\nالأسباب: ${labels.map(quoted).join('، ')}`
   return withUserNotes(head, userNotes)
 }
 
@@ -63,65 +91,76 @@ export function formatShortageFollowUpNote(opts: {
   completingDepartmentLabel?: string | null
   followUpEmployeeLabel?: string | null
 }): string {
-  const parts =
-    opts.partLabels.length === 0
-      ? 'نواقص مفتوحة'
-      : opts.partLabels.length === 1
-        ? `«${opts.partLabels[0]}»`
-        : `${opts.partLabels.length} نواقص`
-  const bits: string[] = [`متابعة النقص لـ ${parts}`]
-  if (opts.completingDepartmentLabel) bits.push(`القسم المتمم: ${opts.completingDepartmentLabel}`)
-  else bits.push('بدون قسم متمم')
-  if (opts.followUpEmployeeLabel) bits.push(`موظف المتابعة: ${opts.followUpEmployeeLabel}`)
-  else bits.push('بدون موظف متابعة')
-  return `${bits.join(' — ')}.`
+  const subject = shortageSubject(opts.partLabels)
+  const dept = opts.completingDepartmentLabel?.trim()
+  const employee = opts.followUpEmployeeLabel?.trim()
+  if (!dept && !employee) return `تم إلغاء متابعة ${subject}.`
+  const lines = [`تم تسجيل متابعة على ${subject}.`]
+  if (dept) lines.push(`القسم اللي هيكمل النقص: ${dept}.`)
+  if (employee) lines.push(`الموظف المسؤول عن المتابعة: ${employee}.`)
+  return lines.join('\n')
 }
 
-export function formatShortageEditNote(
-  partLabel: string,
-  changes: string[]
-): string {
-  const head = `تعديل نقص «${partLabel.trim() || 'بدون وصف'}»`
-  if (changes.length === 0) return `${head}.`
-  return `${head}: ${changes.join('، ')}.`
+export function formatChassisNote(vin: string, text: string | null | undefined): string {
+  const label = vin.trim() || '—'
+  const body = text?.trim()
+  if (!body) return `اتمسحت ملاحظة الشاسيه ${label}.`
+  return `ملاحظة على الشاسيه ${label}:\n${body}`
+}
+
+export function formatShortageEditNote(partLabel: string, changes: string[]): string {
+  const head = `تم تعديل ${shortageSubject([partLabel])}.`
+  if (changes.length === 0) return head
+  return [head, ...changes].join('\n')
 }
 
 export function formatShortageInstallNote(partLabel: string, quantity: number): string {
-  return `تركيب على النقص «${partLabel.trim() || 'بدون وصف'}»: +${quantity}.`
+  return `تم تركيب ${quantity} من ${shortageSubject([partLabel])}.`
 }
 
 export function formatShortageDeleteNote(partLabel: string): string {
-  return `حذف سطر نقص «${partLabel.trim() || 'بدون وصف'}».`
+  return `تم حذف ${shortageSubject([partLabel])} من السيارة.`
 }
 
 export function formatShortageTransferNote(partLabel: string, archived: boolean): string {
-  return archived
-    ? `ترحيل نقص «${partLabel.trim() || 'بدون وصف'}» وأرشفة السيارة.`
-    : `ترحيل نقص «${partLabel.trim() || 'بدون وصف'}».`
+  const moved = `تم ترحيل ${shortageSubject([partLabel])} لمحطة الجودة.`
+  return archived ? `${moved}\nالسيارة اتقفلت وانتقلت للأرشيف لأن مفيش نواقص تانية مفتوحة.` : `${moved}\nالسيارة لسه عليها نواقص تانية مفتوحة.`
 }
 
 export function formatShortageCompleteNote(): string {
-  return 'أرشفة السيارة — إغلاق/اكتمال النواقص.'
+  return 'تم إغلاق نواقص السيارة ونقلها للأرشيف.'
 }
 
 export function formatShortageRestoreNote(): string {
-  return 'طلب/تنفيذ إرجاع السيارة من الأرشيف إلى النواقص المفتوحة.'
+  return 'تم إرجاع السيارة من الأرشيف إلى النواقص الحالية.'
 }
 
 export function formatVehicleUpdateNote(changes: string[]): string {
-  if (changes.length === 0) return 'تعديل بيانات السيارة.'
-  return `تعديل بيانات السيارة: ${changes.join('، ')}.`
+  if (changes.length === 0) return 'تم تعديل بيانات السيارة.'
+  return ['تم تعديل بيانات السيارة.', ...changes].join('\n')
 }
 
 export function formatWorkflowRequestNote(kind: 'transfer' | 'restore', detail?: string): string {
-  if (kind === 'restore') return 'طلب إرجاع السيارة من الأرشيف.'
-  return detail ? `طلب ترحيل نقص إلى الجودة${detail}.` : 'طلب ترحيل نقص إلى الجودة.'
+  if (kind === 'restore') return 'تم إرسال طلب إرجاع السيارة من الأرشيف إلى النواقص الحالية.'
+  const name = detail?.replace(/[«»]/g, '').trim()
+  return name
+    ? `تم إرسال طلب ترحيل النقص ${quoted(name)} لمحطة الجودة.`
+    : 'تم إرسال طلب ترحيل النقص لمحطة الجودة.'
 }
 
 export function formatWorkflowReviewNote(kind: 'transfer' | 'restore', approved: boolean, note?: string | null): string {
-  const action = approved ? 'اعتماد' : 'رفض'
-  const base =
-    kind === 'restore' ? `${action} طلب إرجاع السيارة من الأرشيف` : `${action} طلب ترحيل النقص`
-  const extra = note?.trim() ? ` — ${note.trim()}` : ''
-  return `${base}${extra}.`
+  const action = approved ? 'تم اعتماد' : 'تم رفض'
+  const what = kind === 'restore' ? 'طلب إرجاع السيارة من الأرشيف' : 'طلب ترحيل النقص لمحطة الجودة'
+  const extra = note?.trim() ? `\nملاحظة: ${note.trim()}` : ''
+  return `${action} ${what}.${extra}`
+}
+
+/** Drop the extra stamp line and hide empty follow-up phrases so the action reads as sentences. */
+export function presentActivityNote(body: string): string {
+  let text = body.trim().replace(/\n\d{2}\/\d{2}\/\d{4} \d{2}:\d{2}\s*$/, '')
+  text = text.replace(/\s*[—-]\s*بدون قسم متمم/g, '')
+  text = text.replace(/\s*[—-]\s*بدون موظف متابعة/g, '')
+  text = text.replace(/ ← /g, ' إلى ')
+  text = text.replace(/[A-Za-z_]+/g, token => ACTIVITY_CODE_LABELS[token] ?? token)
+  return text.trim()
 }

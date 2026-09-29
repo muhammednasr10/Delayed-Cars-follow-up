@@ -4,6 +4,7 @@ import {
   BarChart3,
   CalendarDays,
   ClipboardCheck,
+  FileText,
   LayoutGrid,
   List,
   PlusCircle
@@ -17,8 +18,9 @@ import type { Employee } from '../../Types/employee'
 
 export type ListTab = MissingPartsListTab
 export type CurrentShortageView = 'active' | 'byFamily'
+export type ReportView = 'reportList' | 'reportDaily' | 'reportCustom'
 
-type TopTabKey = 'current' | 'summary' | 'history' | 'historySummary' | 'historyDiary' | 'approvals'
+type TopTabKey = 'current' | 'summary' | 'report' | 'history' | 'historySummary' | 'historyDiary' | 'approvals'
 
 type Props = {
   listTab: ListTab
@@ -48,6 +50,10 @@ function isCurrentShortageTab(tab: ListTab): tab is CurrentShortageView {
   return tab === 'active' || tab === 'byFamily'
 }
 
+function isReportTab(tab: ListTab): tab is ReportView {
+  return tab === 'reportList' || tab === 'reportDaily' || tab === 'reportCustom'
+}
+
 export function MissingPartsToolbar({
   listTab,
   visibleTabs,
@@ -73,6 +79,8 @@ export function MissingPartsToolbar({
 }: Props) {
   const { t } = useLang()
   const showCurrentGroup = visibleTabs.includes('active') || visibleTabs.includes('byFamily')
+  const showReportGroup =
+    visibleTabs.includes('reportList') || visibleTabs.includes('reportDaily') || visibleTabs.includes('reportCustom')
 
   const topTabs: {
     key: TopTabKey
@@ -92,6 +100,12 @@ export function MissingPartsToolbar({
       className: active => (active ? 'bg-violet-600 text-white' : 'bg-slate-800 text-slate-300 hover:bg-slate-700'),
       icon: BarChart3,
       visible: visibleTabs.includes('summary')
+    },
+    {
+      key: 'report',
+      className: active => (active ? 'bg-indigo-600 text-white' : 'bg-slate-800 text-slate-300 hover:bg-slate-700'),
+      icon: FileText,
+      visible: showReportGroup
     },
     {
       key: 'history',
@@ -126,11 +140,22 @@ export function MissingPartsToolbar({
     { key: 'byFamily', icon: LayoutGrid }
   ]
 
+  const reportViewTabs: { key: ReportView }[] = [
+    { key: 'reportList' },
+    { key: 'reportDaily' },
+    { key: 'reportCustom' }
+  ]
+
   const onCurrentGroup = isCurrentShortageTab(listTab)
+  const onReportGroup = isReportTab(listTab)
 
   function selectTopTab(key: TopTabKey) {
     if (key === 'current') {
       if (!onCurrentGroup) onListTabChange(visibleTabs.includes('active') ? 'active' : 'byFamily')
+      return
+    }
+    if (key === 'report') {
+      if (!onReportGroup) onListTabChange(visibleTabs.includes('reportList') ? 'reportList' : 'reportDaily')
       return
     }
     onListTabChange(key)
@@ -167,7 +192,8 @@ export function MissingPartsToolbar({
         {topTabs
           .filter(item => item.visible)
           .map(item => {
-            const active = item.key === 'current' ? onCurrentGroup : listTab === item.key
+            const active =
+              item.key === 'current' ? onCurrentGroup : item.key === 'report' ? onReportGroup : listTab === item.key
             const Icon = item.icon
             return (
               <button
@@ -203,6 +229,30 @@ export function MissingPartsToolbar({
                   }`}
                 >
                   <Icon className="mr-1 inline h-3.5 w-3.5" />
+                  {t(`mp.tabs.${item.key}`)}
+                </button>
+              )
+            })}
+        </div>
+      )}
+
+      {onReportGroup && (
+        <div className="mb-4 flex flex-wrap gap-2 border-b border-slate-800/80 pb-3">
+          {reportViewTabs
+            .filter(item => visibleTabs.includes(item.key))
+            .map(item => {
+              const active = listTab === item.key
+              return (
+                <button
+                  key={item.key}
+                  type="button"
+                  onClick={() => onListTabChange(item.key)}
+                  className={`rounded-lg px-3 py-1.5 text-xs font-black ${
+                    active
+                      ? 'bg-indigo-500/20 text-indigo-100 ring-1 ring-indigo-400/40'
+                      : 'bg-slate-900 text-slate-400 hover:bg-slate-800 hover:text-slate-200'
+                  }`}
+                >
                   {t(`mp.tabs.${item.key}`)}
                 </button>
               )

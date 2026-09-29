@@ -6,4 +6,6 @@ export type ModelPlanTarget = {
   planYear: number
   planMonth: number
   wipCarryover?: number
+  /** Models with the same id share one quantity. Totals count the group once. */
+  planGroupId?: string | null
 }

@@ -164,7 +164,16 @@ export const EMPTY_MISSING_PART_FILTERS: MissingPartFilters = {
 }
 
 export type MissingPartsListTab =
-  'active' | 'byFamily' | 'summary' | 'history' | 'historySummary' | 'historyDiary' | 'approvals'
+  | 'active'
+  | 'byFamily'
+  | 'summary'
+  | 'reportList'
+  | 'reportDaily'
+  | 'reportCustom'
+  | 'history'
+  | 'historySummary'
+  | 'historyDiary'
+  | 'approvals'
 
 export type DepartmentVehicleCount = {
   department: string

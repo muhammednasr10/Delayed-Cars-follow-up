@@ -20,6 +20,7 @@ import { defaultDepartmentCode, defaultReasonCode } from '../Utils/mpLookupLabel
 import { isValidVinLength } from '../Utils/vinValidation'
 import { normalizeVinKey, chassisNeedingListConflictCheck } from '../Utils/vinListConflict'
 import { uniqueIssueReps } from '../Utils/missingPartPageUtils'
+import { formatChassisNote, logVehicleActivityNote } from '../Utils/vehicleActivityNote'
 
 type Props = {
   group: ReportGroupContext | null
@@ -65,6 +66,19 @@ type VinRow = {
   vehicleId: string | null
 }
 
+function notesTextForVehicle(parts: MissingPartDetail[], vehicleId: string | null): string {
+  if (!vehicleId) return ''
+  const texts = [
+    ...new Set(
+      parts
+        .filter(p => p.vehicleId === vehicleId)
+        .map(p => (p.notes ?? '').trim())
+        .filter(Boolean)
+    )
+  ]
+  return texts.join('\n')
+}
+
 function buildVinRows(parts: MissingPartDetail[]): VinRow[] {
   const seen = new Set<string>()
   const rows: VinRow[] = []
@@ -94,7 +108,7 @@ export function EditReportGroupModal({ group, activeListParts = [], onClose, onS
   const [colorId, setColorId] = useState<string | null>(null)
   const [issues, setIssues] = useState<IssueDraft[]>([])
   const [vinRows, setVinRows] = useState<VinRow[]>([])
-  const [notes, setNotes] = useState('')
+  const [notesByKey, setNotesByKey] = useState<Record<string, string>>({})
   const [removedIds, setRemovedIds] = useState<string[]>([])
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
@@ -145,8 +159,9 @@ export function EditReportGroupModal({ group, activeListParts = [], onClose, onS
         followUpEmployeeIds: rep.followUpEmployeeIds ?? (rep.followUpEmployeeId ? [rep.followUpEmployeeId] : [])
       }))
     )
-    setVinRows(buildVinRows(editableParts))
-    setNotes(editableParts[0]?.notes ?? '')
+    const rows = buildVinRows(editableParts)
+    setVinRows(rows)
+    setNotesByKey(Object.fromEntries(rows.map(row => [row.key, notesTextForVehicle(editableParts, row.vehicleId)])))
     setRemovedIds([])
     resetVinConflicts()
     setError('')
@@ -310,6 +325,11 @@ export function EditReportGroupModal({ group, activeListParts = [], onClose, onS
           if (!part) continue
           // Skip parts belonging to deleted original VINs
           if (part.vin && !keptOriginalKeys.has(normalizeVinKey(part.vin))) continue
+          const row = vinRows.find(
+            item =>
+              (item.vehicleId && item.vehicleId === part.vehicleId) ||
+              (item.originalVin && normalizeVinKey(item.originalVin) === normalizeVinKey(part.vin))
+          )
           await updateMissingPartRecord(id, {
             partDescription: primary,
             requiredQty: part.requiredQty,
@@ -317,11 +337,38 @@ export function EditReportGroupModal({ group, activeListParts = [], onClose, onS
             department: issue.department,
             priority: part.priority,
             stopperType: part.stopperType,
-            notes,
+            notes: row ? (notesByKey[row.key] ?? '') : (part.notes ?? ''),
             completingDepartment: issue.completingDepartment || null,
             followUpEmployeeId: issue.followUpEmployeeIds?.[0] || issue.followUpEmployeeId || null,
             followUpEmployeeIds: issue.followUpEmployeeIds,
             assignFollowUp: canAssignFollowUp
+          }, { skipNotesInActivity: true })
+        }
+      }
+
+      for (const issue of existingIssues) {
+        const primary = filledReasons(issue.partItems)[0]
+        if (!primary) continue
+        const covered = new Set(
+          editableParts
+            .filter(p => issue.ids.includes(p.id) && !removedIdSet.has(p.id))
+            .map(p => p.vehicleId)
+        )
+        for (const row of vinRows) {
+          if (!row.vehicleId || !row.originalVin) continue
+          if (!keptOriginalKeys.has(normalizeVinKey(row.originalVin))) continue
+          if (covered.has(row.vehicleId)) continue
+          const vin = normalizeVinKey(row.vin)
+          if (!isValidVinLength(vin)) continue
+          await reportMissingPartsBatch({
+            vins: [vin],
+            modelId,
+            parts: issuePartLines(issue, [primary]),
+            colorId,
+            reason: issue.reason,
+            department: issue.department,
+            factoryOrgUnitId: editableParts[0]?.factoryOrgUnitId ?? undefined,
+            reportGroupId: ctx.reportGroupId
           })
         }
       }
@@ -339,7 +386,6 @@ export function EditReportGroupModal({ group, activeListParts = [], onClose, onS
           colorId,
           reason: newPartLines[0].reason,
           department: newPartLines[0].department,
-          notes: notes || undefined,
           factoryOrgUnitId: editableParts[0]?.factoryOrgUnitId ?? undefined,
           reportGroupId: ctx.reportGroupId
         })
@@ -355,17 +401,31 @@ export function EditReportGroupModal({ group, activeListParts = [], onClose, onS
           setBusy(false)
           return
         }
-        await reportMissingPartsBatch({
-          vins: newVins,
-          modelId,
-          parts: partsForNew,
-          colorId,
-          reason: partsForNew[0].reason,
-          department: partsForNew[0].department,
-          notes: notes || undefined,
-          factoryOrgUnitId: editableParts[0]?.factoryOrgUnitId ?? undefined,
-          reportGroupId: ctx.reportGroupId
-        })
+        for (const row of addedRows) {
+          const vin = normalizeVinKey(row.vin)
+          if (!isValidVinLength(vin)) continue
+          const chassisNote = (notesByKey[row.key] ?? '').trim()
+          await reportMissingPartsBatch({
+            vins: [vin],
+            modelId,
+            parts: partsForNew,
+            colorId,
+            reason: partsForNew[0].reason,
+            department: partsForNew[0].department,
+            notes: chassisNote || undefined,
+            factoryOrgUnitId: editableParts[0]?.factoryOrgUnitId ?? undefined,
+            reportGroupId: ctx.reportGroupId
+          })
+        }
+      }
+
+      for (const row of vinRows) {
+        if (!row.vehicleId || !row.originalVin) continue
+        if (!keptOriginalKeys.has(normalizeVinKey(row.originalVin))) continue
+        const next = (notesByKey[row.key] ?? '').trim()
+        const prev = notesTextForVehicle(editableParts, row.vehicleId)
+        if (next === prev) continue
+        await logVehicleActivityNote(row.vehicleId, formatChassisNote(normalizeVinKey(row.vin), next))
       }
 
       onSaved()
@@ -506,6 +566,21 @@ export function EditReportGroupModal({ group, activeListParts = [], onClose, onS
                       <Trash2 className="h-3.5 w-3.5" />
                     </button>
                   </div>
+                  {!issue.isNew && (
+                    <p className="text-[11px] text-slate-400">
+                      {(() => {
+                        const covered = new Set(
+                          editableParts.filter(p => issue.ids.includes(p.id)).map(p => p.vehicleId)
+                        )
+                        const missing = vinRows
+                          .filter(row => row.originalVin && row.vehicleId && !covered.has(row.vehicleId))
+                          .map(row => normalizeVinKey(row.vin) || row.vin)
+                        return missing.length === 0
+                          ? t('mp.edit.issueOnAll')
+                          : t('mp.edit.issueMissingOn', { vins: missing.join('، ') })
+                      })()}
+                    </p>
+                  )}
                   <ReasonItemsField
                     items={issue.partItems}
                     onUpdate={(index, value) => updateReasonItem(issue.key, index, value)}
@@ -537,9 +612,22 @@ export function EditReportGroupModal({ group, activeListParts = [], onClose, onS
             </div>
           </section>
 
-          <Field label={t('mp.f.notes')}>
-            <textarea className="input-dark w-full" rows={2} value={notes} onChange={e => setNotes(e.target.value)} />
-          </Field>
+          <section className="space-y-2">
+            <div>
+              <h3 className="text-xs font-black uppercase tracking-wider text-cyan-300">{t('mp.edit.vinNotes')}</h3>
+              <p className="mt-0.5 text-[10px] text-slate-500">{t('mp.edit.vinNotesHint')}</p>
+            </div>
+            {vinRows.map(row => (
+              <Field key={row.key} label={`${t('mp.f.notes')} · ${normalizeVinKey(row.vin) || '—'}`}>
+                <textarea
+                  className="input-dark w-full"
+                  rows={2}
+                  value={notesByKey[row.key] ?? ''}
+                  onChange={e => setNotesByKey(prev => ({ ...prev, [row.key]: e.target.value }))}
+                />
+              </Field>
+            ))}
+          </section>
 
           {error && (
             <div className="rounded-xl border border-red-500/30 bg-red-500/10 p-3 text-sm text-red-200">{error}</div>

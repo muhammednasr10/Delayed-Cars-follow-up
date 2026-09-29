@@ -20,6 +20,13 @@ function cellText(value: string | number | null | undefined): string {
   return String(value).trim()
 }
 
+function exportedCellText(td: Element): string {
+  const marked = td.matches('[data-export-value]') ? td : td.querySelector('[data-export-value]')
+  const explicit = marked?.getAttribute('data-export-value')
+  if (explicit != null) return explicit.trim()
+  return td.textContent?.replace(/\s+/g, ' ').trim() ?? ''
+}
+
 export function buildExportData<T>(items: T[], columns: TableExportColumn<T>[]): TableExportData {
   return {
     headers: columns.map(c => c.label),
@@ -48,7 +55,7 @@ export function extractTableData(table: HTMLTableElement): TableExportData {
     let exportIndex = 0
     cells.forEach((td, index) => {
       if (skipIndexes.has(index) || td.hasAttribute('data-export-skip')) return
-      row[exportIndex] = td.textContent?.replace(/\s+/g, ' ').trim() ?? ''
+      row[exportIndex] = exportedCellText(td)
       exportIndex += 1
     })
     if (row.length > 0 && row.some(c => c.length > 0)) rows.push(row)

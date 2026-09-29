@@ -1,20 +1,24 @@
 import { useEffect, useMemo, useState } from 'react'
-import { CalendarRange, ChevronDown, ClipboardList, Settings2 } from 'lucide-react'
+import { CalendarRange, ClipboardList, Settings2 } from 'lucide-react'
 import { useLang } from '../../i18n/LanguageContext'
+import type { VehicleModel } from '../../Types/settings'
 import { Field, inputCls } from '../FormField'
 import { Modal } from '../Modal'
 import { ANNUAL_PLAN_MONTH, saveModelPlanTargets } from '../../services/modelProductionPlanService'
 import { getProductionPlanWorkDays, saveProductionPlanWorkDays } from '../../services/productionPlanWorkDaysService'
 import { computeTaktMinutes, formatTaktMinutes } from '../../Utils/productionLineRate'
-import { buildPlanSections, type PlanFamilyGroup, type PlanSection } from '../../Utils/productionPlanSummary'
 import {
-  cloneTargetMap,
-  collectTargetRows,
-  setFamilyTarget,
-  setFamilyWip,
-  setVariantTarget,
-  setVariantWip
-} from '../../Utils/planTargetDraft'
+  bundlesFromGroupMap,
+  normalizeGroupMap,
+  overlayPlanBundles,
+  readPlanBundles,
+  storedQtyForModel,
+  writePlanBundles
+} from '../../Utils/planBundles'
+import { buildPlanSections } from '../../Utils/productionPlanSummary'
+import { childIdsOf, sumVisibleParentQty } from '../../Utils/planParentQty'
+import { cloneTargetMap, collectTargetRows, setFamilyTarget, setFamilyWip } from '../../Utils/planTargetDraft'
+import { ParentPlanBoard } from './ParentPlanBoard'
 
 export type PlanEntryMode = 'annual' | 'monthly'
 
@@ -25,7 +29,7 @@ type Props = {
   monthLabel: string
   planYear: number
   planMonth: number
-  models: import('../../Types/settings').VehicleModel[]
+  models: VehicleModel[]
   planTargets: Map<string, number>
   wipCarryover: Map<string, number>
   achievedByModelId: Map<string, number>
@@ -66,57 +70,138 @@ export function ProductionPlanEntryModal({
   const [draftDays, setDraftDays] = useState(availableDays)
   const [draftHours, setDraftHours] = useState(availableHours)
   const [draftJph, setDraftJph] = useState(lineJph)
-  const [expanded, setExpanded] = useState<Set<string>>(new Set())
+  const [draftGroups, setDraftGroups] = useState<Map<string, string>>(new Map())
+  const [selected, setSelected] = useState<Set<string>>(new Set())
+  const [togetherQty, setTogetherQty] = useState('')
+  const [togetherWip, setTogetherWip] = useState('')
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
+
+  const parents = useMemo(
+    () =>
+      models
+        .filter(m => m.is_active && m.model_kind === 'family')
+        .sort((a, b) => a.name.localeCompare(b.name, 'ar')),
+    [models]
+  )
 
   useEffect(() => {
     if (!open) return
     const initialTargets = cloneMap(planTargets)
-    setDraftTargets(initialTargets)
-    setDraftWip(cloneMap(wipCarryover))
+    const initialWip = cloneMap(wipCarryover)
+    const painted = overlayPlanBundles(initialTargets, initialWip, readPlanBundles(planYear, saveMonth))
+    setDraftTargets(painted.targets)
+    setDraftWip(painted.wip)
+    setDraftGroups(painted.groups)
     setDraftDays(availableDays)
     setDraftHours(availableHours)
     setDraftJph(lineJph)
-    const sections = buildPlanSections(models, initialTargets, achievedByModelId, wipCarryover)
-    setExpanded(new Set(sections.map(s => s.group.key)))
+    setSelected(new Set())
+    setTogetherQty('')
+    setTogetherWip('')
     setError('')
-  }, [open, planTargets, wipCarryover, availableDays, availableHours, lineJph, models, achievedByModelId])
+  }, [open, planTargets, wipCarryover, availableDays, availableHours, lineJph, models, planYear, saveMonth])
 
   const draftSections = useMemo(
     () => buildPlanSections(models, draftTargets, achievedByModelId, draftWip),
     [models, draftTargets, achievedByModelId, draftWip]
   )
 
-  const draftPlannedTotal = useMemo(() => draftSections.reduce((sum, s) => sum + s.group.planned, 0), [draftSections])
+  const draftPlannedTotal = useMemo(
+    () => sumVisibleParentQty(parents, draftGroups, models, draftTargets),
+    [parents, draftGroups, models, draftTargets]
+  )
 
-  const draftWipTotal = useMemo(() => draftSections.reduce((sum, s) => sum + s.group.wipCarryover, 0), [draftSections])
+  const draftWipTotal = useMemo(
+    () => sumVisibleParentQty(parents, draftGroups, models, draftWip),
+    [parents, draftGroups, models, draftWip]
+  )
 
   const taktMinutes = useMemo(() => computeTaktMinutes(draftJph > 0 ? draftJph : null), [draftJph])
 
-  function toggleFamily(key: string) {
-    setExpanded(prev => {
-      const next = new Set(prev)
-      if (next.has(key)) next.delete(key)
-      else next.add(key)
+  function memberIds(groupId: string) {
+    return [...draftGroups.entries()].filter(([, id]) => id === groupId).map(([id]) => id)
+  }
+
+  function setQtyOn(ids: string[], quantity: number) {
+    setDraftTargets(prev => {
+      let next = prev
+      for (const id of ids) next = setFamilyTarget(next, id, childIdsOf(models, id), quantity)
       return next
     })
   }
 
-  function applyFamilyTarget(familyId: string, variantIds: string[], quantity: number) {
-    setDraftTargets(prev => setFamilyTarget(prev, familyId, variantIds, quantity))
+  function setWipOn(ids: string[], quantity: number) {
+    setDraftWip(prev => {
+      let next = prev
+      for (const id of ids) next = setFamilyWip(next, id, childIdsOf(models, id), quantity)
+      return next
+    })
   }
 
-  function applyVariantTarget(familyId: string, variantId: string, quantity: number) {
-    setDraftTargets(prev => setVariantTarget(prev, familyId, variantId, quantity))
+  function toggleSelect(id: string) {
+    setSelected(prev => {
+      const next = new Set(prev)
+      if (next.has(id)) next.delete(id)
+      else next.add(id)
+      return next
+    })
+    setTogetherQty('')
+    setTogetherWip('')
   }
 
-  function applyFamilyWip(familyId: string, variantIds: string[], quantity: number) {
-    setDraftWip(prev => setFamilyWip(prev, familyId, variantIds, quantity))
+  function applyIndividualQty(id: string, quantity: number) {
+    const groupId = draftGroups.get(id)
+    const ids = groupId ? memberIds(groupId) : [id]
+    if (ids.length >= 2) {
+      setQtyOn(ids, quantity)
+      return
+    }
+    setQtyOn([id], quantity)
+    setDraftGroups(prev => {
+      const next = new Map(prev)
+      next.delete(id)
+      return normalizeGroupMap(next)
+    })
   }
 
-  function applyVariantWip(familyId: string, variantId: string, quantity: number) {
-    setDraftWip(prev => setVariantWip(prev, familyId, variantId, quantity))
+  function applyIndividualWip(id: string, quantity: number) {
+    const groupId = draftGroups.get(id)
+    const ids = groupId ? memberIds(groupId) : [id]
+    if (ids.length >= 2) {
+      setWipOn(ids, quantity)
+      return
+    }
+    setWipOn([id], quantity)
+  }
+
+  function separateModel(id: string) {
+    setQtyOn([id], 0)
+    setWipOn([id], 0)
+    setDraftGroups(prev => {
+      const next = new Map(prev)
+      next.delete(id)
+      return normalizeGroupMap(next)
+    })
+    setSelected(new Set())
+  }
+
+  function applyTogether() {
+    const ids = [...selected]
+    if (ids.length < 2) return
+    const qty = Math.max(0, Math.round(Number(togetherQty) || 0))
+    const wipQty = Math.max(0, Math.round(Number(togetherWip) || 0))
+    const groupId = crypto.randomUUID()
+    setQtyOn(ids, qty)
+    setWipOn(ids, wipQty)
+    setDraftGroups(prev => {
+      const next = new Map(prev)
+      for (const id of ids) next.set(id, groupId)
+      return normalizeGroupMap(next)
+    })
+    setSelected(new Set())
+    setTogetherQty('')
+    setTogetherWip('')
   }
 
   async function handleSave() {
@@ -137,14 +222,39 @@ export function ProductionPlanEntryModal({
           lineJph: Math.max(0, draftJph)
         })
       }
-      const rows = collectTargetRows(draftSections, draftTargets, draftWip, !isAnnual)
+      let targets = draftTargets
+      let wip = draftWip
+      for (const parent of parents) {
+        const children = childIdsOf(models, parent.id)
+        if ((targets.get(parent.id) ?? 0) <= 0) {
+          const sum = children.reduce((total, vid) => total + (targets.get(vid) ?? 0), 0)
+          if (sum > 0) targets = setFamilyTarget(targets, parent.id, children, sum)
+        }
+        if (!isAnnual && (wip.get(parent.id) ?? 0) <= 0) {
+          const sum = children.reduce((total, vid) => total + (wip.get(vid) ?? 0), 0)
+          if (sum > 0) wip = setFamilyWip(wip, parent.id, children, sum)
+        }
+      }
+      writePlanBundles(planYear, saveMonth, bundlesFromGroupMap(draftGroups, targets, wip))
+      const rows = collectTargetRows(draftSections, targets, wip, !isAnnual)
+      const seen = new Set(rows.map(row => row.modelId))
+      for (const parent of parents) {
+        if (seen.has(parent.id)) continue
+        const targetQty = storedQtyForModel(parent.id, Math.max(0, targets.get(parent.id) ?? 0), draftGroups)
+        const wipQty = !isAnnual
+          ? storedQtyForModel(parent.id, Math.max(0, wip.get(parent.id) ?? 0), draftGroups)
+          : 0
+        const hadBefore = (planTargets.get(parent.id) ?? 0) > 0 || (wipCarryover.get(parent.id) ?? 0) > 0
+        if (targetQty <= 0 && wipQty <= 0 && !hadBefore) continue
+        rows.push({ modelId: parent.id, targetQty, wipCarryover: wipQty })
+      }
       await saveModelPlanTargets(
         rows.map(r => ({
           modelId: r.modelId,
-          targetQty: r.targetQty,
+          targetQty: storedQtyForModel(r.modelId, r.targetQty, draftGroups),
           planYear,
           planMonth: saveMonth,
-          wipCarryover: r.wipCarryover
+          wipCarryover: storedQtyForModel(r.modelId, r.wipCarryover, draftGroups)
         }))
       )
       onSaved()
@@ -272,7 +382,7 @@ export function ProductionPlanEntryModal({
                 <p className="text-[10px] font-bold text-cyan-200/80">{t('productionOrders.plannedQty')}</p>
                 <p className="text-lg font-black text-cyan-300">{draftPlannedTotal || '—'}</p>
               </div>
-              {!isAnnual && (
+              {!isAnnual && draftWipTotal > 0 && (
                 <div className="rounded-xl border border-rose-500/30 bg-rose-500/10 px-3 py-2 text-center">
                   <p className="text-[10px] font-bold text-rose-200/80">{t('productionOrders.wipCarryover')}</p>
                   <p className="text-lg font-black text-rose-300">{draftWipTotal || '—'}</p>
@@ -281,204 +391,29 @@ export function ProductionPlanEntryModal({
             </div>
           </div>
 
-          <div className="mt-4 space-y-2">
-            {draftSections.map(section => (
-              <FamilyPlanBlock
-                key={section.group.key}
-                group={section.group}
-                canManage={canManage}
-                isExpanded={expanded.has(section.group.key)}
-                showWip={!isAnnual}
-                onToggle={() => toggleFamily(section.group.key)}
-                onSetFamily={applyFamilyTarget}
-                onSetVariant={applyVariantTarget}
-                onSetFamilyWip={applyFamilyWip}
-                onSetVariantWip={applyVariantWip}
-                t={t}
-              />
-            ))}
-            {draftSections.length === 0 && (
-              <p className="py-6 text-center text-sm text-slate-500">{t('productivity.monthly.noModels')}</p>
-            )}
-          </div>
+          <ParentPlanBoard
+            parents={parents}
+            models={models}
+            draftTargets={draftTargets}
+            draftWip={draftWip}
+            draftGroups={draftGroups}
+            selected={selected}
+            togetherQty={togetherQty}
+            togetherWip={togetherWip}
+            canManage={canManage}
+            showWip={!isAnnual}
+            t={t}
+            onToggle={toggleSelect}
+            onIndividualQty={applyIndividualQty}
+            onIndividualWip={applyIndividualWip}
+            onSeparate={separateModel}
+            onTogetherQty={setTogetherQty}
+            onTogetherWip={setTogetherWip}
+            onApplyTogether={applyTogether}
+          />
         </section>
       </div>
     </Modal>
   )
 }
 
-function FamilyPlanBlock({
-  group,
-  canManage,
-  isExpanded,
-  showWip,
-  onToggle,
-  onSetFamily,
-  onSetVariant,
-  onSetFamilyWip,
-  onSetVariantWip,
-  t
-}: {
-  group: PlanFamilyGroup
-  canManage: boolean
-  isExpanded: boolean
-  showWip: boolean
-  onToggle: () => void
-  onSetFamily: (familyId: string, variantIds: string[], quantity: number) => void
-  onSetVariant: (familyId: string, variantId: string, quantity: number) => void
-  onSetFamilyWip: (familyId: string, variantIds: string[], quantity: number) => void
-  onSetVariantWip: (familyId: string, variantId: string, quantity: number) => void
-  t: (key: string, vars?: Record<string, string | number>) => string
-}) {
-  const variantIds = group.variants.map(v => v.modelId)
-  const familyIsLeaf = variantIds.length === 1 && variantIds[0] === group.familyId
-  const familyPlanned = group.entryMode === 'family_aggregate' ? group.planned : group.entryMode === 'flexible' ? 0 : 0
-  const familyWip =
-    group.entryMode === 'family_aggregate' ? group.wipCarryover : group.entryMode === 'per_variant' ? 0 : 0
-  const modeLabel =
-    group.entryMode === 'family_aggregate'
-      ? t('productionOrders.planModeFamily')
-      : group.entryMode === 'per_variant'
-        ? t('productionOrders.planModeVariants')
-        : t('productionOrders.planModeFlexible')
-
-  return (
-    <div className="overflow-hidden rounded-xl border border-slate-700/70 bg-slate-900/60">
-      <div className="flex flex-wrap items-center gap-3 p-3">
-        <button
-          type="button"
-          onClick={onToggle}
-          disabled={familyIsLeaf}
-          className="inline-flex min-w-0 flex-1 items-center gap-2 text-start disabled:cursor-default"
-          aria-expanded={isExpanded}
-        >
-          {!familyIsLeaf && (
-            <ChevronDown
-              className={`h-4 w-4 shrink-0 text-violet-300 transition-transform ${isExpanded ? '' : '-rotate-90'}`}
-            />
-          )}
-          <span className="font-black text-white">{group.label}</span>
-          <span className="text-xs text-violet-300/70">({group.variants.length})</span>
-          <span className="rounded-md bg-slate-950/60 px-1.5 py-0.5 text-[10px] font-bold text-slate-400">
-            {modeLabel}
-          </span>
-        </button>
-        <div className="flex flex-wrap items-center gap-3">
-          <QtyField
-            label={t('productionOrders.plannedQty')}
-            value={familyIsLeaf ? group.planned : familyPlanned}
-            canEdit={canManage && (familyIsLeaf || (group.entryMode !== 'per_variant' && !familyIsLeaf))}
-            onChange={v =>
-              familyIsLeaf
-                ? onSetVariant(group.familyId, group.familyId, v)
-                : onSetFamily(group.familyId, variantIds, v)
-            }
-            displayValue={!familyIsLeaf && group.entryMode === 'per_variant' ? '—' : undefined}
-            tone="cyan"
-          />
-          {showWip && (
-            <QtyField
-              label={t('productionOrders.wipCarryoverShort')}
-              value={familyWip}
-              canEdit={canManage && (familyIsLeaf || group.entryMode === 'family_aggregate')}
-              onChange={v =>
-                familyIsLeaf
-                  ? onSetVariantWip(group.familyId, group.familyId, v)
-                  : onSetFamilyWip(group.familyId, variantIds, v)
-              }
-              displayValue={!familyIsLeaf && group.entryMode === 'per_variant' ? '—' : undefined}
-              tone="rose"
-            />
-          )}
-        </div>
-      </div>
-
-      {isExpanded && !familyIsLeaf && (
-        <div className="border-t border-slate-800/80 bg-slate-950/40 px-3 py-2">
-          {group.variants.map(variant => {
-            const showVariantInput = group.entryMode !== 'family_aggregate'
-            return (
-              <div
-                key={variant.modelId}
-                className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-800/50 py-2 last:border-0"
-              >
-                <span className="text-sm font-bold text-slate-300">
-                  <span className="text-slate-600">— </span>
-                  {variant.label}
-                </span>
-                <div className="flex flex-wrap gap-2">
-                  {showVariantInput ? (
-                    <QtyField
-                      label={t('productionOrders.plannedQty')}
-                      value={variant.planned}
-                      canEdit={canManage}
-                      onChange={v => onSetVariant(group.familyId, variant.modelId, v)}
-                      tone="cyan"
-                      compact
-                    />
-                  ) : (
-                    <span className="text-slate-600">—</span>
-                  )}
-                  {showWip && showVariantInput && (
-                    <QtyField
-                      label={t('productionOrders.wipCarryoverShort')}
-                      value={variant.wipCarryover}
-                      canEdit={canManage}
-                      onChange={v => onSetVariantWip(group.familyId, variant.modelId, v)}
-                      tone="rose"
-                      compact
-                    />
-                  )}
-                </div>
-              </div>
-            )
-          })}
-        </div>
-      )}
-    </div>
-  )
-}
-
-function QtyField({
-  label,
-  value,
-  canEdit,
-  onChange,
-  displayValue,
-  tone,
-  compact = false
-}: {
-  label: string
-  value: number
-  canEdit: boolean
-  onChange: (n: number) => void
-  displayValue?: string
-  tone: 'cyan' | 'rose'
-  compact?: boolean
-}) {
-  const border = tone === 'cyan' ? 'border-violet-600/50 text-cyan-300' : 'border-rose-600/40 text-rose-300'
-  const shown = displayValue ?? (value || '—')
-
-  if (!canEdit) {
-    return (
-      <div className={compact ? 'text-center' : ''}>
-        {!compact && <p className="text-[10px] font-bold text-slate-500">{label}</p>}
-        <span className={`font-black ${tone === 'cyan' ? 'text-cyan-300' : 'text-rose-300'}`}>{shown}</span>
-      </div>
-    )
-  }
-
-  return (
-    <div className={compact ? '' : 'text-center'}>
-      {!compact && <p className="text-[10px] font-bold text-slate-500">{label}</p>}
-      <input
-        type="number"
-        min={0}
-        className={`w-20 rounded-lg border bg-slate-950 px-2 py-1.5 text-center text-sm font-black ${border}`}
-        value={value || ''}
-        onChange={e => onChange(Number(e.target.value) || 0)}
-        title={label}
-      />
-    </div>
-  )
-}

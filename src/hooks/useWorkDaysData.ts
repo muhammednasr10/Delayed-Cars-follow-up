@@ -9,7 +9,6 @@ import {
 import {
   availableDaysFromRows,
   buildMonthWorkDayRows,
-  computeProductivityLostCars,
   defaultPlannedHoursForDayType,
   isVacationOrFactoryHoliday,
   isActualHoursLocked,
@@ -27,6 +26,10 @@ import { getProductionLineStops, aggregateStopsByDate } from '../services/produc
 import { computeDailyAttendanceEfficiency, getAttendanceDaysForMonth } from '../services/attendanceService'
 import { getEmployees } from '../services/employeesService'
 import { getProductivityDelayReasonsMonth } from '../services/productivityDelayReasonsService'
+import { getModelPlanTargets } from '../services/modelProductionPlanService'
+import { expandPlanTargetsWithBundles, sumPlanTargetsOnce } from '../Utils/planBundles'
+import { allocateDailyPlan } from '../Utils/planningDailyTracking'
+import { planDayDeficit } from '../Utils/planDayDeficit'
 import type { ProductivityDelayKind } from '../Types/productivityDelayReason'
 import { buildModelProductivityBreakdown } from '../Utils/productivityBreakdown'
 import { buildWorkDaysExportRows } from '../Utils/planningExport'
@@ -66,7 +69,9 @@ export function useWorkDaysData(
     deficit: number
     productivity: number
     stopLostVehicles: number
+    dailyPlan: number
   } | null>(null)
+  const [monthlyPlan, setMonthlyPlan] = useState(0)
   const [monthStops, setMonthStops] = useState<ProductionLineStop[]>([])
   const [productivityModels, setProductivityModels] = useState<VehicleModel[]>([])
   const [loading, setLoading] = useState(false)
@@ -83,13 +88,15 @@ export function useWorkDaysData(
     setError('')
     setSuccess('')
     try {
-      const [saved, productivity, stops, employees, attendanceDays] = await Promise.all([
+      const [saved, productivity, stops, employees, attendanceDays, planTargets] = await Promise.all([
         getProductionPlanWorkDaysMonth(year, month),
         getMonthProductivityDetail(year, month),
         getProductionLineStops(year, month).catch(() => []),
         getEmployees().catch(() => []),
-        getAttendanceDaysForMonth(year, month).catch(() => [])
+        getAttendanceDaysForMonth(year, month).catch(() => []),
+        getModelPlanTargets(year, month).catch(() => [])
       ])
+      setMonthlyPlan(sumPlanTargetsOnce(expandPlanTargetsWithBundles(planTargets)))
       const activeEmployeeIds = employees.filter(e => e.isActive).map(e => e.id)
       const attendanceEfficiencyByDate = computeDailyAttendanceEfficiency(
         activeEmployeeIds,
@@ -205,7 +212,15 @@ export function useWorkDaysData(
             updated.actualHours = 0
           } else {
             updated.workDespiteVacation = false
+            if (patch.actualHours === undefined) updated.actualHours = updated.plannedHours
           }
+        } else if (
+          patch.plannedHours !== undefined &&
+          patch.actualHours === undefined &&
+          !isVacationOrFactoryHoliday(updated.dayType) &&
+          (row.actualHours === 0 || row.actualHours === row.plannedHours)
+        ) {
+          updated.actualHours = patch.plannedHours
         }
         if (patch.workDespiteVacation === false) {
           updated.actualHours = 0
@@ -228,15 +243,21 @@ export function useWorkDaysData(
     return buildModelProductivityBreakdown(entryRecords, exitRecords, productivityModels, workDate, repairRecords)
   }
 
-  const displayRows = useMemo(
-    () =>
-      rows.map(row => ({
+  const displayRows = useMemo(() => {
+    const dailyPlan = allocateDailyPlan(
+      monthlyPlan,
+      rows.map(row => ({ workDate: row.workDate, dayType: row.dayType, plannedHours: row.plannedHours }))
+    )
+    return rows.map(row => {
+      const planned = dailyPlan.get(row.workDate) ?? 0
+      return {
         ...row,
-        entryDeficit: computeProductivityLostCars(row.entryProductivity),
-        exitDeficit: computeProductivityLostCars(row.exitProductivity)
-      })),
-    [rows]
-  )
+        dailyPlan: planned,
+        entryDeficit: planDayDeficit(monthlyPlan, planned, row.entryProductivity),
+        exitDeficit: planDayDeficit(monthlyPlan, planned, row.exitProductivity)
+      }
+    })
+  }, [rows, monthlyPlan])
 
   const totals = useMemo(() => {
     const efficiencyValues = displayRows

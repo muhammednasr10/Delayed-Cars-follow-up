@@ -1,4 +1,4 @@
-﻿import { useEffect, useMemo, useState, useCallback } from 'react'
+import { useEffect, useMemo, useState, useCallback } from 'react'
 import { useLang } from '../../i18n/LanguageContext'
 import { useEmployees } from '../../hooks/useEmployees'
 import { useFactoryOrgScope } from '../../hooks/useFactoryOrgScope'
@@ -10,7 +10,7 @@ import { useMissingPartsSelection } from '../../hooks/useMissingPartsSelection'
 import { SetupRequired } from '../../Components/SetupRequired'
 import type { ReportGroupContext, VehicleIssuesContext } from '../../Types/missingPart'
 import type { UpdateVehicleContext } from '../../Components/UpdateMissingPartModal'
-import { uniqueVehicleReps } from '../../Utils/missingPartPageUtils'
+import { applyFilters, uniqueVehicleReps } from '../../Utils/missingPartPageUtils'
 import { isReportGroup, multiReportGroupPartIds, partsForVehicleAction } from '../../Utils/missingPartDisplay'
 import { notesTargetFromPart, vehicleIssuesContext, actionMembersForRow } from '../../Utils/missingPartRowContext'
 import { MissingPartsToolbar } from '../../Components/missingParts/MissingPartsToolbar'
@@ -19,6 +19,7 @@ import { MissingPartsApprovalsTab } from '../../Components/missingParts/MissingP
 import { MissingPartsDailyJournalTab } from '../../Components/missingParts/MissingPartsDailyJournalTab'
 import { MissingPartsFamilyCardsTab } from '../../Components/missingParts/MissingPartsFamilyCardsTab'
 import { MissingPartsSummaryTab } from '../../Components/missingParts/MissingPartsSummaryTab'
+import { MissingPartsReportTab } from '../../Components/missingParts/MissingPartsReportTab'
 import { MissingPartsBulkBar } from '../../Components/missingParts/MissingPartsBulkBar'
 import { MergeShortageGroupModal } from '../../Components/missingParts/MergeShortageGroupModal'
 import { MissingPartsPageDialogs } from '../../Components/missingParts/MissingPartsPageDialogs'
@@ -99,6 +100,11 @@ export function MissingPartsPage() {
   const [detailTarget, setDetailTarget] = useState<MissingPartDetail | null>(null)
   const [vehicleCardParts, setVehicleCardParts] = useState<MissingPartDetail[] | null>(null)
   const [notesTarget, setNotesTarget] = useState<VehicleNoteTarget | null>(null)
+
+  const reportItems = useMemo(() => {
+    if (listTab !== 'reportDaily') return filtered
+    return applyFilters(scopedItems, { ...filters, dateFrom: '', dateTo: '', resolvedMonth: null }, { orgUnits })
+  }, [listTab, filtered, scopedItems, filters, orgUnits])
 
   const canBulkSelectForTab = useMemo(() => {
     if (listTab === 'history') return canBulkSelectArchive
@@ -201,7 +207,15 @@ export function MissingPartsPage() {
   if (setupRequired) return <SetupRequired detail={error} />
 
   const rowActions = {
-    onOpenNotes: (row: MissingPartDetail) => setNotesTarget(notesTargetFromPart(row)),
+    onOpenNotes: (row: MissingPartDetail) => {
+      if (row.reportGroupId && isReportGroup(row, filtered)) {
+        const members = filtered.filter(p => p.reportGroupId === row.reportGroupId)
+        const chassis = uniqueVehicleReps(members).map(p => ({ vehicleId: p.vehicleId, vin: p.vin }))
+        setNotesTarget({ ...notesTargetFromPart(row), chassis })
+        return
+      }
+      setNotesTarget(notesTargetFromPart(row))
+    },
     onEdit: openEdit,
     onUpdate: openUpdate,
     onDeleteParts: (parts: MissingPartDetail[]) => void actions.removeParts(parts),
@@ -313,6 +327,15 @@ export function MissingPartsPage() {
           />
         ) : listTab === 'historyDiary' ? (
           <MissingPartsDailyJournalTab items={scopedItems} loading={loading} canExport={canExport} />
+        ) : listTab === 'reportList' || listTab === 'reportDaily' || listTab === 'reportCustom' ? (
+          <MissingPartsReportTab
+            mode={listTab}
+            items={listTab === 'reportDaily' ? reportItems : filtered}
+            reasons={reasons}
+            departments={departments}
+            loading={loading}
+            canExport={canExport}
+          />
         ) : listTab === 'summary' || listTab === 'historySummary' ? (
           <MissingPartsSummaryTab
             items={filtered}

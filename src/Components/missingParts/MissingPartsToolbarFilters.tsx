@@ -51,7 +51,13 @@ export function MissingPartsToolbarFilters({
   const completingDepartmentFilterValue = completingUnassigned ? '' : (filters.completingDepartments[0] ?? '')
   const activeOrgUnits = useMemo(() => orgUnits.filter(u => u.isActive), [orgUnits])
   const filterable =
-    listTab === 'active' || listTab === 'byFamily' || listTab === 'history' || listTab === 'historySummary'
+    listTab === 'active' ||
+    listTab === 'byFamily' ||
+    listTab === 'reportList' ||
+    listTab === 'reportDaily' ||
+    listTab === 'reportCustom' ||
+    listTab === 'history' ||
+    listTab === 'historySummary'
 
   if (!canUseFilters || !filterable) return null
 

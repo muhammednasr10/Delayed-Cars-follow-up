@@ -8,11 +8,13 @@ import {
 import { getExitProductivityMonth, getExitProductivityYear } from '../services/exitProductivityService'
 import { getProductionPlanWorkDays } from '../services/productionPlanWorkDaysService'
 import { getVehicleModels } from '../services/settingsService'
+import { overlayPlanBundles, readPlanBundles } from '../Utils/planBundles'
 import { computeTaktMinutes, formatTaktMinutes } from '../Utils/productionLineRate'
 import {
   buildAchievedByModelIdFromExitRecords,
   buildAnnualSectionsFromMonthlyPlans,
   buildPlanSections,
+  onlyActiveParentSections,
   planProgressPercent,
   sumPlanSectionsAchieved,
   sumPlanSectionsPlanned,
@@ -112,13 +114,28 @@ export function useProductionPlanHubStats(refreshKey = 0): ProductionPlanHubStat
       .then(([models, dbTargets, yearMonthlyTargets, yearExitRows, monthExitRows, workConfig]) => {
         if (cancelled) return
 
-        const planTargets = planTargetsMap(dbTargets)
-        const wipCarryover = wipCarryoverMap(dbTargets)
+        const painted = overlayPlanBundles(
+          planTargetsMap(dbTargets),
+          wipCarryoverMap(dbTargets),
+          readPlanBundles(year, month)
+        )
         const achievedByModelId = buildAchievedByModelIdFromExitRecords(monthExitRows)
-        const planSections = buildPlanSections(models, planTargets, achievedByModelId, wipCarryover)
+        const planSections = onlyActiveParentSections(
+          buildPlanSections(
+            models,
+            painted.targets,
+            achievedByModelId,
+            painted.wip,
+            painted.groups
+          ),
+          models
+        )
         const monthlyFamilies = familyRowsFromSections(planSections)
 
-        const annualSections = buildAnnualSectionsFromMonthlyPlans(models, yearMonthlyTargets, yearExitRows)
+        const annualSections = onlyActiveParentSections(
+          buildAnnualSectionsFromMonthlyPlans(models, yearMonthlyTargets, yearExitRows),
+          models
+        )
         const annualFamilies = familyRowsFromSections(annualSections)
 
         const planned = sumPlanSectionsPlanned(planSections)

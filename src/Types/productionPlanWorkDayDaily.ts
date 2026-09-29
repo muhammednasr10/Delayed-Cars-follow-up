@@ -30,7 +30,7 @@ export function defaultWorkDayRow(workDate: string): ProductionPlanWorkDayRow {
     workDate,
     dayType: 'work',
     plannedHours: DEFAULT_PLANNED_WORK_HOURS,
-    actualHours: 0,
+    actualHours: DEFAULT_PLANNED_WORK_HOURS,
     totalStops: 0,
     workDespiteVacation: false,
     notes: null

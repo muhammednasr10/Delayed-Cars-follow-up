@@ -25,12 +25,14 @@ import {
   buildAchievedByModelIdFromExitRecords,
   buildAnnualSectionsFromMonthlyPlans,
   buildPlanSections,
+  onlyActiveParentSections,
   planProgressPercent,
   sumPlanSectionsAchieved,
   sumPlanSectionsPlanned,
   sumPlanSectionsWip,
   type PlanSection
 } from '../Utils/productionPlanSummary'
+import { overlayPlanBundles, readPlanBundles } from '../Utils/planBundles'
 import type { PlanEntryMode } from '../Components/production/ProductionPlanEntryModal'
 import { buildPlanOrdersCoverage, coverageByKey } from '../Utils/planOrdersCoverage'
 import { orderVisibleInPlanMonth } from '../Utils/productionOrderMonth'
@@ -74,6 +76,7 @@ export function useProductionPlanOrders(view: 'plan' | 'orders') {
   const [models, setModels] = useState<VehicleModel[]>([])
   const [vehicleColors, setVehicleColors] = useState<VehicleColor[]>([])
   const [planTargets, setPlanTargets] = useState<Map<string, number>>(new Map())
+  const [planGroupByModel, setPlanGroupByModel] = useState<Map<string, string>>(new Map())
   const [annualSections, setAnnualSections] = useState<PlanSection[]>([])
   const [wipCarryover, setWipCarryover] = useState<Map<string, number>>(new Map())
   const [achievedByModelId, setAchievedByModelId] = useState<Map<string, number>>(new Map())
@@ -155,8 +158,12 @@ export function useProductionPlanOrders(view: 'plan' | 'orders') {
   }, [orders, planYear, planMonth, assemblyEntryByOrderId, assemblyEntrySort])
 
   const planSections = useMemo(
-    () => buildPlanSections(models, planTargets, achievedByModelId, wipCarryover),
-    [models, planTargets, achievedByModelId, wipCarryover]
+    () =>
+      onlyActiveParentSections(
+        buildPlanSections(models, planTargets, achievedByModelId, wipCarryover, planGroupByModel),
+        models
+      ),
+    [models, planTargets, achievedByModelId, wipCarryover, planGroupByModel]
   )
 
   const planMonthValue = `${planYear}-${String(planMonth).padStart(2, '0')}`
@@ -226,8 +233,14 @@ export function useProductionPlanOrders(view: 'plan' | 'orders') {
       setOrders(orderRows)
       setModels(modelRows)
       setVehicleColors(colorRows)
-      setPlanTargets(planTargetsMap(dbTargets))
-      setWipCarryover(wipCarryoverMap(dbTargets))
+      const painted = overlayPlanBundles(
+        planTargetsMap(dbTargets),
+        wipCarryoverMap(dbTargets),
+        readPlanBundles(planYear, planMonth)
+      )
+      setPlanTargets(painted.targets)
+      setPlanGroupByModel(painted.groups)
+      setWipCarryover(painted.wip)
       setAvailableDays(workConfig?.availableDays ?? 0)
       setAvailableHours(workConfig?.availableHours ?? 0)
       setLineJph(workConfig?.lineJph ?? 0)
@@ -236,7 +249,12 @@ export function useProductionPlanOrders(view: 'plan' | 'orders') {
       } else {
         setAchievedByModelId(new Map())
       }
-      setAnnualSections(buildAnnualSectionsFromMonthlyPlans(modelRows, yearMonthlyTargets, yearExitRows))
+      setAnnualSections(
+        onlyActiveParentSections(
+          buildAnnualSectionsFromMonthlyPlans(modelRows, yearMonthlyTargets, yearExitRows),
+          modelRows
+        )
+      )
       setError('')
     } catch (e) {
       setError(e instanceof Error ? e.message : t('common.error'))
@@ -493,3 +511,5 @@ export function useProductionPlanOrders(view: 'plan' | 'orders') {
     ordersExportRows
   }
 }
+
+export type ProductionPlanOrdersState = ReturnType<typeof useProductionPlanOrders>

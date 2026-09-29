@@ -208,6 +208,11 @@ export const PERMISSIONS_MATRIX_TREE: MatrixTreeNode[] = [
             pagePerm: 'production_missing__summary'
           },
           {
+            id: 'mp_report',
+            labelKey: 'mp.tabs.report',
+            pagePerm: 'production_missing__report'
+          },
+          {
             id: 'mp_history',
             labelKey: 'mp.tabs.history',
             pagePerm: 'production_missing__history'

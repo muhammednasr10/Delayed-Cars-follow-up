@@ -25,6 +25,7 @@ import type { Employee, EmployeeInput } from '../../Types/employee'
 import type { FactoryOrgUnit } from '../../Types/factoryOrg'
 import type { WorkArea } from '../../Types/settings'
 import { employeeMatchesOrgFilter } from '../../Utils/employeeOrgPicker'
+import { excludeAncestorManagers } from '../../Utils/employeeHierarchy'
 import { assemblyOrgPath, filterAssemblyWorkforce } from '../../Utils/assemblyWorkforce'
 import { isCurrentRosterEmployee, isFormerEmployee } from '../../Utils/employeeRoster'
 import { getWorkAreas } from '../../services/settingsService'
@@ -43,7 +44,7 @@ export function OrgStructurePage({
   rosterMode?: RosterMode
 }) {
   const { t } = useLang()
-  const { hasRole } = useAuth()
+  const { hasRole, profile } = useAuth()
   const { hasPermission } = usePermissions()
   const canCreate = hasRole('admin') || hasPermission('employees', 'create')
   const canUpdate = hasRole('admin') || hasPermission('employees', 'update')
@@ -88,10 +89,14 @@ export function OrgStructurePage({
   )
   const { scopedEmployees: assemblyScoped, isScopedView, scopeLabel } = useAssemblyWorkforceScope(assemblyBase)
   const workforceEmployees = isAssemblyScope ? assemblyScoped : employees
+  const rosterEmployees = useMemo(
+    () => excludeAncestorManagers(workforceEmployees, profile?.employee_id ?? null),
+    [workforceEmployees, profile?.employee_id]
+  )
 
   const filtered = useMemo(() => {
     const term = filters.search.trim().toLowerCase()
-    return workforceEmployees.filter(e => {
+    return rosterEmployees.filter(e => {
       if (isFormerRoster ? !isFormerEmployee(e) : !isCurrentRosterEmployee(e)) return false
       if (term && !e.fullName.toLowerCase().includes(term) && !e.employeeCode.toLowerCase().includes(term)) return false
       if (filters.role && e.jobRole !== filters.role) return false
@@ -100,7 +105,7 @@ export function OrgStructurePage({
       if (filters.status === 'inactive' && e.isActive) return false
       return true
     })
-  }, [workforceEmployees, filters, orgUnits, isFormerRoster])
+  }, [rosterEmployees, filters, orgUnits, isFormerRoster])
 
   function flash(msg: string) {
     setSuccess(msg)

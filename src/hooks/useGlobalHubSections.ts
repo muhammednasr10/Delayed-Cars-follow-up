@@ -103,7 +103,7 @@ export function useGlobalHubSections(refreshKey = 0) {
         icon: LayoutGrid,
         tone: 'text-violet-300 bg-violet-500/15',
         accent: 'violet' as const,
-        onClick: () => go({ department: 'planning', planningTab: 'plan', planScope: 'hub', showGlobalHome: false }),
+        onClick: () => go({ department: 'planning', planningTab: 'plan', planScope: 'monthly', showGlobalHome: false }),
         statsLayout: 'stack',
         stats: [
           {
