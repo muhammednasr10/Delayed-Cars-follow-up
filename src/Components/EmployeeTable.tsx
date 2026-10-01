@@ -1,4 +1,4 @@
-import { LogOut, Mail, Pencil, Phone, Power, PowerOff } from 'lucide-react'
+import { LogOut, Mail, Pencil, Phone, Power, PowerOff, Trash2 } from 'lucide-react'
 import { useLang } from '../i18n/LanguageContext'
 import { ActiveBadge, EmploymentStatusBadge, JobRoleBadge } from './EmployeeBadges'
 import { isFormerEmployee } from '../Utils/employeeRoster'
@@ -10,9 +10,11 @@ type Props = {
   canEdit: boolean
   canToggle: boolean
   canLeaveWork: boolean
+  canDelete: boolean
   onEdit: (e: Employee) => void
   onToggleActive: (e: Employee) => void
   onLeaveWork: (e: Employee) => void
+  onDelete: (e: Employee) => void
 }
 
 function formatDepartureDate(value: string | null, lang: string): string {
@@ -28,13 +30,15 @@ export function EmployeeTable({
   canEdit,
   canToggle,
   canLeaveWork,
+  canDelete,
   onEdit,
   onToggleActive,
-  onLeaveWork
+  onLeaveWork,
+  onDelete
 }: Props) {
   const { t, lang } = useLang()
   const isFormerView = rosterVariant === 'former'
-  const showActions = canEdit || canToggle || (canLeaveWork && !isFormerView)
+  const showActions = canEdit || canToggle || canDelete || (canLeaveWork && !isFormerView)
 
   const baseCols = ['code', 'name', 'role', 'assignmentStatus', 'orgUnit', 'manager', 'contact'] as const
   const formerCols = ['employmentStatus', 'departureDate', 'departureReason'] as const
@@ -153,6 +157,15 @@ export function EmployeeTable({
                         className="rounded-lg bg-violet-500/15 p-2 text-violet-200 hover:bg-violet-500/25"
                       >
                         <LogOut className="h-4 w-4" />
+                      </button>
+                    )}
+                    {canDelete && (
+                      <button
+                        onClick={() => onDelete(e)}
+                        title={t('org.deleteTitle')}
+                        className="rounded-lg bg-red-500/15 p-2 text-red-200 hover:bg-red-500/25"
+                      >
+                        <Trash2 className="h-4 w-4" />
                       </button>
                     )}
                   </div>

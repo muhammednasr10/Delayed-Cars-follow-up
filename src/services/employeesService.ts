@@ -200,6 +200,11 @@ export async function bulkCreateEmployees(inputs: EmployeeInput[]): Promise<{ im
   return { imported, errors }
 }
 
+export async function deleteEmployee(id: string): Promise<void> {
+  const { error } = await requireClient().from('employees').delete().eq('id', id)
+  if (error) throw new Error(translateError(error))
+}
+
 export async function updateEmployee(id: string, input: EmployeeInput): Promise<void> {
   const { error } = await requireClient().from('employees').update(toPayload(input)).eq('id', id)
   if (error) throw new Error(translateError(error))
@@ -244,6 +249,7 @@ export async function endEmployeeEmployment(employeeId: string, reason: string, 
 function translateError(error: { code?: string; message?: string; details?: string }): string {
   const msg = error.message || 'Request failed'
   if (msg.includes('Circular management hierarchy')) return 'MANAGER_CYCLE'
+  if (error.code === '23503') return 'EMPLOYEE_IN_USE'
   if (error.code === '23505') {
     const detail = `${msg} ${error.details ?? ''}`.toLowerCase()
     if (detail.includes('employee_code') || detail.includes('employees_employee_code')) {

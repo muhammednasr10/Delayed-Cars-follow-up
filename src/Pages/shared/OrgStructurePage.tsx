@@ -7,6 +7,7 @@ import { useEmployees } from '../../hooks/useEmployees'
 import { getFactoryOrgUnits } from '../../services/factoryOrgService'
 import {
   createEmployee,
+  deleteEmployee,
   endEmployeeEmployment,
   reactivateEmployee,
   suspendEmployee,
@@ -20,6 +21,7 @@ import { EmployeeTable } from '../../Components/EmployeeTable'
 import { EmployeeOrgChart } from '../../Components/EmployeeOrgChart'
 import { EmployeeForm, type EmployeeFormSubmitResult } from '../../Components/EmployeeForm'
 import { EmployeeImportModal } from '../../Components/EmployeeImportModal'
+import { ConfirmDialog } from '../../Components/ConfirmDialog'
 import { ExportableTable } from '../../Components/ExportableTable'
 import type { Employee, EmployeeInput } from '../../Types/employee'
 import type { FactoryOrgUnit } from '../../Types/factoryOrg'
@@ -63,6 +65,7 @@ export function OrgStructurePage({
   const [saving, setSaving] = useState(false)
   const [toggleTarget, setToggleTarget] = useState<Employee | null>(null)
   const [leaveTarget, setLeaveTarget] = useState<Employee | null>(null)
+  const [deleteTarget, setDeleteTarget] = useState<Employee | null>(null)
   const [suspendReason, setSuspendReason] = useState('')
   const [leaveReason, setLeaveReason] = useState('')
   const [blockLinkedUser, setBlockLinkedUser] = useState(true)
@@ -169,6 +172,24 @@ export function OrgStructurePage({
       setSuspendReason('')
     } catch (e) {
       setActionError(e instanceof Error ? e.message : t('common.error'))
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  async function confirmDelete() {
+    if (!deleteTarget) return
+    setSaving(true)
+    setActionError('')
+    try {
+      await deleteEmployee(deleteTarget.id)
+      await reload()
+      flash(t('org.deleteDone'))
+      setDeleteTarget(null)
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : t('common.error')
+      setDeleteTarget(null)
+      setActionError(msg === 'EMPLOYEE_IN_USE' ? t('org.err.deleteInUse') : msg)
     } finally {
       setSaving(false)
     }
@@ -293,9 +314,11 @@ export function OrgStructurePage({
               canEdit={canUpdate}
               canToggle={canUpdate || canDelete}
               canLeaveWork={(canUpdate || canDelete) && !isAssemblyScope}
+              canDelete={canDelete && !isAssemblyScope}
               onEdit={openEdit}
               onToggleActive={setToggleTarget}
               onLeaveWork={setLeaveTarget}
+              onDelete={setDeleteTarget}
             />
           </ExportableTable>
         )}
@@ -384,6 +407,17 @@ export function OrgStructurePage({
           </div>
         )}
       </Modal>
+
+      <ConfirmDialog
+        open={Boolean(deleteTarget)}
+        title={t('org.deleteTitle')}
+        message={t('org.deleteConfirm', { name: deleteTarget?.fullName ?? '' })}
+        confirmLabel={t('common.delete')}
+        cancelLabel={t('common.cancel')}
+        busy={saving}
+        onConfirm={() => void confirmDelete()}
+        onCancel={() => setDeleteTarget(null)}
+      />
 
       <Modal
         open={Boolean(leaveTarget)}

@@ -2250,6 +2250,9 @@ export const translations = {
         'سيُنقل الموظف إلى «الموظفون السابقون» ولن يظهر في قوائم العمالة النشطة. يمكن إعادته لاحقاً من تبويب السابقين.',
       leaveWorkReason: 'سبب المغادرة',
       leaveWorkDone: 'تم تسجيل مغادرة الموظف.',
+      deleteTitle: 'حذف الموظف',
+      deleteConfirm: 'حذف الموظف «{name}» نهائياً؟ لا يمكن التراجع.',
+      deleteDone: 'تم حذف الموظف.',
       tabs: { current: 'الموظفون الحاليون', former: 'الموظفون السابقون' },
       formerSubtitle: 'من تركوا العمل نهائياً — استبعاد، استقالة، أو إنهاء خدمة.',
       formerEmpty: 'لا يوجد موظفون سابقون مسجلون.',
@@ -2332,7 +2335,8 @@ export const translations = {
         selfManager: 'لا يمكن أن يكون الموظف مديراً لنفسه.',
         managerInactive: 'المدير المباشر يجب أن يكون مفعّلاً.',
         duplicateCode: 'كود الموظف مستخدم بالفعل.',
-        managerCycle: 'لا يمكن إنشاء حلقة في التسلسل الإداري.'
+        managerCycle: 'لا يمكن إنشاء حلقة في التسلسل الإداري.',
+        deleteInUse: 'لا يمكن حذف هذا الموظف لأنه مرتبط بسجلات أخرى مثل المهام أو الطلبات.'
       },
       noPerm: 'عرض فقط — التعديل متاح للمدير/الموارد البشرية.',
       empty: 'لا يوجد موظفون مسجلون بعد.'
@@ -5946,6 +5950,9 @@ export const translations = {
         'The employee moves to «Former employees» and drops off active workforce lists. You can restore them later from that tab.',
       leaveWorkReason: 'Departure reason',
       leaveWorkDone: 'Employee departure recorded.',
+      deleteTitle: 'Delete employee',
+      deleteConfirm: 'Permanently delete «{name}»? This cannot be undone.',
+      deleteDone: 'Employee deleted.',
       tabs: { current: 'Current employees', former: 'Former employees' },
       formerSubtitle: 'Permanent departures — resignation, termination, or end of employment.',
       formerEmpty: 'No former employees on record.',
@@ -6028,7 +6035,8 @@ export const translations = {
         selfManager: 'An employee cannot manage themselves.',
         managerInactive: 'Direct manager must be active.',
         duplicateCode: 'Employee code already exists.',
-        managerCycle: 'Circular management hierarchy is not allowed.'
+        managerCycle: 'Circular management hierarchy is not allowed.',
+        deleteInUse: 'This employee cannot be deleted because they are linked to other records such as missions or requests.'
       },
       noPerm: 'View only — editing is restricted to managers/HR.',
       empty: 'No employees registered yet.'
