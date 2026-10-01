@@ -1,9 +1,17 @@
-import { useMemo } from 'react'
+import { useMemo, useState } from 'react'
 import { Users } from 'lucide-react'
 import { useLang } from '../i18n/LanguageContext'
 import { ATTENDANCE_STATUSES, type AttendanceDayStatus } from '../Types/attendance'
+import type { Employee } from '../Types/employee'
+import {
+  ATTENDANCE_AREA_KEYS,
+  employeeAttendanceArea,
+  type AttendanceAreaKey
+} from '../Utils/attendanceAreaBreakdown'
+import { Modal } from './Modal'
 
-type Row = { status: AttendanceDayStatus }
+type Row = { employeeId: string; status: AttendanceDayStatus }
+type CardKey = 'total' | AttendanceDayStatus
 
 const STATUS_STYLE: Record<AttendanceDayStatus, { card: string; value: string; dot: string }> = {
   present: {
@@ -40,11 +48,15 @@ const STATUS_STYLE: Record<AttendanceDayStatus, { card: string; value: string; d
 
 type Props = {
   rows: Row[]
+  employees: Employee[]
   loading?: boolean
 }
 
-export function TodayAttendanceSummary({ rows, loading }: Props) {
+export function TodayAttendanceSummary({ rows, employees, loading }: Props) {
   const { t } = useLang()
+  const [openKey, setOpenKey] = useState<CardKey | null>(null)
+
+  const employeeById = useMemo(() => new Map(employees.map(employee => [employee.id, employee])), [employees])
 
   const counts = useMemo(() => {
     const byStatus = Object.fromEntries(ATTENDANCE_STATUSES.map(s => [s, 0])) as Record<AttendanceDayStatus, number>
@@ -57,8 +69,18 @@ export function TodayAttendanceSummary({ rows, loading }: Props) {
     return { total, onSite, away, byStatus }
   }, [rows])
 
+  const areaCounts = useMemo(() => {
+    const scoped = openKey == null || openKey === 'total' ? rows : rows.filter(row => row.status === openKey)
+    const byArea = { trimA: 0, trimB: 0, chassis: 0, final: 0, other: 0 } satisfies Record<AttendanceAreaKey, number>
+    for (const row of scoped) {
+      const area = employeeAttendanceArea(employeeById.get(row.employeeId))
+      byArea[area] += 1
+    }
+    return byArea
+  }, [rows, openKey, employeeById])
+
   const cards: {
-    key: string
+    key: CardKey
     label: string
     value: number
     style?: (typeof STATUS_STYLE)[AttendanceDayStatus]
@@ -78,6 +100,8 @@ export function TodayAttendanceSummary({ rows, loading }: Props) {
     }))
   ]
 
+  const openCard = cards.find(card => card.key === openKey) ?? null
+
   return (
     <section className="rounded-2xl border border-slate-700/80 bg-slate-900/40 p-4">
       <div className="mb-3 flex items-center gap-2">
@@ -88,14 +112,18 @@ export function TodayAttendanceSummary({ rows, loading }: Props) {
       <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-8">
         {cards.map(card => {
           const style = card.style
+          const selected = openKey === card.key
           return (
-            <div
+            <button
               key={card.key}
-              className={`rounded-xl border px-3 py-2.5 ${
+              type="button"
+              disabled={loading}
+              onClick={() => setOpenKey(card.key)}
+              className={`rounded-xl border px-3 py-2.5 text-start transition hover:brightness-125 disabled:cursor-wait ${
                 card.highlight
                   ? 'border-cyan-500/30 bg-cyan-500/10'
                   : (style?.card ?? 'border-slate-700 bg-slate-950/50')
-              }`}
+              } ${selected ? 'ring-2 ring-white/70' : ''}`}
             >
               <p className="flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-wide text-slate-400">
                 {style && <span className={`h-1.5 w-1.5 shrink-0 rounded-full ${style.dot}`} />}
@@ -108,7 +136,7 @@ export function TodayAttendanceSummary({ rows, loading }: Props) {
               >
                 {loading ? '—' : card.value}
               </p>
-            </div>
+            </button>
           )
         })}
       </div>
@@ -121,6 +149,29 @@ export function TodayAttendanceSummary({ rows, loading }: Props) {
           })}
         </p>
       )}
+
+      <Modal
+        open={openCard != null && !loading}
+        title={openCard?.label ?? ''}
+        subtitle={t('attendance.today.summary.detailHint')}
+        onClose={() => setOpenKey(null)}
+        maxWidthClass="max-w-xl"
+      >
+        <div className="grid grid-cols-2 gap-3">
+          {ATTENDANCE_AREA_KEYS.map(area => (
+            <div key={area} className="rounded-xl border border-slate-700 bg-slate-950/60 px-4 py-3">
+              <p className="text-xs font-bold text-slate-400">{t(`attendance.today.summary.areas.${area}`)}</p>
+              <p className="mt-1 text-3xl font-black tabular-nums text-white">{areaCounts[area]}</p>
+            </div>
+          ))}
+          {areaCounts.other > 0 && (
+            <div className="col-span-2 rounded-xl border border-slate-700 bg-slate-950/40 px-4 py-3">
+              <p className="text-xs font-bold text-slate-400">{t('attendance.today.summary.other')}</p>
+              <p className="mt-1 text-2xl font-black tabular-nums text-slate-200">{areaCounts.other}</p>
+            </div>
+          )}
+        </div>
+      </Modal>
     </section>
   )
 }

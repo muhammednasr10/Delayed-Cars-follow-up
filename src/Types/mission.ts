@@ -69,6 +69,14 @@ export type TeamMission = {
 
   sourceModelName: string | null
 
+  parentModelId: string | null
+
+  parentModelName: string | null
+
+  variantModelId: string | null
+
+  variantModelName: string | null
+
   createdAt: string
 
   updatedAt: string
@@ -102,6 +110,10 @@ export type TeamMissionInput = {
   sourceVin?: string | null
 
   sourceModelName?: string | null
+
+  parentModelId?: string | null
+
+  variantModelId?: string | null
 }
 
 export type MissionLeaderboardRow = {

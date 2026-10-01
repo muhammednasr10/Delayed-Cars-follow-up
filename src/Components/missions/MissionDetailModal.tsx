@@ -140,6 +140,12 @@ export function MissionDetailModal({
     >
       <div className="space-y-3">
         <Field label={t('missions.cols.title')} value={mission.title} />
+        {(mission.parentModelName || mission.variantModelName) && (
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+            <Field label={t('missions.cols.parentModel')} value={mission.parentModelName || '—'} />
+            <Field label={t('missions.cols.variantModel')} value={mission.variantModelName || '—'} />
+          </div>
+        )}
         <Field
           label={t('missions.cols.assignee')}
           value={formatPeopleList(mission.assignees.length ? mission.assignees : [{ id: mission.assigneeId, name: mission.assigneeName, code: mission.assigneeCode }])}

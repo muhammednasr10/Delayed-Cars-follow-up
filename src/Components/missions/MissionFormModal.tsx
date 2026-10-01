@@ -1,11 +1,13 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { ListTodo } from 'lucide-react'
 import { useLang } from '../../i18n/LanguageContext'
 import { Modal } from '../Modal'
 import { Field, inputCls } from '../FormField'
 import { EmployeeMultiSelect } from '../EmployeeMultiSelect'
 import { isAutoRecurringType } from '../../Utils/missionRecurrence'
+import { getVehicleModels } from '../../services/settingsService'
 import type { Employee } from '../../Types/employee'
+import type { VehicleModel } from '../../Types/settings'
 import type { MissionPriority, MissionRecurrenceType, MissionStatus, TeamMission, TeamMissionInput } from '../../Types/mission'
 import { MISSION_PRIORITIES, MISSION_RECURRENCE_TYPES, MISSION_STATUSES } from '../../Types/mission'
 
@@ -24,7 +26,9 @@ function emptyForm(): TeamMissionInput {
     dueDate: todayIsoDate(),
     recurrenceType: 'none',
     recurrenceCustom: '',
-    notes: ''
+    notes: '',
+    parentModelId: null,
+    variantModelId: null
   }
 }
 
@@ -52,6 +56,7 @@ export function MissionFormModal({
   const { t } = useLang()
   const [form, setForm] = useState<TeamMissionInput>(emptyForm())
   const [error, setError] = useState('')
+  const [models, setModels] = useState<VehicleModel[]>([])
 
   const activeEmployees = employees.filter(e => e.isActive)
 
@@ -67,13 +72,43 @@ export function MissionFormModal({
         dueDate: editing.dueDate ?? todayIsoDate(),
         recurrenceType: editing.recurrenceType ?? 'none',
         recurrenceCustom: editing.recurrenceCustom ?? '',
-        notes: editing.notes ?? ''
+        notes: editing.notes ?? '',
+        parentModelId: editing.parentModelId,
+        variantModelId: editing.variantModelId
       })
     } else {
       setForm({ ...emptyForm(), title: defaultTitle?.trim() ?? '' })
     }
     setError('')
   }, [open, editing, defaultTitle])
+
+  useEffect(() => {
+    if (!open) return
+    getVehicleModels({ includeInactive: true })
+      .then(setModels)
+      .catch(() => setModels([]))
+  }, [open])
+
+  const families = useMemo(
+    () =>
+      models
+        .filter(model => model.model_kind === 'family' && (model.is_active || model.id === form.parentModelId))
+        .sort((a, b) => a.name.localeCompare(b.name, 'ar')),
+    [models, form.parentModelId]
+  )
+
+  const variants = useMemo(
+    () =>
+      models
+        .filter(
+          model =>
+            model.model_kind === 'variant' &&
+            model.parent_model_id === form.parentModelId &&
+            (model.is_active || model.id === form.variantModelId)
+        )
+        .sort((a, b) => a.name.localeCompare(b.name, 'ar')),
+    [models, form.parentModelId, form.variantModelId]
+  )
 
   function validate(): string | null {
     if (!form.title.trim()) return t('missions.errTitle')
@@ -88,18 +123,27 @@ export function MissionFormModal({
       return
     }
     setError('')
+    const { parentModelId, variantModelId, ...rest } = form
+    const keepModels = Boolean(parentModelId || variantModelId || editing?.parentModelId || editing?.variantModelId)
     try {
       await onSave({
-        ...form,
+        ...rest,
         title: form.title.trim(),
         description: form.description?.trim() || undefined,
         dueDate: form.dueDate || null,
         recurrenceType: form.recurrenceType ?? 'none',
         recurrenceCustom: form.recurrenceType === 'custom' ? form.recurrenceCustom?.trim() || null : null,
-        notes: form.notes?.trim() || undefined
+        notes: form.notes?.trim() || undefined,
+        ...(keepModels
+          ? {
+              parentModelId: parentModelId || null,
+              variantModelId: parentModelId ? variantModelId || null : null
+            }
+          : {})
       })
     } catch (e) {
-      setError(e instanceof Error ? e.message : t('common.error'))
+      const msg = e instanceof Error ? e.message : t('common.error')
+      setError(msg === 'MISSION_MODELS_SCHEMA' ? t('missions.errModelsSchema') : msg)
     }
   }
 
@@ -152,6 +196,44 @@ export function MissionFormModal({
             onChange={e => setForm(f => ({ ...f, description: e.target.value }))}
           />
         </Field>
+
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+          <Field label={t('missions.cols.parentModel')}>
+            <select
+              className={inputCls()}
+              value={form.parentModelId ?? ''}
+              onChange={e =>
+                setForm(f => ({
+                  ...f,
+                  parentModelId: e.target.value || null,
+                  variantModelId: null
+                }))
+              }
+            >
+              <option value="">{t('missions.selectParentModel')}</option>
+              {families.map(model => (
+                <option key={model.id} value={model.id}>
+                  {model.name}
+                </option>
+              ))}
+            </select>
+          </Field>
+          <Field label={t('missions.cols.variantModel')}>
+            <select
+              className={inputCls()}
+              value={form.variantModelId ?? ''}
+              disabled={!form.parentModelId}
+              onChange={e => setForm(f => ({ ...f, variantModelId: e.target.value || null }))}
+            >
+              <option value="">{t('missions.selectVariantModel')}</option>
+              {variants.map(model => (
+                <option key={model.id} value={model.id}>
+                  {model.name}
+                </option>
+              ))}
+            </select>
+          </Field>
+        </div>
 
         <Field label={t('missions.cols.assignees')} required>
           <EmployeeMultiSelect

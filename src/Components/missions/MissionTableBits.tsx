@@ -86,10 +86,15 @@ export function MissionTitleCell({
   const shortage = missionShortageLabel(row.sourceVin, row.sourceModelName)
   return (
     <td className={className}>
-      <p className="font-bold text-white">{row.title}</p>
+      <p className="whitespace-normal break-words font-bold text-white">{row.title}</p>
       {shortage && (
         <p className="mt-0.5 font-mono text-[11px] text-amber-200/90" dir="ltr">
           {shortage}
+        </p>
+      )}
+      {(row.parentModelName || row.variantModelName) && (
+        <p className="mt-0.5 text-[11px] font-bold text-cyan-200/90">
+          {[row.parentModelName, row.variantModelName].filter(Boolean).join(' · ')}
         </p>
       )}
       {showDescription && row.description ? (

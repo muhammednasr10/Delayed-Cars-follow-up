@@ -260,6 +260,9 @@ export const translations = {
       filterClear: 'مسح التصفية',
       errTitle: 'عنوان المهمة مطلوب.',
       errAssignee: 'يجب اختيار الموظف المكلف.',
+      selectParentModel: 'اختر موديل الأب',
+      errModelsSchema: 'تعذّر حفظ الموديل لأن تحديث قاعدة البيانات لم يكتمل بعد.',
+      selectVariantModel: 'اختر موديل الفرع',
       deleteTitle: 'حذف المهمة',
       deleteConfirm: 'حذف المهمة «{title}»؟',
       setupTitle: 'جدول المهمات غير مُفعّل',
@@ -283,6 +286,8 @@ export const translations = {
         status: 'الحالة',
         createdAt: 'تاريخ الإنشاء',
         createdBy: 'أنشأها',
+        parentModel: 'موديل الأب',
+        variantModel: 'موديل الفرع',
         rank: 'الترتيب',
         completed: 'المكتمل',
         active: 'النشط'
@@ -1434,7 +1439,15 @@ export const translations = {
           title: 'ملخص اليوم',
           total: 'إجمالي العمالة',
           onSite: 'في العمل (حاضر + تأخير + إذن)',
-          footnote: 'في العمل: {onSite} — غائب/إجازة/مرضى: {away} من {total}'
+          footnote: 'في العمل: {onSite} — غائب/إجازة/مرضى: {away} من {total}',
+          detailHint: 'التوزيع حسب القسم',
+          other: 'غير مصنف',
+          areas: {
+            trimA: 'تريم أ',
+            trimB: 'تريم ب',
+            chassis: 'الشاسيه',
+            final: 'الفاينال'
+          }
         }
       },
       monthEditor: 'تسجيل الشهر يوماً بيوم',
@@ -2086,6 +2099,8 @@ export const translations = {
         saveAll: 'حفظ كل التعديلات',
         partRequired: 'وصف السبب مطلوب.',
         nothingChanged: 'لم يتغيّر شيء.',
+        resolvedAt: 'تاريخ الإنهاء',
+        resolvedAtRequired: 'حدد تاريخ إنهاء السيارة.',
         qtyBelowInstalled: 'الكمية المطلوبة لا يمكن أن تقل عن المُركّب.',
         newIssue: 'سبب جديد',
         addVin: 'إضافة شاسيه',
@@ -3947,6 +3962,9 @@ export const translations = {
       filterClear: 'Clear filters',
       errTitle: 'Mission title is required.',
       errAssignee: 'Assignee is required.',
+      selectParentModel: 'Select parent model',
+      errModelsSchema: 'The model could not be saved because the database update is not in place yet.',
+      selectVariantModel: 'Select variant model',
       deleteTitle: 'Delete mission',
       deleteConfirm: 'Delete mission «{title}»?',
       setupTitle: 'Missions table not set up',
@@ -3970,6 +3988,8 @@ export const translations = {
         status: 'Status',
         createdAt: 'Created at',
         createdBy: 'Created by',
+        parentModel: 'Parent model',
+        variantModel: 'Variant model',
         rank: 'Rank',
         completed: 'Completed',
         active: 'Active'
@@ -5125,7 +5145,15 @@ export const translations = {
           title: "Today's summary",
           total: 'Total workers',
           onSite: 'On site (present + late + permission)',
-          footnote: 'On site: {onSite} — away/leave/sick: {away} of {total}'
+          footnote: 'On site: {onSite} — away/leave/sick: {away} of {total}',
+          detailHint: 'Breakdown by section',
+          other: 'Unassigned',
+          areas: {
+            trimA: 'Trim A',
+            trimB: 'Trim B',
+            chassis: 'Chassis',
+            final: 'Final'
+          }
         }
       },
       monthEditor: 'Month (day by day)',
@@ -5769,6 +5797,8 @@ export const translations = {
         saveAll: 'Save all changes',
         partRequired: 'Reason description is required.',
         nothingChanged: 'Nothing changed.',
+        resolvedAt: 'Completion date',
+        resolvedAtRequired: 'Set the vehicle completion date.',
         qtyBelowInstalled: 'Required qty cannot be less than installed.',
         newIssue: 'New reason',
         addVin: 'Add chassis',

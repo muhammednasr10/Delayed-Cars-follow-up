@@ -84,6 +84,14 @@ export async function createVehicle(input: VehicleInput): Promise<string> {
   return (data as { id: string }).id
 }
 
+export async function updateVehicleShortageResolvedAt(vehicleId: string, resolvedAtIso: string): Promise<void> {
+  const { error } = await requireClient()
+    .from('vehicles')
+    .update({ shortage_resolved_at: resolvedAtIso })
+    .eq('id', vehicleId)
+  if (error) throw new Error(error.message)
+}
+
 export async function updateVehicle(vehicleId: string, input: VehicleUpdateInput): Promise<void> {
   const patch: Record<string, unknown> = {}
   const changes: string[] = []

@@ -20,7 +20,8 @@ import {
 } from './MissionTableBits'
 import { MissionRowActions } from './MissionRowActions'
 
-const cell = 'table-cell text-center align-middle whitespace-nowrap px-3 py-2.5'
+const cell = 'table-cell text-center align-middle px-3 py-2.5'
+const nowrap = `${cell} whitespace-nowrap`
 
 type Props = {
   query: MissionFilterQuery
@@ -63,19 +64,19 @@ export function MissionsBoardTable({
       <ExportableTable filename="missions" title={t('missions.title')} rowCount={filtered.length}>
         <p className="border-b border-slate-800 px-4 py-2 text-xs text-slate-500">{t('missions.my.rowHint')}</p>
         <div className="overflow-x-auto">
-          <table className="w-full text-center text-sm">
+          <table className="w-full min-w-[1100px] text-center text-sm">
             <thead className="bg-slate-950/90">
               <tr>
-                <th className={`${cell} font-black text-slate-400`}>{t('missions.cols.createdAt')}</th>
-                <th className={`${cell} font-black text-slate-400`}>{t('missions.cols.createdBy')}</th>
-                <th className={`${cell} font-black text-slate-400`}>{t('missions.cols.title')}</th>
-                <th className={`${cell} font-black text-slate-400`}>{t('missions.cols.assignee')}</th>
-                <th className={`${cell} font-black text-slate-400`}>{t('missions.cols.priority')}</th>
-                <th className={`${cell} font-black text-slate-400`}>{t('missions.cols.dueDate')}</th>
-                <th className={`${cell} font-black text-slate-400`}>{t('missions.cols.recurrence')}</th>
-                <th className={`${cell} font-black text-slate-400`}>{t('missions.cols.status')}</th>
+                <th className={`${nowrap} font-black text-slate-400`}>{t('missions.cols.createdAt')}</th>
+                <th className={`${nowrap} font-black text-slate-400`}>{t('missions.cols.createdBy')}</th>
+                <th className={`${cell} min-w-[14rem] max-w-[18rem] font-black text-slate-400`}>{t('missions.cols.title')}</th>
+                <th className={`${cell} min-w-[9rem] font-black text-slate-400`}>{t('missions.cols.assignee')}</th>
+                <th className={`${nowrap} font-black text-slate-400`}>{t('missions.cols.priority')}</th>
+                <th className={`${nowrap} font-black text-slate-400`}>{t('missions.cols.dueDate')}</th>
+                <th className={`${nowrap} font-black text-slate-400`}>{t('missions.cols.recurrence')}</th>
+                <th className={`${nowrap} font-black text-slate-400`}>{t('missions.cols.status')}</th>
                 {canAssignMissions && (
-                  <th data-export-skip className={`${cell} font-black text-slate-400`}>
+                  <th data-export-skip className={`${nowrap} font-black text-slate-400`}>
                     {t('common.actions')}
                   </th>
                 )}
@@ -99,20 +100,24 @@ export function MissionsBoardTable({
                   const overdue = isMissionOverdue(row)
                   return (
                     <tr key={row.id} className={missionRowClass(overdue, row.status)} onClick={() => onOpenDetail(row)}>
-                      <td className={`${cell} text-slate-300`} dir="ltr">
+                      <td className={`${nowrap} text-slate-300`} dir="ltr">
                         {formatMissionDateTime(row.createdAt, lang)}
                       </td>
-                      <td className={`${cell} text-slate-300`}>{missionCreatorLabel(row.createdByName)}</td>
-                      <MissionTitleCell row={row} showDescription className={`${cell} max-w-[14rem] text-start`} />
-                      <MissionAssigneesCell row={row} className={cell} />
-                      <td className={cell}>
+                      <td className={`${nowrap} text-slate-300`}>{missionCreatorLabel(row.createdByName)}</td>
+                      <MissionTitleCell
+                        row={row}
+                        showDescription
+                        className={`${cell} min-w-[14rem] max-w-[18rem] whitespace-normal break-words text-start`}
+                      />
+                      <MissionAssigneesCell row={row} className={`${cell} min-w-[9rem] whitespace-normal`} />
+                      <td className={nowrap}>
                         <MissionPriorityBadge priority={row.priority} />
                       </td>
-                      <MissionDueCell row={row} className={cell} />
-                      <td className={`${cell} text-slate-300`} title={missionRecurrenceLabel(row, t)}>
+                      <MissionDueCell row={row} className={nowrap} />
+                      <td className={`${nowrap} text-slate-300`} title={missionRecurrenceLabel(row, t)}>
                         {missionRecurrenceLabel(row, t)}
                       </td>
-                      <td className={cell} onClick={e => e.stopPropagation()}>
+                      <td className={nowrap} onClick={e => e.stopPropagation()}>
                         {canAssignMissions ? (
                           <MissionStatusSelect
                             row={row}

@@ -544,7 +544,7 @@ export function TodayAttendanceTab({ employees, canManage, onSaved }: Props) {
         </div>
       )}
 
-      <TodayAttendanceSummary rows={rows} loading={loading} />
+      <TodayAttendanceSummary rows={rows} employees={activeEmployees} loading={loading} />
 
       <TodayAttendanceDefaultsModal
         open={defaultsOpen}
