@@ -5,10 +5,10 @@ import { Modal } from '../Modal'
 import { formatPeopleList, missionCreatorLabel, missionShortageLabel } from '../../Utils/missionPeople'
 import { isMissionOverdue } from '../../Utils/missionDue'
 import { isRecurrenceSeriesRoot, nextAutoRecurrenceDueDate } from '../../Utils/missionRecurrence'
-import { getTeamMissionResponses } from '../../services/missionResponseService'
+import { getMissionTimeline } from '../../services/missionResponseService'
 import { formatMissionDate, formatMissionDateTime, missionRecurrenceLabel } from '../../Utils/missionDisplay'
-import { MissionResponseFileTile } from './MissionResponseFileTile'
-import type { TeamMission, TeamMissionResponse } from '../../Types/mission'
+import { MissionTimeline } from './MissionTimeline'
+import type { MissionTimelineEntry, TeamMission } from '../../Types/mission'
 
 type Props = {
   mission: TeamMission | null
@@ -46,7 +46,7 @@ export function MissionDetailModal({
   refreshKey = 0
 }: Props) {
   const { t, lang } = useLang()
-  const [responses, setResponses] = useState<TeamMissionResponse[]>([])
+  const [responses, setResponses] = useState<MissionTimelineEntry[]>([])
   const [loadingResponses, setLoadingResponses] = useState(false)
   const [responsesError, setResponsesError] = useState('')
 
@@ -60,7 +60,7 @@ export function MissionDetailModal({
     let cancelled = false
     setLoadingResponses(true)
     setResponsesError('')
-    void getTeamMissionResponses(mission.id)
+    void getMissionTimeline(mission.id)
       .then(rows => {
         if (!cancelled) setResponses(rows)
       })
@@ -76,7 +76,7 @@ export function MissionDetailModal({
     return () => {
       cancelled = true
     }
-  }, [mission?.id, refreshKey, t])
+  }, [mission?.id, mission?.updatedAt, refreshKey, t])
 
   if (!mission) return null
 
@@ -146,6 +146,23 @@ export function MissionDetailModal({
             <Field label={t('missions.cols.variantModel')} value={mission.variantModelName || '—'} />
           </div>
         )}
+        {mission.chassisNumbers.length > 0 && (
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+            <Field
+              label={t('missions.cols.vehicleCount')}
+              value={String(mission.vehicleCount ?? mission.chassisNumbers.length)}
+            />
+            <Field label={t('missions.cols.chassisNumbers')} value={mission.chassisNumbers.join(' · ')} dir="ltr" />
+          </div>
+        )}
+        {mission.iplParts.length > 0 && (
+          <Field
+            label={t('missions.cols.iplParts')}
+            value={mission.iplParts
+              .map(part => (part.partName ? `${part.partNumber} ${part.partName}` : part.partNumber))
+              .join(' · ')}
+          />
+        )}
         <Field
           label={t('missions.cols.assignee')}
           value={formatPeopleList(mission.assignees.length ? mission.assignees : [{ id: mission.assigneeId, name: mission.assigneeName, code: mission.assigneeCode }])}
@@ -175,42 +192,7 @@ export function MissionDetailModal({
           <Field label={t('missions.cols.createdBy')} value={missionCreatorLabel(mission.createdByName)} />
           {shortage && <Field label={t('missions.detail.shortage')} value={shortage} dir="ltr" />}
         </div>
-        <div className="rounded-xl border border-slate-800 bg-slate-950/80 px-3 py-2.5 text-start">
-          <p className="text-[11px] font-bold text-slate-500">{t('missions.respond.timeline')}</p>
-          {loadingResponses ? (
-            <p className="mt-2 text-sm text-slate-500">{t('common.loading')}</p>
-          ) : responsesError ? (
-            <p className="mt-2 text-sm font-bold text-red-300">{responsesError}</p>
-          ) : responses.length === 0 ? (
-            <p className="mt-2 text-sm text-slate-500">{t('missions.respond.empty')}</p>
-          ) : (
-            <ul className="mt-2 space-y-2">
-              {responses.map(item => (
-                <li key={item.id} className="rounded-lg border border-slate-800 bg-slate-900/70 px-3 py-2">
-                  <div className="flex flex-wrap items-baseline justify-between gap-2">
-                    <p className="text-sm font-bold text-slate-100">{item.authorName}</p>
-                    <p className="text-[11px] text-slate-500" dir="ltr">
-                      {formatMissionDateTime(item.createdAt, lang)}
-                    </p>
-                  </div>
-                  <p className="mt-1 whitespace-pre-wrap text-sm text-slate-300">{item.body}</p>
-                  {item.attachments.length > 0 && (
-                    <div className="mt-2 flex flex-wrap gap-2">
-                      {item.attachments.map(file => (
-                        <MissionResponseFileTile
-                          key={file.id}
-                          url={file.url}
-                          fileName={file.fileName}
-                          mimeType={file.mimeType}
-                        />
-                      ))}
-                    </div>
-                  )}
-                </li>
-              ))}
-            </ul>
-          )}
-        </div>
+        <MissionTimeline entries={responses} loading={loadingResponses} error={responsesError} />
       </div>
     </Modal>
   )

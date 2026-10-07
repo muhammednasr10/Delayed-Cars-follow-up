@@ -9,6 +9,7 @@ import { mainPartsForReportGroup } from '../../Utils/shortageGroupDisplay'
 import {
   actionsCell,
   cell,
+  earliestCreatedAt,
   formatDateTime,
   isMissingPartRowOpen,
   completerNames,
@@ -476,14 +477,6 @@ function PartDataRow({
       )}
     </tr>
   )
-}
-
-function earliestCreatedAt(parts: MissingPartDetail[]): string {
-  let min = parts[0]?.createdAt ?? ''
-  for (const part of parts) {
-    if (part.createdAt && (!min || part.createdAt < min)) min = part.createdAt
-  }
-  return min
 }
 
 function DateTimeCell({ iso, lang }: { iso: string; lang: string }) {

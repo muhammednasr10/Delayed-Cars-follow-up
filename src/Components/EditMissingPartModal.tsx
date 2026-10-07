@@ -69,6 +69,16 @@ export function EditMissingPartModal({ vehicle, activeListParts = [], onClose, o
                 placeholder="0000"
               />
             </Field>
+            {form.canEditEntryDate && (
+              <Field label={t('mp.edit.entryDate')} required>
+                <input
+                  type="datetime-local"
+                  className="input-dark"
+                  value={form.entryLocal}
+                  onChange={e => form.setEntryLocal(e.target.value)}
+                />
+              </Field>
+            )}
             {form.canEditResolvedAt && (
               <Field label={t('mp.edit.resolvedAt')} required>
                 <input

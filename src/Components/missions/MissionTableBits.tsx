@@ -97,6 +97,16 @@ export function MissionTitleCell({
           {[row.parentModelName, row.variantModelName].filter(Boolean).join(' · ')}
         </p>
       )}
+      {row.chassisNumbers.length > 0 && (
+        <p className="mt-0.5 whitespace-normal break-words font-mono text-[11px] text-slate-300" dir="ltr">
+          {row.chassisNumbers.join(' · ')}
+        </p>
+      )}
+      {row.iplParts.length > 0 && (
+        <p className="mt-0.5 whitespace-normal break-words font-mono text-[11px] text-slate-300" dir="ltr">
+          {row.iplParts.map(part => part.partNumber).join(' · ')}
+        </p>
+      )}
       {showDescription && row.description ? (
         <p className="mt-0.5 truncate text-xs text-slate-500">{row.description}</p>
       ) : null}

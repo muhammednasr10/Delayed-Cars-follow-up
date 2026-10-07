@@ -189,6 +189,7 @@ export const PERMISSIONS_MATRIX_TREE: MatrixTreeNode[] = [
               'update_status',
               'notes',
               'update',
+              'edit_entry_date',
               'delete',
               'complete',
               'bulk_install',

@@ -5,13 +5,13 @@ import { useEmployees } from './useEmployees'
 import { useMissingPartsUiPermissions } from './useMissingPartsUiPermissions'
 import { useFormatError } from './useFormatError'
 import { useVinListConflict } from './useVinListConflict'
-import { reportMissingPartsBatch, updateMissingPartRecord, deleteMissingPartRecord, attachMissingPartsToReportGroup } from '../services/missingPartsService'
+import { reportMissingPartsBatch, updateMissingPartRecord, updateMissingPartsEntryDate, deleteMissingPartRecord, attachMissingPartsToReportGroup } from '../services/missingPartsService'
 import { updateVehicle, updateVehicleShortageResolvedAt } from '../services/vehiclesService'
 import { getVehicleColors, getVehicleModels } from '../services/settingsService'
 import { resolveFamilyIdForVariant } from '../Components/VehicleModelFamilyPicker'
 import { defaultDepartmentCode, defaultReasonCode } from '../Utils/mpLookupLabel'
 import { isValidVinLength } from '../Utils/vinValidation'
-import { fromDatetimeLocalValue, toDatetimeLocalValue } from '../Utils/missingPartPageUtils'
+import { earliestCreatedAt, fromDatetimeLocalValue, toDatetimeLocalValue } from '../Utils/missingPartPageUtils'
 import { normalizeVinKey } from '../Utils/vinListConflict'
 import type { VehicleIssuesContext, MissingPartDetail } from '../Types/missingPart'
 import type { VehicleColor, VehicleModel } from '../Types/settings'
@@ -81,7 +81,7 @@ export function useEditMissingPartForm({ vehicle, activeListParts = [], onSaved,
   const { t } = useLang()
   const { reasons, departments, orgUnits, addReason } = useMpLookups()
   const { employees } = useEmployees()
-  const { canAssignFollowUp } = useMissingPartsUiPermissions()
+  const { canAssignFollowUp, canEditEntryDate } = useMissingPartsUiPermissions()
   const formatError = useFormatError()
 
   const [models, setModels] = useState<VehicleModel[]>([])
@@ -92,6 +92,7 @@ export function useEditMissingPartForm({ vehicle, activeListParts = [], onSaved,
   const [colorId, setColorId] = useState<string | null>(null)
   const [vin, setVin] = useState('')
   const [resolvedLocal, setResolvedLocal] = useState('')
+  const [entryLocal, setEntryLocal] = useState('')
   const [notes, setNotes] = useState('')
   const [lines, setLines] = useState<ExistingLine[]>([])
   const [newIssues, setNewIssues] = useState<NewIssue[]>([])
@@ -121,6 +122,7 @@ export function useEditMissingPartForm({ vehicle, activeListParts = [], onSaved,
       return
     }
     setVin(vehicle.vin)
+    setEntryLocal(toDatetimeLocalValue(earliestCreatedAt(vehicle.parts)))
     setResolvedLocal(toDatetimeLocalValue(openParts.find(part => part.shortageResolvedAt)?.shortageResolvedAt))
     setNotes(openParts[0]?.notes ?? '')
     setLines(
@@ -170,6 +172,8 @@ export function useEditMissingPartForm({ vehicle, activeListParts = [], onSaved,
   const originalResolvedLocal = toDatetimeLocalValue(openParts.find(part => part.shortageResolvedAt)?.shortageResolvedAt)
   const canEditResolvedAt = Boolean(vehicle?.allowArchived && originalResolvedLocal)
   const resolvedChanged = canEditResolvedAt && resolvedLocal !== originalResolvedLocal
+  const originalEntryLocal = toDatetimeLocalValue(earliestCreatedAt(vehicle?.parts ?? []))
+  const entryChanged = canEditEntryDate && Boolean(originalEntryLocal) && entryLocal !== originalEntryLocal
 
   const hasChanges =
     changedLines.length > 0 ||
@@ -180,6 +184,7 @@ export function useEditMissingPartForm({ vehicle, activeListParts = [], onSaved,
     colorChanged ||
     modelChanged ||
     resolvedChanged ||
+    entryChanged ||
     notes.trim() !== (openParts[0]?.notes ?? '').trim()
 
   function patchLine(partId: string, patch: Partial<ExistingLine>) {
@@ -302,6 +307,11 @@ export function useEditMissingPartForm({ vehicle, activeListParts = [], onSaved,
       setError(t('mp.edit.resolvedAtRequired'))
       return
     }
+    const nextEntryIso = fromDatetimeLocalValue(entryLocal)
+    if (entryChanged && !nextEntryIso) {
+      setError(t('mp.edit.entryDateRequired'))
+      return
+    }
     if (!hasChanges) {
       setError(t('mp.edit.nothingChanged'))
       return
@@ -333,6 +343,13 @@ export function useEditMissingPartForm({ vehicle, activeListParts = [], onSaved,
       }
       if (resolvedChanged && nextResolvedIso) {
         await updateVehicleShortageResolvedAt(ctx.vehicleId, nextResolvedIso)
+      }
+      if (entryChanged && nextEntryIso) {
+        await updateMissingPartsEntryDate(
+          ctx.vehicleId,
+          ctx.parts.map(part => part.id),
+          nextEntryIso
+        )
       }
 
       for (const line of changedLines) {
@@ -491,6 +508,8 @@ export function useEditMissingPartForm({ vehicle, activeListParts = [], onSaved,
     vin, setVin,
     canEditResolvedAt,
     resolvedLocal, setResolvedLocal,
+    canEditEntryDate,
+    entryLocal, setEntryLocal,
     notes, setNotes,
     // lines
     lines, newIssues, openParts,

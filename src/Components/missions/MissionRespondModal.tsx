@@ -2,9 +2,14 @@ import { FilePlus, MessageSquareReply } from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
 import { useLang } from '../../i18n/LanguageContext'
 import { Field, inputCls } from '../FormField'
+import { MissionReplyConfirm } from './MissionReplyConfirm'
 import { Modal } from '../Modal'
 import { MissionResponseFileTile } from './MissionResponseFileTile'
+import { getVehicleModels } from '../../services/settingsService'
 import type { TeamMission } from '../../Types/mission'
+import type { VehicleModel } from '../../Types/settings'
+import { encodeMissionReply } from '../../Utils/missionReply'
+import { resizeChassis, validateMissionForm } from '../../Utils/missionForm'
 import {
   appendMissionResponseFiles,
   MISSION_RESPONSE_ACCEPT,
@@ -17,23 +22,51 @@ type Props = {
   mission: TeamMission | null
   saving?: boolean
   onClose: () => void
-  onRespond: (response: string, files: File[]) => void | Promise<void>
+  onRespond: (
+    response: string,
+    files: File[],
+    correction: {
+      parentModelId: string | null
+      variantModelId: string | null
+      vehicleCount: number | null
+      chassisNumbers: string[]
+    }
+  ) => void | Promise<void>
 }
 
 export function MissionRespondModal({ open, mission, saving, onClose, onRespond }: Props) {
   const { t } = useLang()
   const fileInputRef = useRef<HTMLInputElement>(null)
-  const [response, setResponse] = useState('')
+  const [temporary, setTemporary] = useState('')
+  const [corrective, setCorrective] = useState('')
+  const [models, setModels] = useState<VehicleModel[]>([])
+  const [parentModelId, setParentModelId] = useState<string | null>(null)
+  const [variantModelId, setVariantModelId] = useState<string | null>(null)
+  const [vehicleCount, setVehicleCount] = useState<number | null>(null)
+  const [chassisNumbers, setChassisNumbers] = useState<string[]>([])
   const [files, setFiles] = useState<File[]>([])
   const [previews, setPreviews] = useState<string[]>([])
   const [error, setError] = useState('')
 
   useEffect(() => {
     if (!open) return
-    setResponse('')
+    setTemporary('')
+    setCorrective('')
+    const count = mission?.vehicleCount ?? mission?.chassisNumbers?.length ?? 0
+    setParentModelId(mission?.parentModelId ?? null)
+    setVariantModelId(mission?.variantModelId ?? null)
+    setVehicleCount(count > 0 ? count : null)
+    setChassisNumbers(resizeChassis(mission?.chassisNumbers, count))
     setFiles([])
     setError('')
-  }, [open, mission?.id])
+  }, [open, mission])
+
+  useEffect(() => {
+    if (!open) return
+    getVehicleModels({ includeInactive: true })
+      .then(setModels)
+      .catch(() => setModels([]))
+  }, [open])
 
   useEffect(() => {
     const urls = files.map(file => URL.createObjectURL(file))
@@ -59,15 +92,48 @@ export function MissionRespondModal({ open, mission, saving, onClose, onRespond 
     setError('')
   }
 
+  const modelsText = [models.find(model => model.id === parentModelId)?.name, models.find(model => model.id === variantModelId)?.name]
+    .filter(Boolean)
+    .join(' · ')
+  const filledChassis = chassisNumbers.map(vin => vin.trim()).filter(Boolean)
+
   async function submit() {
-    const text = response.trim()
-    if (!text) {
-      setError(t('missions.respond.errRequired'))
+    if (!temporary.trim()) {
+      setError(t('missions.respond.errTemporary'))
+      return
+    }
+    if (!corrective.trim()) {
+      setError(t('missions.respond.errCorrective'))
+      return
+    }
+    const chassisError = validateMissionForm(
+      { title: 'x', assigneeIds: ['x'], status: 'pending', priority: 'normal', vehicleCount, chassisNumbers },
+      t
+    )
+    if (chassisError) {
+      setError(chassisError)
       return
     }
     setError('')
     try {
-      await onRespond(text, files)
+      await onRespond(
+        encodeMissionReply({
+          temporary: temporary.trim(),
+          corrective: corrective.trim(),
+          models: modelsText,
+          modelsConfirmed: true,
+          chassis: filledChassis.join(' · '),
+          chassisConfirmed: true,
+          affectedQty: vehicleCount ?? 0
+        }),
+        files,
+        {
+          parentModelId,
+          variantModelId: parentModelId ? variantModelId : null,
+          vehicleCount,
+          chassisNumbers: filledChassis
+        }
+      )
     } catch {
       /* parent shows error */
     }
@@ -111,15 +177,41 @@ export function MissionRespondModal({ open, mission, saving, onClose, onRespond 
             <p className="mt-1 whitespace-pre-wrap text-sm text-slate-200">{mission.description.trim()}</p>
           </div>
         )}
-        <Field label={t('missions.respond.field')}>
+        <Field label={t('missions.respond.temporary')} required>
           <textarea
-            className={`${inputCls()} min-h-[8rem] resize-y`}
-            value={response}
-            onChange={e => setResponse(e.target.value)}
+            className={`${inputCls()} min-h-[4.5rem] resize-y`}
+            value={temporary}
+            onChange={e => setTemporary(e.target.value)}
             placeholder={t('missions.respond.placeholder')}
             disabled={saving}
           />
         </Field>
+        <Field label={t('missions.respond.corrective')} required>
+          <textarea
+            className={`${inputCls()} min-h-[4.5rem] resize-y`}
+            value={corrective}
+            onChange={e => setCorrective(e.target.value)}
+            placeholder={t('missions.respond.placeholder')}
+            disabled={saving}
+          />
+        </Field>
+        <MissionReplyConfirm
+          models={models}
+          parentModelId={parentModelId}
+          variantModelId={variantModelId}
+          vehicleCount={vehicleCount}
+          chassisNumbers={chassisNumbers}
+          saving={saving}
+          onParentChange={value => {
+            setParentModelId(value)
+            setVariantModelId(null)
+          }}
+          onVariantChange={setVariantModelId}
+          onChassisChange={(count, vins) => {
+            setVehicleCount(count)
+            setChassisNumbers(vins)
+          }}
+        />
         <Field label={t('missions.respond.attachments')}>
           <input
             ref={fileInputRef}

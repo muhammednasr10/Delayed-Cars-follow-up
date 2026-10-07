@@ -77,6 +77,12 @@ export type TeamMission = {
 
   variantModelName: string | null
 
+  vehicleCount: number | null
+
+  chassisNumbers: string[]
+
+  iplParts: MissionIplPart[]
+
   createdAt: string
 
   updatedAt: string
@@ -114,6 +120,18 @@ export type TeamMissionInput = {
   parentModelId?: string | null
 
   variantModelId?: string | null
+
+  vehicleCount?: number | null
+
+  chassisNumbers?: string[]
+
+  iplParts?: MissionIplPart[]
+}
+
+export type MissionIplPart = {
+  partId: string
+  partNumber: string
+  partName: string | null
 }
 
 export type MissionLeaderboardRow = {
@@ -155,3 +173,17 @@ export type TeamMissionResponse = {
   createdAt: string
   attachments: TeamMissionResponseAttachment[]
 }
+
+export type TeamMissionActivity = {
+  id: string
+  missionId: string
+  authorName: string
+  field: string
+  fromValue: string | null
+  toValue: string | null
+  createdAt: string
+}
+
+export type MissionTimelineEntry =
+  | ({ kind: 'reply' } & TeamMissionResponse)
+  | ({ kind: 'change' } & TeamMissionActivity)

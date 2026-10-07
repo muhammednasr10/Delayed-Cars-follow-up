@@ -139,6 +139,15 @@ export function useMissingPartsUiPermissions() {
     )
   })
 
+  const canEditEntryDate = resolveMissingPartAction(
+    bits,
+    'edit_entry_date',
+    () =>
+      bits.systemRoleCode === 'engineer' ||
+      bits.systemRoleCode === 'production_manager' ||
+      bits.systemRoleCode === 'general_manager'
+  )
+
   const canAssignFollowUp =
     isAdmin ||
     systemRoleCode === 'engineer' ||
@@ -167,6 +176,7 @@ export function useMissingPartsUiPermissions() {
     canUpdateStatus,
     canNotes,
     canEdit,
+    canEditEntryDate,
     canDelete,
     canComplete,
     canAssignFollowUp,

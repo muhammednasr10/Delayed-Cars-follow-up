@@ -242,6 +242,35 @@ async function buildEditChanges(
   return changes
 }
 
+export async function updateMissingPartsEntryDate(
+  vehicleId: string,
+  partIds: string[],
+  createdAtIso: string
+): Promise<void> {
+  const ids = [...new Set(partIds.filter(Boolean))]
+  if (!vehicleId || ids.length === 0) return
+  const client = requireClient()
+  const { error } = await client.rpc('update_missing_parts_entry_date', {
+    p_ids: ids,
+    p_created_at: createdAtIso
+  })
+  if (error) {
+    const missingFn =
+      error.code === 'PGRST202' || /update_missing_parts_entry_date/i.test(error.message ?? '')
+    if (!missingFn) throw new Error(error.message)
+    const { error: updateError } = await client
+      .from('missing_parts')
+      .update({ created_at: createdAtIso })
+      .in('id', ids)
+    if (updateError) throw new Error(updateError.message)
+  }
+  const when = new Date(createdAtIso)
+  const stamp = Number.isNaN(when.getTime())
+    ? createdAtIso
+    : `${String(when.getDate()).padStart(2, '0')}/${String(when.getMonth() + 1).padStart(2, '0')}/${when.getFullYear()} ${String(when.getHours()).padStart(2, '0')}:${String(when.getMinutes()).padStart(2, '0')}`
+  await logVehicleActivityNote(vehicleId, `اتغير تاريخ إدخال السيارة إلى ${stamp}.`)
+}
+
 export async function updateMissingPartRecord(
   id: string,
   input: UpdateMissingPartInput,

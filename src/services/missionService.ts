@@ -1,144 +1,13 @@
 import { supabase } from '../lib/supabase'
 import { getVehicleModels } from './settingsService'
-import type { MissionPerson, ShortageMissionLink, TeamMission, TeamMissionInput } from '../Types/mission'
+import { mapMissionRow, missionWriteError, toMissionPayload, type MissionDbRow } from './missionRow'
+import type { ShortageMissionLink, TeamMission, TeamMissionInput } from '../Types/mission'
 
 export { getTeamMissionResponses, respondMyTeamMission } from './missionResponseService'
 
 function requireClient() {
   if (!supabase) throw new Error('Supabase غير مهيأ. تحقق من ملف .env')
   return supabase
-}
-
-type AssigneeRow = {
-  employee_id: string
-  employees?: { full_name: string; employee_code: string } | { full_name: string; employee_code: string }[] | null
-}
-
-type Row = {
-  id: string
-  title: string
-  description: string | null
-  assignee_id: string
-  status: TeamMission['status']
-  priority: TeamMission['priority']
-  due_date: string | null
-  recurrence_type?: TeamMission['recurrenceType']
-  recurrence_custom?: string | null
-  recurrence_series_id?: string | null
-  completed_at: string | null
-  notes: string | null
-  created_by_employee_id?: string | null
-  created_by_name?: string | null
-  source_vehicle_id?: string | null
-  source_missing_part_id?: string | null
-  source_scratch_id?: string | null
-  source_vin?: string | null
-  source_model_name?: string | null
-  parent_model_id?: string | null
-  variant_model_id?: string | null
-  created_at: string
-  updated_at: string
-  assignee?: { full_name: string; employee_code: string } | { full_name: string; employee_code: string }[] | null
-  team_mission_assignees?: AssigneeRow[] | null
-  team_mission_responses?: { count: number }[] | null
-}
-
-function relOne<T>(value: T | T[] | null | undefined): T | null {
-  if (value == null) return null
-  return Array.isArray(value) ? (value[0] ?? null) : value
-}
-
-function relCount(value: { count?: number }[] | null | undefined): number {
-  if (!value?.length) return 0
-  const n = Number(value[0]?.count ?? 0)
-  return Number.isFinite(n) ? n : 0
-}
-
-function mapAssignees(rows: AssigneeRow[] | null | undefined): MissionPerson[] {
-  if (!rows?.length) return []
-  return rows.map(r => {
-    const emp = relOne(r.employees)
-    return {
-      id: r.employee_id,
-      name: emp?.full_name ?? '—',
-      code: emp?.employee_code ?? '—'
-    }
-  })
-}
-
-function mapRow(row: Row): TeamMission {
-  const assignees = mapAssignees(row.team_mission_assignees)
-  const primary = assignees[0]
-  const emp = relOne(row.assignee)
-  return {
-    id: row.id,
-    title: row.title,
-    description: row.description,
-    assigneeId: primary?.id ?? row.assignee_id,
-    assigneeName: primary?.name ?? emp?.full_name ?? '—',
-    assigneeCode: primary?.code ?? emp?.employee_code ?? '—',
-    assigneeIds: assignees.length > 0 ? assignees.map(a => a.id) : [row.assignee_id],
-    assignees:
-      assignees.length > 0
-        ? assignees
-        : [{ id: row.assignee_id, name: emp?.full_name ?? '—', code: emp?.employee_code ?? '—' }],
-    status: row.status,
-    priority: row.priority,
-    dueDate: row.due_date,
-    recurrenceType: row.recurrence_type ?? 'none',
-    recurrenceCustom: row.recurrence_custom ?? null,
-    recurrenceSeriesId: row.recurrence_series_id ?? row.id,
-    completedAt: row.completed_at,
-    notes: row.notes,
-    responseCount: relCount(row.team_mission_responses),
-    createdByEmployeeId: row.created_by_employee_id ?? null,
-    createdByName: row.created_by_name ?? null,
-    sourceVehicleId: row.source_vehicle_id ?? null,
-    sourceMissingPartId: row.source_missing_part_id ?? null,
-    sourceScratchId: row.source_scratch_id ?? null,
-    sourceVin: row.source_vin ?? null,
-    sourceModelName: row.source_model_name ?? null,
-    parentModelId: row.parent_model_id ?? null,
-    parentModelName: null,
-    variantModelId: row.variant_model_id ?? null,
-    variantModelName: null,
-    createdAt: row.created_at,
-    updatedAt: row.updated_at
-  }
-}
-
-function missionWriteError(message: string): string {
-  const text = message.toLowerCase()
-  if (text.includes('parent_model_id') || text.includes('variant_model_id')) return 'MISSION_MODELS_SCHEMA'
-  return message
-}
-
-function toPayload(input: TeamMissionInput) {
-  const firstId = input.assigneeIds[0]
-  if (!firstId) throw new Error('ASSIGNEES_REQUIRED')
-  const payload: Record<string, unknown> = {
-    title: input.title.trim(),
-    description: input.description?.trim() || null,
-    assignee_id: firstId,
-    status: input.status,
-    priority: input.priority,
-    due_date: input.dueDate || null,
-    recurrence_type: input.recurrenceType ?? 'none',
-    recurrence_custom: input.recurrenceCustom?.trim() || null,
-    notes: input.notes?.trim() || null
-  }
-  if (input.parentModelId !== undefined || input.variantModelId !== undefined) {
-    payload.parent_model_id = input.parentModelId || null
-    payload.variant_model_id = input.parentModelId ? input.variantModelId || null : null
-  }
-  if (input.sourceVehicleId !== undefined || input.sourceScratchId !== undefined) {
-    payload.source_vehicle_id = input.sourceVehicleId || null
-    payload.source_missing_part_id = input.sourceMissingPartId || null
-    payload.source_scratch_id = input.sourceScratchId || null
-    payload.source_vin = input.sourceVin?.trim() || null
-    payload.source_model_name = input.sourceModelName?.trim() || null
-  }
-  return payload
 }
 
 const SELECT = `
@@ -193,7 +62,7 @@ export async function getTeamMissions(): Promise<TeamMission[]> {
     .select(SELECT)
     .order('created_at', { ascending: false })
   if (error) throw new Error(error.message)
-  return withModelNames(((data ?? []) as Row[]).map(mapRow))
+  return withModelNames(((data ?? []) as MissionDbRow[]).map(mapMissionRow))
 }
 
 export async function listOpenShortageMissions(vehicleIds: string[]): Promise<ShortageMissionLink[]> {
@@ -284,7 +153,7 @@ export async function listOpenScratchMissions(scratchIds: string[], vins: string
 
 export async function createTeamMission(input: TeamMissionInput): Promise<TeamMission> {
   if (!input.assigneeIds.length) throw new Error('ASSIGNEES_REQUIRED')
-  const { data, error } = await requireClient().from('team_missions').insert(toPayload(input)).select('id').single()
+  const { data, error } = await requireClient().from('team_missions').insert(toMissionPayload(input)).select('id').single()
   if (error) throw new Error(missionWriteError(error.message))
   const id = (data as { id: string }).id
   await syncAssignees(id, input.assigneeIds)
@@ -294,19 +163,19 @@ export async function createTeamMission(input: TeamMissionInput): Promise<TeamMi
     .eq('id', id)
     .single()
   if (loadErr) throw new Error(loadErr.message)
-  const [mission] = await withModelNames([mapRow(full as Row)])
+  const [mission] = await withModelNames([mapMissionRow(full as MissionDbRow)])
   if (!mission) throw new Error('MISSION_NOT_FOUND')
   return mission
 }
 
 export async function updateTeamMission(id: string, input: TeamMissionInput): Promise<TeamMission> {
   if (!input.assigneeIds.length) throw new Error('ASSIGNEES_REQUIRED')
-  const { error } = await requireClient().from('team_missions').update(toPayload(input)).eq('id', id)
+  const { error } = await requireClient().from('team_missions').update(toMissionPayload(input)).eq('id', id)
   if (error) throw new Error(missionWriteError(error.message))
   await syncAssignees(id, input.assigneeIds)
   const { data, error: loadErr } = await requireClient().from('team_missions').select(SELECT).eq('id', id).single()
   if (loadErr) throw new Error(loadErr.message)
-  const [mission] = await withModelNames([mapRow(data as Row)])
+  const [mission] = await withModelNames([mapMissionRow(data as MissionDbRow)])
   if (!mission) throw new Error('MISSION_NOT_FOUND')
   return mission
 }
@@ -319,7 +188,7 @@ export async function updateTeamMissionStatus(id: string, status: TeamMission['s
     .select(SELECT)
     .single()
   if (error) throw new Error(error.message)
-  const [mission] = await withModelNames([mapRow(data as Row)])
+  const [mission] = await withModelNames([mapMissionRow(data as MissionDbRow)])
   if (!mission) throw new Error('MISSION_NOT_FOUND')
   return mission
 }
@@ -364,7 +233,10 @@ export function teamMissionToInput(mission: TeamMission): TeamMissionInput {
     recurrenceCustom: mission.recurrenceCustom,
     notes: mission.notes ?? undefined,
     parentModelId: mission.parentModelId,
-    variantModelId: mission.variantModelId
+    variantModelId: mission.variantModelId,
+    vehicleCount: mission.vehicleCount,
+    chassisNumbers: mission.chassisNumbers,
+    iplParts: mission.iplParts
   }
 }
 

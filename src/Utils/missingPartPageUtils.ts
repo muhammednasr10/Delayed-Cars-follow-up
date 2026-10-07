@@ -264,6 +264,15 @@ export function isFirstVehicleRow(list: MissingPartDetail[], index: number, vehi
   return list.findIndex(x => x.vehicleId === vehicleId) === index
 }
 
+export function earliestCreatedAt(parts: { createdAt?: string | null }[]): string {
+  let min = ''
+  for (const part of parts) {
+    const created = part.createdAt ?? ''
+    if (created && (!min || created < min)) min = created
+  }
+  return min
+}
+
 export function toDatetimeLocalValue(iso: string | null | undefined): string {
   if (!iso) return ''
   const d = new Date(iso)

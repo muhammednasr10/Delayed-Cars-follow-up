@@ -7,6 +7,7 @@ export const PERMISSION_ACTION_ORDER = [
   'update_status',
   'notes',
   'update',
+  'edit_entry_date',
   'delete',
   'complete',
   'bulk_install',

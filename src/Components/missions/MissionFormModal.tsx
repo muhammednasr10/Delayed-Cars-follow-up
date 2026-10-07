@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useState } from 'react'
 import { ListTodo } from 'lucide-react'
 import { useLang } from '../../i18n/LanguageContext'
 import { Modal } from '../Modal'
@@ -6,31 +6,19 @@ import { Field, inputCls } from '../FormField'
 import { EmployeeMultiSelect } from '../EmployeeMultiSelect'
 import { isAutoRecurringType } from '../../Utils/missionRecurrence'
 import { getVehicleModels } from '../../services/settingsService'
+import {
+  buildMissionSaveInput,
+  missionFormState,
+  missionSaveErrorMessage,
+  validateMissionForm
+} from '../../Utils/missionForm'
 import type { Employee } from '../../Types/employee'
 import type { VehicleModel } from '../../Types/settings'
 import type { MissionPriority, MissionRecurrenceType, MissionStatus, TeamMission, TeamMissionInput } from '../../Types/mission'
 import { MISSION_PRIORITIES, MISSION_RECURRENCE_TYPES, MISSION_STATUSES } from '../../Types/mission'
-
-function todayIsoDate(): string {
-  const d = new Date()
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
-}
-
-function emptyForm(): TeamMissionInput {
-  return {
-    title: '',
-    description: '',
-    assigneeIds: [],
-    status: 'pending',
-    priority: 'normal',
-    dueDate: todayIsoDate(),
-    recurrenceType: 'none',
-    recurrenceCustom: '',
-    notes: '',
-    parentModelId: null,
-    variantModelId: null
-  }
-}
+import { MissionChassisFields } from './MissionChassisFields'
+import { MissionIplPartField } from './MissionIplPartField'
+import { MissionModelFields } from './MissionModelFields'
 
 type Props = {
   open: boolean
@@ -54,31 +42,15 @@ export function MissionFormModal({
   zIndexClass
 }: Props) {
   const { t } = useLang()
-  const [form, setForm] = useState<TeamMissionInput>(emptyForm())
+  const [form, setForm] = useState<TeamMissionInput>(missionFormState(null))
   const [error, setError] = useState('')
   const [models, setModels] = useState<VehicleModel[]>([])
-
-  const activeEmployees = employees.filter(e => e.isActive)
+  const activeEmployees = employees.filter(employee => employee.isActive)
+  const iplModelId = form.variantModelId || form.parentModelId || ''
 
   useEffect(() => {
     if (!open) return
-    if (editing) {
-      setForm({
-        title: editing.title,
-        description: editing.description ?? '',
-        assigneeIds: editing.assigneeIds,
-        status: editing.status,
-        priority: editing.priority,
-        dueDate: editing.dueDate ?? todayIsoDate(),
-        recurrenceType: editing.recurrenceType ?? 'none',
-        recurrenceCustom: editing.recurrenceCustom ?? '',
-        notes: editing.notes ?? '',
-        parentModelId: editing.parentModelId,
-        variantModelId: editing.variantModelId
-      })
-    } else {
-      setForm({ ...emptyForm(), title: defaultTitle?.trim() ?? '' })
-    }
+    setForm(missionFormState(editing, defaultTitle))
     setError('')
   }, [open, editing, defaultTitle])
 
@@ -89,61 +61,17 @@ export function MissionFormModal({
       .catch(() => setModels([]))
   }, [open])
 
-  const families = useMemo(
-    () =>
-      models
-        .filter(model => model.model_kind === 'family' && (model.is_active || model.id === form.parentModelId))
-        .sort((a, b) => a.name.localeCompare(b.name, 'ar')),
-    [models, form.parentModelId]
-  )
-
-  const variants = useMemo(
-    () =>
-      models
-        .filter(
-          model =>
-            model.model_kind === 'variant' &&
-            model.parent_model_id === form.parentModelId &&
-            (model.is_active || model.id === form.variantModelId)
-        )
-        .sort((a, b) => a.name.localeCompare(b.name, 'ar')),
-    [models, form.parentModelId, form.variantModelId]
-  )
-
-  function validate(): string | null {
-    if (!form.title.trim()) return t('missions.errTitle')
-    if (!form.assigneeIds.length) return t('missions.errAssignee')
-    return null
-  }
-
   async function submit() {
-    const err = validate()
+    const err = validateMissionForm(form, t)
     if (err) {
       setError(err)
       return
     }
     setError('')
-    const { parentModelId, variantModelId, ...rest } = form
-    const keepModels = Boolean(parentModelId || variantModelId || editing?.parentModelId || editing?.variantModelId)
     try {
-      await onSave({
-        ...rest,
-        title: form.title.trim(),
-        description: form.description?.trim() || undefined,
-        dueDate: form.dueDate || null,
-        recurrenceType: form.recurrenceType ?? 'none',
-        recurrenceCustom: form.recurrenceType === 'custom' ? form.recurrenceCustom?.trim() || null : null,
-        notes: form.notes?.trim() || undefined,
-        ...(keepModels
-          ? {
-              parentModelId: parentModelId || null,
-              variantModelId: parentModelId ? variantModelId || null : null
-            }
-          : {})
-      })
+      await onSave(buildMissionSaveInput(form, editing))
     } catch (e) {
-      const msg = e instanceof Error ? e.message : t('common.error')
-      setError(msg === 'MISSION_MODELS_SCHEMA' ? t('missions.errModelsSchema') : msg)
+      setError(missionSaveErrorMessage(e, t))
     }
   }
 
@@ -182,11 +110,7 @@ export function MissionFormModal({
         )}
 
         <Field label={t('missions.cols.title')} required>
-          <input
-            className={inputCls()}
-            value={form.title}
-            onChange={e => setForm(f => ({ ...f, title: e.target.value }))}
-          />
+          <input className={inputCls()} value={form.title} onChange={e => setForm(f => ({ ...f, title: e.target.value }))} />
         </Field>
 
         <Field label={t('missions.cols.description')}>
@@ -197,43 +121,28 @@ export function MissionFormModal({
           />
         </Field>
 
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-          <Field label={t('missions.cols.parentModel')}>
-            <select
-              className={inputCls()}
-              value={form.parentModelId ?? ''}
-              onChange={e =>
-                setForm(f => ({
-                  ...f,
-                  parentModelId: e.target.value || null,
-                  variantModelId: null
-                }))
-              }
-            >
-              <option value="">{t('missions.selectParentModel')}</option>
-              {families.map(model => (
-                <option key={model.id} value={model.id}>
-                  {model.name}
-                </option>
-              ))}
-            </select>
-          </Field>
-          <Field label={t('missions.cols.variantModel')}>
-            <select
-              className={inputCls()}
-              value={form.variantModelId ?? ''}
-              disabled={!form.parentModelId}
-              onChange={e => setForm(f => ({ ...f, variantModelId: e.target.value || null }))}
-            >
-              <option value="">{t('missions.selectVariantModel')}</option>
-              {variants.map(model => (
-                <option key={model.id} value={model.id}>
-                  {model.name}
-                </option>
-              ))}
-            </select>
-          </Field>
-        </div>
+        <MissionModelFields
+          models={models}
+          parentModelId={form.parentModelId ?? null}
+          variantModelId={form.variantModelId ?? null}
+          onParentChange={parentModelId => setForm(f => ({ ...f, parentModelId, variantModelId: null, iplParts: [] }))}
+          onVariantChange={variantModelId => setForm(f => ({ ...f, variantModelId, iplParts: [] }))}
+        />
+
+        <Field label={t('missions.cols.iplParts')}>
+          <MissionIplPartField
+            modelId={iplModelId}
+            modelName={models.find(model => model.id === iplModelId)?.name ?? ''}
+            parts={form.iplParts ?? []}
+            onChange={iplParts => setForm(f => ({ ...f, iplParts }))}
+          />
+        </Field>
+
+        <MissionChassisFields
+          vehicleCount={form.vehicleCount ?? null}
+          chassisNumbers={form.chassisNumbers ?? []}
+          onChange={(vehicleCount, chassisNumbers) => setForm(f => ({ ...f, vehicleCount, chassisNumbers }))}
+        />
 
         <Field label={t('missions.cols.assignees')} required>
           <EmployeeMultiSelect
@@ -257,7 +166,6 @@ export function MissionFormModal({
               ))}
             </select>
           </Field>
-
           <Field label={t('missions.cols.dueDate')}>
             <input
               type="date"
@@ -266,17 +174,11 @@ export function MissionFormModal({
               onChange={e => setForm(f => ({ ...f, dueDate: e.target.value }))}
             />
           </Field>
-
           <Field label={t('missions.cols.recurrence')}>
             <select
               className={inputCls()}
               value={(form.recurrenceType ?? 'none') as MissionRecurrenceType}
-              onChange={e =>
-                setForm(f => ({
-                  ...f,
-                  recurrenceType: e.target.value as MissionRecurrenceType
-                }))
-              }
+              onChange={e => setForm(f => ({ ...f, recurrenceType: e.target.value as MissionRecurrenceType }))}
             >
               {MISSION_RECURRENCE_TYPES.map(key => (
                 <option key={key} value={key}>
@@ -292,7 +194,6 @@ export function MissionFormModal({
         {form.recurrenceType === 'custom' && (
           <p className="text-xs font-medium text-slate-400">{t('missions.recurrenceCustomHint')}</p>
         )}
-
         {form.recurrenceType === 'custom' && (
           <Field label={t('missions.recurrenceCustom')}>
             <textarea
@@ -302,7 +203,6 @@ export function MissionFormModal({
             />
           </Field>
         )}
-
         {editing && (
           <Field label={t('missions.cols.status')}>
             <select
@@ -318,7 +218,6 @@ export function MissionFormModal({
             </select>
           </Field>
         )}
-
         <Field label={t('common.notes')}>
           <textarea
             className={`${inputCls()} min-h-[3rem] resize-y`}

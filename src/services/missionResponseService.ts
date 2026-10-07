@@ -1,5 +1,6 @@
 import { supabase } from '../lib/supabase'
-import type { TeamMissionResponse } from '../Types/mission'
+import type { MissionTimelineEntry, TeamMissionActivity, TeamMissionResponse } from '../Types/mission'
+import { isMissionSchemaMissing } from '../Utils/missionDisplay'
 import {
   MISSION_RESPONSE_MAX_FILES,
   missionResponseFileError,
@@ -138,4 +139,57 @@ export async function getTeamMissionResponses(missionId: string): Promise<TeamMi
     .order('created_at', { ascending: true })
   if (error) throw new Error(error.message)
   return ((data ?? []) as ResponseRow[]).map(mapResponse)
+}
+
+type ActivityRow = {
+  id: string
+  mission_id: string
+  author_name: string
+  field_key: string
+  value_from: string | null
+  value_to: string | null
+  created_at: string
+}
+
+function mapActivity(row: ActivityRow): TeamMissionActivity {
+  return {
+    id: row.id,
+    missionId: row.mission_id,
+    authorName: row.author_name,
+    field: row.field_key,
+    fromValue: row.value_from,
+    toValue: row.value_to,
+    createdAt: row.created_at
+  }
+}
+
+export async function getTeamMissionActivity(missionId: string): Promise<TeamMissionActivity[]> {
+  const { data, error } = await requireClient()
+    .from('team_mission_activity')
+    .select('id, mission_id, author_name, field_key, value_from, value_to, created_at')
+    .eq('mission_id', missionId)
+    .order('created_at', { ascending: true })
+  if (error) {
+    if (isMissionSchemaMissing(error.message)) return []
+    throw new Error(error.message)
+  }
+  return ((data ?? []) as ActivityRow[]).map(mapActivity)
+}
+
+export async function getMissionTimeline(missionId: string): Promise<MissionTimelineEntry[]> {
+  const [replies, changes] = await Promise.all([
+    getTeamMissionResponses(missionId),
+    getTeamMissionActivity(missionId)
+  ])
+  const entries: MissionTimelineEntry[] = [
+    ...replies.map(item => ({ kind: 'reply' as const, ...item })),
+    ...changes.map(item => ({ kind: 'change' as const, ...item }))
+  ]
+  entries.sort((a, b) => {
+    const byTime = a.createdAt.localeCompare(b.createdAt)
+    if (byTime !== 0) return byTime
+    if (a.kind === b.kind) return 0
+    return a.kind === 'reply' ? -1 : 1
+  })
+  return entries
 }

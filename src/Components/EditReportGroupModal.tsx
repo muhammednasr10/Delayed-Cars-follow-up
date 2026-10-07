@@ -4,7 +4,7 @@ import { useLang } from '../i18n/LanguageContext'
 import { Modal } from './Modal'
 import { EditableVinList } from './EditableVinList'
 import { VinConflictDialog } from './VinConflictDialog'
-import { reportMissingPartsBatch, updateMissingPartRecord, deleteMissingPartRecord } from '../services/missingPartsService'
+import { reportMissingPartsBatch, updateMissingPartRecord, updateMissingPartsEntryDate, deleteMissingPartRecord } from '../services/missingPartsService'
 import { updateVehicle, updateVehicleShortageResolvedAt } from '../services/vehiclesService'
 import { getVehicleColors, getVehicleModels } from '../services/settingsService'
 import type { MissingPartDetail, ReportGroupContext } from '../Types/missingPart'
@@ -19,7 +19,7 @@ import { ReasonItemsField } from './missingParts/ReasonItemsField'
 import { defaultDepartmentCode, defaultReasonCode } from '../Utils/mpLookupLabel'
 import { isValidVinLength } from '../Utils/vinValidation'
 import { normalizeVinKey, chassisNeedingListConflictCheck } from '../Utils/vinListConflict'
-import { fromDatetimeLocalValue, toDatetimeLocalValue, uniqueIssueReps } from '../Utils/missingPartPageUtils'
+import { earliestCreatedAt, fromDatetimeLocalValue, toDatetimeLocalValue, uniqueIssueReps } from '../Utils/missingPartPageUtils'
 import { formatChassisNote, logVehicleActivityNote } from '../Utils/vehicleActivityNote'
 
 type Props = {
@@ -100,7 +100,7 @@ export function EditReportGroupModal({ group, activeListParts = [], onClose, onS
   const { t } = useLang()
   const { reasons, departments, orgUnits, addReason } = useMpLookups()
   const { employees } = useEmployees()
-  const { canAssignFollowUp } = useMissingPartsUiPermissions()
+  const { canAssignFollowUp, canEditEntryDate } = useMissingPartsUiPermissions()
   const formatError = useFormatError()
   const [models, setModels] = useState<VehicleModel[]>([])
   const [colors, setColors] = useState<VehicleColor[]>([])
@@ -110,6 +110,7 @@ export function EditReportGroupModal({ group, activeListParts = [], onClose, onS
   const [vinRows, setVinRows] = useState<VinRow[]>([])
   const [notesByKey, setNotesByKey] = useState<Record<string, string>>({})
   const [resolvedByVehicle, setResolvedByVehicle] = useState<Record<string, string>>({})
+  const [entryByVehicle, setEntryByVehicle] = useState<Record<string, string>>({})
   const [removedIds, setRemovedIds] = useState<string[]>([])
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
@@ -171,6 +172,14 @@ export function EditReportGroupModal({ group, activeListParts = [], onClose, onS
       }
     }
     setResolvedByVehicle(resolved)
+    const entry: Record<string, string> = {}
+    const vehicleIds = [...new Set(editableParts.map(part => part.vehicleId).filter(Boolean))]
+    for (const vehicleId of vehicleIds) {
+      entry[vehicleId] = toDatetimeLocalValue(
+        earliestCreatedAt(editableParts.filter(part => part.vehicleId === vehicleId))
+      )
+    }
+    setEntryByVehicle(entry)
     setRemovedIds([])
     resetVinConflicts()
     setError('')
@@ -302,6 +311,19 @@ export function EditReportGroupModal({ group, activeListParts = [], onClose, onS
     if (conflictCandidates.length > 0 && requireResolved(conflictCandidates, vins)) {
       setError(t('mp.edit.vinConflictTitle'))
       return
+    }
+    if (canEditEntryDate) {
+      for (const row of vinRows) {
+        if (!row.vehicleId) continue
+        const prev = toDatetimeLocalValue(
+          earliestCreatedAt(editableParts.filter(part => part.vehicleId === row.vehicleId))
+        )
+        const next = entryByVehicle[row.vehicleId] ?? ''
+        if (prev && !next) {
+          setError(t('mp.edit.entryDateRequired'))
+          return
+        }
+      }
     }
     if (ctx.allowArchived) {
       for (const row of vinRows) {
@@ -450,6 +472,21 @@ export function EditReportGroupModal({ group, activeListParts = [], onClose, onS
         await logVehicleActivityNote(row.vehicleId, formatChassisNote(normalizeVinKey(row.vin), next))
       }
 
+      if (canEditEntryDate) {
+        for (const row of vinRows) {
+          if (!row.vehicleId) continue
+          const prev = toDatetimeLocalValue(
+            earliestCreatedAt(editableParts.filter(part => part.vehicleId === row.vehicleId))
+          )
+          const next = entryByVehicle[row.vehicleId] ?? ''
+          if (!next || next === prev) continue
+          const iso = fromDatetimeLocalValue(next)
+          if (!iso) throw new Error(t('mp.edit.entryDateRequired'))
+          const partIds = editableParts.filter(part => part.vehicleId === row.vehicleId).map(part => part.id)
+          await updateMissingPartsEntryDate(row.vehicleId, partIds, iso)
+        }
+      }
+
       if (ctx.allowArchived) {
         for (const row of vinRows) {
           if (!row.vehicleId) continue
@@ -528,6 +565,25 @@ export function EditReportGroupModal({ group, activeListParts = [], onClose, onS
                     ))}
                   </select>
                 </Field>
+              </div>
+            )}
+            {canEditEntryDate && (
+              <div className="mx-auto mt-3 max-w-xs space-y-2 text-start">
+                {vinRows
+                  .filter(row => row.vehicleId && entryByVehicle[row.vehicleId])
+                  .map(row => (
+                    <label key={`entry-${row.vehicleId}`} className="flex flex-col gap-1 text-xs font-bold text-slate-400">
+                      {t('mp.edit.entryDate')} · {row.vin}
+                      <input
+                        type="datetime-local"
+                        className="input-dark"
+                        value={entryByVehicle[row.vehicleId!] ?? ''}
+                        onChange={e =>
+                          setEntryByVehicle(prev => ({ ...prev, [row.vehicleId!]: e.target.value }))
+                        }
+                      />
+                    </label>
+                  ))}
               </div>
             )}
             {group.allowArchived && (
