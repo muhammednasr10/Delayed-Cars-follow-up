@@ -95,8 +95,7 @@ function toPayload(input: ScratchInput) {
 }
 
 function withoutActionTaken(payload: ReturnType<typeof toPayload>) {
-  const rest = { ...payload }
-  delete rest.action_taken
+  const { action_taken: _actionTaken, ...rest } = payload
   return rest
 }
 

@@ -56,7 +56,7 @@ export function joinScratchDefect(defect: string, location: string, action = '')
 
 /** العيب أول عبارة، ومكان العيب الباقي، والإجراء جزء ثالث لو اتسجل. */
 export function splitScratchDefect(notes: string | null | undefined): { defect: string; location: string; action: string } {
-  const text = (notes ?? '').replace(/[^\S\u001f]+/g, ' ').trim()
+  const text = (notes ?? '').replace(/\s+/g, ' ').trim()
   if (!text) return { defect: '', location: '', action: '' }
   if (text.includes(DEFECT_SEP)) {
     const [defect = '', location = '', action = ''] = text.split(DEFECT_SEP)
@@ -115,7 +115,8 @@ export function buildScratchSearchSuggestions(
   rows: ScratchRecord[],
   search: string
 ): ScratchSearchSuggestion[] {
-  const last = fold(search).split(' ').filter(Boolean).at(-1) ?? ''
+  const words = fold(search).split(' ').filter(Boolean)
+  const last = words[words.length - 1] ?? ''
   if (!last) return []
 
   const out: ScratchSearchSuggestion[] = []

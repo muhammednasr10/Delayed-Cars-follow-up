@@ -255,7 +255,8 @@ function zipStore(files: { name: string; data: Uint8Array }[]): Blob {
   endView.setUint16(10, files.length, true)
   endView.setUint32(12, centralSize, true)
   endView.setUint32(16, offset, true)
-  return new Blob([...locals, ...centrals, end], {
+  const parts = [...locals, ...centrals, end].map(part => new Uint8Array(part))
+  return new Blob(parts, {
     type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
   })
 }

@@ -30,7 +30,8 @@ export function ScratchFilterBar({ items, filter, onChange, shownCount }: Props)
     [items, filter]
   )
   const suggestions = useMemo(() => {
-    const last = filter.search.trim().toLowerCase().split(/\s+/).filter(Boolean).at(-1) ?? ''
+    const words = filter.search.trim().toLowerCase().split(/\s+/).filter(Boolean)
+    const last = words[words.length - 1] ?? ''
     const labels = [
       ...SEVERITIES.map(key => ({
         id: `sev-${key}`,
