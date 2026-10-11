@@ -3,8 +3,11 @@ import { useLang } from '../../i18n/LanguageContext'
 import type { MissingPartDetail } from '../../Types/missingPart'
 import type { MpLookupOption } from '../../Types/mpLookup'
 import { mpLookupLabel } from '../../Utils/mpLookupLabel'
-import { cell, localDayKey, todayLocalDayKey } from '../../Utils/missingPartPageUtils'
+import { cell, isOpenShortageLine, localDayKey, todayLocalDayKey } from '../../Utils/missingPartPageUtils'
+import { summarizeCausingDepartments } from '../../Utils/missingPartDailyReportExcel'
+import { formatVehicleColorLabel } from '../../Utils/vehicleColorLabel'
 import { ExportableTable } from '../ExportableTable'
+import type { ExcelSheet, TableExportColumn } from '../../Utils/tableExport'
 import type { ReportView } from './MissingPartsToolbar'
 
 type Props = {
@@ -20,15 +23,14 @@ type VehicleDayRow = {
   vehicleId: string
   modelName: string
   vin: string
+  color: string
   parts: string
-  qty: number
   reasons: string
-  departments: string
-  station: string
-  followUp: string
-  completer: string
-  when: string
 }
+
+type DailyExportLine =
+  | { kind: 'section'; title: string }
+  | { kind: 'row'; row: VehicleDayRow }
 
 function shiftDayKey(dayKey: string, delta: number): string {
   const [year, month, day] = dayKey.split('-').map(Number)
@@ -52,17 +54,9 @@ function uniqueJoin(values: Array<string | null | undefined>): string {
   return seen.size > 0 ? [...seen].join(' · ') : '—'
 }
 
-function groupVehicles(
-  items: MissingPartDetail[],
-  dayKey: string,
-  field: 'createdAt' | 'shortageResolvedAt',
-  reasons: MpLookupOption[],
-  departments: MpLookupOption[],
-  lang: string
-): VehicleDayRow[] {
+function groupListed(items: MissingPartDetail[], reasons: MpLookupOption[], lang: string): VehicleDayRow[] {
   const byVehicle = new Map<string, MissingPartDetail[]>()
   for (const item of items) {
-    if (localDayKey(item[field]) !== dayKey) continue
     const group = byVehicle.get(item.vehicleId) ?? []
     group.push(item)
     byVehicle.set(item.vehicleId, group)
@@ -71,22 +65,34 @@ function groupVehicles(
   return [...byVehicle.values()]
     .map(parts => {
       const first = parts[0]!
-      const when = field === 'createdAt' ? first.createdAt : first.shortageResolvedAt
       return {
         vehicleId: first.vehicleId,
         modelName: first.modelName || '—',
         vin: first.vin,
+        color: uniqueJoin(parts.map(part => formatVehicleColorLabel(part.colorName, part.colorCode))),
         parts: uniqueJoin(parts.map(part => part.partDescription)),
-        qty: parts.reduce((sum, part) => sum + (Number(part.remainingQty) || 0), 0),
-        reasons: uniqueJoin(parts.map(part => mpLookupLabel(reasons, part.reason, lang))),
-        departments: uniqueJoin(parts.map(part => mpLookupLabel(departments, part.department, lang))),
-        station: uniqueJoin(parts.map(part => [part.stationNumber, part.stationName].filter(Boolean).join(' · '))),
-        followUp: uniqueJoin(parts.map(part => part.followUpEmployeeNames || part.followUpEmployeeName)),
-        completer: uniqueJoin(parts.map(part => part.shortageResolvedByName)),
-        when: when ? new Date(when).toLocaleDateString(lang === 'ar' ? 'ar' : 'en') : '—'
+        reasons: uniqueJoin(parts.map(part => mpLookupLabel(reasons, part.reason, lang)))
       }
     })
     .sort((a, b) => a.modelName.localeCompare(b.modelName, 'ar') || a.vin.localeCompare(b.vin))
+}
+
+function groupVehicles(
+  items: MissingPartDetail[],
+  dayKey: string,
+  field: 'createdAt' | 'shortageResolvedAt',
+  reasons: MpLookupOption[],
+  lang: string
+): VehicleDayRow[] {
+  return groupListed(
+    items.filter(item => localDayKey(item[field]) === dayKey),
+    reasons,
+    lang
+  )
+}
+
+function vehicleSheetRows(rows: VehicleDayRow[]): Array<Array<string | number>> {
+  return rows.map(row => [row.modelName, row.vin, row.color, row.parts, row.reasons])
 }
 
 export function MissingPartsReportTab({ mode, items, reasons, departments, loading, canExport }: Props) {
@@ -119,14 +125,84 @@ export function MissingPartsReportTab({ mode, items, reasons, departments, loadi
   }, [items, mode, dateFrom, dateTo])
 
   const newVehicles = useMemo(
-    () => (mode === 'reportDaily' ? groupVehicles(items, activityDay, 'createdAt', reasons, departments, lang) : []),
-    [mode, items, activityDay, reasons, departments, lang]
+    () => (mode === 'reportDaily' ? groupVehicles(items, activityDay, 'createdAt', reasons, lang) : []),
+    [mode, items, activityDay, reasons, lang]
   )
   const archivedVehicles = useMemo(
-    () =>
-      mode === 'reportDaily' ? groupVehicles(items, activityDay, 'shortageResolvedAt', reasons, departments, lang) : [],
-    [mode, items, activityDay, reasons, departments, lang]
+    () => (mode === 'reportDaily' ? groupVehicles(items, activityDay, 'shortageResolvedAt', reasons, lang) : []),
+    [mode, items, activityDay, reasons, lang]
   )
+  const currentVehicles = useMemo(
+    () => (mode === 'reportDaily' ? groupListed(items.filter(isOpenShortageLine), reasons, lang) : []),
+    [mode, items, reasons, lang]
+  )
+  const dailyExcelSheets = useMemo<ExcelSheet[]>(() => {
+    if (mode !== 'reportDaily') return []
+    const detailHeader = [
+      t('mp.cols.model'),
+      t('mp.cols.vin'),
+      t('mp.cols.color'),
+      t('mp.cols.reason'),
+      t('mp.cols.reasonClass')
+    ]
+    const openLines = items.filter(isOpenShortageLine)
+    const summary = summarizeCausingDepartments(
+      openLines.map(line => ({
+        vehicleId: line.vehicleId,
+        modelName: line.modelName || '—',
+        department: mpLookupLabel(departments, line.department, lang)
+      }))
+    )
+    const vehicleCount = t('mp.reportDailySheets.vehicleCount')
+    const lineCount = t('mp.reportDailySheets.lineCount')
+    return [
+      {
+        name: t('mp.reportDailySheets.summary'),
+        rows: [
+          [t('mp.cols.causingDepartment'), vehicleCount, lineCount],
+          ...summary.byDepartment.map(row => [row.department, row.vehicles, row.lines]),
+          [],
+          [t('mp.cols.model'), t('mp.cols.causingDepartment'), vehicleCount, lineCount],
+          ...summary.byModel.map(row => [row.model, row.department, row.vehicles, row.lines])
+        ]
+      },
+      {
+        name: t('mp.reportDailySheets.new'),
+        rows: [detailHeader, ...vehicleSheetRows(newVehicles)]
+      },
+      {
+        name: t('mp.reportDailySheets.completed'),
+        rows: [detailHeader, ...vehicleSheetRows(archivedVehicles)]
+      },
+      {
+        name: t('mp.reportDailySheets.current'),
+        rows: [detailHeader, ...vehicleSheetRows(currentVehicles)]
+      }
+    ]
+  }, [mode, items, departments, reasons, lang, t, newVehicles, archivedVehicles, currentVehicles])
+
+  const dailyExportColumns = useMemo<TableExportColumn<DailyExportLine>[]>(
+    () => [
+      {
+        label: t('mp.cols.model'),
+        value: line => (line.kind === 'section' ? line.title : line.row.modelName)
+      },
+      { label: t('mp.cols.vin'), value: line => (line.kind === 'section' ? '' : line.row.vin) },
+      { label: t('mp.cols.color'), value: line => (line.kind === 'section' ? '' : line.row.color) },
+      { label: t('mp.cols.reason'), value: line => (line.kind === 'section' ? '' : line.row.parts) },
+      { label: t('mp.cols.reasonClass'), value: line => (line.kind === 'section' ? '' : line.row.reasons) }
+    ],
+    [t]
+  )
+  const dailyExportRows = useMemo<DailyExportLine[]>(() => {
+    if (mode !== 'reportDaily') return []
+    return [
+      { kind: 'section', title: t('mp.reportDailyNewTitle') },
+      ...newVehicles.map(row => ({ kind: 'row' as const, row })),
+      { kind: 'section', title: t('mp.reportDailyArchivedTitle') },
+      ...archivedVehicles.map(row => ({ kind: 'row' as const, row }))
+    ]
+  }, [mode, newVehicles, archivedVehicles, t])
 
   const vehicleCount = useMemo(() => new Set(rows.map(row => row.vehicleId)).size, [rows])
   const titleKey =
@@ -202,24 +278,25 @@ export function MissingPartsReportTab({ mode, items, reasons, departments, loadi
       </div>
 
       {mode === 'reportDaily' ? (
-        <div className="space-y-8">
-          <DailyVehicleTable
-            title={t('mp.reportDailyNewTitle')}
-            filename={`missing-parts-daily-new-${activityDay}`}
-            rows={newVehicles}
-            loading={loading}
-            canExport={canExport}
-            variant="new"
-          />
-          <DailyVehicleTable
-            title={t('mp.reportDailyArchivedTitle')}
-            filename={`missing-parts-daily-archived-${activityDay}`}
-            rows={archivedVehicles}
-            loading={loading}
-            canExport={canExport}
-            variant="archived"
-          />
-        </div>
+        <ExportableTable
+          filename={`missing-parts-daily-${activityDay}`}
+          title={t('mp.tabs.reportDaily')}
+          rowCount={loading ? 0 : newVehicles.length + archivedVehicles.length + currentVehicles.length}
+          showExport={canExport}
+          columns={dailyExportColumns}
+          rows={dailyExportRows}
+          excelSheets={dailyExcelSheets}
+        >
+          <div className="space-y-8">
+            <DailyVehicleTable title={t('mp.reportDailyNewTitle')} rows={newVehicles} loading={loading} variant="new" />
+            <DailyVehicleTable
+              title={t('mp.reportDailyArchivedTitle')}
+              rows={archivedVehicles}
+              loading={loading}
+              variant="archived"
+            />
+          </div>
+        </ExportableTable>
       ) : (
         <ExportableTable
           filename={mode === 'reportCustom' ? 'missing-parts-custom' : 'missing-parts-report'}
@@ -275,17 +352,13 @@ export function MissingPartsReportTab({ mode, items, reasons, departments, loadi
 
 function DailyVehicleTable({
   title,
-  filename,
   rows,
   loading,
-  canExport,
   variant
 }: {
   title: string
-  filename: string
   rows: VehicleDayRow[]
   loading: boolean
-  canExport: boolean
   variant: 'new' | 'archived'
 }) {
   const { t } = useLang()
@@ -300,60 +373,34 @@ function DailyVehicleTable({
           </p>
         )}
       </div>
-      <ExportableTable filename={filename} title={title} rowCount={loading ? 0 : rows.length} showExport={canExport}>
-        <div className="overflow-x-auto rounded-xl border border-slate-800">
-          <table className="w-full min-w-[880px] text-center text-sm">
-            <thead className="bg-slate-950/90">
-              <tr>
-                <th className={`${cell} font-black uppercase text-slate-400`}>{t('mp.cols.model')}</th>
-                <th className={`${cell} font-black uppercase text-slate-400`}>{t('mp.cols.vin')}</th>
-                <th className={`${cell} font-black uppercase text-slate-400`}>{t('mp.cols.part')}</th>
-                <th className={`${cell} font-black uppercase text-slate-400`}>{t('mp.cols.qty')}</th>
-                {variant === 'new' ? (
-                  <>
-                    <th className={`${cell} font-black uppercase text-slate-400`}>{t('mp.cols.reasonClass')}</th>
-                    <th className={`${cell} font-black uppercase text-slate-400`}>{t('mp.cols.causingDepartment')}</th>
-                    <th className={`${cell} font-black uppercase text-slate-400`}>{t('mp.cols.station')}</th>
-                  </>
-                ) : (
-                  <th className={`${cell} font-black uppercase text-slate-400`}>{t('mp.cols.completer')}</th>
-                )}
-                <th className={`${cell} font-black uppercase text-slate-400`}>{t('mp.cols.followUpEmployee')}</th>
-                <th className={`${cell} font-black uppercase text-slate-400`}>
-                  {variant === 'archived' ? t('mp.cols.resolvedAt') : t('mp.cols.createdAt')}
-                </th>
+      <div className="overflow-x-auto rounded-xl border border-slate-800">
+        <table className="w-full min-w-[720px] text-center text-sm">
+          <thead className="bg-slate-950/90">
+            <tr>
+              <th className={`${cell} font-black uppercase text-slate-400`}>{t('mp.cols.model')}</th>
+              <th className={`${cell} font-black uppercase text-slate-400`}>{t('mp.cols.vin')}</th>
+              <th className={`${cell} font-black uppercase text-slate-400`}>{t('mp.cols.color')}</th>
+              <th className={`${cell} font-black uppercase text-slate-400`}>{t('mp.cols.reason')}</th>
+              <th className={`${cell} font-black uppercase text-slate-400`}>{t('mp.cols.reasonClass')}</th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-slate-800">
+            {rows.map(row => (
+              <tr key={row.vehicleId} className="bg-slate-900/30">
+                <td className={`${cell} font-black text-white`}>{row.modelName}</td>
+                <td className={`${cell} font-mono text-slate-200`} dir="ltr">
+                  {row.vin}
+                </td>
+                <td className={cell}>{row.color}</td>
+                <td className={cell}>{row.parts}</td>
+                <td className={cell}>{row.reasons}</td>
               </tr>
-            </thead>
-            <tbody className="divide-y divide-slate-800">
-              {rows.map(row => (
-                <tr key={row.vehicleId} className="bg-slate-900/30">
-                  <td className={`${cell} font-black text-white`}>{row.modelName}</td>
-                  <td className={`${cell} font-mono text-slate-200`} dir="ltr">
-                    {row.vin}
-                  </td>
-                  <td className={cell}>{row.parts}</td>
-                  <td className={`${cell} font-black text-cyan-300`}>{row.qty}</td>
-                  {variant === 'new' ? (
-                    <>
-                      <td className={cell}>{row.reasons}</td>
-                      <td className={cell}>{row.departments}</td>
-                      <td className={cell}>{row.station}</td>
-                    </>
-                  ) : (
-                    <td className={cell}>{row.completer}</td>
-                  )}
-                  <td className={cell}>{row.followUp}</td>
-                  <td className={`${cell} text-slate-300`} dir="ltr">
-                    {row.when}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-          {loading && <p className="p-8 text-center text-slate-400">{t('common.loading')}</p>}
-          {!loading && rows.length === 0 && <p className="p-8 text-center text-slate-500">{t('common.noData')}</p>}
-        </div>
-      </ExportableTable>
+            ))}
+          </tbody>
+        </table>
+        {loading && <p className="p-8 text-center text-slate-400">{t('common.loading')}</p>}
+        {!loading && rows.length === 0 && <p className="p-8 text-center text-slate-500">{t('common.noData')}</p>}
+      </div>
     </section>
   )
 }

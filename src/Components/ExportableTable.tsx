@@ -1,6 +1,6 @@
 import { useRef, type ReactNode } from 'react'
 import { TableExportButtons } from './TableExportButtons'
-import type { TableExportColumn, TableExportSummary } from '../Utils/tableExport'
+import type { ExcelSheet, TableExportColumn, TableExportSummary } from '../Utils/tableExport'
 
 type Props<T> = {
   children: ReactNode
@@ -10,6 +10,7 @@ type Props<T> = {
   columns?: TableExportColumn<T>[]
   rows?: T[]
   summary?: TableExportSummary
+  excelSheets?: ExcelSheet[]
   className?: string
   barClassName?: string
   showExport?: boolean
@@ -23,6 +24,7 @@ export function ExportableTable<T>({
   columns,
   rows,
   summary,
+  excelSheets,
   className,
   barClassName = 'flex justify-end border-b border-slate-800/70 bg-slate-950/40 px-3 py-2',
   showExport = true
@@ -40,6 +42,7 @@ export function ExportableTable<T>({
             columns={columns}
             rows={rows}
             summary={summary}
+            excelSheets={excelSheets}
           />
         </div>
       )}

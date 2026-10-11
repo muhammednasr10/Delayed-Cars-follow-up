@@ -12,7 +12,7 @@ type Row = {
   stop_type: ProductionStopType
   vehicle_model_id: string | null
   started_at: string
-  ended_at: string
+  ended_at: string | null
   department: string
   lost_vehicles: number
   notes: string | null
@@ -45,7 +45,7 @@ function toPayload(input: ProductionLineStopInput) {
     stop_type: input.stopType,
     vehicle_model_id: input.vehicleModelId?.trim() || null,
     started_at: input.startedAt,
-    ended_at: input.endedAt,
+    ended_at: input.endedAt || null,
     department: input.department,
     lost_vehicles: Math.max(0, Math.floor(input.lostVehicles)),
     notes: input.notes?.trim() || null
@@ -102,14 +102,20 @@ export async function deleteProductionLineStop(id: string): Promise<void> {
   if (error) throw new Error(error.message)
 }
 
-export function stopDurationMinutes(startedAt: string, endedAt: string): number {
+/** التوقف الجزئي للعرض في الجدول فقط، ولا يدخل في أي إجمالي. */
+export function countsInStopTotals(stop: { stopType: ProductionStopType }): boolean {
+  return stop.stopType === 'full'
+}
+
+export function stopDurationMinutes(startedAt: string, endedAt: string | null | undefined): number {
+  if (!endedAt) return 0
   const ms = new Date(endedAt).getTime() - new Date(startedAt).getTime()
   if (!Number.isFinite(ms) || ms <= 0) return 0
   return Math.round(ms / 60_000)
 }
 
 /** Per-day stop downtime (minutes) and lost vehicles from the line-stops log. */
-export function aggregateStopsByDate(stops: { startedAt: string; endedAt: string; lostVehicles: number }[]): {
+export function aggregateStopsByDate(stops: { startedAt: string; endedAt: string | null; lostVehicles: number }[]): {
   minutesByDate: Map<string, number>
   lostVehiclesByDate: Map<string, number>
 } {
@@ -125,7 +131,7 @@ export function aggregateStopsByDate(stops: { startedAt: string; endedAt: string
 }
 
 /** @deprecated Use aggregateStopsByDate — hours kept for legacy snapshots */
-export function sumStopDowntimeHoursByDate(stops: { startedAt: string; endedAt: string }[]): Map<string, number> {
+export function sumStopDowntimeHoursByDate(stops: { startedAt: string; endedAt: string | null }[]): Map<string, number> {
   const map = new Map<string, number>()
   for (const stop of stops) {
     const date = stop.startedAt.slice(0, 10)

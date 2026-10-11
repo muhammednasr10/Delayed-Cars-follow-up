@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import {
   attendanceDefaultsFromPlanDay,
+  countsAsEmployeeVacation,
   allowedAttendanceStatusesForPlanDay,
   defaultAttendanceStatusForPlanDay,
   isHolidayPlanDay,
@@ -13,6 +14,13 @@ describe('attendanceDefaultsFromPlanDay', () => {
     expect(attendanceDefaultsFromPlanDay('overtime').status).toBe('present')
     expect(attendanceDefaultsFromPlanDay('substitute').status).toBe('present')
     expect(attendanceDefaultsFromPlanDay(null).status).toBe('present')
+  })
+
+  it('does not count a planning holiday as employee leave', () => {
+    expect(countsAsEmployeeVacation('vacation', 'vacation')).toBe(false)
+    expect(countsAsEmployeeVacation('vacation', 'factory_vacation')).toBe(false)
+    expect(countsAsEmployeeVacation('vacation', 'work')).toBe(true)
+    expect(countsAsEmployeeVacation('present', 'vacation')).toBe(false)
   })
 
   it('defaults to vacation on holidays without times', () => {

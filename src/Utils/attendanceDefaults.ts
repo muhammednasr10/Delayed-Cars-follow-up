@@ -47,6 +47,12 @@ export function isHolidayPlanDay(dayType: PlanDayType | null): boolean {
   return dayType !== null && isVacationOrFactoryHoliday(dayType)
 }
 
+/** يوم الأجازة في التخطيط (الجمعة والسبت وغيرهما) مش إجازة موظف. */
+export function countsAsEmployeeVacation(status: AttendanceDayStatus, dayType: PlanDayType | null): boolean {
+  if (status !== 'vacation') return false
+  return !isHolidayPlanDay(dayType)
+}
+
 export function resolvePlanDayType(workDate: string, savedByDate: Map<string, PlanDayType>): PlanDayType {
   return savedByDate.get(workDate) ?? 'work'
 }

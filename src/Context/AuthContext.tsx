@@ -5,7 +5,6 @@ import {
   applySession,
   clearSession,
   ensureFreshSession,
-  isAccessTokenExpired,
   isRefreshTokenExpired,
   loginWithEmailPassword,
   readRawSession,
@@ -229,7 +228,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     const gen = ++bootGenRef.current
     setLoading(true)
-        const REFRESH_BOOT_TIMEOUT_MS = 12_000
+    const REFRESH_BOOT_TIMEOUT_MS = 12_000
 
     void (async () => {
       try {
@@ -250,7 +249,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         if (bootGenRef.current !== gen) return
 
         const next = refreshed ?? readRawSession()
-        if (!next || isAccessTokenExpired(next)) {
+        if (!next || isRefreshTokenExpired(next)) {
           clearSession()
           setSession(null)
           setProfile(null)
@@ -265,7 +264,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       } catch (err) {
         console.error('Auth boot failed:', err)
         const rawAfter = readRawSession()
-        if (rawAfter && !isAccessTokenExpired(rawAfter) && bootGenRef.current === gen) {
+        if (rawAfter && !isRefreshTokenExpired(rawAfter) && bootGenRef.current === gen) {
           applySession(rawAfter)
           setSession(rawAfter)
           void loadProfile(rawAfter.user.id, true)

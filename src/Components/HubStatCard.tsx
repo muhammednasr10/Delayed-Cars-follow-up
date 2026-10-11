@@ -164,7 +164,7 @@ function StackStats({
   stats: { label: string; value: string | number }[]
   theme: (typeof themes)[HubCardAccent]
 }) {
-  const [primary, secondary] = stats
+  const [primary, ...rest] = stats
 
   return (
     <div className="mt-5 flex flex-1 flex-col gap-2.5">
@@ -176,13 +176,26 @@ function StackStats({
           </p>
         </div>
       )}
-      {secondary && (
-        <div className={`rounded-xl border px-4 py-3 text-center ${theme.statBox}`}>
-          <p className={`text-[10px] font-bold uppercase tracking-wider ${theme.statLabel}`}>{secondary.label}</p>
-          <p className={`mt-1.5 font-black tabular-nums leading-none tracking-tight ${theme.statValue} text-2xl`}>
-            {secondary.value}
-          </p>
+      {rest.length > 1 ? (
+        <div className="grid grid-cols-2 gap-2.5">
+          {rest.map(stat => (
+            <div key={stat.label} className={`rounded-xl border px-3 py-3 text-center ${theme.statBox}`}>
+              <p className={`text-[10px] font-bold leading-snug tracking-wide ${theme.statLabel}`}>{stat.label}</p>
+              <p className={`mt-1.5 font-black tabular-nums leading-none tracking-tight ${theme.statValue} text-2xl`}>
+                {stat.value}
+              </p>
+            </div>
+          ))}
         </div>
+      ) : (
+        rest[0] && (
+          <div className={`rounded-xl border px-4 py-3 text-center ${theme.statBox}`}>
+            <p className={`text-[10px] font-bold uppercase tracking-wider ${theme.statLabel}`}>{rest[0].label}</p>
+            <p className={`mt-1.5 font-black tabular-nums leading-none tracking-tight ${theme.statValue} text-2xl`}>
+              {rest[0].value}
+            </p>
+          </div>
+        )
       )}
     </div>
   )

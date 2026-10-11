@@ -36,13 +36,7 @@ async function authAwareFetch(input: RequestInfo | URL, init: RequestInit = {}):
       const { readRawSession, isAccessTokenExpired, ensureFreshSession } = await import('../services/authService')
       const stored = readRawSession()
       if (stored && isAccessTokenExpired(stored)) {
-        const refreshed = await ensureFreshSession({ kickOnFailure: true })
-        if (!refreshed) {
-          return new Response(JSON.stringify({ message: 'JWT expired', code: 'PGRST303' }), {
-            status: 401,
-            headers: { 'Content-Type': 'application/json' }
-          })
-        }
+        await ensureFreshSession({ kickOnFailure: true })
       }
     } catch {
       // auth helpers unavailable during early boot

@@ -1,18 +1,10 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useCanManageProduction } from './useCanManageProduction'
 import { useLang } from '../i18n/LanguageContext'
-import {
-  type PlanDayType,
-  type ProductionPlanWorkDayEdit,
-  type ProductionPlanWorkDayRow
-} from '../Types/productionPlanWorkDayDaily'
+import type { ProductionPlanWorkDayEdit, ProductionPlanWorkDayRow } from '../Types/productionPlanWorkDayDaily'
 import {
   availableDaysFromRows,
   buildMonthWorkDayRows,
-  defaultPlannedHoursForDayType,
-  isVacationOrFactoryHoliday,
-  isActualHoursLocked,
-  resolveLaborAttendanceEfficiency,
   mergeProductivityIntoRows,
   mergeStopsIntoRows
 } from '../Utils/productionPlanWorkDayDaily'
@@ -22,14 +14,17 @@ import {
   getProductionPlanWorkDaysMonth
 } from '../services/productionPlanWorkDayDailyService'
 import { formatAuthApiError } from '../services/authService'
-import { getProductionLineStops, aggregateStopsByDate } from '../services/productionStopService'
+import { aggregateStopsByDate, countsInStopTotals, getProductionLineStops } from '../services/productionStopService'
 import { computeDailyAttendanceEfficiency, getAttendanceDaysForMonth } from '../services/attendanceService'
 import { getEmployees } from '../services/employeesService'
 import { getProductivityDelayReasonsMonth } from '../services/productivityDelayReasonsService'
 import { getModelPlanTargets } from '../services/modelProductionPlanService'
 import { expandPlanTargetsWithBundles, sumPlanTargetsOnce } from '../Utils/planBundles'
-import { allocateDailyPlan } from '../Utils/planningDailyTracking'
-import { planDayDeficit } from '../Utils/planDayDeficit'
+import { localTodayIso } from '../Utils/planningDailyTracking'
+import { applyWorkDayPatch } from '../Utils/patchWorkDayRow'
+import { summarizeWorkDays, withDailyDeficits } from '../Utils/workDaysSummary'
+import { delayReasonKey, formatDayLabel, formatEfficiency } from '../Utils/workDayLabels'
+import { getProductionPlanWorkDays } from '../services/productionPlanWorkDaysService'
 import type { ProductivityDelayKind } from '../Types/productivityDelayReason'
 import { buildModelProductivityBreakdown } from '../Utils/productivityBreakdown'
 import { buildWorkDaysExportRows } from '../Utils/planningExport'
@@ -40,10 +35,6 @@ import type { ProductionLineStop } from '../Types/productionStop'
 function currentYm(): { year: number; month: number } {
   const d = new Date()
   return { year: d.getFullYear(), month: d.getMonth() + 1 }
-}
-
-function delayReasonKey(workDate: string, kind: ProductivityDelayKind): string {
-  return `${workDate}|${kind}`
 }
 
 export function useWorkDaysData(
@@ -72,6 +63,7 @@ export function useWorkDaysData(
     dailyPlan: number
   } | null>(null)
   const [monthlyPlan, setMonthlyPlan] = useState(0)
+  const [lineJph, setLineJph] = useState(0)
   const [monthStops, setMonthStops] = useState<ProductionLineStop[]>([])
   const [productivityModels, setProductivityModels] = useState<VehicleModel[]>([])
   const [loading, setLoading] = useState(false)
@@ -88,15 +80,17 @@ export function useWorkDaysData(
     setError('')
     setSuccess('')
     try {
-      const [saved, productivity, stops, employees, attendanceDays, planTargets] = await Promise.all([
+      const [saved, productivity, stops, employees, attendanceDays, planTargets, workConfig] = await Promise.all([
         getProductionPlanWorkDaysMonth(year, month),
         getMonthProductivityDetail(year, month),
         getProductionLineStops(year, month).catch(() => []),
         getEmployees().catch(() => []),
         getAttendanceDaysForMonth(year, month).catch(() => []),
-        getModelPlanTargets(year, month).catch(() => [])
+        getModelPlanTargets(year, month).catch(() => []),
+        getProductionPlanWorkDays(year, month).catch(() => null)
       ])
       setMonthlyPlan(sumPlanTargetsOnce(expandPlanTargetsWithBundles(planTargets)))
+      setLineJph(workConfig?.lineJph ?? 0)
       const activeEmployeeIds = employees.filter(e => e.isActive).map(e => e.id)
       const attendanceEfficiencyByDate = computeDailyAttendanceEfficiency(
         activeEmployeeIds,
@@ -106,7 +100,7 @@ export function useWorkDaysData(
         undefined,
         new Map(saved.map(r => [r.workDate, r.dayType]))
       )
-      const { minutesByDate, lostVehiclesByDate } = aggregateStopsByDate(stops)
+      const { minutesByDate, lostVehiclesByDate } = aggregateStopsByDate(stops.filter(countsInStopTotals))
       const base = buildMonthWorkDayRows(year, month, saved)
       const merged = mergeStopsIntoRows(
         mergeProductivityIntoRows(base, productivity.entryByDate, productivity.exitByDate, productivity.repairByDate),
@@ -202,31 +196,7 @@ export function useWorkDaysData(
 
   function patchRow(index: number, patch: Partial<ProductionPlanWorkDayEdit>) {
     setRows(prev => {
-      const next = prev.map((row, i) => {
-        if (i !== index) return row
-        const updated = { ...row, ...patch }
-        if (patch.dayType && patch.plannedHours === undefined) {
-          updated.plannedHours = defaultPlannedHoursForDayType(patch.dayType)
-          if (isVacationOrFactoryHoliday(patch.dayType)) {
-            updated.workDespiteVacation = false
-            updated.actualHours = 0
-          } else {
-            updated.workDespiteVacation = false
-            if (patch.actualHours === undefined) updated.actualHours = updated.plannedHours
-          }
-        } else if (
-          patch.plannedHours !== undefined &&
-          patch.actualHours === undefined &&
-          !isVacationOrFactoryHoliday(updated.dayType) &&
-          (row.actualHours === 0 || row.actualHours === row.plannedHours)
-        ) {
-          updated.actualHours = patch.plannedHours
-        }
-        if (patch.workDespiteVacation === false) {
-          updated.actualHours = 0
-        }
-        return updated
-      })
+      const next = prev.map((row, i) => (i === index ? applyWorkDayPatch(row, patch) : row))
       const updatedRow = next[index]
       if (updatedRow) scheduleSaveRow(updatedRow)
       onAvailableDaysChange?.(availableDaysFromRows(next))
@@ -243,43 +213,12 @@ export function useWorkDaysData(
     return buildModelProductivityBreakdown(entryRecords, exitRecords, productivityModels, workDate, repairRecords)
   }
 
-  const displayRows = useMemo(() => {
-    const dailyPlan = allocateDailyPlan(
-      monthlyPlan,
-      rows.map(row => ({ workDate: row.workDate, dayType: row.dayType, plannedHours: row.plannedHours }))
-    )
-    return rows.map(row => {
-      const planned = dailyPlan.get(row.workDate) ?? 0
-      return {
-        ...row,
-        dailyPlan: planned,
-        entryDeficit: planDayDeficit(monthlyPlan, planned, row.entryProductivity),
-        exitDeficit: planDayDeficit(monthlyPlan, planned, row.exitProductivity)
-      }
-    })
-  }, [rows, monthlyPlan])
+  const displayRows = useMemo(() => withDailyDeficits(rows, monthlyPlan), [rows, monthlyPlan])
 
-  const totals = useMemo(() => {
-    const efficiencyValues = displayRows
-      .map(r => resolveLaborAttendanceEfficiency(r))
-      .filter((v): v is number => v != null)
-    const laborAttendanceEfficiency =
-      efficiencyValues.length > 0
-        ? Math.round(efficiencyValues.reduce((sum, v) => sum + v, 0) / efficiencyValues.length)
-        : null
-    return {
-      plannedHours: displayRows.reduce((sum, row) => sum + row.plannedHours, 0),
-      actualHours: displayRows.reduce((sum, row) => sum + row.actualHours, 0),
-      laborAttendanceEfficiency,
-      entryProductivity: displayRows.reduce((sum, row) => sum + row.entryProductivity, 0),
-      entryDeficit: displayRows.reduce((sum, row) => sum + row.entryDeficit, 0),
-      stopMinutes: displayRows.reduce((sum, row) => sum + row.stopMinutes, 0),
-      stopLostVehicles: displayRows.reduce((sum, row) => sum + row.stopLostVehicles, 0),
-      exitProductivity: displayRows.reduce((sum, row) => sum + row.exitProductivity, 0),
-      exitDeficit: displayRows.reduce((sum, row) => sum + row.exitDeficit, 0),
-      repairProductivity: displayRows.reduce((sum, row) => sum + row.repairProductivity, 0)
-    }
-  }, [displayRows])
+  const totals = useMemo(
+    () => summarizeWorkDays(displayRows, lineJph, year, month, localTodayIso()),
+    [displayRows, lineJph, year, month]
+  )
 
   const workDaysExportRows = useMemo(
     () =>
@@ -324,14 +263,4 @@ export function useWorkDaysData(
   }
 }
 
-function formatDayLabel(workDate: string, lang: string): string {
-  const d = new Date(workDate + 'T12:00:00')
-  const weekday = d.toLocaleDateString(lang === 'ar' ? 'ar-EG' : 'en-US', { weekday: 'long' })
-  return `${weekday} ${d.getDate()}`
-}
-
-function formatEfficiency(value: number | null): string {
-  return value == null ? '—' : `${value}%`
-}
-
-export { formatDayLabel, formatEfficiency, delayReasonKey }
+export { delayReasonKey, formatDayLabel, formatEfficiency }

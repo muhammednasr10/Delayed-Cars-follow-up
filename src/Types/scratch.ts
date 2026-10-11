@@ -12,6 +12,7 @@ export type ScratchRecord = {
   severity: ScratchSeverity
   recordedAt: string
   notes?: string
+  actionTaken?: string | null
   imagePath?: string | null
   imageUrl?: string | null
   willStop: boolean
@@ -32,6 +33,7 @@ export type ScratchInput = {
   severity: ScratchSeverity
   recordedAt: string
   notes?: string
+  actionTaken?: string | null
   imagePath?: string | null
   willStop: boolean
 }

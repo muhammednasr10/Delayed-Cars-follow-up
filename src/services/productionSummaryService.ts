@@ -1,6 +1,6 @@
 import { listDatesInMonth } from './entryProductivityService'
 import { getMonthProductivityTotals } from './productionPlanWorkDayDailyService'
-import { getProductionLineStops } from './productionStopService'
+import { countsInStopTotals, getProductionLineStops } from './productionStopService'
 
 export type ProductionSummaryDayRow = {
   workDate: string
@@ -24,7 +24,7 @@ export async function getProductionSummaryMonth(year: number, month: number): Pr
     getMonthProductivityTotals(year, month),
     getProductionLineStops(year, month).catch(() => [])
   ])
-  const stopByDate = sumStopLostByDate(stops)
+  const stopByDate = sumStopLostByDate(stops.filter(countsInStopTotals))
 
   return listDatesInMonth(year, month).map(workDate => {
     const entryProductivity = productivity.entryByDate.get(workDate) ?? 0

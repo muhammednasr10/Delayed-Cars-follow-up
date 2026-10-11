@@ -25,6 +25,64 @@ export function countDayTypes(rows: Pick<ProductionPlanWorkDayRow, 'dayType'>[])
   return { workingDays, vacationDays, overtimeDays }
 }
 
+export function monthThroughDate(year: number, month: number, today: string): string {
+  const start = `${year}-${String(month).padStart(2, '0')}-01`
+  const endDate = new Date(year, month, 0)
+  const end = `${endDate.getFullYear()}-${String(endDate.getMonth() + 1).padStart(2, '0')}-${String(endDate.getDate()).padStart(2, '0')}`
+  if (today < start) return ''
+  if (today > end) return end
+  return today
+}
+
+export function previousIsoDate(iso: string): string {
+  const date = new Date(`${iso}T12:00:00`)
+  date.setDate(date.getDate() - 1)
+  const year = date.getFullYear()
+  const month = String(date.getMonth() + 1).padStart(2, '0')
+  const day = String(date.getDate()).padStart(2, '0')
+  return `${year}-${month}-${day}`
+}
+
+/** آخر يوم خلص. النهاردة لسه شغالة فما تتحسبش ضمن الأيام المنقضية. */
+export function completedWorkThroughDate(year: number, month: number, today: string): string {
+  const throughToday = monthThroughDate(year, month, today)
+  if (!throughToday || throughToday !== today) return throughToday
+  const yesterday = previousIsoDate(today)
+  const start = `${year}-${String(month).padStart(2, '0')}-01`
+  return yesterday < start ? '' : yesterday
+}
+
+export function isElapsedWorkingDay(
+  row: Pick<ProductionPlanWorkDayRow, 'dayType' | 'actualHours' | 'workDespiteVacation'>
+): boolean {
+  if (row.dayType === 'work' || row.dayType === 'overtime') return true
+  return row.workDespiteVacation || (isVacationOrFactoryHoliday(row.dayType) && row.actualHours > 0)
+}
+
+/** ساعة اليوم المحسوبة: الفعلية إن وُجدت، وإلا ساعة الخطة. */
+export function hoursCountedForDay(row: Pick<ProductionPlanWorkDayRow, 'plannedHours' | 'actualHours'>): number {
+  return row.actualHours > 0 ? row.actualHours : row.plannedHours
+}
+
+/** أيام وساعات العمل التي مرّت حتى التاريخ، من جدول أيام الشهر. */
+export function elapsedWorkTotals(
+  rows: Pick<
+    ProductionPlanWorkDayRow,
+    'workDate' | 'dayType' | 'plannedHours' | 'actualHours' | 'workDespiteVacation'
+  >[],
+  throughDate: string
+): { days: number; hours: number } {
+  let days = 0
+  let hours = 0
+  if (!throughDate) return { days, hours }
+  for (const row of rows) {
+    if (row.workDate > throughDate || !isElapsedWorkingDay(row)) continue
+    days += 1
+    hours += hoursCountedForDay(row)
+  }
+  return { days, hours: Math.round(hours * 10) / 10 }
+}
+
 export function availableDaysFromRows(rows: Pick<ProductionPlanWorkDayRow, 'dayType'>[]): number {
   const { workingDays, overtimeDays } = countDayTypes(rows)
   return workingDays + overtimeDays
@@ -104,24 +162,6 @@ export function computeProductivityLossRemainder(productivity: number, stopLostV
 export function computeProductivityDeficit(actualHours: number, lineJph: number, productivity: number): number {
   if (lineJph <= 0) return 0
   return Math.round(actualHours * lineJph - productivity)
-}
-
-/** كفاءة الإنتاجية الشهرية = الفعلي ÷ (ساعات العمل × JPH) */
-export function computeMonthProductivityEfficiency(
-  rows: Pick<ProductionPlanWorkDayRow, 'workDate' | 'actualHours'>[],
-  lineJph: number,
-  productivityByDate: Map<string, number>
-): number | null {
-  if (lineJph <= 0) return null
-  let expected = 0
-  let actual = 0
-  for (const row of rows) {
-    if (row.actualHours <= 0) continue
-    expected += row.actualHours * lineJph
-    actual += productivityByDate.get(row.workDate) ?? 0
-  }
-  if (expected <= 0) return null
-  return Math.round((actual / expected) * 100)
 }
 
 /** @deprecated use computeProductivityDeficit */

@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { getProductionLineStops, stopDurationMinutes } from '../services/productionStopService'
+import { countsInStopTotals, getProductionLineStops, stopDurationMinutes } from '../services/productionStopService'
 
 function currentYm(): { year: number; month: number } {
   const d = new Date()
@@ -25,8 +25,9 @@ export function useProductionStopMonthCounts(refreshKey = 0) {
     void getProductionLineStops(year, month)
       .then(stops => {
         if (cancelled) return
-        setTotalMinutes(stops.reduce((sum, stop) => sum + stopDurationMinutes(stop.startedAt, stop.endedAt), 0))
-        setLostVehicles(stops.reduce((sum, stop) => sum + stop.lostVehicles, 0))
+        const counted = stops.filter(countsInStopTotals)
+        setTotalMinutes(counted.reduce((sum, stop) => sum + stopDurationMinutes(stop.startedAt, stop.endedAt), 0))
+        setLostVehicles(counted.reduce((sum, stop) => sum + stop.lostVehicles, 0))
       })
       .catch(() => {
         if (!cancelled) {

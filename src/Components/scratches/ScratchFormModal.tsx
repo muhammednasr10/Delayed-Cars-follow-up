@@ -12,6 +12,7 @@ import { getFactoryOrgUnits } from '../../services/factoryOrgService'
 import type { FactoryOrgUnit } from '../../Types/factoryOrg'
 import type { VehicleModel } from '../../Types/settings'
 import { orgPathFromLeaf, orgPathLabel, orgPathLeaf } from '../../Utils/employeeOrgPicker'
+import { joinScratchDefect, splitScratchDefect } from '../../Utils/scratchFilters'
 import { CHASSIS_VIN_LENGTH, isValidVinLength, normalizeChassisVin } from '../../Utils/vinValidation'
 
 const SEVERITIES: ScratchSeverity[] = ['light', 'medium', 'severe']
@@ -20,11 +21,13 @@ type FormState = {
   familyId: string
   variantId: string
   vin: string
-  notes: string
+  defect: string
+  location: string
   orgPath: string[]
   severity: ScratchSeverity
   recordedAt: string
   willStop: boolean
+  actionTaken: string
 }
 
 function emptyForm(defaultPath: string[] = []): FormState {
@@ -32,11 +35,13 @@ function emptyForm(defaultPath: string[] = []): FormState {
     familyId: '',
     variantId: '',
     vin: '',
-    notes: '',
+    defect: '',
+    location: '',
     orgPath: [...defaultPath],
     severity: 'light',
     recordedAt: new Date().toISOString().slice(0, 10),
-    willStop: false
+    willStop: false,
+    actionTaken: ''
   }
 }
 
@@ -76,11 +81,13 @@ export function ScratchFormModal({ open, models, modelsLoading, editing, onClose
             familyId: editing.parentModelId ?? '',
             variantId: editing.vehicleModelId ?? '',
             vin: editing.vin,
-            notes: editing.notes ?? '',
+            defect: splitScratchDefect(editing.notes).defect,
+            location: splitScratchDefect(editing.notes).location,
             orgPath: orgPathFromLeaf(editing.factoryOrgUnitId, units),
             severity: editing.severity,
             recordedAt: editing.recordedAt.slice(0, 10),
-            willStop: editing.willStop
+            willStop: editing.willStop,
+            actionTaken: editing.actionTaken?.trim() || splitScratchDefect(editing.notes).action
           })
           if (editing.imageUrl) setImagePreview(editing.imageUrl)
         } else {
@@ -94,11 +101,13 @@ export function ScratchFormModal({ open, models, modelsLoading, editing, onClose
             familyId: editing.parentModelId ?? '',
             variantId: editing.vehicleModelId ?? '',
             vin: editing.vin,
-            notes: editing.notes ?? '',
+            defect: splitScratchDefect(editing.notes).defect,
+            location: splitScratchDefect(editing.notes).location,
             orgPath: [],
             severity: editing.severity,
             recordedAt: editing.recordedAt.slice(0, 10),
-            willStop: editing.willStop
+            willStop: editing.willStop,
+            actionTaken: editing.actionTaken?.trim() || splitScratchDefect(editing.notes).action
           })
           if (editing.imageUrl) setImagePreview(editing.imageUrl)
         } else {
@@ -159,7 +168,8 @@ export function ScratchFormModal({ open, models, modelsLoading, editing, onClose
         factoryOrgUnitId,
         severity: form.severity,
         recordedAt: form.recordedAt,
-        notes: form.notes?.trim() || undefined,
+        notes: joinScratchDefect(form.defect, form.location, form.actionTaken),
+        actionTaken: form.actionTaken.trim() || null,
         willStop: form.willStop
       },
       imageFile
@@ -223,14 +233,24 @@ export function ScratchFormModal({ open, models, modelsLoading, editing, onClose
           <p className="mt-1 text-[10px] text-slate-500">{t('scratches.vinHint')}</p>
         </Field>
 
-        <Field label={t('scratches.cols.notes')}>
-          <textarea
-            className={`${inputCls()} min-h-[5rem] resize-y`}
-            value={form.notes}
-            onChange={e => setForm(f => ({ ...f, notes: e.target.value }))}
-            placeholder={t('scratches.notesPlaceholder')}
-          />
-        </Field>
+        <div className="grid gap-4 sm:grid-cols-2">
+          <Field label={t('scratches.cols.defect')}>
+            <input
+              className={inputCls()}
+              value={form.defect}
+              onChange={e => setForm(f => ({ ...f, defect: e.target.value }))}
+              placeholder={t('scratches.defectPlaceholder')}
+            />
+          </Field>
+          <Field label={t('scratches.cols.location')}>
+            <input
+              className={inputCls()}
+              value={form.location}
+              onChange={e => setForm(f => ({ ...f, location: e.target.value }))}
+              placeholder={t('scratches.locationPlaceholder')}
+            />
+          </Field>
+        </div>
 
         <div className="space-y-2">
           <p className="text-sm font-bold text-slate-300">{t('scratches.cols.orgUnit')} *</p>
@@ -292,6 +312,15 @@ export function ScratchFormModal({ open, models, modelsLoading, editing, onClose
             </button>
           </div>
           <p className="mt-1 text-[10px] text-slate-500">{t('scratches.willStop.hint')}</p>
+        </Field>
+
+        <Field label={t('scratches.cols.action')}>
+          <textarea
+            className={`${inputCls()} min-h-[4.5rem] resize-y`}
+            value={form.actionTaken}
+            onChange={e => setForm(f => ({ ...f, actionTaken: e.target.value }))}
+            placeholder={t('scratches.actionPlaceholder')}
+          />
         </Field>
 
         <Field label={t('scratches.cols.date')} required>

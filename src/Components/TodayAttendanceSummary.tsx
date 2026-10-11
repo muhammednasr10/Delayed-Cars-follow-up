@@ -50,9 +50,11 @@ type Props = {
   rows: Row[]
   employees: Employee[]
   loading?: boolean
+  /** يوم أجازة في خطة الإنتاج: حالة الإجازة هنا مش إجازة موظف. */
+  officialHoliday?: boolean
 }
 
-export function TodayAttendanceSummary({ rows, employees, loading }: Props) {
+export function TodayAttendanceSummary({ rows, employees, loading, officialHoliday = false }: Props) {
   const { t } = useLang()
   const [openKey, setOpenKey] = useState<CardKey | null>(null)
 
@@ -61,23 +63,27 @@ export function TodayAttendanceSummary({ rows, employees, loading }: Props) {
   const counts = useMemo(() => {
     const byStatus = Object.fromEntries(ATTENDANCE_STATUSES.map(s => [s, 0])) as Record<AttendanceDayStatus, number>
     for (const row of rows) {
+      if (officialHoliday && row.status === 'vacation') continue
       byStatus[row.status] = (byStatus[row.status] ?? 0) + 1
     }
     const total = rows.length
     const onSite = byStatus.present + byStatus.late + byStatus.permission
     const away = byStatus.absent + byStatus.vacation + byStatus.sick
     return { total, onSite, away, byStatus }
-  }, [rows])
+  }, [rows, officialHoliday])
 
   const areaCounts = useMemo(() => {
-    const scoped = openKey == null || openKey === 'total' ? rows : rows.filter(row => row.status === openKey)
+    const scoped =
+      openKey == null || openKey === 'total'
+        ? rows
+        : rows.filter(row => row.status === openKey && !(officialHoliday && row.status === 'vacation'))
     const byArea = { trimA: 0, trimB: 0, chassis: 0, final: 0, other: 0 } satisfies Record<AttendanceAreaKey, number>
     for (const row of scoped) {
       const area = employeeAttendanceArea(employeeById.get(row.employeeId))
       byArea[area] += 1
     }
     return byArea
-  }, [rows, openKey, employeeById])
+  }, [rows, openKey, employeeById, officialHoliday])
 
   const cards: {
     key: CardKey
@@ -119,13 +125,13 @@ export function TodayAttendanceSummary({ rows, employees, loading }: Props) {
               type="button"
               disabled={loading}
               onClick={() => setOpenKey(card.key)}
-              className={`rounded-xl border px-3 py-2.5 text-start transition hover:brightness-125 disabled:cursor-wait ${
+              className={`rounded-xl border px-3 py-2.5 text-center transition hover:brightness-125 disabled:cursor-wait ${
                 card.highlight
                   ? 'border-cyan-500/30 bg-cyan-500/10'
                   : (style?.card ?? 'border-slate-700 bg-slate-950/50')
               } ${selected ? 'ring-2 ring-white/70' : ''}`}
             >
-              <p className="flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-wide text-slate-400">
+              <p className="flex items-center justify-center gap-1.5 text-[10px] font-bold uppercase tracking-wide text-slate-400">
                 {style && <span className={`h-1.5 w-1.5 shrink-0 rounded-full ${style.dot}`} />}
                 {card.label}
               </p>
@@ -159,13 +165,13 @@ export function TodayAttendanceSummary({ rows, employees, loading }: Props) {
       >
         <div className="grid grid-cols-2 gap-3">
           {ATTENDANCE_AREA_KEYS.map(area => (
-            <div key={area} className="rounded-xl border border-slate-700 bg-slate-950/60 px-4 py-3">
+            <div key={area} className="rounded-xl border border-slate-700 bg-slate-950/60 px-4 py-3 text-center">
               <p className="text-xs font-bold text-slate-400">{t(`attendance.today.summary.areas.${area}`)}</p>
               <p className="mt-1 text-3xl font-black tabular-nums text-white">{areaCounts[area]}</p>
             </div>
           ))}
           {areaCounts.other > 0 && (
-            <div className="col-span-2 rounded-xl border border-slate-700 bg-slate-950/40 px-4 py-3">
+            <div className="col-span-2 rounded-xl border border-slate-700 bg-slate-950/40 px-4 py-3 text-center">
               <p className="text-xs font-bold text-slate-400">{t('attendance.today.summary.other')}</p>
               <p className="mt-1 text-2xl font-black tabular-nums text-slate-200">{areaCounts.other}</p>
             </div>

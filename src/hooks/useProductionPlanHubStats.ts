@@ -7,6 +7,10 @@ import {
 } from '../services/modelProductionPlanService'
 import { getExitProductivityMonth, getExitProductivityYear } from '../services/exitProductivityService'
 import { getProductionPlanWorkDays } from '../services/productionPlanWorkDaysService'
+import { getProductionPlanWorkDaysMonth } from '../services/productionPlanWorkDayDailyService'
+import { buildMonthWorkDayRows, completedWorkThroughDate } from '../Utils/productionPlanWorkDayDaily'
+import { localTodayIso } from '../Utils/planningDailyTracking'
+import { planEfficiencyAgainstElapsedDays, planEfficiencyAgainstFullMonth } from '../Utils/productivityEfficiency'
 import { getVehicleModels } from '../services/settingsService'
 import { overlayPlanBundles, readPlanBundles } from '../Utils/planBundles'
 import { computeTaktMinutes, formatTaktMinutes } from '../Utils/productionLineRate'
@@ -59,6 +63,8 @@ export type ProductionPlanHubStats = {
   planned: number
   achieved: number
   progress: number
+  /** إنجاز الفعلي مقابل حصة الخطة المستحقة لأيام العمل حتى اليوم. */
+  workDayProgress: number | null
   wip: number
   monthlyFamilies: PlanFamilySummaryRow[]
   annualPlanned: number
@@ -81,6 +87,7 @@ const emptyStats = (): ProductionPlanHubStats => {
     planned: 0,
     achieved: 0,
     progress: 0,
+    workDayProgress: null,
     wip: 0,
     monthlyFamilies: [],
     annualPlanned: 0,
@@ -109,9 +116,10 @@ export function useProductionPlanHubStats(refreshKey = 0): ProductionPlanHubStat
       getYearMonthlyPlanTargets(year).catch(() => []),
       getExitProductivityYear(year).catch(() => []),
       getExitProductivityMonth(year, month).catch(() => []),
-      getProductionPlanWorkDays(year, month).catch(() => null)
+      getProductionPlanWorkDays(year, month).catch(() => null),
+      getProductionPlanWorkDaysMonth(year, month).catch(() => [])
     ])
-      .then(([models, dbTargets, yearMonthlyTargets, yearExitRows, monthExitRows, workConfig]) => {
+      .then(([models, dbTargets, yearMonthlyTargets, yearExitRows, monthExitRows, workConfig, savedWorkDays]) => {
         if (cancelled) return
 
         const painted = overlayPlanBundles(
@@ -140,6 +148,13 @@ export function useProductionPlanHubStats(refreshKey = 0): ProductionPlanHubStat
 
         const planned = sumPlanSectionsPlanned(planSections)
         const achieved = sumPlanSectionsAchieved(planSections)
+        const workDayRows = buildMonthWorkDayRows(year, month, savedWorkDays).map(row => ({
+          workDate: row.workDate,
+          dayType: row.dayType,
+          plannedHours: row.plannedHours
+        }))
+        const today = localTodayIso()
+        const completedThrough = completedWorkThroughDate(year, month, today)
         const annualPlanned = sumPlanSectionsPlanned(annualSections)
         const annualAchieved = sumPlanSectionsAchieved(annualSections)
         const lineJph = workConfig?.lineJph ?? 0
@@ -151,7 +166,8 @@ export function useProductionPlanHubStats(refreshKey = 0): ProductionPlanHubStat
           monthValue,
           planned,
           achieved,
-          progress: planProgressPercent(planned, achieved),
+          progress: planEfficiencyAgainstFullMonth(planned, achieved),
+          workDayProgress: planEfficiencyAgainstElapsedDays(planned, achieved, workDayRows, completedThrough),
           wip: sumPlanSectionsWip(planSections),
           monthlyFamilies,
           annualPlanned,

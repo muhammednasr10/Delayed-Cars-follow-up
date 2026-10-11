@@ -1,5 +1,7 @@
 import { useEffect, useState } from 'react'
-import { computeMonthProductivityEfficiency } from '../Utils/productionPlanWorkDayDaily'
+import { localTodayIso } from '../Utils/planningDailyTracking'
+import { buildMonthWorkDayRows } from '../Utils/productionPlanWorkDayDaily'
+import { monthLineEfficiencies } from '../Utils/productivityEfficiency'
 import { getEntryProductivityMonth } from '../services/entryProductivityService'
 import { getExitProductivityMonth } from '../services/exitProductivityService'
 import { getProductionPlanWorkDaysMonth, sumProductivityByDate } from '../services/productionPlanWorkDayDailyService'
@@ -35,10 +37,12 @@ export function useProductivityMonthCounts(refreshKey = 0) {
         setExitVehicles(exitRows.reduce((sum, row) => sum + row.quantity, 0))
 
         const lineJph = workConfig?.lineJph ?? 0
+        const calendar = buildMonthWorkDayRows(year, month, workDayRows)
         const entryByDate = sumProductivityByDate(entryRows)
         const exitByDate = sumProductivityByDate(exitRows)
-        setEntryEfficiency(computeMonthProductivityEfficiency(workDayRows, lineJph, entryByDate))
-        setExitEfficiency(computeMonthProductivityEfficiency(workDayRows, lineJph, exitByDate))
+        const efficiencies = monthLineEfficiencies(calendar, lineJph, entryByDate, exitByDate, year, month, localTodayIso())
+        setEntryEfficiency(efficiencies.entry)
+        setExitEfficiency(efficiencies.exit)
       })
       .catch(() => {
         if (!cancelled) {

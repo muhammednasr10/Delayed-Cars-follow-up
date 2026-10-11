@@ -104,7 +104,7 @@ export function HeaderNotificationsBell() {
         <Bell className="h-5 w-5" />
         {total > 0 && (
           <span className="absolute -end-0.5 -top-0.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-rose-500 px-1 text-[10px] font-black text-white">
-            {total > 9 ? '9+' : total}
+            {total}
           </span>
         )}
       </button>

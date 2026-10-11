@@ -544,7 +544,12 @@ export function TodayAttendanceTab({ employees, canManage, onSaved }: Props) {
         </div>
       )}
 
-      <TodayAttendanceSummary rows={rows} employees={activeEmployees} loading={loading} />
+      <TodayAttendanceSummary
+        rows={rows}
+        employees={activeEmployees}
+        loading={loading}
+        officialHoliday={isHolidayPlanDay(todayPlanDayType)}
+      />
 
       <TodayAttendanceDefaultsModal
         open={defaultsOpen}

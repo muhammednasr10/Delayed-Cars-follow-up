@@ -2,7 +2,7 @@ import { useMemo } from 'react'
 import { CalendarDays } from 'lucide-react'
 import { useWorkDaysData } from '../hooks/useWorkDaysData'
 import { inputCls } from './FormField'
-import { ProductivityBreakdownHover } from './productivity/ProductivityBreakdownHover'
+import { ProductivitySummaryCards } from './productivity/ProductivitySummaryCards'
 import { TableExportButtons } from './TableExportButtons'
 import { SummaryPill } from './production/PlanStatCards'
 import { WorkDaysMonthTable } from './production/WorkDaysMonthTable'
@@ -12,10 +12,6 @@ import type { TableExportColumn } from '../Utils/tableExport'
 type Props = {
   onAvailableDaysChange?: (count: number) => void
   variant?: 'workDays' | 'summary'
-}
-
-function formatCount(n: number): string {
-  return n ? String(n) : '—'
 }
 
 export function ProductionPlanWorkDaysTab({ onAvailableDaysChange, variant = 'summary' }: Props) {
@@ -75,40 +71,27 @@ export function ProductionPlanWorkDaysTab({ onAvailableDaysChange, variant = 'su
           </div>
         </div>
 
-        <div
-          className={`mt-4 grid grid-cols-1 gap-2 ${isWorkDaysOnly ? 'sm:grid-cols-3' : 'sm:grid-cols-2 md:grid-cols-4 xl:grid-cols-8'}`}
-        >
-          <SummaryPill label={t('productionOrders.workDays.available')} value={String(h.availableDays)} tone="violet" />
-          <SummaryPill label={t('productionOrders.workDaysTab.summary.plannedHours')} value={h.totals.plannedHours ? String(h.totals.plannedHours) : '—'} tone="cyan" />
-          <SummaryPill label={t('productionOrders.workDaysTab.summary.actualHours')} value={h.totals.actualHours ? String(h.totals.actualHours) : '—'} tone="slate" />
-          {!isWorkDaysOnly && (
-            <>
-              <SummaryPill label={t('productionOrders.workDaysTab.summary.totalStops')} value={formatCount(h.totals.stopMinutes)} tone="amber" />
-              <SummaryPill label={t('productionOrders.workDaysTab.summary.totalStopsCars')} value={formatCount(h.totals.stopLostVehicles)} tone="amber" />
-              <SummaryPill
-                label={t('productionOrders.workDaysTab.cols.entryProductivity')}
-                value={h.totals.entryProductivity ? (
-                  <ProductivityBreakdownHover breakdown={h.monthBreakdown} kind="entry" className="text-cyan-300">{formatCount(h.totals.entryProductivity)}</ProductivityBreakdownHover>
-                ) : '—'}
-                tone="cyan"
-              />
-              <SummaryPill
-                label={t('productionOrders.workDaysTab.cols.exitProductivity')}
-                value={h.totals.exitProductivity ? (
-                  <ProductivityBreakdownHover breakdown={h.monthBreakdown} kind="exit" className="text-emerald-300">{formatCount(h.totals.exitProductivity)}</ProductivityBreakdownHover>
-                ) : '—'}
-                tone="emerald"
-              />
-              <SummaryPill
-                label={t('productionOrders.workDaysTab.cols.repairProductivity')}
-                value={h.totals.repairProductivity ? (
-                  <ProductivityBreakdownHover breakdown={h.monthBreakdown} kind="repair" className="text-orange-300">{formatCount(h.totals.repairProductivity)}</ProductivityBreakdownHover>
-                ) : '—'}
-                tone="orange"
-              />
-            </>
-          )}
-        </div>
+        {isWorkDaysOnly ? (
+          <div className="mt-4 grid grid-cols-1 gap-2 sm:grid-cols-3">
+            <SummaryPill label={t('productionOrders.workDays.available')} value={String(h.availableDays)} tone="violet" />
+            <SummaryPill label={t('productionOrders.workDaysTab.summary.plannedHours')} value={h.totals.plannedHours ? String(h.totals.plannedHours) : '—'} tone="cyan" />
+            <SummaryPill label={t('productionOrders.workDaysTab.summary.actualHours')} value={h.totals.actualHours ? String(h.totals.actualHours) : '—'} tone="slate" />
+          </div>
+        ) : (
+          <ProductivitySummaryCards
+            availableDays={h.availableDays}
+            actualDays={h.totals.elapsedDays}
+            plannedHours={h.totals.plannedHours}
+            actualHours={h.totals.elapsedHours}
+            stopLostVehicles={h.totals.stopLostVehicles}
+            stopMinutes={h.totals.stopMinutes}
+            entryProductivity={h.totals.entryProductivity}
+            exitProductivity={h.totals.exitProductivity}
+            assemblyDeficit={h.totals.assemblyDeficit}
+            repairProductivity={h.totals.repairProductivity}
+            monthBreakdown={h.monthBreakdown}
+          />
+        )}
       </div>
 
       {h.success && (

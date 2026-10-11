@@ -10,6 +10,7 @@ import { useOpenShortageMissions } from '../../hooks/useOpenShortageMissions'
 import type { ScratchRecord } from '../../Types/scratch'
 import type { MpFollowUpAssignment, ShortageMissionAssignInput } from '../../Types/mpVehicleActions'
 import type { ShortageMissionLink } from '../../Types/mission'
+import { scratchAreaLeaf, scratchDefectLabel } from '../../Utils/scratchFilters'
 
 const iconSize = 'h-[18px] w-[18px]'
 
@@ -94,7 +95,7 @@ export function ScratchRowActions({
           linkedMissions={linkedMissions}
           canAssign={canAssign}
           onOpenLinked={() => openScratchMissions(row.vin)}
-          defaultTitle={[row.vin, row.notes, row.bodyArea].filter(Boolean).join(' · ')}
+          defaultTitle={[row.vin, scratchDefectLabel(row.notes), scratchAreaLeaf(row.bodyArea)].filter(Boolean).join(' · ')}
           className={`relative rounded-md p-1.5 ${
             linkedMissions.length > 0
               ? 'bg-amber-500/15 text-amber-200 hover:bg-amber-500/20'

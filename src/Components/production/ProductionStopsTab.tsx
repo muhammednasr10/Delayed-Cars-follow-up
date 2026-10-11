@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import { AlertOctagon, Pencil, Plus, Trash2 } from 'lucide-react'
+import { AlertOctagon, CircleStop, Pencil, Plus, Trash2 } from 'lucide-react'
 import { useCanManageProduction } from '../../hooks/useCanManageProduction'
 import { useNavigation } from '../../Context/NavigationContext'
 import { useLang } from '../../i18n/LanguageContext'
@@ -15,6 +15,7 @@ import type { TableExportColumn } from '../../Utils/tableExport'
 import {
   createProductionLineStop,
   deleteProductionLineStop,
+  countsInStopTotals,
   getProductionLineStops,
   stopDurationMinutes,
   updateProductionLineStop
@@ -40,18 +41,21 @@ function currentYm() {
 }
 
 function emptyForm(): ProductionLineStopInput {
-  const now = new Date()
-  const end = new Date(now.getTime() + 30 * 60_000)
   return {
     stopReason: '',
     stopType: 'partial',
     vehicleModelId: null,
-    startedAt: now.toISOString(),
-    endedAt: end.toISOString(),
+    startedAt: new Date().toISOString(),
+    endedAt: null,
     department: '',
     lostVehicles: 0,
     notes: ''
   }
+}
+
+function isOpenStopSchemaError(message: string): boolean {
+  const m = message.toLowerCase()
+  return m.includes('ended_at') && (m.includes('null') || m.includes('not-null') || m.includes('23502'))
 }
 
 function isSchemaMissing(message: string): boolean {
@@ -80,6 +84,7 @@ export function ProductionStopsTab() {
   const [formError, setFormError] = useState('')
   const [saving, setSaving] = useState(false)
   const [deleteTarget, setDeleteTarget] = useState<ProductionLineStop | null>(null)
+  const [closingId, setClosingId] = useState<string | null>(null)
   const [taktMinutes, setTaktMinutes] = useState<number | null>(null)
   const [models, setModels] = useState<VehicleModel[]>([])
 
@@ -130,23 +135,26 @@ export function ProductionStopsTab() {
   useEffect(() => {
     if (!formOpen || editing) return
     setForm(prev => {
+      if (!prev.endedAt) return prev
       const lost = lostVehiclesFromStopMinutes(stopDurationMinutes(prev.startedAt, prev.endedAt), taktMinutes)
       return prev.lostVehicles === lost ? prev : { ...prev, lostVehicles: lost }
     })
   }, [formOpen, editing, taktMinutes])
 
+  const countedStops = useMemo(() => items.filter(countsInStopTotals), [items])
+
   const totals = useMemo(
     () => ({
-      count: items.length,
-      lostVehicles: items.reduce((n, i) => n + i.lostVehicles, 0),
-      minutes: items.reduce((n, i) => n + stopDurationMinutes(i.startedAt, i.endedAt), 0)
+      count: countedStops.length,
+      lostVehicles: countedStops.reduce((n, i) => n + i.lostVehicles, 0),
+      minutes: countedStops.reduce((n, i) => n + stopDurationMinutes(i.startedAt, i.endedAt), 0)
     }),
-    [items]
+    [countedStops]
   )
 
   const byDepartment = useMemo((): DeptSummaryRow[] => {
     const map = new Map<string, { lost: number; minutes: number }>()
-    for (const item of items) {
+    for (const item of countedStops) {
       const cur = map.get(item.department) ?? { lost: 0, minutes: 0 }
       map.set(item.department, {
         lost: cur.lost + item.lostVehicles,
@@ -161,7 +169,7 @@ export function ProductionStopsTab() {
         minutes: stats.minutes
       }))
       .sort((a, b) => b.lost - a.lost || b.minutes - a.minutes)
-  }, [items, departments, lang])
+  }, [countedStops, departments, lang])
 
   const deptExportColumns = useMemo(
     (): TableExportColumn<DeptSummaryRow & { downtimeLabel: string }>[] => [
@@ -247,8 +255,8 @@ export function ProductionStopsTab() {
   function validate(): string | null {
     if (!form.stopReason.trim()) return t('productivity.stops.errReason')
     if (!form.department) return t('productivity.stops.errDepartment')
-    if (!form.startedAt || !form.endedAt) return t('productivity.stops.errTime')
-    if (new Date(form.endedAt).getTime() <= new Date(form.startedAt).getTime())
+    if (!form.startedAt) return t('productivity.stops.errTime')
+    if (form.endedAt && new Date(form.endedAt).getTime() <= new Date(form.startedAt).getTime())
       return t('productivity.stops.errTimeOrder')
     if (form.lostVehicles < 0) return t('productivity.stops.errLost')
     return null
@@ -270,9 +278,45 @@ export function ProductionStopsTab() {
       window.setTimeout(() => setSuccess(''), 2500)
       await load()
     } catch (e) {
-      setFormError(e instanceof Error ? e.message : t('common.error'))
+      const msg = e instanceof Error ? e.message : t('common.error')
+      setFormError(isOpenStopSchemaError(msg) ? t('productivity.stops.errOpenSchema') : msg)
     } finally {
       setSaving(false)
+    }
+  }
+
+  async function closeStop(row: ProductionLineStop) {
+    const endedAt = new Date().toISOString()
+    if (new Date(endedAt).getTime() <= new Date(row.startedAt).getTime()) {
+      setError(t('productivity.stops.errTimeOrder'))
+      return
+    }
+    setClosingId(row.id)
+    setError('')
+    try {
+      const started = new Date(row.startedAt)
+      const config = await getProductionPlanWorkDays(started.getFullYear(), started.getMonth() + 1).catch(() => null)
+      const jph = config?.lineJph ?? 0
+      const takt = computeTaktMinutes(jph > 0 ? jph : null)
+      const lost = lostVehiclesFromStopMinutes(stopDurationMinutes(row.startedAt, endedAt), takt)
+      await updateProductionLineStop(row.id, {
+        stopReason: row.stopReason,
+        stopType: row.stopType,
+        vehicleModelId: row.vehicleModelId,
+        startedAt: row.startedAt,
+        endedAt,
+        department: row.department,
+        lostVehicles: row.lostVehicles > 0 ? row.lostVehicles : lost,
+        notes: row.notes
+      })
+      setSuccess(t('productivity.stops.closed'))
+      window.setTimeout(() => setSuccess(''), 2500)
+      await load()
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : t('common.error')
+      setError(isOpenStopSchemaError(msg) ? t('productivity.stops.errOpenSchema') : msg)
+    } finally {
+      setClosingId(null)
     }
   }
 
@@ -408,9 +452,10 @@ export function ProductionStopsTab() {
           </thead>
           <tbody className="divide-y divide-slate-800">
             {items.map(row => {
+              const open = !row.endedAt
               const mins = stopDurationMinutes(row.startedAt, row.endedAt)
               return (
-                <tr key={row.id} className="bg-slate-900/30 hover:bg-slate-800/40">
+                <tr key={row.id} className={`hover:bg-slate-800/40 ${open ? 'bg-amber-500/5' : 'bg-slate-900/30'}`}>
                   <td className={`${cell} text-slate-300`}>{modelLabel(row.vehicleModelId, row.vehicleModelName)}</td>
                   <td className={cell}>
                     <span
@@ -428,14 +473,33 @@ export function ProductionStopsTab() {
                     {formatDt(row.startedAt)}
                   </td>
                   <td className={`${cell} text-slate-300`} dir="ltr">
-                    {formatDt(row.endedAt)}
+                    {open ? (
+                      <span className="rounded-lg bg-amber-500/20 px-2 py-0.5 text-xs font-black text-amber-200">
+                        {t('productivity.stops.open')}
+                      </span>
+                    ) : (
+                      formatDt(row.endedAt ?? '')
+                    )}
                   </td>
-                  <td className={`${cell} font-mono text-cyan-300`}>{formatDuration(mins)}</td>
+                  <td className={`${cell} font-mono text-cyan-300`}>
+                    {open ? t('productivity.stops.open') : formatDuration(mins)}
+                  </td>
                   <td className={cell}>{mpLookupLabel(departments, row.department, lang)}</td>
                   <td className={`${cell} font-black text-amber-300`}>{row.lostVehicles}</td>
                   {canManage && (
                     <td className={cell}>
                       <div className="flex justify-center gap-1">
+                        {open && (
+                          <button
+                            type="button"
+                            title={t('productivity.stops.close')}
+                            disabled={closingId === row.id}
+                            onClick={() => void closeStop(row)}
+                            className="rounded-lg p-2 text-emerald-300 hover:bg-emerald-500/20 disabled:opacity-50"
+                          >
+                            <CircleStop className="h-4 w-4" />
+                          </button>
+                        )}
                         <button
                           type="button"
                           title={t('common.edit')}
@@ -549,15 +613,21 @@ export function ProductionStopsTab() {
                 }
               />
             </Field>
-            <Field label={t('productivity.stops.fields.to')} required>
+            <Field label={t('productivity.stops.fields.to')}>
               <input
                 type="datetime-local"
                 className={inputCls()}
-                value={toDatetimeLocalValue(form.endedAt)}
+                value={form.endedAt ? toDatetimeLocalValue(form.endedAt) : ''}
                 onChange={e =>
-                  setForm(p => applyLostFromDuration({ ...p, endedAt: fromDatetimeLocalValue(e.target.value) }))
+                  setForm(p =>
+                    applyLostFromDuration({
+                      ...p,
+                      endedAt: e.target.value ? fromDatetimeLocalValue(e.target.value) : null
+                    })
+                  )
                 }
               />
+              <p className="mt-1 text-xs text-slate-500">{t('productivity.stops.endOptional')}</p>
             </Field>
           </div>
           <Field label={t('productivity.stops.fields.department')} required>

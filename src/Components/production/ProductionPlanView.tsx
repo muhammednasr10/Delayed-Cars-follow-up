@@ -101,8 +101,24 @@ export function ProductionPlanView({ h }: Props) {
             </div>
 
             <div className="flex flex-wrap gap-2">
-              <MetricPill label={t('productionOrders.workDays.available')} value={h.availableDays > 0 ? String(h.availableDays) : '—'} tone="violet" />
-              <MetricPill label={t('productionOrders.workDays.availableHours')} value={h.availableHours > 0 ? String(h.availableHours) : '—'} tone="cyan" />
+              <MetricPill
+                label={t('productionOrders.workDays.available')}
+                value={h.availableDays > 0 ? String(h.availableDays) : '—'}
+                tone="violet"
+                detail={{
+                  label: t('productionOrders.workDays.actualDays'),
+                  value: String(h.actualWorkDays)
+                }}
+              />
+              <MetricPill
+                label={t('productionOrders.workDays.availableHours')}
+                value={h.availableHours > 0 ? String(h.availableHours) : '—'}
+                tone="cyan"
+                detail={{
+                  label: t('productionOrders.workDays.actualHours'),
+                  value: String(h.actualWorkHours)
+                }}
+              />
               <MetricPill label={t('productionOrders.jph')} value={h.lineJph > 0 ? String(h.lineJph) : '—'} tone="cyan" />
               <MetricPill label={t('productionOrders.taktTime')} value={h.lineTaktMinutes != null ? formatTaktMinutes(h.lineTaktMinutes) : '—'} tone="amber" />
             </div>

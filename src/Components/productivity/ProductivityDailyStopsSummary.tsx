@@ -1,6 +1,6 @@
 import { AlertOctagon } from 'lucide-react'
 import { useLang } from '../../i18n/LanguageContext'
-import { stopDurationMinutes } from '../../services/productionStopService'
+import { countsInStopTotals, stopDurationMinutes } from '../../services/productionStopService'
 import type { ProductionLineStop } from '../../Types/productionStop'
 
 type Props = {
@@ -12,8 +12,9 @@ type Props = {
 export function ProductivityDailyStopsSummary({ workDate, stops, compact }: Props) {
   const { t } = useLang()
   const dayStops = stops.filter(s => s.startedAt.slice(0, 10) === workDate)
-  const totalMinutes = dayStops.reduce((sum, s) => sum + stopDurationMinutes(s.startedAt, s.endedAt), 0)
-  const totalLost = dayStops.reduce((sum, s) => sum + s.lostVehicles, 0)
+  const counted = dayStops.filter(countsInStopTotals)
+  const totalMinutes = counted.reduce((sum, s) => sum + stopDurationMinutes(s.startedAt, s.endedAt), 0)
+  const totalLost = counted.reduce((sum, s) => sum + s.lostVehicles, 0)
 
   return (
     <div className="rounded-xl border border-slate-800 bg-slate-950/60 p-4">
@@ -24,7 +25,7 @@ export function ProductivityDailyStopsSummary({ workDate, stops, compact }: Prop
         </h3>
         <div className="flex flex-wrap gap-3 text-xs text-slate-400">
           <span>
-            {t('productivity.dailyStopsCount')}: <strong className="text-slate-200">{dayStops.length}</strong>
+            {t('productivity.dailyStopsCount')}: <strong className="text-slate-200">{counted.length}</strong>
           </span>
           <span>
             {t('productivity.dailyStopsMinutes')}: <strong className="text-slate-200">{totalMinutes}</strong>
@@ -54,7 +55,9 @@ export function ProductivityDailyStopsSummary({ workDate, stops, compact }: Prop
                   <td className="px-2 py-2 text-start text-slate-200">{stop.stopReason || '—'}</td>
                   <td className="px-2 py-2 text-center text-slate-300">{stop.department || '—'}</td>
                   <td className="px-2 py-2 text-center text-slate-300">
-                    {stopDurationMinutes(stop.startedAt, stop.endedAt)} {t('productivity.stops.minutesShort')}
+                    {stop.endedAt
+                      ? `${stopDurationMinutes(stop.startedAt, stop.endedAt)} ${t('productivity.stops.minutesShort')}`
+                      : t('productivity.stops.open')}
                   </td>
                   {!compact && <td className="px-2 py-2 text-center text-slate-300">{stop.lostVehicles}</td>}
                 </tr>

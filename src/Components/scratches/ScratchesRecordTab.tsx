@@ -1,8 +1,9 @@
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
 import { Plus } from 'lucide-react'
 import { useLang } from '../../i18n/LanguageContext'
 import { useCanManageProduction } from '../../hooks/useCanManageProduction'
 import { ConfirmDialog } from '../ConfirmDialog'
+import { ScratchFilterBar } from './ScratchFilterBar'
 import { ScratchFormModal } from './ScratchFormModal'
 import { ScratchNotesModal } from './ScratchNotesModal'
 import { ScratchRowActions } from './ScratchRowActions'
@@ -11,6 +12,13 @@ import type { ScratchInput, ScratchNoteTarget, ScratchRecord } from '../../Types
 import type { VehicleModel } from '../../Types/settings'
 import type { MpFollowUpAssignment, ShortageMissionAssignInput } from '../../Types/mpVehicleActions'
 import type { ShortageMissionLink } from '../../Types/mission'
+import {
+  EMPTY_SCRATCH_FILTER,
+  scratchAreaLeaf,
+  scratchMatchesFilter,
+  splitScratchDefect,
+  type ScratchListFilter
+} from '../../Utils/scratchFilters'
 
 const cell = 'table-cell text-center align-middle whitespace-nowrap px-3 py-2.5'
 const actionsCell = `${cell} sticky z-10 bg-slate-900/95 shadow-[inset_8px_0_12px_rgba(0,0,0,0.3)]`
@@ -57,6 +65,18 @@ export function ScratchesRecordTab({
   const [notesTarget, setNotesTarget] = useState<ScratchNoteTarget | null>(null)
   const [success, setSuccess] = useState('')
   const [previewImage, setPreviewImage] = useState<string | null>(null)
+  const [filter, setFilter] = useState<ScratchListFilter>(EMPTY_SCRATCH_FILTER)
+
+  const filteredItems = useMemo(
+    () =>
+      items.filter(row =>
+        scratchMatchesFilter(row, filter, {
+          severity: t(`scratches.severity.${row.severity}`),
+          willStop: row.willStop ? t('scratches.willStop.yes') : t('scratches.willStop.no')
+        })
+      ),
+    [items, filter, t]
+  )
 
   function formatDate(iso: string) {
     const d = new Date(iso.includes('T') ? iso : `${iso}T12:00:00`)
@@ -134,10 +154,12 @@ export function ScratchesRecordTab({
     }
   }
 
-  const colCount = 10
+  const colCount = 12
 
   return (
     <div className="space-y-4">
+      <ScratchFilterBar items={items} filter={filter} onChange={setFilter} shownCount={filteredItems.length} />
+
       <div className="card-industrial flex flex-col gap-3 p-4 sm:flex-row sm:items-center sm:justify-between">
         <p className="text-sm text-slate-400">{t('scratches.recordHint')}</p>
         {canManage && (
@@ -159,7 +181,7 @@ export function ScratchesRecordTab({
       )}
 
       <div className="card-industrial overflow-hidden">
-        <ExportableTable filename="scratches" title={t('scratches.title')} rowCount={items.length}>
+        <ExportableTable filename="scratches" title={t('scratches.title')} rowCount={filteredItems.length}>
           <div className="overflow-x-auto">
             <table className="w-full min-w-[1200px] text-center text-sm">
               <thead className="bg-slate-950/90">
@@ -167,10 +189,12 @@ export function ScratchesRecordTab({
                   <th className={`${cell} font-black text-slate-400`}>{t('scratches.cols.parentModel')}</th>
                   <th className={`${cell} font-black text-slate-400`}>{t('scratches.cols.variant')}</th>
                   <th className={`${cell} font-black text-slate-400`}>{t('scratches.cols.vin')}</th>
-                  <th className={`${cell} font-black text-slate-400`}>{t('scratches.cols.notes')}</th>
+                  <th className={`${cell} font-black text-slate-400`}>{t('scratches.cols.defect')}</th>
+                  <th className={`${cell} font-black text-slate-400`}>{t('scratches.cols.location')}</th>
                   <th className={`${cell} font-black text-slate-400`}>{t('scratches.cols.orgUnit')}</th>
                   <th className={`${cell} font-black text-slate-400`}>{t('scratches.cols.severity')}</th>
                   <th className={`${cell} font-black text-slate-400`}>{t('scratches.cols.willStop')}</th>
+                  <th className={`${cell} font-black text-slate-400`}>{t('scratches.cols.action')}</th>
                   <th className={`${cell} font-black text-slate-400`}>{t('scratches.cols.date')}</th>
                   <th className={`${cell} font-black text-slate-400`}>{t('scratches.cols.image')}</th>
                   <th
@@ -189,14 +213,14 @@ export function ScratchesRecordTab({
                       {t('common.loading')}
                     </td>
                   </tr>
-                ) : items.length === 0 ? (
+                ) : filteredItems.length === 0 ? (
                   <tr>
                     <td colSpan={colCount} className="px-4 py-12 text-slate-500">
-                      {t('scratches.empty')}
+                      {items.length === 0 ? t('scratches.empty') : t('common.noResults')}
                     </td>
                   </tr>
                 ) : (
-                  items.map(row => (
+                  filteredItems.map(row => (
                     <tr key={row.id} className="bg-slate-900/30 hover:bg-slate-800/40">
                       <td className={`${cell} text-slate-200`}>{row.parentModelName || '—'}</td>
                       <td className={`${cell} font-bold text-white`}>{row.modelName || '—'}</td>
@@ -210,8 +234,11 @@ export function ScratchesRecordTab({
                           )}
                         </span>
                       </td>
-                      <td className={`${cell} max-w-[14rem] truncate text-slate-400`}>{row.notes || '—'}</td>
-                      <td className={`${cell} text-slate-200`}>{row.bodyArea || '—'}</td>
+                      <td className={`${cell} text-slate-200`}>{splitScratchDefect(row.notes).defect || '—'}</td>
+                      <td className={`${cell} text-slate-200`}>{splitScratchDefect(row.notes).location || '—'}</td>
+                      <td className={`${cell} text-slate-200`} title={row.bodyArea || undefined}>
+                        {scratchAreaLeaf(row.bodyArea) || '—'}
+                      </td>
                       <td className={cell}>{severityBadge(row.severity)}</td>
                       <td className={cell}>
                         <span
@@ -223,6 +250,12 @@ export function ScratchesRecordTab({
                         >
                           {row.willStop ? t('scratches.willStop.yes') : t('scratches.willStop.no')}
                         </span>
+                      </td>
+                      <td
+                        className="table-cell max-w-[16rem] whitespace-normal px-3 py-2.5 text-center align-middle text-slate-200"
+                        title={row.actionTaken || undefined}
+                      >
+                        {row.actionTaken?.trim() || '—'}
                       </td>
                       <td className={`${cell} text-slate-300`}>{formatDate(row.recordedAt)}</td>
                       <td className={cell}>

@@ -12,7 +12,7 @@ import {
 } from '../Types/attendance'
 import type { JobRole } from '../Types/enums'
 import type { PlanDayType } from '../Types/productionPlanWorkDayDaily'
-import { attendanceDefaultsFromPlanDay, resolvePlanDayType } from '../Utils/attendanceDefaults'
+import { attendanceDefaultsFromPlanDay, countsAsEmployeeVacation, resolvePlanDayType } from '../Utils/attendanceDefaults'
 import { getProductionPlanWorkDaysMonth, getProductionPlanWorkDaysYear } from './productionPlanWorkDayDailyService'
 
 function requireClient() {
@@ -85,20 +85,21 @@ export function tallyElapsedMonthDays(
     const t = { present: 0, absent: 0, vacation: 0, sick: 0, permission: 0, late: 0 }
     for (const workDate of monthDates) {
       const recorded = byDate?.get(workDate)
+      const dayType = resolvePlanDayType(workDate, planDayByDate)
       if (workDate === today) {
         if (!recorded) continue
         if (recorded === 'present') t.present++
         else if (recorded === 'absent') t.absent++
-        else if (recorded === 'vacation') t.vacation++
+        else if (countsAsEmployeeVacation(recorded, dayType)) t.vacation++
         else if (recorded === 'sick') t.sick++
         else if (recorded === 'permission') t.permission++
         else if (recorded === 'late') t.late++
         continue
       }
-      const st = recorded ?? attendanceDefaultsFromPlanDay(resolvePlanDayType(workDate, planDayByDate)).status
+      const st = recorded ?? attendanceDefaultsFromPlanDay(dayType).status
       if (st === 'present') t.present++
       else if (st === 'absent') t.absent++
-      else if (st === 'vacation') t.vacation++
+      else if (countsAsEmployeeVacation(st, dayType)) t.vacation++
       else if (st === 'sick') t.sick++
       else if (st === 'permission') t.permission++
       else if (st === 'late') t.late++

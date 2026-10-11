@@ -7,7 +7,7 @@ export type ProductionLineStop = {
   vehicleModelId: string | null
   vehicleModelName: string | null
   startedAt: string
-  endedAt: string
+  endedAt: string | null
   department: string
   lostVehicles: number
   notes: string | null
@@ -20,7 +20,7 @@ export type ProductionLineStopInput = {
   stopType: ProductionStopType
   vehicleModelId?: string | null
   startedAt: string
-  endedAt: string
+  endedAt: string | null
   department: string
   lostVehicles: number
   notes?: string | null

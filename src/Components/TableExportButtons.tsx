@@ -5,7 +5,9 @@ import {
   buildExportData,
   exportTableToExcel,
   exportTableToPdf,
+  exportWorkbookToExcel,
   extractTableData,
+  type ExcelSheet,
   type TableExportColumn,
   type TableExportData,
   type TableExportSummary
@@ -18,6 +20,7 @@ type Props<T> = {
   columns?: TableExportColumn<T>[]
   rows?: T[]
   summary?: TableExportSummary
+  excelSheets?: ExcelSheet[]
   disabled?: boolean
   className?: string
 }
@@ -29,6 +32,7 @@ export function TableExportButtons<T>({
   columns,
   rows,
   summary,
+  excelSheets,
   disabled = false,
   className = ''
 }: Props<T>) {
@@ -46,12 +50,14 @@ export function TableExportButtons<T>({
 
   async function run(kind: 'excel' | 'pdf') {
     const data = resolveData()
-    if (!data || data.rows.length === 0) return
+    const workbook = kind === 'excel' && excelSheets && excelSheets.length > 0
+    if (!workbook && (!data || data.rows.length === 0)) return
     setBusy(kind)
     try {
       const exportTitle = title ?? filename
-      if (kind === 'excel') exportTableToExcel(data, filename, exportTitle)
-      else await exportTableToPdf(data, filename, exportTitle, lang === 'ar')
+      if (workbook && excelSheets) exportWorkbookToExcel(excelSheets, filename)
+      else if (kind === 'excel' && data) exportTableToExcel(data, filename, exportTitle)
+      else if (data) await exportTableToPdf(data, filename, exportTitle, lang === 'ar')
     } finally {
       setBusy(null)
     }

@@ -15,12 +15,14 @@ import {
   getProductionOrders,
   updateProductionOrder
 } from '../services/productionOrdersService'
-import { getMonthProductivityDetail } from '../services/productionPlanWorkDayDailyService'
+import { getMonthProductivityDetail, getProductionPlanWorkDaysMonth } from '../services/productionPlanWorkDayDailyService'
 import { getExitProductivityYear } from '../services/exitProductivityService'
 import { getVehicleColors, getVehicleModels } from '../services/settingsService'
 import { chassisRangeCount, vinInChassisRange } from '../Utils/chassisRange'
 import { getProductionPlanWorkDays } from '../services/productionPlanWorkDaysService'
 import { computeTaktMinutes } from '../Utils/productionLineRate'
+import { buildMonthWorkDayRows, completedWorkThroughDate, elapsedWorkTotals } from '../Utils/productionPlanWorkDayDaily'
+import { localTodayIso } from '../Utils/planningDailyTracking'
 import {
   buildAchievedByModelIdFromExitRecords,
   buildAnnualSectionsFromMonthlyPlans,
@@ -104,6 +106,8 @@ export function useProductionPlanOrders(view: 'plan' | 'orders') {
   const [expandedAnnualFamilies, setExpandedAnnualFamilies] = useState<Set<string>>(new Set())
   const [availableDays, setAvailableDays] = useState(0)
   const [availableHours, setAvailableHours] = useState(0)
+  const [actualWorkDays, setActualWorkDays] = useState(0)
+  const [actualWorkHours, setActualWorkHours] = useState(0)
   const [lineJph, setLineJph] = useState(0)
 
   const carCount = useMemo(() => chassisRangeCount(chassisStart, chassisEnd), [chassisStart, chassisEnd])
@@ -219,7 +223,7 @@ export function useProductionPlanOrders(view: 'plan' | 'orders') {
     setPlanSuccess('')
     try {
       if (view === 'orders') await refreshVehicles()
-      const [orderRows, modelRows, colorRows, dbTargets, yearMonthlyTargets, yearExitRows, workConfig, productivity] =
+      const [orderRows, modelRows, colorRows, dbTargets, yearMonthlyTargets, yearExitRows, workConfig, productivity, savedWorkDays] =
         await Promise.all([
           getProductionOrders(),
           getVehicleModels(),
@@ -228,7 +232,8 @@ export function useProductionPlanOrders(view: 'plan' | 'orders') {
           view === 'plan' ? getYearMonthlyPlanTargets(planYear).catch(() => []) : Promise.resolve([]),
           view === 'plan' ? getExitProductivityYear(planYear).catch(() => []) : Promise.resolve([]),
           getProductionPlanWorkDays(planYear, planMonth).catch(() => null),
-          view === 'plan' ? getMonthProductivityDetail(planYear, planMonth).catch(() => null) : Promise.resolve(null)
+          view === 'plan' ? getMonthProductivityDetail(planYear, planMonth).catch(() => null) : Promise.resolve(null),
+          view === 'plan' ? getProductionPlanWorkDaysMonth(planYear, planMonth).catch(() => []) : Promise.resolve([])
         ])
       setOrders(orderRows)
       setModels(modelRows)
@@ -243,6 +248,12 @@ export function useProductionPlanOrders(view: 'plan' | 'orders') {
       setWipCarryover(painted.wip)
       setAvailableDays(workConfig?.availableDays ?? 0)
       setAvailableHours(workConfig?.availableHours ?? 0)
+      const elapsed = elapsedWorkTotals(
+        buildMonthWorkDayRows(planYear, planMonth, savedWorkDays),
+        completedWorkThroughDate(planYear, planMonth, localTodayIso())
+      )
+      setActualWorkDays(elapsed.days)
+      setActualWorkHours(elapsed.hours)
       setLineJph(workConfig?.lineJph ?? 0)
       if (productivity) {
         setAchievedByModelId(buildAchievedByModelIdFromExitRecords(productivity.exitRecords))
@@ -485,6 +496,8 @@ export function useProductionPlanOrders(view: 'plan' | 'orders') {
     expandedAnnualFamilies,
     availableDays,
     availableHours,
+    actualWorkDays,
+    actualWorkHours,
     lineJph,
     carCount,
     assemblyEntryByOrderId,

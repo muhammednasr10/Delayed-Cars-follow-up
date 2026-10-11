@@ -124,7 +124,7 @@ describe('authService session helpers', () => {
     vi.useRealTimers()
   }, 15_000)
 
-  it('clears session when kickOnFailure is set and refresh cannot renew an expired access token', async () => {
+  it('keeps the session when refresh fails because the network is down', async () => {
     const now = Math.floor(Date.now() / 1000)
     const session = makeSession({ accessExp: now - 120, refreshExp: now + 86400 })
     saveSession(session)
@@ -134,9 +134,28 @@ describe('authService session helpers', () => {
 
     const next = await ensureFreshSession({ kickOnFailure: true })
     expect(next).toBeNull()
+    expect(readRawSession()?.user.id).toBe('user-1')
+    expect(kicked).not.toHaveBeenCalled()
+  }, 20_000)
+
+  it('clears the session when the server rejects the refresh token', async () => {
+    const now = Math.floor(Date.now() / 1000)
+    const session = makeSession({ accessExp: now - 120, refreshExp: now + 86400 })
+    saveSession(session)
+    const kicked = vi.fn()
+    registerAuthFailureHandler(kicked)
+    vi.spyOn(globalThis, 'fetch').mockResolvedValue(
+      new Response(JSON.stringify({ error: 'Invalid or expired refresh token' }), {
+        status: 401,
+        headers: { 'Content-Type': 'application/json' }
+      })
+    )
+
+    const next = await ensureFreshSession({ kickOnFailure: true })
+    expect(next).toBeNull()
     expect(readRawSession()).toBeNull()
     expect(kicked).toHaveBeenCalledOnce()
-  }, 20_000)
+  })
 
   it('clears session when refresh token is expired and kickOnFailure is set', async () => {
     const now = Math.floor(Date.now() / 1000)

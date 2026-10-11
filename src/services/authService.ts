@@ -258,7 +258,8 @@ export async function ensureFreshSession(options?: { kickOnFailure?: boolean }):
 
   const result = await refreshInFlight
   if (result.kind === 'ok') return result.session
-  if (kickOnFailure) kickExpiredSession()
+  // انقطاع الشبكة أو بطء الخادم مش سبب للخروج. نخرج فقط لو الخادم رفض التوكن.
+  if (kickOnFailure && result.kind === 'auth_failed') kickExpiredSession()
   return null
 }
 

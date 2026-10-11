@@ -23,6 +23,7 @@ import type { ScratchInput, ScratchRecord } from '../../Types/scratch'
 import type { VehicleModel } from '../../Types/settings'
 import type { MpFollowUpAssignment, ShortageMissionAssignInput } from '../../Types/mpVehicleActions'
 import type { ShortageMissionLink } from '../../Types/mission'
+import { scratchDefectLabel } from '../../Utils/scratchFilters'
 
 type ScratchTab = 'record' | 'summary'
 
@@ -174,7 +175,7 @@ export function ScratchesPage() {
       const model = row.modelName?.trim() ?? ''
       await createTeamMission({
         ...input,
-        description: input.description?.trim() || [vin, model, row.notes].filter(Boolean).join(' · '),
+        description: input.description?.trim() || [vin, model, scratchDefectLabel(row.notes)].filter(Boolean).join(' · '),
         sourceScratchId: row.id,
         sourceVin: vin || null,
         sourceModelName: model || null

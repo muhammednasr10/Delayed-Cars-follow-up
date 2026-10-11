@@ -111,8 +111,20 @@ export function useGlobalHubSections(refreshKey = 0) {
             value: planHubStats.loading ? '…' : String(planHubStats.planned || '—')
           },
           {
-            label: t('home.planAchievementPct'),
-            value: planHubStats.loading ? '…' : `${planHubStats.progress}%`
+            label: t('home.planAchievementByPlan'),
+            value: planHubStats.loading
+              ? '…'
+              : planHubStats.planned > 0
+                ? `${planHubStats.progress}%`
+                : '—'
+          },
+          {
+            label: t('home.planAchievementByWorkDays'),
+            value: planHubStats.loading
+              ? '…'
+              : planHubStats.workDayProgress == null
+                ? '—'
+                : `${planHubStats.workDayProgress}%`
           }
         ]
       },

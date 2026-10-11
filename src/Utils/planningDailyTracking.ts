@@ -83,6 +83,27 @@ export function buildDailyTrackingRows(
   })
 }
 
+/** حصة الخطة المستحقة حتى تاريخ معيّن، موزّعة على أيام العمل حسب الساعات. */
+export function planDueThroughDate(
+  monthlyPlan: number,
+  rows: DailyTrackingSourceRow[],
+  throughDate: string
+): number {
+  const daily = allocateDailyPlan(monthlyPlan, rows)
+  let due = 0
+  for (const row of rows) {
+    if (row.workDate > throughDate) continue
+    due += daily.get(row.workDate) ?? 0
+  }
+  return due
+}
+
+/** نسبة الإنجاز بدون سقف، حتى تظهر الكفاءة فوق 100٪ عند تجاوز المستهدف. */
+export function achievementPercent(target: number, achieved: number): number | null {
+  if (target <= 0) return null
+  return Math.round((achieved / target) * 100)
+}
+
 export function localTodayIso(): string {
   const d = new Date()
   const y = d.getFullYear()

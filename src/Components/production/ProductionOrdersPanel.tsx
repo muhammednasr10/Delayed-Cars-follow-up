@@ -266,7 +266,6 @@ export function ProductionOrdersPanel({ h }: Props) {
               <th className={`${cell} text-xs font-black uppercase text-slate-400`}>{t('productionOrders.cols.chassisStart')}</th>
               <th className={`${cell} text-xs font-black uppercase text-slate-400`}>{t('productionOrders.cols.chassisEnd')}</th>
               <th className={`${cell} text-xs font-black uppercase text-slate-400`}>{t('productionOrders.cols.carCount')}</th>
-              <th className={`${cell} text-xs font-black uppercase text-slate-400`}>{t('productionOrders.cols.assemblyEntry')}</th>
               {canManage && <th className={`${cell} text-xs font-black uppercase text-slate-400`}>{t('common.actions')}</th>}
             </tr>
           </thead>
@@ -302,7 +301,6 @@ export function ProductionOrdersPanel({ h }: Props) {
                 <td className={`${cell} font-mono`} dir="ltr">{row.chassisStart || '—'}</td>
                 <td className={`${cell} font-mono`} dir="ltr">{row.chassisEnd || '—'}</td>
                 <td className={`${cell} font-black text-cyan-300`}>{row.plannedQty}</td>
-                <td className={`${cell} font-black text-emerald-300`}>{h.assemblyEntryByOrderId.get(row.id) ?? 0}</td>
                 {canManage && (
                   <td className={cell} onClick={e => e.stopPropagation()}>
                     <div className="flex justify-center gap-1">

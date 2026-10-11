@@ -1,5 +1,6 @@
 import { supabase } from '../lib/supabase'
 import type { ScratchInput, ScratchRecord, ScratchSeverity } from '../Types/scratch'
+import { splitScratchDefect } from '../Utils/scratchFilters'
 import type { MpFollowUpAssignment } from '../Types/mpVehicleActions'
 
 const IMAGE_BUCKET = 'scratches'
@@ -20,6 +21,7 @@ type Row = {
   severity: ScratchSeverity
   recorded_at: string
   notes: string | null
+  action_taken?: string | null
   image_path: string | null
   will_stop?: boolean | null
   completing_department?: string | null
@@ -60,6 +62,7 @@ function mapRow(row: Row): ScratchRecord {
     severity: row.severity,
     recordedAt: row.recorded_at,
     notes: row.notes ?? undefined,
+    actionTaken: row.action_taken?.trim() || splitScratchDefect(row.notes).action || null,
     imagePath: row.image_path,
     imageUrl: scratchImageUrl(row.image_path),
     willStop: Boolean(row.will_stop),
@@ -86,8 +89,20 @@ function toPayload(input: ScratchInput) {
     severity: input.severity,
     recorded_at: input.recordedAt,
     notes: input.notes?.trim() || null,
+    action_taken: input.actionTaken?.trim() || null,
     will_stop: input.willStop
   }
+}
+
+function withoutActionTaken(payload: ReturnType<typeof toPayload>) {
+  const rest = { ...payload }
+  delete rest.action_taken
+  return rest
+}
+
+function missingActionColumn(message: string): boolean {
+  const text = message.toLowerCase()
+  return text.includes('action_taken') && (text.includes('schema cache') || text.includes('does not exist') || text.includes('column'))
 }
 
 export async function getScratches(): Promise<ScratchRecord[]> {
@@ -118,20 +133,25 @@ export async function getScratches(): Promise<ScratchRecord[]> {
 }
 
 export async function createScratch(input: ScratchInput): Promise<ScratchRecord> {
-  const { data, error } = await requireClient().from('scratches').insert(toPayload(input)).select(SELECT).single()
-  if (error) throw new Error(error.message)
-  return mapRow(data as Row)
+  const client = requireClient()
+  const payload = toPayload(input)
+  let result = await client.from('scratches').insert(payload).select(SELECT).single()
+  if (result.error && missingActionColumn(result.error.message)) {
+    result = await client.from('scratches').insert(withoutActionTaken(payload)).select(SELECT).single()
+  }
+  if (result.error) throw new Error(result.error.message)
+  return mapRow(result.data as Row)
 }
 
 export async function updateScratch(id: string, input: ScratchInput): Promise<ScratchRecord> {
-  const { data, error } = await requireClient()
-    .from('scratches')
-    .update(toPayload(input))
-    .eq('id', id)
-    .select(SELECT)
-    .single()
-  if (error) throw new Error(error.message)
-  return mapRow(data as Row)
+  const client = requireClient()
+  const payload = toPayload(input)
+  let result = await client.from('scratches').update(payload).eq('id', id).select(SELECT).single()
+  if (result.error && missingActionColumn(result.error.message)) {
+    result = await client.from('scratches').update(withoutActionTaken(payload)).eq('id', id).select(SELECT).single()
+  }
+  if (result.error) throw new Error(result.error.message)
+  return mapRow(result.data as Row)
 }
 
 export async function assignScratchFollowUp(id: string, assignment: MpFollowUpAssignment): Promise<void> {
