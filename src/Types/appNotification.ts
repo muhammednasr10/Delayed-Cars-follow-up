@@ -4,7 +4,25 @@ export const APP_NOTIFICATION_EVENT_TYPES = [
   'shortage_deleted',
   'transfer_requested',
   'mission_assigned',
-  'mission_delegated'
+  'mission_delegated',
+  'plan_added',
+  'plan_edited',
+  'plan_deleted',
+  'order_added',
+  'order_edited',
+  'order_deleted',
+  'entry_added',
+  'entry_edited',
+  'entry_deleted',
+  'exit_added',
+  'exit_edited',
+  'exit_deleted',
+  'stop_added',
+  'stop_edited',
+  'stop_deleted',
+  'scratch_added',
+  'scratch_edited',
+  'scratch_deleted'
 ] as const
 
 export type AppNotificationEventType = (typeof APP_NOTIFICATION_EVENT_TYPES)[number]
@@ -16,6 +34,11 @@ export type AppNotificationPayload = {
   request_id?: string
   mission_id?: string
   title?: string | null
+  plan_year?: number | null
+  plan_month?: number | null
+  work_date?: string | null
+  quantity?: number | null
+  count?: number | null
 }
 
 export type AppNotificationItem = {

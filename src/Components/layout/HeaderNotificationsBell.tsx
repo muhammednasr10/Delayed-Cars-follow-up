@@ -4,6 +4,7 @@ import { useLang } from '../../i18n/LanguageContext'
 import { useNavigation } from '../../Context/NavigationContext'
 import { useNotificationInbox } from '../../Context/NotificationInboxProvider'
 import { isMissionNotificationEvent, type AppNotificationItem } from '../../Types/appNotification'
+import { activityNotificationTarget } from '../../Utils/appNotificationCopy'
 import {
   dispatchOpenMissingPartsTab,
   missingPartsTabForNotification,
@@ -49,13 +50,53 @@ export function HeaderNotificationsBell() {
     queueMicrotask(() => dispatchOpenMissingPartsTab(missingPartsTabForNotification(item)))
   }
 
+  function openActivity(item: AppNotificationItem) {
+    const target = activityNotificationTarget(item)
+    if (!target) {
+      goMissing(item)
+      return
+    }
+    setOpen(false)
+    if (target.kind === 'planning') {
+      nav.navigate({
+        department: 'planning',
+        planningTab: target.tab,
+        planScope: target.scope,
+        showProfile: false,
+        showGlobalHome: false,
+        closeSidebar: true
+      })
+      return
+    }
+    if (target.kind === 'scratches') {
+      nav.navigate({
+        department: 'production',
+        productionArea: 'assembly',
+        productionPage: 'scratches',
+        showProfile: false,
+        showGlobalHome: false,
+        closeSidebar: true
+      })
+      return
+    }
+    nav.navigate({
+      department: 'production',
+      productionArea: 'assembly',
+      productionPage: 'vehicles',
+      productivityTab: target.kind === 'stops' ? 'stops' : 'productivity',
+      showProfile: false,
+      showGlobalHome: false,
+      closeSidebar: true
+    })
+  }
+
   async function openItem(item: AppNotificationItem) {
     if (!item.readAt) await markItemRead(item.id)
     if (isMissionNotificationEvent(item.eventType)) {
       closeAndNavigate('missions')
       return
     }
-    goMissing(item)
+    openActivity(item)
   }
 
   const summaryItems = [

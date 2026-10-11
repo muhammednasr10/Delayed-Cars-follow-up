@@ -236,14 +236,52 @@ export async function reactivateEmployee(employeeId: string): Promise<void> {
   if (error) throw new Error(error.message)
 }
 
+function isMissingRpc(message: string): boolean {
+  return message.includes('schema cache') || message.includes('Could not find the function')
+}
+
 export async function endEmployeeEmployment(employeeId: string, reason: string, blockLinkedUser = true): Promise<void> {
-  const { error } = await requireClient().rpc('end_employee_employment', {
+  const client = requireClient()
+  const trimmed = reason.trim()
+  const { error } = await client.rpc('end_employee_employment', {
     p_employee_id: employeeId,
-    p_reason: reason,
+    p_reason: trimmed,
     p_status: 'resigned',
     p_block_linked_user: blockLinkedUser
   })
-  if (error) throw new Error(error.message)
+  if (!error) return
+  if (!isMissingRpc(error.message)) throw new Error(error.message)
+
+  const { data: sessionData } = await client.auth.getSession()
+  const { data: employee, error: loadError } = await client
+    .from('employees')
+    .select('profile_id')
+    .eq('id', employeeId)
+    .maybeSingle()
+  if (loadError) throw new Error(loadError.message)
+  if (!employee) throw new Error('Employee not found.')
+
+  const { error: updateError } = await client
+    .from('employees')
+    .update({
+      employment_status: 'resigned',
+      is_active: false,
+      stopped_reason: trimmed,
+      stopped_at: new Date().toISOString(),
+      stopped_by: sessionData.session?.user?.id ?? null
+    })
+    .eq('id', employeeId)
+  if (updateError) throw new Error(updateError.message)
+
+  const profileId = (employee as { profile_id?: string | null }).profile_id
+  if (!blockLinkedUser || !profileId) return
+  const { error: blockError } = await client.rpc('block_user', {
+    p_user_id: profileId,
+    p_reason: `مغادرة العمل: ${trimmed}`
+  })
+  if (blockError && !isMissingRpc(blockError.message) && !/not authorized|42501/i.test(blockError.message)) {
+    throw new Error(blockError.message)
+  }
 }
 
 function translateError(error: { code?: string; message?: string; details?: string }): string {

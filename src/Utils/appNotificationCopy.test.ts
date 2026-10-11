@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import type { AppNotificationItem } from '../Types/appNotification'
-import { appNotificationLabel } from './appNotificationCopy'
+import { activityNotificationTarget, appNotificationLabel } from './appNotificationCopy'
 import { missingPartsTabForNotification } from './openMissingPartsTab'
 
 const t = (key: string, vars?: Record<string, string | number>) => {
@@ -14,7 +14,13 @@ const t = (key: string, vars?: Record<string, string | number>) => {
     'notifications.transferRequested': '{actor} طلب ترحيل الشاسيه {vin}',
     'notifications.transferRequestedStation': '{actor} طلب ترحيل الشاسيه {vin} إلى {station}',
     'notifications.missionAssigned': '{actor} عيّن لك مهمة «{title}»',
-    'notifications.missionDelegated': '{actor} حوّل إليك مهمة «{title}»'
+    'notifications.missionDelegated': '{actor} حوّل إليك مهمة «{title}»',
+    'notifications.planAnnual': 'الخطة السنوية {year}',
+    'notifications.planAdded': '{actor} أضاف خطة إنتاج {title}',
+    'notifications.orderEdited': '{actor} عدّل أمر إنتاج {title}',
+    'notifications.entryAdded': '{actor} أضاف إنتاجية دخول {title}',
+    'notifications.stopDeleted': '{actor} حذف توقف {title}',
+    'notifications.scratchAddedDetail': '{actor} أضاف خدش «{title}» على الشاسيه {vin}'
   }
   let out = map[key] ?? key
   if (vars) {
@@ -55,6 +61,48 @@ describe('appNotificationLabel', () => {
     expect(
       appNotificationLabel(item({ eventType: 'mission_delegated', payload: { title: 'متابعة النقص' } }), t)
     ).toContain('حوّل')
+    expect(
+      appNotificationLabel(
+        item({ eventType: 'plan_added', payload: { title: 'T7', plan_year: 2026, plan_month: 10, count: 1 } }),
+        t
+      )
+    ).toBe('أحمد أضاف خطة إنتاج T7 · 10/2026')
+    expect(
+      appNotificationLabel(item({ eventType: 'order_edited', vin: '', payload: { title: 'PO-12 · T7', count: 1 } }), t)
+    ).toBe('أحمد عدّل أمر إنتاج PO-12 · T7')
+    expect(
+      appNotificationLabel(
+        item({
+          eventType: 'entry_added',
+          vin: '',
+          payload: { title: 'T7', work_date: '2026-10-11', quantity: 40, count: 1 }
+        }),
+        t
+      )
+    ).toBe('أحمد أضاف إنتاجية دخول T7 · 2026-10-11 · 40')
+    expect(appNotificationLabel(item({ eventType: 'stop_deleted', vin: '', payload: { title: 'نقص خامات' } }), t)).toBe(
+      'أحمد حذف توقف نقص خامات'
+    )
+    expect(
+      appNotificationLabel(item({ eventType: 'scratch_added', vin: '7306', payload: { title: 'كسيل دهان' } }), t)
+    ).toBe('أحمد أضاف خدش «كسيل دهان» على الشاسيه 7306')
+  })
+})
+
+describe('activityNotificationTarget', () => {
+  it('opens the page that matches the change', () => {
+    expect(activityNotificationTarget(item({ eventType: 'plan_added', payload: { plan_month: 0 } }))?.kind).toBe(
+      'planning'
+    )
+    expect(activityNotificationTarget(item({ eventType: 'plan_added', payload: { plan_month: 0 } }))).toMatchObject({
+      scope: 'annual'
+    })
+    expect(activityNotificationTarget(item({ eventType: 'order_deleted' }))).toMatchObject({ tab: 'orders' })
+    expect(activityNotificationTarget(item({ eventType: 'entry_edited' }))).toEqual({ kind: 'productivity' })
+    expect(activityNotificationTarget(item({ eventType: 'exit_added' }))).toEqual({ kind: 'productivity' })
+    expect(activityNotificationTarget(item({ eventType: 'stop_added' }))).toEqual({ kind: 'stops' })
+    expect(activityNotificationTarget(item({ eventType: 'scratch_deleted' }))).toEqual({ kind: 'scratches' })
+    expect(activityNotificationTarget(item({ eventType: 'shortage_added' }))).toBeNull()
   })
 })
 
