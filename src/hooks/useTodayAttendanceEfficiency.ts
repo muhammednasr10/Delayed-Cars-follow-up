@@ -56,7 +56,7 @@ export function useTodayAttendanceEfficiency(refreshKey = 0) {
         const planDayByDate = new Map(planDayType ? [[today, planDayType]] : [])
         const effMap = computeDailyAttendanceEfficiency(activeIds, year, month, dayRecords, today, planDayByDate)
         setEfficiency(effMap.get(today) ?? null)
-        setPresentTodayCount(countPresentToday(activeIds, dayRecords, today))
+        setPresentTodayCount(countPresentToday(activeIds, dayRecords, today, planDayType))
         setWorkforceCount(activeIds.length)
         setStatusCounts(countTodayAttendanceByStatus(activeIds, dayRecords, today))
       })

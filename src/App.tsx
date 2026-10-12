@@ -1,7 +1,6 @@
 import { useEffect, lazy, Suspense, type ReactNode } from 'react'
 import { Database, Languages, LogOut, PanelRightOpen, Settings, UserCircle } from 'lucide-react'
 import { AppLogo } from './Components/AppLogo'
-import { DeveloperCredit } from './Components/DeveloperCredit'
 import { AuthProvider, profileIsAdmin, useAuth } from './Context/AuthContext'
 import { PermissionsProvider, usePermissions } from './Context/PermissionsContext'
 import { NavigationProvider, useNavigation } from './Context/NavigationContext'
@@ -169,9 +168,26 @@ function Shell() {
                   <h1 className="truncate text-lg font-black text-white sm:text-2xl md:text-3xl">{t('app.title')}</h1>
                 </div>
               </button>
+              <button
+                type="button"
+                onClick={() => nav.openProfile()}
+                className={`touch-target flex shrink-0 items-center gap-2 rounded-xl border px-2 py-1.5 text-xs transition ${
+                  nav.showProfile
+                    ? 'border-cyan-500/50 bg-cyan-500/10 text-cyan-100'
+                    : 'border-slate-700 bg-slate-900 text-slate-300 hover:border-slate-600 hover:bg-slate-800'
+                }`}
+                title={t('myProfile.title')}
+              >
+                {profile?.avatar_url ? (
+                  <img src={profile.avatar_url} alt="" className="h-8 w-8 shrink-0 rounded-lg object-cover" />
+                ) : (
+                  <UserCircle className="h-8 w-8 shrink-0 text-slate-500" />
+                )}
+                <span className="truncate font-black text-cyan-300">{badgeRole}</span>
+              </button>
             </div>
 
-            <div className="flex w-full flex-wrap items-center justify-end gap-2 sm:w-auto">
+            <div className="flex items-center justify-end gap-2">
               {canAccessSettings && (
                 <button
                   type="button"
@@ -199,45 +215,24 @@ function Shell() {
               <PwaInstallButton />
               <HeaderNotificationsBell />
               <button
+                type="button"
                 onClick={toggle}
-                className="touch-target rounded-xl bg-slate-800 px-3 py-2 text-sm font-bold text-slate-200 hover:bg-slate-700"
+                className="touch-target rounded-xl bg-slate-800 p-2.5 text-slate-200 hover:bg-slate-700"
+                title={lang === 'ar' ? 'EN' : 'عربي'}
+                aria-label={lang === 'ar' ? 'EN' : 'عربي'}
               >
-                <Languages className="inline h-4 w-4 sm:me-1" /> <span>{lang === 'ar' ? 'EN' : 'عربي'}</span>
+                <Languages className="h-5 w-5" />
               </button>
               <button
                 type="button"
-                onClick={() => nav.openProfile()}
-                className={`touch-target flex max-w-[min(100%,12rem)] items-center gap-2 rounded-xl border px-2 py-2 text-xs transition sm:max-w-[min(100%,20rem)] sm:px-3 ${
-                  nav.showProfile
-                    ? 'border-cyan-500/50 bg-cyan-500/10 text-cyan-100'
-                    : 'border-slate-700 bg-slate-900 text-slate-300 hover:border-slate-600 hover:bg-slate-800'
-                }`}
-                title={t('myProfile.title')}
-              >
-                {profile?.avatar_url ? (
-                  <img src={profile.avatar_url} alt="" className="h-8 w-8 shrink-0 rounded-lg object-cover" />
-                ) : (
-                  <UserCircle className="h-8 w-8 shrink-0 text-slate-500" />
-                )}
-                <span className="hidden truncate text-start sm:inline">
-                  {profile?.full_name || profile?.email} · <span className="font-black text-cyan-300">{badgeRole}</span>
-                </span>
-              </button>
-              <button
                 onClick={signOut}
-                className="touch-target rounded-xl bg-slate-800 px-3 py-2 text-sm font-bold text-slate-200 hover:bg-slate-700"
+                className="touch-target rounded-xl bg-slate-800 p-2.5 text-slate-200 hover:bg-slate-700"
                 title={t('common.logout')}
+                aria-label={t('common.logout')}
               >
-                <LogOut className="h-4 w-4 sm:me-1 sm:inline" />
-                <span className="hidden sm:inline">{t('common.logout')}</span>
+                <LogOut className="h-5 w-5" />
               </button>
             </div>
-
-            {!nav.showProfile && (
-              <div className="w-full border-t border-slate-800/80 pt-3">
-                <DeveloperCredit variant="inline" />
-              </div>
-            )}
           </header>
 
           <DepartmentTopBar />

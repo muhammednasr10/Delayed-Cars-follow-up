@@ -21,12 +21,11 @@ export function PwaInstallButton() {
       <button
         type="button"
         onClick={() => void handleClick()}
-        className="touch-target inline-flex items-center gap-1.5 rounded-xl bg-cyan-500/15 px-2.5 py-2 text-sm font-black text-cyan-200 ring-1 ring-cyan-500/30 hover:bg-cyan-500/25 sm:px-3"
+        className="touch-target inline-flex items-center justify-center rounded-xl bg-cyan-500/15 p-2.5 text-cyan-200 ring-1 ring-cyan-500/30 hover:bg-cyan-500/25"
         title={t('pwa.installTitle')}
         aria-label={t('pwa.installTitle')}
       >
         <Download className="h-5 w-5 shrink-0" />
-        <span className="hidden sm:inline">{t('pwa.headerLabel')}</span>
       </button>
 
       <Modal

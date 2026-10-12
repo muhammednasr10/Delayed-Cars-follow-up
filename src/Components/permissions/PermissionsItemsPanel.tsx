@@ -34,7 +34,8 @@ import {
   type PermissionPageTreeNode,
   type PrimaryControlAction
 } from '../../Utils/permissionsControlItems'
-import { permissionActionLabel } from '../../Utils/permissionLabels'
+import { formatPermissionLabel } from '../../Utils/permissionLabels'
+import { controlActionName } from '../../Utils/permissionsControlItems'
 
 export type ItemsPanelMode = 'role' | 'user'
 
@@ -265,7 +266,11 @@ function UnifiedPermissionNode({
                       {other.map(entry => (
                         <SwitchBtn
                           key={entry.perm.id}
-                          label={permissionActionLabel(entry.perm.permission_key, t)}
+                          label={formatPermissionLabel(
+                            entry.perm.module_key,
+                            controlActionName(entry.perm.permission_key),
+                            t
+                          )}
                           allowed={entry.allowed}
                           isOverride={entry.isOverride}
                           disabled={disabled}

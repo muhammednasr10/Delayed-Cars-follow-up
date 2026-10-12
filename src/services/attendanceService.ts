@@ -64,10 +64,10 @@ export function tallyElapsedMonthDays(
   today = localTodayIso(),
   planDayByDate: Map<string, PlanDayType> = new Map()
 ): Map<string, { present: number; absent: number; vacation: number; sick: number; permission: number; late: number }> {
-  const monthDates = listDatesInMonth(year, month).filter(d => d <= today)
+  const monthDates = listDatesInMonth(year, month).filter(d => isAttendanceDayElapsed(d, today))
   const byEmpDate = new Map<string, Map<string, AttendanceDayStatus>>()
   for (const r of dayRecords) {
-    if (r.workDate > today) continue
+    if (!isAttendanceDayElapsed(r.workDate, today)) continue
     let m = byEmpDate.get(r.employeeId)
     if (!m) {
       m = new Map()
@@ -86,16 +86,6 @@ export function tallyElapsedMonthDays(
     for (const workDate of monthDates) {
       const recorded = byDate?.get(workDate)
       const dayType = resolvePlanDayType(workDate, planDayByDate)
-      if (workDate === today) {
-        if (!recorded) continue
-        if (recorded === 'present') t.present++
-        else if (recorded === 'absent') t.absent++
-        else if (countsAsEmployeeVacation(recorded, dayType)) t.vacation++
-        else if (recorded === 'sick') t.sick++
-        else if (recorded === 'permission') t.permission++
-        else if (recorded === 'late') t.late++
-        continue
-      }
       const st = recorded ?? attendanceDefaultsFromPlanDay(dayType).status
       if (st === 'present') t.present++
       else if (st === 'absent') t.absent++
@@ -238,19 +228,21 @@ export function computeDailyAttendanceEfficiency(
   return result
 }
 
-/** عدد الحاضرين اليوم (حاضر + متأخر) من إجمالي العمالة النشطة. */
+/** عدد الحاضرين اليوم (حاضر + متأخر). من غير سجل يتاخد افتراضي يوم الخطة، زي كفاءة الحضور. */
 export function countPresentToday(
   employeeIds: string[],
   dayRecords: { employeeId: string; workDate: string; status: AttendanceDayStatus }[],
-  today = localTodayIso()
+  today = localTodayIso(),
+  planDayType: PlanDayType | null = 'work'
 ): number {
   const byEmp = new Map<string, AttendanceDayStatus>()
   for (const r of dayRecords) {
     if (r.workDate === today) byEmp.set(r.employeeId, r.status)
   }
+  const defaultStatus = attendanceDefaultsFromPlanDay(planDayType).status
   let present = 0
   for (const employeeId of employeeIds) {
-    const status = byEmp.get(employeeId)
+    const status = byEmp.get(employeeId) ?? defaultStatus
     if (status === 'present' || status === 'late') present++
   }
   return present

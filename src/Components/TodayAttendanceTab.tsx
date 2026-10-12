@@ -37,6 +37,7 @@ type TodayRow = {
   employeeCode: string
   fullName: string
   jobRole: Employee['jobRole']
+  orgUnitLabel: string | null
   status: AttendanceDayStatus
   checkIn: string
   checkOut: string
@@ -55,6 +56,7 @@ function buildDefaultRow(employee: Employee, defaults: AttendanceBulkDefaults): 
     employeeCode: employee.employeeCode,
     fullName: employee.fullName,
     jobRole: employee.jobRole,
+    orgUnitLabel: employee.orgUnitLabel,
     status: defaults.status,
     checkIn: defaults.checkIn,
     checkOut: defaults.checkOut,
@@ -147,6 +149,7 @@ export function TodayAttendanceTab({ employees, canManage, onSaved }: Props) {
             employeeCode: employee.employeeCode,
             fullName: employee.fullName,
             jobRole: employee.jobRole,
+            orgUnitLabel: employee.orgUnitLabel,
             status: saved.status,
             checkIn: times.checkIn,
             checkOut: times.checkOut,
@@ -581,12 +584,15 @@ export function TodayAttendanceTab({ employees, canManage, onSaved }: Props) {
         {loading ? (
           <p className="p-8 text-center text-slate-500">{t('common.loading')}</p>
         ) : (
-          <table className="w-full min-w-[760px] text-start">
+          <table className="w-full min-w-[960px] text-center">
             <thead className="bg-slate-950/90">
               <tr>
                 <th className="table-cell text-xs font-black uppercase text-slate-400">{t('attendance.cols.code')}</th>
                 <th className="table-cell text-xs font-black uppercase text-slate-400">{t('attendance.cols.name')}</th>
                 <th className="table-cell text-xs font-black uppercase text-slate-400">{t('attendance.cols.role')}</th>
+                <th className="table-cell whitespace-nowrap text-xs font-black uppercase text-slate-400">
+                  {t('attendance.cols.orgUnit')}
+                </th>
                 <th className="table-cell text-xs font-black uppercase text-slate-400">
                   {t('attendance.cols.status')}
                 </th>
@@ -610,10 +616,11 @@ export function TodayAttendanceTab({ employees, canManage, onSaved }: Props) {
                   <td className="table-cell">
                     <JobRoleBadge role={row.jobRole} />
                   </td>
+                  <td className="table-cell text-slate-200">{row.orgUnitLabel || '—'}</td>
                   <td className="table-cell">
                     <select
                       disabled={!canManage}
-                      className={`${inputCls()} min-w-[7rem] py-1.5 text-xs`}
+                      className={`${inputCls()} min-w-[7rem] py-1.5 text-center text-xs`}
                       value={row.status}
                       onChange={e => {
                         const status = e.target.value as AttendanceDayStatus
@@ -641,7 +648,7 @@ export function TodayAttendanceTab({ employees, canManage, onSaved }: Props) {
                     <input
                       type="time"
                       disabled={!canManage || !attendanceStatusHasTimes(row.status)}
-                      className={`${inputCls()} w-28 py-1.5 text-xs disabled:opacity-40`}
+                      className={`${inputCls()} w-28 py-1.5 text-center text-xs disabled:opacity-40`}
                       value={row.checkIn}
                       onChange={e => {
                         patchRow(i, { checkIn: e.target.value }, true)
@@ -654,7 +661,7 @@ export function TodayAttendanceTab({ employees, canManage, onSaved }: Props) {
                     <input
                       type="time"
                       disabled={!canManage || !attendanceStatusHasTimes(row.status)}
-                      className={`${inputCls()} w-28 py-1.5 text-xs disabled:opacity-40`}
+                      className={`${inputCls()} w-28 py-1.5 text-center text-xs disabled:opacity-40`}
                       value={row.checkOut}
                       onChange={e => {
                         patchRow(i, { checkOut: e.target.value }, true)
@@ -666,7 +673,7 @@ export function TodayAttendanceTab({ employees, canManage, onSaved }: Props) {
                   <td className="table-cell">
                     <input
                       disabled={!canManage}
-                      className={`${inputCls()} min-w-[8rem] py-1.5 text-xs`}
+                      className={`${inputCls()} min-w-[8rem] py-1.5 text-center text-xs`}
                       value={row.notes}
                       onChange={e => patchRow(i, { notes: e.target.value }, true)}
                     />

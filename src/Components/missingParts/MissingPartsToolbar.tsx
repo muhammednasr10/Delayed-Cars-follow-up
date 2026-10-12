@@ -14,7 +14,6 @@ import type { FactoryOrgUnit } from '../../Types/factoryOrg'
 import type { MissingPartDetail, MissingPartFilters, MissingPartsListTab } from '../../Types/missingPart'
 import { MissingPartsModelSummaryTable } from './MissingPartsModelSummaryTable'
 import { MissingPartsToolbarFilters } from './MissingPartsToolbarFilters'
-import type { Employee } from '../../Types/employee'
 
 export type ListTab = MissingPartsListTab
 export type CurrentShortageView = 'active' | 'byFamily'
@@ -38,8 +37,6 @@ type Props = {
   onFiltersChange: (patch: Partial<MissingPartFilters>) => void
   modelOptions: string[]
   orgUnits: FactoryOrgUnit[]
-  employees: Employee[]
-  myEmployeeId: string | null
   canReport: boolean
   role: string
   onReport: () => void
@@ -70,8 +67,6 @@ export function MissingPartsToolbar({
   onFiltersChange,
   modelOptions,
   orgUnits,
-  employees,
-  myEmployeeId,
   canReport,
   role,
   onReport,
@@ -281,8 +276,6 @@ export function MissingPartsToolbar({
         onFiltersChange={onFiltersChange}
         modelOptions={modelOptions}
         orgUnits={orgUnits}
-        employees={employees}
-        myEmployeeId={myEmployeeId}
       />
     </div>
   )

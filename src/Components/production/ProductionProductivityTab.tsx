@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react'
 import { CalendarDays, LogIn, LogOut, Wrench } from 'lucide-react'
 import { useLang } from '../../i18n/LanguageContext'
 import { useCanViewPage } from '../../hooks/useCanViewPage'
+import { useProductivityWriteScope } from '../../hooks/useProductivityWriteScope'
 import { inputCls } from '../FormField'
 import { ProductionPlanWorkDaysTab } from '../ProductionPlanWorkDaysTab'
 import { ProductivityDailyEntryModal } from '../productivity/ProductivityDailyEntryModal'
@@ -23,6 +24,7 @@ function parseYm(workDate: string): { year: number; month: number } {
 export function ProductionProductivityTab() {
   const { t } = useLang()
   const { canViewTab, loading: permsLoading } = useCanViewPage()
+  const { canEditEntry, canEditExit } = useProductivityWriteScope()
 
   const [workDate, setWorkDate] = useState(todayIso)
   const [stops, setStops] = useState<ProductionLineStop[]>([])
@@ -61,9 +63,9 @@ export function ProductionProductivityTab() {
           <input type="date" className={inputCls()} value={workDate} onChange={e => setWorkDate(e.target.value)} />
         </label>
 
-        {(canRegisterEntry || canRegisterExit || canRegisterRepair) && (
+        {((canRegisterEntry && canEditEntry) || (canRegisterExit && canEditExit) || canRegisterRepair) && (
           <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap">
-            {canRegisterEntry && (
+            {canRegisterEntry && canEditEntry && (
               <button
                 type="button"
                 onClick={() => setModalKind('entry')}
@@ -73,7 +75,7 @@ export function ProductionProductivityTab() {
                 {t('productivity.registerEntry')}
               </button>
             )}
-            {canRegisterExit && (
+            {canRegisterExit && canEditExit && (
               <button
                 type="button"
                 onClick={() => setModalKind('exit')}

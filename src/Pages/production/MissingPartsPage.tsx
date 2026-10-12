@@ -48,7 +48,7 @@ export function MissingPartsPage() {
     canBulkInstallAndUpdate
   } = useMissingPartsUiPermissions()
   const { employees } = useEmployees()
-  const { isScopedView, scopeLabel, orgUnits, employeeId: myEmployeeId } = useFactoryOrgScope(employees)
+  const { isScopedView, scopeLabel, orgUnits } = useFactoryOrgScope(employees)
   const orgUnitLabelFor = useCallback(
     (id: string | null | undefined) => (id ? scratchAreaLabel(id, orgUnits) : '—'),
     [orgUnits]
@@ -260,8 +260,6 @@ export function MissingPartsPage() {
           onFiltersChange={patch => setFilters(p => ({ ...p, ...patch }))}
           modelOptions={modelOptions}
           orgUnits={orgUnits}
-          employees={employees}
-          myEmployeeId={myEmployeeId}
           canReport={canReport}
           role={role}
           onReport={() => setShowReport(true)}

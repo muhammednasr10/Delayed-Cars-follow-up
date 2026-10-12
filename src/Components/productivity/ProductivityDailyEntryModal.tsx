@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { LogIn, LogOut, Save, Wrench } from 'lucide-react'
 import { useCanManageProduction } from '../../hooks/useCanManageProduction'
+import { useProductivityWriteScope } from '../../hooks/useProductivityWriteScope'
 import { useLang } from '../../i18n/LanguageContext'
 import { Modal } from '../Modal'
 import { Field, inputCls } from '../FormField'
@@ -40,7 +41,9 @@ function parseYm(workDate: string): { year: number; month: number } {
 
 export function ProductivityDailyEntryModal({ open, kind, workDate, onClose, onSaved }: Props) {
   const { t } = useLang()
-  const canManage = useCanManageProduction()
+  const canManageProduction = useCanManageProduction()
+  const { canEditEntry, canEditExit } = useProductivityWriteScope()
+  const canManage = kind === 'entry' ? canEditEntry : kind === 'exit' ? canEditExit : canManageProduction
 
   const { year, month } = useMemo(() => parseYm(workDate), [workDate])
   const [models, setModels] = useState<VehicleModel[]>([])

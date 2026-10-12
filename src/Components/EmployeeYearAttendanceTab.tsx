@@ -70,6 +70,8 @@ export function EmployeeYearAttendanceTab({ employees, refreshKey = 0 }: Props) 
     return sortedByIssues.filter(s => matchedIds.has(s.employeeId))
   }, [sortedByIssues, searchQuery, employees])
 
+  const orgByEmployee = useMemo(() => new Map(employees.map(e => [e.id, e.orgUnitLabel])), [employees])
+
   const totals = useMemo(
     () =>
       filteredSummaries.reduce(
@@ -171,11 +173,20 @@ export function EmployeeYearAttendanceTab({ employees, refreshKey = 0 }: Props) 
       </label>
 
       <div className="overflow-x-auto rounded-2xl border border-slate-800">
-        <table className="w-full min-w-[720px] text-start">
+        <table className="w-full min-w-[960px] text-center">
           <thead className="bg-slate-950/90">
             <tr>
-              {['code', 'name', 'role', 'present', 'absent', 'vacation', 'sick', 'total'].map(c => (
-                <th key={c} className="table-cell text-xs font-black uppercase text-slate-400">
+              {['code', 'name', 'role', 'orgUnit', 'present', 'total', 'absent', 'vacation', 'sick'].map(c => (
+                <th
+                  key={c}
+                  className={`table-cell font-black uppercase text-slate-400 ${
+                    c === 'total'
+                      ? 'whitespace-nowrap text-sm sm:text-base'
+                      : c === 'orgUnit'
+                        ? 'whitespace-nowrap text-xs'
+                        : 'text-xs'
+                  }`}
+                >
                   {t(`attendance.cols.${c}`)}
                 </th>
               ))}
@@ -184,14 +195,14 @@ export function EmployeeYearAttendanceTab({ employees, refreshKey = 0 }: Props) 
           <tbody className="divide-y divide-slate-800">
             {loading && (
               <tr>
-                <td colSpan={8} className="table-cell text-center text-slate-500">
+                <td colSpan={9} className="table-cell text-center text-slate-500">
                   {t('common.loading')}
                 </td>
               </tr>
             )}
             {!loading && filteredSummaries.length === 0 && (
               <tr>
-                <td colSpan={8} className="table-cell text-center text-slate-500">
+                <td colSpan={9} className="table-cell text-center text-slate-500">
                   {t('common.noData')}
                 </td>
               </tr>
@@ -206,23 +217,24 @@ export function EmployeeYearAttendanceTab({ employees, refreshKey = 0 }: Props) 
                   <td className="table-cell">
                     <JobRoleBadge role={s.jobRole as Employee['jobRole']} />
                   </td>
+                  <td className="table-cell text-slate-200">{orgByEmployee.get(s.employeeId) || '—'}</td>
                   <td className="table-cell text-emerald-300">{s.presentDays || '—'}</td>
+                  <td className="table-cell text-base font-black text-white sm:text-lg">{s.issueDays || '—'}</td>
                   <td className="table-cell text-red-300">{s.absentDays || '—'}</td>
                   <td className="table-cell text-amber-300">{s.vacationDays || '—'}</td>
                   <td className="table-cell text-orange-300">{s.sickDays || '—'}</td>
-                  <td className="table-cell font-black text-white">{s.issueDays || '—'}</td>
                 </tr>
               ))}
             {!loading && filteredSummaries.length > 0 && (
               <tr className="bg-slate-950/80 font-black">
-                <td colSpan={3} className="table-cell text-slate-300">
+                <td colSpan={4} className="table-cell text-slate-300">
                   {t('attendance.yearly.totalRow', { year: String(year) })}
                 </td>
                 <td className="table-cell text-emerald-300">{totals.present || '—'}</td>
+                <td className="table-cell text-base font-black text-white sm:text-lg">{totals.issues || '—'}</td>
                 <td className="table-cell text-red-300">{totals.absent || '—'}</td>
                 <td className="table-cell text-amber-300">{totals.vacation || '—'}</td>
                 <td className="table-cell text-orange-300">{totals.sick || '—'}</td>
-                <td className="table-cell text-white">{totals.issues || '—'}</td>
               </tr>
             )}
           </tbody>

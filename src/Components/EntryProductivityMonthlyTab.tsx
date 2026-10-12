@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { CalendarDays } from 'lucide-react'
-import { useCanManageProduction } from '../hooks/useCanManageProduction'
+import { useProductivityWriteScope } from '../hooks/useProductivityWriteScope'
 import { useVehicles } from '../Context/VehiclesContext'
 import { useLang } from '../i18n/LanguageContext'
 import { useEmployees } from '../hooks/useEmployees'
@@ -40,7 +40,7 @@ export function EntryProductivityMonthlyTab() {
   const { vehicles } = useVehicles()
   const { employees } = useEmployees()
   const { filterRecords, isScopedView, scopeLabel } = useFactoryOrgScope(employees)
-  const canManage = useCanManageProduction()
+  const { canEditEntry: canManage } = useProductivityWriteScope()
   const scopedVehicles = useMemo(() => filterRecords(vehicles), [vehicles, filterRecords])
 
   const init = currentYm()

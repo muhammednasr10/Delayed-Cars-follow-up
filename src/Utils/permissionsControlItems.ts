@@ -26,6 +26,12 @@ export type PermissionPageTreeNode = {
   children: PermissionPageTreeNode[]
 }
 
+/** `pages` actions are stored as `pagePerm::create` so each sub-page has its own switch. */
+export function controlActionName(permissionKey: string): string {
+  const splitAt = permissionKey.lastIndexOf('::')
+  return splitAt >= 0 ? permissionKey.slice(splitAt + 2) : permissionKey
+}
+
 function buildItem(
   node: MatrixTreeNode,
   allPermissions: SystemPermission[],
@@ -40,8 +46,9 @@ function buildItem(
   const otherActions: SystemPermission[] = []
 
   for (const p of actionPerms) {
-    if ((PRIMARY_CONTROL_ACTIONS as readonly string[]).includes(p.permission_key)) {
-      primaryActions[p.permission_key as PrimaryControlAction] = p
+    const actionName = controlActionName(p.permission_key)
+    if ((PRIMARY_CONTROL_ACTIONS as readonly string[]).includes(actionName)) {
+      primaryActions[actionName as PrimaryControlAction] = p
     } else {
       otherActions.push(p)
     }

@@ -22,6 +22,16 @@ function productionTabActions(): MatrixActionModule[] {
   return [{ moduleKey: 'production', actions: [...PRODUCTION_TAB_ACTIONS] }]
 }
 
+/** إضافة / تعديل / حذف مستقلة لكل صفحة فرعية. */
+function pageCrud(pagePerm: string): MatrixActionModule[] {
+  return [
+    {
+      moduleKey: 'pages',
+      actions: ['create', 'update', 'delete'].map(action => `${pagePerm}::${action}`)
+    }
+  ]
+}
+
 /** شجرة مصفوفة الصلاحيات — مطابقة للقائمة والتبويبات في التطبيق */
 export const PERMISSIONS_MATRIX_TREE: MatrixTreeNode[] = [
   {
@@ -272,24 +282,56 @@ export const PERMISSIONS_MATRIX_TREE: MatrixTreeNode[] = [
         labelKey: 'nav.training',
         descKey: 'permissions.matrix.pageDesc.production_training',
         pagePerm: 'production_training',
-        actionModules: [{ moduleKey: 'training_matrix' }, { moduleKey: 'employees' }],
+        actionModules: [{ moduleKey: 'training_matrix' }],
         children: [
-          { id: 'prod_tr_org', labelKey: 'training.tabs.org', pagePerm: 'production_training__org' },
-          { id: 'prod_tr_att', labelKey: 'training.tabs.attendance', pagePerm: 'production_training__attendance' },
-          { id: 'prod_tr_man', labelKey: 'training.tabs.manpower', pagePerm: 'production_training__manpower' },
-          { id: 'prod_tr_ops', labelKey: 'training.tabs.operations', pagePerm: 'production_training__operations' },
+          {
+            id: 'prod_tr_org',
+            labelKey: 'training.tabs.org',
+            pagePerm: 'production_training__org',
+            actionModules: [{ moduleKey: 'employees' }]
+          },
+          {
+            id: 'prod_tr_att',
+            labelKey: 'training.tabs.attendance',
+            pagePerm: 'production_training__attendance',
+            actionModules: pageCrud('production_training__attendance')
+          },
+          {
+            id: 'prod_tr_man',
+            labelKey: 'training.tabs.manpower',
+            pagePerm: 'production_training__manpower',
+            actionModules: pageCrud('production_training__manpower')
+          },
+          {
+            id: 'prod_tr_ops',
+            labelKey: 'training.tabs.operations',
+            pagePerm: 'production_training__operations',
+            actionModules: pageCrud('production_training__operations')
+          },
           {
             id: 'prod_tr_skills',
             labelKey: 'training.tabs.stationSkills',
-            pagePerm: 'production_training__stationSkills'
+            pagePerm: 'production_training__stationSkills',
+            actionModules: pageCrud('production_training__stationSkills')
           },
-          { id: 'prod_tr_matrix', labelKey: 'training.tabs.matrix', pagePerm: 'production_training__matrix' },
+          {
+            id: 'prod_tr_matrix',
+            labelKey: 'training.tabs.matrix',
+            pagePerm: 'production_training__matrix',
+            actionModules: pageCrud('production_training__matrix')
+          },
           {
             id: 'prod_tr_qual',
             labelKey: 'training.tabs.qualification',
-            pagePerm: 'production_training__qualification'
+            pagePerm: 'production_training__qualification',
+            actionModules: pageCrud('production_training__qualification')
           },
-          { id: 'prod_tr_expiry', labelKey: 'training.tabs.expiry', pagePerm: 'production_training__expiry' }
+          {
+            id: 'prod_tr_expiry',
+            labelKey: 'training.tabs.expiry',
+            pagePerm: 'production_training__expiry',
+            actionModules: pageCrud('production_training__expiry')
+          }
         ]
       },
       {

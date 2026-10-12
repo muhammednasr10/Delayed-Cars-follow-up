@@ -1,62 +1,48 @@
 import type { Employee } from '../Types/employee'
 import type { FactoryOrgUnit } from '../Types/factoryOrg'
 import type { JobRole } from '../Types/enums'
-import { collectSubordinateIds, getMyManagers } from './employeeHierarchy'
+import { areasInName, type AssemblyArea } from './assemblyAreas'
+import { collectSubordinateIds } from './employeeHierarchy'
 import { filterWorkforceByOrgScope } from './factoryOrgScope'
 
 /** إنتاجية الدخول (تريم أ/ب) مقابل الخروج (شاسيه/فاينال) */
 export type AssemblyLineScope = 'entry' | 'exit'
 
-const ENTRY_AREA_PATTERNS = [/تريم\s*[أا]/i, /trim\s*a/i, /تريم\s*[بb]/i, /trim\s*b/i, /^تريم$/i, /^trim$/i]
-
-const EXIT_AREA_PATTERNS = [/شاسيه/i, /chassis/i, /فاينال/i, /final/i]
-
 const SUPERVISOR_SCOPE_ROLES: JobRole[] = ['supervisor', 'assistant_supervisor']
 
 export function workAreaAssemblyScope(workAreaName: string | null | undefined): AssemblyLineScope | null {
-  const name = workAreaName?.trim()
-  if (!name) return null
-  if (ENTRY_AREA_PATTERNS.some(re => re.test(name))) return 'entry'
-  if (EXIT_AREA_PATTERNS.some(re => re.test(name))) return 'exit'
+  const areas = areasInName(workAreaName)
+  if (areas.has('trim_a') || areas.has('trim_b')) return 'entry'
+  if (areas.has('chassis') || areas.has('final')) return 'exit'
   return null
 }
 
-function addScopeFromEmployee(kinds: Set<AssemblyLineScope>, employee: Employee) {
-  const kind = workAreaAssemblyScope(employee.workAreaName)
-  if (kind) kinds.add(kind)
-}
-
-function collectScopeKinds(employees: Employee[], viewerId: string): Set<AssemblyLineScope> {
-  const viewer = employees.find(e => e.id === viewerId)
+/** نطاق المشرف من قسمه ومرؤوسيه. المساعد لا يرث قسم المشرف الأب. */
+function collectViewerAreas(employees: Employee[], viewerId: string): Set<AssemblyArea> {
+  const viewer = employees.find(employee => employee.id === viewerId)
   if (!viewer) return new Set()
 
-  const kinds = new Set<AssemblyLineScope>()
-  addScopeFromEmployee(kinds, viewer)
+  const areas = new Set<AssemblyArea>()
+  for (const area of areasInName(viewer.workAreaName)) areas.add(area)
 
   for (const id of collectSubordinateIds(employees, viewerId)) {
-    const sub = employees.find(e => e.id === id)
-    if (sub) addScopeFromEmployee(kinds, sub)
+    const subordinate = employees.find(employee => employee.id === id)
+    if (!subordinate) continue
+    for (const area of areasInName(subordinate.workAreaName)) areas.add(area)
   }
 
-  if (viewer.jobRole === 'assistant_supervisor') {
-    for (const mgr of getMyManagers(employees, viewerId)) {
-      if (mgr.jobRole !== 'supervisor') continue
-      addScopeFromEmployee(kinds, mgr)
-      for (const id of collectSubordinateIds(employees, mgr.id)) {
-        const sub = employees.find(e => e.id === id)
-        if (sub) addScopeFromEmployee(kinds, sub)
-      }
-    }
-  }
+  return areas
+}
 
-  return kinds
+function employeeAreas(employee: Employee): Set<AssemblyArea> {
+  return areasInName(employee.workAreaName)
 }
 
 /**
  * يقيّد عمالة التجميع حسب المشرف/مساعد المشرف:
- * - مشرف تريم أ/ب يرى عمال الدخول فقط
- * - مشرف الشاسيه/الفاينال يرى عمال الخروج فقط
- * - مساعد المشرف يرث نطاق مشرفه
+ * - مشرف تريم أ وب يرى عمال القسمين
+ * - مساعد تريم أ يرى تريم أ فقط، ومساعد تريم ب يرى تريم ب فقط
+ * - نفس التقسيم للشاسيه والفاينال
  * - القائد يرى مرؤوسيه فقط
  */
 export function filterAssemblyWorkforceForViewer(
@@ -67,33 +53,35 @@ export function filterAssemblyWorkforceForViewer(
 ): Employee[] {
   if (orgUnits.length > 0) {
     const orgScoped = filterWorkforceByOrgScope(employees, viewerEmployeeId, seesAll, orgUnits)
-    const viewer = viewerEmployeeId ? employees.find(e => e.id === viewerEmployeeId) : null
+    const viewer = viewerEmployeeId ? employees.find(employee => employee.id === viewerEmployeeId) : null
     if (viewer?.factoryOrgUnitId) return orgScoped
   }
 
   if (seesAll || !viewerEmployeeId) return employees
 
-  const viewer = employees.find(e => e.id === viewerEmployeeId)
+  const viewer = employees.find(employee => employee.id === viewerEmployeeId)
   if (!viewer) return employees
 
   const subordinateIds = collectSubordinateIds(employees, viewerEmployeeId)
   subordinateIds.add(viewerEmployeeId)
 
   if (SUPERVISOR_SCOPE_ROLES.includes(viewer.jobRole)) {
-    const scopeKinds = collectScopeKinds(employees, viewerEmployeeId)
-    if (scopeKinds.size === 0) {
-      return employees.filter(e => subordinateIds.has(e.id))
+    const scopeAreas = collectViewerAreas(employees, viewerEmployeeId)
+    if (scopeAreas.size === 0) {
+      return employees.filter(employee => subordinateIds.has(employee.id))
     }
-    return employees.filter(e => {
-      if (subordinateIds.has(e.id)) return true
-      const kind = workAreaAssemblyScope(e.workAreaName)
-      return kind != null && scopeKinds.has(kind)
+    return employees.filter(employee => {
+      if (subordinateIds.has(employee.id)) return true
+      for (const area of employeeAreas(employee)) {
+        if (scopeAreas.has(area)) return true
+      }
+      return false
     })
   }
 
   if (viewer.jobRole === 'leader') {
-    return employees.filter(e => subordinateIds.has(e.id))
+    return employees.filter(employee => subordinateIds.has(employee.id))
   }
 
-  return employees.filter(e => e.id === viewerEmployeeId)
+  return employees.filter(employee => employee.id === viewerEmployeeId)
 }

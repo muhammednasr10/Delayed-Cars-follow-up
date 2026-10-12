@@ -271,6 +271,31 @@ export async function updateMissingPartsEntryDate(
   await logVehicleActivityNote(vehicleId, `اتغير تاريخ إدخال السيارة إلى ${stamp}.`)
 }
 
+function followUpIds(input: UpdateMissingPartInput): string[] {
+  return input.followUpEmployeeIds ?? (input.followUpEmployeeId ? [input.followUpEmployeeId] : [])
+}
+
+/** Direct row update when Postgres has two update_missing_part_record overloads and cannot choose. */
+async function updateMissingPartRecordRow(id: string, input: UpdateMissingPartInput): Promise<void> {
+  const ids = followUpIds(input)
+  const patch: Record<string, unknown> = {
+    part_description: input.partDescription.trim(),
+    required_qty: input.requiredQty,
+    reason: input.reason,
+    department: input.department,
+    priority: input.priority,
+    stopper_type: input.stopperType,
+    notes: input.notes?.trim() || null
+  }
+  if (input.assignFollowUp) {
+    patch.completing_department = input.completingDepartment || null
+    patch.follow_up_employee_id = ids[0] || null
+    patch.follow_up_employee_ids = ids
+  }
+  const { error } = await requireClient().from('missing_parts').update(patch).eq('id', id)
+  if (error) throw new Error(error.message)
+}
+
 export async function updateMissingPartRecord(
   id: string,
   input: UpdateMissingPartInput,
@@ -289,13 +314,16 @@ export async function updateMissingPartRecord(
     ...(input.assignFollowUp
       ? {
           p_completing_department: input.completingDepartment || null,
-          p_follow_up_employee_id: input.followUpEmployeeIds?.length ? input.followUpEmployeeIds[0] : (input.followUpEmployeeId || null),
-          p_follow_up_employee_ids: input.followUpEmployeeIds ?? (input.followUpEmployeeId ? [input.followUpEmployeeId] : []),
+          p_follow_up_employee_id: followUpIds(input)[0] || null,
+          p_follow_up_employee_ids: followUpIds(input),
           p_assign_follow_up: true
         }
       : {})
   })
-  if (error) throw new Error(error.message)
+  if (error) {
+    if (!/could not choose the best candidate function/i.test(error.message)) throw new Error(error.message)
+    await updateMissingPartRecordRow(id, input)
+  }
 
   if (options?.skipActivityNote || !before) return
 

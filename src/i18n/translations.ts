@@ -1489,7 +1489,7 @@ export const translations = {
       monthly: {
         title: 'شهري',
         subtitle: 'ملخص حضور وانصراف كل موظف خلال الشهر',
-        hint: 'استخدم تبويب «تسجيل اليوم» لتسجيل حضور اليوم — يُحفظ تلقائياً ويظهر هنا.',
+        hint: 'استخدم تبويب «تسجيل اليوم» لتسجيل حضور اليوم. الملخص هنا يقف عند آخر يوم خلص، والنهاردة تدخل من بكرة.',
         search: 'بحث عن موظف',
         searchPh: 'ابحث بالاسم أو الرقم الوظيفي…'
       },
@@ -1501,13 +1501,13 @@ export const translations = {
       },
       today: {
         title: 'تسجيل اليوم',
-        hint: 'ابحث عن الموظف واختر الحالة — يُحفظ تلقائياً ويظهر في الجدول الشهري.',
+        hint: 'ابحث عن الموظف واختر الحالة — يُحفظ تلقائياً. الجدول الشهري يحسب لحد آخر يوم خلص، والنهاردة تدخل من بكرة.',
         saveAll: 'حفظ الكل',
         saveExplain:
-          'لا يوجد زر حفظ منفصل لكل صف — التغيير يُحفظ تلقائياً. الافتراضي «حاضر» لا يُسجَّل في القاعدة حتى تغيّر الحالة أو تضغط «حفظ الكل». بعد الحفظ يظهر التسجيل لباقي المستخدمين والجدول الشهري.',
+          'لا يوجد زر حفظ منفصل لكل صف — التغيير يُحفظ تلقائياً. الافتراضي «حاضر» لا يُسجَّل في القاعدة حتى تغيّر الحالة أو تضغط «حفظ الكل». بعد الحفظ يظهر التسجيل لباقي المستخدمين، ويدخل الجدول الشهري بعد انتهاء اليوم.',
         readOnlyHint: 'عرض فقط — لا تملك صلاحية تسجيل الحضور. اطلب من مدخل البيانات أو المسؤول.',
         save: 'حفظ اليوم',
-        saved: 'تم حفظ حضور اليوم — يظهر الآن في الجدول الشهري.',
+        saved: 'تم حفظ حضور اليوم — يدخل الجدول الشهري بعد انتهاء اليوم.',
         autoSaved: 'تم الحفظ تلقائياً',
         quickTitle: 'تسجيل سريع',
         quickHint: 'ابحث بالاسم أو الرقم الوظيفي — التسجيل يُحفظ تلقائياً من هنا دون الحاجة للجدول.',
@@ -1543,7 +1543,7 @@ export const translations = {
       monthEditor: 'تسجيل الشهر يوماً بيوم',
       saveMonth: 'حفظ الشهر',
       defaultsHint:
-        'الافتراضي حسب أيام العمل في ملخص الإنتاجية: عمل/إضافي/بدل = حاضر؛ أجازة = إجازة. الأيام السابقة تُحسب حسب الخطة إن لم تُسجَّل؛ اليوم يُحسب بعد الحفظ فقط.',
+        'الافتراضي حسب أيام العمل في ملخص الإنتاجية: عمل/إضافي/بدل = حاضر؛ أجازة = إجازة. الأيام السابقة تُحسب حسب الخطة إن لم تُسجَّل. النهاردة لا تُحسب في الشهري إلا بعد ما اليوم يخلص.',
       markAllPresent: 'الكل حاضر (7:00 – 5:30)',
       markAllFromPlan: 'تطبيق الافتراضي حسب أيام العمل',
       checkIn: 'وقت الحضور',
@@ -1552,6 +1552,7 @@ export const translations = {
         code: 'الكود',
         name: 'الاسم',
         role: 'المسمى',
+        orgUnit: 'التبعية التنظيمية',
         date: 'التاريخ',
         planDay: 'نوع اليوم',
         status: 'الحالة',
@@ -2345,7 +2346,7 @@ export const translations = {
       assemblyWorkforceHint:
         'يُعرض هنا فقط من تبعيتهم التنظيمية «الإنتاج / التجميع». السجل الكامل والإضافة من قسم الموارد البشرية.',
       assemblySupervisorScopeHint:
-        'تعرض عمال مناطق عملك فقط: مشرف تريم أ/ب يرى عمال الدخول، ومشرف الشاسيه/الفاينال يرى عمال الخروج. مساعد المشرف يرث نطاق مشرفه.',
+        'تعرض عمال قسمك فقط: مشرف تريم أ وب يرى القسمين، ومساعد كل قسم فرعي يرى قسمه. نفس التقسيم للشاسيه والفاينال.',
       scopeBanner: 'عرض بيانات نطاقك فقط: {scope}',
       tableView: 'عرض جدول',
       chartView: 'عرض هيكلي',
@@ -5296,7 +5297,7 @@ export const translations = {
       monthly: {
         title: 'Monthly',
         subtitle: 'Per-employee attendance summary for the month',
-        hint: 'Use the «Today» tab to record today — it appears here after saving.',
+        hint: 'Use the «Today» tab to record today. This summary stops at the last finished day; today is included tomorrow.',
         search: 'Find employee',
         searchPh: 'Search by name or employee code…'
       },
@@ -5308,13 +5309,13 @@ export const translations = {
       },
       today: {
         title: 'Today',
-        hint: 'Find the employee and set status — saves automatically and appears in the monthly table.',
+        hint: 'Find the employee and set status — it saves automatically. The monthly table counts through the last finished day; today is included tomorrow.',
         saveAll: 'Save all',
         saveExplain:
-          'No per-row save button — edits auto-save. Default «present» is not stored until you change status or press «Save all». Other users and the monthly tab see data after save.',
+          'No per-row save button — edits auto-save. Default «present» is not stored until you change status or press «Save all». After save, other users see it; the monthly table includes the day once it has ended.',
         readOnlyHint: 'Read-only — you cannot record attendance. Ask data entry or an admin.',
         save: 'Save today',
-        saved: "Today's attendance saved — reflected in the monthly table.",
+        saved: "Today's attendance saved — the monthly table includes it after the day ends.",
         autoSaved: 'Saved automatically',
         quickTitle: 'Quick entry',
         quickHint: 'Search by name or employee code — entry saves automatically from here.',
@@ -5351,7 +5352,7 @@ export const translations = {
       monthEditor: 'Month (day by day)',
       saveMonth: 'Save month',
       defaultsHint:
-        'Defaults follow working days in the production summary: work/overtime/substitute = present; holidays = leave. Past days use the plan if not recorded; today counts only after save.',
+        'Defaults follow working days in the production summary: work/overtime/substitute = present; holidays = leave. Past days use the plan if not recorded. Today is left out of the monthly summary until the day has ended.',
       markAllPresent: 'All present (7:00 – 5:30)',
       markAllFromPlan: 'Apply defaults from work days',
       checkIn: 'Check-in',
@@ -5360,6 +5361,7 @@ export const translations = {
         code: 'Code',
         name: 'Name',
         role: 'Role',
+        orgUnit: 'Org unit',
         date: 'Date',
         planDay: 'Day type',
         status: 'Status',
@@ -6162,7 +6164,7 @@ export const translations = {
       assemblyWorkforceHint:
         'Only employees with org placement «Production / Assembly» appear here. Full registry and new hires are managed in HR.',
       assemblySupervisorScopeHint:
-        'You only see workers in your scope: Trim A/B supervisors see entry-line workers; Chassis/Final supervisors see exit-line workers. Assistant supervisors inherit their supervisor’s scope.',
+        'You only see workers in your section: the Trim A and B supervisor sees both, and each assistant sees only their subsection. Chassis and Final follow the same split.',
       scopeBanner: 'Showing data for your scope only: {scope}',
       tableView: 'Table View',
       chartView: 'Chart View',

@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { CalendarDays } from 'lucide-react'
-import { useCanManageProduction } from '../hooks/useCanManageProduction'
+import { useProductivityWriteScope } from '../hooks/useProductivityWriteScope'
 import { useVehicles } from '../Context/VehiclesContext'
 import { useLang } from '../i18n/LanguageContext'
 import { inputCls } from '../Components/FormField'
@@ -35,7 +35,7 @@ function columnKey(col: ModelColumn): string {
 
 export function ExitProductivityMonthlyTab() {
   const { t } = useLang()
-  const canManage = useCanManageProduction()
+  const { canEditExit: canManage } = useProductivityWriteScope()
   const { vehicles } = useVehicles()
 
   const init = currentYm()

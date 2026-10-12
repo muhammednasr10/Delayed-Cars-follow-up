@@ -1,7 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useNavigation } from '../../Context/NavigationContext'
 import { useLang } from '../../i18n/LanguageContext'
-import { useAuth } from '../../Context/AuthContext'
 import { usePermissions } from '../../Context/PermissionsContext'
 import { useEmployees } from '../../hooks/useEmployees'
 import { useEmployeeTrainingRecords, useStationRequiredSkills, useTrainingSkills } from '../../hooks/useTraining'
@@ -9,6 +8,7 @@ import { useEmployeeStationLevels } from '../../hooks/useEmployeeStationLevels'
 import { getFactoryOrgUnits } from '../../services/factoryOrgService'
 import { getStations, getVehicleModels } from '../../services/settingsService'
 import { useAssemblyWorkforceScope } from '../../hooks/useAssemblyWorkforceScope'
+import { usePageCrud } from '../../hooks/usePageCrud'
 import { filterAssemblyWorkforce, isAssemblyWorkforceFilterMissing } from '../../Utils/assemblyWorkforce'
 import { OrgStructurePage } from '../shared/OrgStructurePage'
 import { WorkforceAttendanceSection } from '../../Components/WorkforceAttendanceSection'
@@ -23,17 +23,11 @@ import type { FactoryOrgUnit } from '../../Types/factoryOrg'
 
 export function TrainingMatrixPage() {
   const { t } = useLang()
-  const { hasRole } = useAuth()
   const { hasPermission } = usePermissions()
-  const canManage =
-    hasPermission('training_matrix', 'manage') ||
-    hasPermission('training_matrix', 'update') ||
-    hasPermission('training_matrix', 'create')
-  const canManageEmployees =
-    hasRole('admin') ||
-    hasPermission('employees', 'create') ||
-    hasPermission('employees', 'update') ||
-    hasPermission('employees', 'delete')
+  const attendanceCrud = usePageCrud('production_training__attendance', 'employees')
+  const manpowerCrud = usePageCrud('production_training__manpower', 'employees')
+  const skillsCrud = usePageCrud('production_training__stationSkills', 'training_matrix')
+  const matrixCrud = usePageCrud('production_training__matrix', 'training_matrix')
 
   const { employees: allEmployees } = useEmployees()
   const [orgUnits, setOrgUnits] = useState<FactoryOrgUnit[]>([])
@@ -76,7 +70,9 @@ export function TrainingMatrixPage() {
 
   return (
     <section className="space-y-4">
-      {!canManage && <p className="text-xs text-amber-300">{t('training.noPerm')}</p>}
+      {!hasPermission('training_matrix', 'view') && !hasPermission('employees', 'view') && (
+        <p className="text-xs text-amber-300">{t('training.noPerm')}</p>
+      )}
       {success && (
         <div className="rounded-xl border border-emerald-500/30 bg-emerald-500/10 p-3 text-sm text-emerald-200">
           {success}
@@ -104,7 +100,7 @@ export function TrainingMatrixPage() {
               {t('attendance.assemblyFilterEmpty')}
             </div>
           )}
-          <WorkforceAttendanceSection employees={employees} canManage={canManageEmployees} />
+          <WorkforceAttendanceSection employees={employees} canManage={attendanceCrud.canManage} />
         </>
       )}
       {tab === 'manpower' && (
@@ -112,7 +108,7 @@ export function TrainingMatrixPage() {
           stations={stations}
           employees={employees}
           models={models}
-          canManage={canManageEmployees}
+          canManage={manpowerCrud.canManage}
         />
       )}
       {tab === 'operations' && <OperationQualificationTab stations={stations} />}
@@ -121,7 +117,7 @@ export function TrainingMatrixPage() {
           employees={employees}
           stations={stations}
           levels={stationLevels}
-          canManage={canManage}
+          canManage={skillsCrud.canManage}
           onChanged={reloadStationLevels}
           notify={notify}
         />
@@ -131,7 +127,7 @@ export function TrainingMatrixPage() {
           employees={employees}
           skills={skills}
           records={records}
-          canManage={canManage}
+          canManage={matrixCrud.canManage}
           onChanged={reloadRecords}
           notify={notify}
         />
