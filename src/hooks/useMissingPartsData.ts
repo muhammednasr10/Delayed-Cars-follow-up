@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useNavigation } from '../Context/NavigationContext'
 import { useLang } from '../i18n/LanguageContext'
 import { useEmployees } from './useEmployees'
 import { useFactoryOrgScope } from './useFactoryOrgScope'
@@ -19,6 +20,8 @@ import {
   isSchemaMissing
 } from '../Utils/missingPartPageUtils'
 import { buildMissingPartTableRows } from '../Utils/missingPartDisplay'
+import { employeeMatchesOrgFilter } from '../Utils/employeeOrgPicker'
+import { productionAreaOrgUnitId } from '../Utils/productionAreaCounts'
 import { repeatedShortageVinKeys } from '../Utils/vinListConflict'
 import type { ListTab } from '../Components/missingParts/MissingPartsToolbar'
 
@@ -26,7 +29,9 @@ export function useMissingPartsData() {
   const { t } = useLang()
   const formatError = useFormatError()
   const { employees } = useEmployees()
+  const { productionArea } = useNavigation()
   const { filterRecords, orgUnits } = useFactoryOrgScope(employees)
+  const areaLock = productionArea === 'paint' ? 'paint' : null
 
   const [items, setItems] = useState<MissingPartDetail[]>([])
   const [loading, setLoading] = useState(true)
@@ -87,7 +92,13 @@ export function useMissingPartsData() {
     [items]
   )
 
-  const scopedItems = useMemo(() => filterRecords(items), [items, filterRecords])
+  const scopedItems = useMemo(() => {
+    const base = filterRecords(items)
+    if (!areaLock) return base
+    const areaId = productionAreaOrgUnitId(orgUnits, areaLock)
+    if (!areaId) return []
+    return base.filter(item => employeeMatchesOrgFilter(item.factoryOrgUnitId, areaId, orgUnits))
+  }, [items, filterRecords, areaLock, orgUnits])
 
   const loadNoteCounts = useCallback(async (parts: MissingPartDetail[]) => {
     const ids = [...new Set(parts.map(p => p.vehicleId))]

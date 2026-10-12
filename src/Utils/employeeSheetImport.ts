@@ -1,7 +1,9 @@
+import { foldWorkplaceName, resolveFactoryOrgUnitId } from './importWorkplaceMatch'
 import { parseSpreadsheetFile } from './parseSpreadsheet'
 import type { AssignmentStatus } from '../Types/employee'
 import type { EmployeeInput } from '../Types/employee'
 import type { JobRole } from '../Types/enums'
+import type { FactoryOrgUnit } from '../Types/factoryOrg'
 import type { WorkArea } from '../Types/settings'
 
 export type EmployeeImportPreviewRow = {
@@ -12,6 +14,7 @@ export type EmployeeImportPreviewRow = {
   assignmentStatus: AssignmentStatus | null
   workAreaName: string | null
   workAreaId: string | null
+  factoryOrgUnitId: string | null
   errors: string[]
 }
 
@@ -74,9 +77,10 @@ function mapHeaders(row: Record<string, string>): Record<string, string> {
 export function buildEmployeeImportPreview(
   rows: Record<string, string>[],
   areas: WorkArea[],
-  existingCodes: Set<string>
+  existingCodes: Set<string>,
+  orgUnits: FactoryOrgUnit[] = []
 ): EmployeeImportPreviewRow[] {
-  const areaByName = new Map(areas.map(a => [a.name.trim(), a.id]))
+  const areaByName = new Map(areas.map(a => [foldWorkplaceName(a.name), a.id]))
 
   return rows.map((raw, i) => {
     const rowNum = i + 2
@@ -87,13 +91,15 @@ export function buildEmployeeImportPreview(
     const jobRole = m.role ? jobRoleFromSheetTitle(m.role) : null
     const assignmentStatus = m.assignment ? assignmentFromSheet(m.assignment) : null
     const workAreaName = (m.workplace ?? '').trim() || null
+    const workAreaId = workAreaName ? (areaByName.get(foldWorkplaceName(workAreaName)) ?? null) : null
+    const factoryOrgUnitId = workAreaName ? resolveFactoryOrgUnitId(workAreaName, orgUnits) : null
 
     if (!employeeCode) errors.push('MISSING_CODE')
     if (!fullName) errors.push('MISSING_NAME')
     if (!m.role) errors.push('MISSING_ROLE')
     else if (!jobRole) errors.push('UNKNOWN_ROLE')
     if (m.assignment && !assignmentStatus) errors.push('UNKNOWN_ASSIGNMENT')
-    if (workAreaName && !areaByName.has(workAreaName)) errors.push('UNKNOWN_WORK_AREA')
+    if (workAreaName && !workAreaId && !factoryOrgUnitId) errors.push('UNKNOWN_WORK_AREA')
     if (employeeCode && existingCodes.has(employeeCode.toLowerCase())) errors.push('DUPLICATE_CODE')
 
     return {
@@ -103,7 +109,8 @@ export function buildEmployeeImportPreview(
       jobRole,
       assignmentStatus,
       workAreaName,
-      workAreaId: workAreaName ? (areaByName.get(workAreaName) ?? null) : null,
+      workAreaId,
+      factoryOrgUnitId,
       errors
     }
   })
@@ -119,7 +126,7 @@ export function previewRowToInput(row: EmployeeImportPreviewRow): EmployeeInput 
     workAreaId: row.workAreaId,
     stationId: null,
     lineName: null,
-    factoryOrgUnitId: null,
+    factoryOrgUnitId: row.factoryOrgUnitId,
     directManagerIds: [],
     phone: null,
     email: null,
@@ -150,10 +157,11 @@ function sheetRowsToRecords(rows: string[][]): Record<string, string>[] {
 export async function parseEmployeeImportFile(
   file: File,
   areas: WorkArea[],
-  existingCodes: Set<string>
+  existingCodes: Set<string>,
+  orgUnits: FactoryOrgUnit[] = []
 ): Promise<EmployeeImportPreviewRow[]> {
   const rows = await parseSpreadsheetFile(file)
   const records = sheetRowsToRecords(rows)
   if (records.length === 0) throw new Error('EMPTY_SHEET')
-  return buildEmployeeImportPreview(records, areas, existingCodes)
+  return buildEmployeeImportPreview(records, areas, existingCodes, orgUnits)
 }

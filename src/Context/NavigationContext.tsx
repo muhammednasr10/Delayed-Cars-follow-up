@@ -282,7 +282,7 @@ export function NavigationProvider({ children }: { children: ReactNode }) {
         showProfile: false,
         showGlobalHome: false,
         ...(department === 'production' && (changed || (leavingSettings && !keepSidebarOpen))
-          ? { productionArea: 'assembly' as const, productionPage: 'home' as const }
+          ? { productionPage: 'overview' as const }
           : {}),
         ...(changed && department === 'engineering' ? { engineeringPage: 'home' as const } : {}),
         ...(changed && department === 'planning' ? { planningTab: 'plan' as const, planScope: 'monthly' as const } : {}),

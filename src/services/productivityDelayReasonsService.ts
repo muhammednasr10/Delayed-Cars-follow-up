@@ -4,6 +4,7 @@ import type {
   ProductivityDelayReason,
   ProductivityDelayReasonInput
 } from '../Types/productivityDelayReason'
+import type { ProductionArea } from '../Types/navigation'
 
 function requireClient() {
   if (!supabase) throw new Error('Supabase غير مهيأ. تحقق من ملف .env')
@@ -36,12 +37,14 @@ function mapRow(row: Row): ProductivityDelayReason {
 export async function getProductivityDelayReasonsMonth(
   year: number,
   month: number,
-  kind: ProductivityDelayKind
+  kind: ProductivityDelayKind,
+  area: ProductionArea = 'assembly'
 ): Promise<ProductivityDelayReason[]> {
   const { start, end } = monthBounds(year, month)
   const { data, error } = await requireClient()
     .from('productivity_delay_reasons')
     .select('*')
+    .eq('production_area', area)
     .eq('kind', kind)
     .gte('work_date', start)
     .lte('work_date', end)
@@ -51,14 +54,18 @@ export async function getProductivityDelayReasonsMonth(
   return (data ?? []).map(r => mapRow(r as Row))
 }
 
-export async function upsertProductivityDelayReason(input: ProductivityDelayReasonInput): Promise<void> {
+export async function upsertProductivityDelayReason(
+  input: ProductivityDelayReasonInput,
+  area: ProductionArea = 'assembly'
+): Promise<void> {
   const { error } = await requireClient().from('productivity_delay_reasons').upsert(
     {
+      production_area: area,
       work_date: input.workDate,
       kind: input.kind,
       reasons: input.reasons.trim()
     },
-    { onConflict: 'work_date,kind' }
+    { onConflict: 'production_area,work_date,kind' }
   )
 
   if (error) throw new Error(error.message)

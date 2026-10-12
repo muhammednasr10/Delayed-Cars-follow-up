@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { CalendarDays } from 'lucide-react'
+import { useLineSection } from '../hooks/useLineSection'
 import { useProductivityWriteScope } from '../hooks/useProductivityWriteScope'
 import { useVehicles } from '../Context/VehiclesContext'
 import { useLang } from '../i18n/LanguageContext'
@@ -35,6 +36,7 @@ function columnKey(col: ModelColumn): string {
 
 export function ExitProductivityMonthlyTab() {
   const { t } = useLang()
+  const area = useLineSection()
   const { canEditExit: canManage } = useProductivityWriteScope()
   const { vehicles } = useVehicles()
 
@@ -60,7 +62,10 @@ export function ExitProductivityMonthlyTab() {
     setError('')
     setSuccess('')
     try {
-      const [modelList, records] = await Promise.all([getVehicleModels(), getExitProductivityMonth(year, month)])
+      const [modelList, records] = await Promise.all([
+        getVehicleModels(),
+        getExitProductivityMonth(year, month, area)
+      ])
       setModels(modelList)
       setGrid(buildExitMonthGrid(modelList, year, month, records))
     } catch (e) {
@@ -68,7 +73,7 @@ export function ExitProductivityMonthlyTab() {
     } finally {
       setLoading(false)
     }
-  }, [year, month, t])
+  }, [year, month, area, t])
 
   useEffect(() => {
     void load()
@@ -86,7 +91,7 @@ export function ExitProductivityMonthlyTab() {
       setSaving(true)
       setError('')
       try {
-        await bulkUpsertExitProductivity(exitGridToInputs(models, year, month, gridToSave))
+        await bulkUpsertExitProductivity(exitGridToInputs(models, year, month, gridToSave), area)
         setSuccess(t('common.saved'))
         window.setTimeout(() => setSuccess(''), 2000)
       } catch (e) {
@@ -95,7 +100,7 @@ export function ExitProductivityMonthlyTab() {
         setSaving(false)
       }
     },
-    [canManage, models, year, month, t]
+    [canManage, models, year, month, area, t]
   )
 
   function scheduleSave(nextGrid: Map<string, number>) {

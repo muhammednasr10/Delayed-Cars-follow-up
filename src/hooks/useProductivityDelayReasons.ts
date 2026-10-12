@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
+import { useLineSection } from './useLineSection'
 import {
   getProductivityDelayReasonsMonth,
   upsertProductivityDelayReason
@@ -11,17 +12,18 @@ export function useProductivityDelayReasons(
   month: number,
   canManage: boolean
 ) {
+  const area = useLineSection()
   const [reasonsByDate, setReasonsByDate] = useState<Map<string, string>>(new Map())
   const saveTimersRef = useRef<Map<string, ReturnType<typeof setTimeout>>>(new Map())
 
   const load = useCallback(async () => {
-    const records = await getProductivityDelayReasonsMonth(year, month, kind)
+    const records = await getProductivityDelayReasonsMonth(year, month, kind, area)
     const map = new Map<string, string>()
     for (const record of records) {
       map.set(record.workDate, record.reasons)
     }
     setReasonsByDate(map)
-  }, [year, month, kind])
+  }, [year, month, kind, area])
 
   useEffect(() => {
     void load().catch(() => setReasonsByDate(new Map()))
@@ -37,9 +39,9 @@ export function useProductivityDelayReasons(
   const persist = useCallback(
     async (workDate: string, reasons: string) => {
       if (!canManage) return
-      await upsertProductivityDelayReason({ workDate, kind, reasons })
+      await upsertProductivityDelayReason({ workDate, kind, reasons }, area)
     },
-    [canManage, kind]
+    [canManage, kind, area]
   )
 
   function scheduleSave(workDate: string, reasons: string) {

@@ -1,6 +1,10 @@
 import { useMemo } from 'react'
 import { useLang } from '../../i18n/LanguageContext'
 import { useNavigation } from '../../Context/NavigationContext'
+import { usePermissions } from '../../Context/PermissionsContext'
+import { DEPARTMENTS } from '../../config/departments'
+import { pagePermForQuality, canViewAnyWarehousesPage } from '../../config/pageAccess'
+import { useCanViewPage } from '../../hooks/useCanViewPage'
 import { useDepartmentNavPages, type NavPageItem } from '../../hooks/useDepartmentNavPages'
 import type { DepartmentId } from '../../Types/navigation'
 import { SETTINGS_STATIONS_SUB_TAB_ORDER } from '../../Types/navigation'
@@ -12,6 +16,15 @@ const IMPLEMENTED_DEPARTMENTS = new Set<DepartmentId>(['production', 'engineerin
 export function DepartmentTopBar() {
   const { t } = useLang()
   const nav = useNavigation()
+  const { loading: permsLoading, canViewModule } = usePermissions()
+  const { canViewPage, loading: pagesLoading } = useCanViewPage()
+  const navLoading = permsLoading || pagesLoading
+  const departments = DEPARTMENTS.filter(dept => {
+    if (dept.id === 'quality') return navLoading || canViewPage(pagePermForQuality())
+    if (dept.id === 'hr') return navLoading || canViewModule('employees')
+    if (dept.id === 'warehouses') return navLoading || canViewAnyWarehousesPage(canViewPage)
+    return true
+  })
   const {
     pagesForDepartment,
     isPageActive,
@@ -29,7 +42,10 @@ export function DepartmentTopBar() {
   const sectionPages = pagesForDepartment(currentDepartment).filter(p => p.visible)
   const areaTabs = productionAreaTabs.filter(p => p.visible)
   const isProduction = currentDepartment === 'production'
-  const showAssemblyPages = isProduction && nav.productionArea === 'assembly'
+  const showAreaPages =
+    isProduction &&
+    (nav.productionArea === 'assembly' || nav.productionArea === 'body' || nav.productionArea === 'paint') &&
+    nav.productionPage !== 'overview'
   const hasSectionPages =
     !isGlobalHomeActive &&
     !showProfile &&
@@ -39,125 +55,119 @@ export function DepartmentTopBar() {
   const settingsTabs = settingsPage.visible ? (settingsPage.children ?? []) : []
 
   const activePageWithChildren = useMemo(() => {
-    if (!hasSectionPages || (isProduction && !showAssemblyPages)) return null
+    if (!hasSectionPages || (isProduction && !showAreaPages)) return null
     return sectionPages.find(p => p.children?.length && isPageActive(currentDepartment, p.key)) ?? null
-  }, [hasSectionPages, isProduction, showAssemblyPages, sectionPages, currentDepartment, isPageActive])
+  }, [hasSectionPages, isProduction, showAreaPages, sectionPages, currentDepartment, isPageActive])
 
-  if (showProfile || isGlobalHomeActive) return null
-  if (!isSettingsActive && !hasSectionPages) return null
+  const showSectionNav = !showProfile && !isGlobalHomeActive && (isSettingsActive || hasSectionPages)
+
+  const rowCls =
+    'flex gap-1 overflow-x-auto [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden'
+
+  function departmentActive(id: DepartmentId) {
+    return (
+      !showProfile &&
+      !isGlobalHomeActive &&
+      currentDepartment === id &&
+      !(id === 'production' && isSettingsActive)
+    )
+  }
 
   function renderChildRow(page: NavPageItem) {
     if (!page.children?.length) return null
     return (
-      <div className="border-t border-slate-800/80 pt-2">
-        <p className="mb-1.5 px-1 text-[10px] font-black uppercase tracking-widest text-cyan-400/70">{page.label}</p>
-        <div className="flex gap-1.5 overflow-x-auto pb-0.5 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-          {page.children.map(child => (
-            <NavTabButton
-              key={child.key}
-              label={child.label}
-              icon={child.icon}
-              compact
-              active={isNavChildActive(currentDepartment, page.key, child.key)}
-              onClick={child.onClick}
-            />
-          ))}
-        </div>
+      <div className={rowCls}>
+        {page.children.map(child => (
+          <NavTabButton
+            key={child.key}
+            label={child.label}
+            icon={child.icon}
+            compact
+            active={isNavChildActive(currentDepartment, page.key, child.key)}
+            onClick={child.onClick}
+          />
+        ))}
       </div>
     )
   }
 
   return (
-    <div className="sticky top-0 z-30 -mx-1 rounded-2xl border border-slate-700/70 bg-slate-950/95 p-2 shadow-lg shadow-black/25 backdrop-blur-md sm:-mx-0 sm:p-3">
-      <div className="space-y-2">
-        {isSettingsActive && settingsTabs.length > 0 && (
-          <div>
-            <p className="mb-1.5 px-1 text-[10px] font-black uppercase tracking-widest text-slate-500">
-              {t('nav.settings')}
-            </p>
-            <div className="flex gap-1.5 overflow-x-auto pb-0.5 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-              {settingsTabs.map(tab => (
-                <NavTabButton
-                  key={tab.key}
-                  label={tab.label}
-                  icon={tab.icon}
-                  active={nav.settingsTab === tab.key}
-                  onClick={tab.onClick}
-                />
-              ))}
-            </div>
+    <div className="rounded-xl border border-slate-700/70 bg-slate-950/95 px-1.5 py-1 shadow-lg shadow-black/25 backdrop-blur-md">
+      <div className="flex flex-col gap-1">
+        <div className={rowCls}>
+          {departments.map(dept => (
+            <NavTabButton
+              key={dept.id}
+              label={t(`departments.${dept.id}`)}
+              icon={dept.icon}
+              compact
+              active={departmentActive(dept.id)}
+              onClick={() => nav.selectDepartment(dept.id)}
+            />
+          ))}
+        </div>
+
+        {showSectionNav && isSettingsActive && settingsTabs.length > 0 && (
+          <div className={rowCls}>
+            {settingsTabs.map(tab => (
+              <NavTabButton
+                key={tab.key}
+                label={tab.label}
+                icon={tab.icon}
+                compact
+                active={nav.settingsTab === tab.key}
+                onClick={tab.onClick}
+              />
+            ))}
           </div>
         )}
 
-        {isSettingsActive && nav.settingsTab === 'stations' && (
-          <div className="border-t border-slate-800/80 pt-2">
-            <p className="mb-1.5 px-1 text-[10px] font-black uppercase tracking-widest text-cyan-400/70">
-              {t('settings.tabs.stations')}
-            </p>
-            <div className="flex gap-1.5 overflow-x-auto pb-0.5 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-              {SETTINGS_STATIONS_SUB_TAB_ORDER.map(key => (
-                <NavTabButton
-                  key={key}
-                  label={t(`settings.stationsSubTabs.${key}`)}
-                  compact
-                  active={nav.settingsStationsSubTab === key}
-                  onClick={() => nav.setSettingsStationsSubTab(key)}
-                />
-              ))}
-            </div>
+        {showSectionNav && isSettingsActive && nav.settingsTab === 'stations' && (
+          <div className={rowCls}>
+            {SETTINGS_STATIONS_SUB_TAB_ORDER.map(key => (
+              <NavTabButton
+                key={key}
+                label={t(`settings.stationsSubTabs.${key}`)}
+                compact
+                active={nav.settingsStationsSubTab === key}
+                onClick={() => nav.setSettingsStationsSubTab(key)}
+              />
+            ))}
           </div>
         )}
 
-        {hasSectionPages && (
+        {showSectionNav && hasSectionPages && (
           <>
             {isProduction && areaTabs.length > 0 && (
-              <div className={isSettingsActive ? 'border-t border-slate-800 pt-2' : ''}>
-                <p className="mb-1.5 px-1 text-[10px] font-black uppercase tracking-widest text-slate-500">
-                  {t('departments.productionAreas')}
-                </p>
-                <div className="flex gap-1.5 overflow-x-auto pb-0.5 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-                  {areaTabs.map(page => (
-                    <NavTabButton
-                      key={page.key}
-                      label={page.label}
-                      icon={page.icon}
-                      active={isProductionAreaActive(page.key)}
-                      onClick={() => page.onNavigate()}
-                    />
-                  ))}
-                </div>
+              <div className={rowCls}>
+                {areaTabs.map(page => (
+                  <NavTabButton
+                    key={page.key}
+                    label={page.label}
+                    icon={page.icon}
+                    compact
+                    active={isProductionAreaActive(page.key)}
+                    onClick={() => page.onNavigate()}
+                  />
+                ))}
               </div>
             )}
 
-            {(!isProduction || showAssemblyPages) && sectionPages.length > 0 && (
-              <div className={isProduction || isSettingsActive ? 'border-t border-slate-800 pt-2' : ''}>
-                <p className="mb-1.5 px-1 text-[10px] font-black uppercase tracking-widest text-slate-500">
-                  {isProduction
-                    ? t('departments.assemblyTabs')
-                    : currentDepartment === 'warehouses'
-                      ? t('departments.warehousesTabs')
-                      : currentDepartment === 'engineering'
-                        ? t('departments.engineeringTabs')
-                        : currentDepartment === 'quality'
-                          ? t('departments.qualityTabs')
-                          : currentDepartment === 'hr'
-                            ? t('departments.hrTabs')
-                            : t(`departments.${currentDepartment}`)}
-                </p>
-                <div className="flex flex-wrap gap-1 pb-0.5">
-                  {sectionPages.map(page => (
-                    <NavTabButton
-                      key={page.key}
-                      label={page.label}
-                      icon={page.icon}
-                      active={isPageActive(currentDepartment, page.key)}
-                      onClick={() => page.onNavigate()}
-                    />
-                  ))}
-                </div>
-                {activePageWithChildren && renderChildRow(activePageWithChildren)}
+            {(!isProduction || showAreaPages) && sectionPages.length > 0 && (
+              <div className={rowCls}>
+                {sectionPages.map(page => (
+                  <NavTabButton
+                    key={page.key}
+                    label={page.label}
+                    icon={page.icon}
+                    compact
+                    active={isPageActive(currentDepartment, page.key)}
+                    onClick={() => page.onNavigate()}
+                  />
+                ))}
               </div>
             )}
+            {activePageWithChildren && renderChildRow(activePageWithChildren)}
           </>
         )}
       </div>

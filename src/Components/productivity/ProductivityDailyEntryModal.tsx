@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { LogIn, LogOut, Save, Wrench } from 'lucide-react'
 import { useCanManageProduction } from '../../hooks/useCanManageProduction'
+import { useLineSection } from '../../hooks/useLineSection'
 import { useProductivityWriteScope } from '../../hooks/useProductivityWriteScope'
 import { useLang } from '../../i18n/LanguageContext'
 import { Modal } from '../Modal'
@@ -41,6 +42,7 @@ function parseYm(workDate: string): { year: number; month: number } {
 
 export function ProductivityDailyEntryModal({ open, kind, workDate, onClose, onSaved }: Props) {
   const { t } = useLang()
+  const area = useLineSection()
   const canManageProduction = useCanManageProduction()
   const { canEditEntry, canEditExit } = useProductivityWriteScope()
   const canManage = kind === 'entry' ? canEditEntry : kind === 'exit' ? canEditExit : canManageProduction
@@ -62,14 +64,14 @@ export function ProductivityDailyEntryModal({ open, kind, workDate, onClose, onS
     setError('')
     try {
       const fetchRecords = () => {
-        if (kind === 'entry') return getEntryProductivityMonth(year, month)
-        if (kind === 'exit') return getExitProductivityMonth(year, month)
-        return getRepairProductivityMonth(year, month)
+        if (kind === 'entry') return getEntryProductivityMonth(year, month, area)
+        if (kind === 'exit') return getExitProductivityMonth(year, month, area)
+        return getRepairProductivityMonth(year, month, area)
       }
       const [modelList, records, stopList] = await Promise.all([
         getVehicleModels(),
         fetchRecords(),
-        getProductionLineStops(year, month)
+        getProductionLineStops(year, month, area)
       ])
       setModels(modelList)
       setStops(stopList)
@@ -80,7 +82,7 @@ export function ProductivityDailyEntryModal({ open, kind, workDate, onClose, onS
     } finally {
       setLoading(false)
     }
-  }, [open, kind, year, month, workDate, t])
+  }, [open, kind, year, month, workDate, area, t])
 
   useEffect(() => {
     void load()
@@ -106,11 +108,11 @@ export function ProductivityDailyEntryModal({ open, kind, workDate, onClose, onS
     try {
       const inputs = dayInputsFromQuantities(models, workDate, quantities).filter(i => i.quantity > 0)
       if (kind === 'entry') {
-        await bulkUpsertEntryProductivity(inputs)
+        await bulkUpsertEntryProductivity(inputs, area)
       } else if (kind === 'exit') {
-        await bulkUpsertExitProductivity(inputs)
+        await bulkUpsertExitProductivity(inputs, area)
       } else {
-        await bulkUpsertRepairProductivity(inputs)
+        await bulkUpsertRepairProductivity(inputs, area)
       }
       flushSave(workDate)
       onSaved?.()

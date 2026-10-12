@@ -38,7 +38,7 @@ function NotificationPanelBody({
       className={
         sheet
           ? 'flex max-h-[min(80dvh,36rem)] w-full max-w-md flex-col overflow-hidden rounded-t-2xl border border-slate-700 bg-slate-950 shadow-2xl shadow-black/40'
-          : 'absolute end-0 top-full z-50 mt-2 w-[min(22rem,calc(100vw-2rem))] overflow-hidden rounded-2xl border border-slate-700 bg-slate-950 shadow-2xl shadow-black/40'
+          : 'absolute end-0 top-full z-[80] mt-2 w-[min(22rem,calc(100vw-2rem))] overflow-hidden rounded-2xl border border-slate-700 bg-slate-950 shadow-2xl shadow-black/40'
       }
       onClick={sheet ? e => e.stopPropagation() : undefined}
     >
@@ -72,7 +72,7 @@ function NotificationPanelBody({
           {t('notifications.empty')}
         </p>
       ) : (
-        <div className={sheet ? 'min-h-0 flex-1 overflow-y-auto overscroll-contain' : 'max-h-80 overflow-y-auto'}>
+        <div className={sheet ? 'min-h-0 flex-1 overflow-y-auto overscroll-contain [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden' : 'max-h-80 overflow-y-auto [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden'}>
           {summaryItems.length > 0 && (
             <ul className="divide-y divide-slate-800 border-b border-slate-800">
               {summaryItems.map(item => (

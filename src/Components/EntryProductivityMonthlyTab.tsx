@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { CalendarDays } from 'lucide-react'
+import { useLineSection } from '../hooks/useLineSection'
 import { useProductivityWriteScope } from '../hooks/useProductivityWriteScope'
 import { useVehicles } from '../Context/VehiclesContext'
 import { useLang } from '../i18n/LanguageContext'
@@ -40,6 +41,7 @@ export function EntryProductivityMonthlyTab() {
   const { vehicles } = useVehicles()
   const { employees } = useEmployees()
   const { filterRecords, isScopedView, scopeLabel } = useFactoryOrgScope(employees)
+  const area = useLineSection()
   const { canEditEntry: canManage } = useProductivityWriteScope()
   const scopedVehicles = useMemo(() => filterRecords(vehicles), [vehicles, filterRecords])
 
@@ -65,7 +67,10 @@ export function EntryProductivityMonthlyTab() {
     setError('')
     setSuccess('')
     try {
-      const [modelList, records] = await Promise.all([getVehicleModels(), getEntryProductivityMonth(year, month)])
+      const [modelList, records] = await Promise.all([
+        getVehicleModels(),
+        getEntryProductivityMonth(year, month, area)
+      ])
       setModels(modelList)
       setGrid(buildMonthGrid(modelList, year, month, records))
     } catch (e) {
@@ -73,7 +78,7 @@ export function EntryProductivityMonthlyTab() {
     } finally {
       setLoading(false)
     }
-  }, [year, month, t])
+  }, [year, month, area, t])
 
   useEffect(() => {
     void load()
@@ -91,7 +96,7 @@ export function EntryProductivityMonthlyTab() {
       setSaving(true)
       setError('')
       try {
-        await bulkUpsertEntryProductivity(gridToInputs(models, year, month, gridToSave))
+        await bulkUpsertEntryProductivity(gridToInputs(models, year, month, gridToSave), area)
         setSuccess(t('common.saved'))
         window.setTimeout(() => setSuccess(''), 2000)
       } catch (e) {
@@ -100,7 +105,7 @@ export function EntryProductivityMonthlyTab() {
         setSaving(false)
       }
     },
-    [canManage, models, year, month, t]
+    [canManage, models, year, month, area, t]
   )
 
   function scheduleSave(nextGrid: Map<string, number>) {

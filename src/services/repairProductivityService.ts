@@ -1,4 +1,5 @@
 import { supabase } from '../lib/supabase'
+import type { ProductionArea } from '../Types/navigation'
 import type { EntryProductivityDay, EntryProductivityDayInput } from '../Types/entryProductivity'
 import { buildMonthGrid, gridToInputs } from './entryProductivityService'
 
@@ -32,8 +33,9 @@ function mapDay(row: DayRow): EntryProductivityDay {
   }
 }
 
-function toPayload(input: EntryProductivityDayInput): Record<string, unknown> {
+function toPayload(input: EntryProductivityDayInput, area: ProductionArea): Record<string, unknown> {
   return {
+    production_area: area,
     model_id: input.modelId,
     work_date: input.workDate,
     quantity: Math.max(0, input.quantity),
@@ -41,11 +43,16 @@ function toPayload(input: EntryProductivityDayInput): Record<string, unknown> {
   }
 }
 
-export async function getRepairProductivityMonth(year: number, month: number): Promise<EntryProductivityDay[]> {
+export async function getRepairProductivityMonth(
+  year: number,
+  month: number,
+  area: ProductionArea = 'assembly'
+): Promise<EntryProductivityDay[]> {
   const { start, end } = monthBounds(year, month)
   const { data, error } = await requireClient()
     .from('repair_productivity_daily')
     .select('*')
+    .eq('production_area', area)
     .gte('work_date', start)
     .lte('work_date', end)
     .order('work_date')
@@ -54,11 +61,17 @@ export async function getRepairProductivityMonth(year: number, month: number): P
   return (data ?? []).map(r => mapDay(r as DayRow))
 }
 
-export async function bulkUpsertRepairProductivity(inputs: EntryProductivityDayInput[]): Promise<void> {
+export async function bulkUpsertRepairProductivity(
+  inputs: EntryProductivityDayInput[],
+  area: ProductionArea = 'assembly'
+): Promise<void> {
   if (inputs.length === 0) return
   const { error } = await requireClient()
     .from('repair_productivity_daily')
-    .upsert(inputs.map(toPayload), { onConflict: 'model_id,work_date' })
+    .upsert(
+      inputs.map(input => toPayload(input, area)),
+      { onConflict: 'production_area,model_id,work_date' }
+    )
   if (error) throw new Error(error.message)
 }
 

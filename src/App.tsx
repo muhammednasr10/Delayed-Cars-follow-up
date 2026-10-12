@@ -11,6 +11,8 @@ import { DepartmentTopBar } from './Components/layout/DepartmentTopBar'
 import { HeaderNotificationsBell } from './Components/layout/HeaderNotificationsBell'
 import { NotificationInboxProvider } from './Context/NotificationInboxProvider'
 import { HomePage } from './Pages/production/HomePage'
+import { ProductionOverviewPage } from './Pages/production/ProductionOverviewPage'
+import { LineShopRoutes } from './Pages/production/LineShopRoutes'
 import { MissingPartsPage } from './Pages/production/MissingPartsPage'
 import { LoginPage } from './Pages/shared/LoginPage'
 import { MyProfilePage } from './Pages/shared/MyProfilePage'
@@ -142,10 +144,11 @@ function Shell() {
     <NotificationInboxProvider>
     <VehiclesProvider>
       <AppSidebar />
-      <main className="min-h-screen min-h-[100dvh] overflow-x-hidden bg-[radial-gradient(circle_at_top_left,_rgba(34,211,238,0.16),_transparent_35%),linear-gradient(135deg,_#020617,_#0f172a_45%,_#111827)] px-2 py-3 text-slate-100 sm:px-6 sm:py-6 lg:px-8 pb-[max(0.75rem,env(safe-area-inset-bottom))]">
-        <div className="mx-auto max-w-7xl space-y-3 sm:space-y-5">
-          <header className="flex flex-wrap items-center justify-between gap-2 rounded-2xl border border-slate-700/70 bg-slate-950/60 p-3 shadow-2xl shadow-black/20 sm:gap-3 sm:rounded-3xl sm:p-5">
-            <div className="flex min-w-0 flex-1 items-center gap-2 sm:gap-3">
+      <main className="flex h-dvh min-h-0 flex-col overflow-hidden bg-[radial-gradient(circle_at_top_left,_rgba(34,211,238,0.16),_transparent_35%),linear-gradient(135deg,_#020617,_#0f172a_45%,_#111827)] px-2 pt-2 text-slate-100 sm:px-6 sm:pt-3 lg:px-8">
+        <div className="mx-auto flex min-h-0 w-full max-w-7xl flex-1 flex-col">
+          <div className="relative z-40 shrink-0 space-y-1.5 pb-2">
+          <header className="relative z-50 flex flex-col gap-2 rounded-2xl border border-slate-700/70 bg-slate-950/95 p-2 shadow-2xl shadow-black/20 backdrop-blur-md sm:flex-row sm:items-center sm:justify-between sm:gap-3 sm:p-3">
+            <div className="flex min-w-0 items-center gap-2 sm:flex-1 sm:gap-3">
               <button
                 type="button"
                 onClick={() => nav.setSidebarOpen(true)}
@@ -160,12 +163,12 @@ function Shell() {
                 className="flex min-w-0 items-center gap-2 rounded-xl text-start transition hover:opacity-90 sm:gap-3"
                 title={t('nav.globalHome')}
               >
-                <AppLogo className="p-1.5 sm:p-2" imgClassName="h-8 w-8 sm:h-10 sm:w-10" />
+                <AppLogo className="hidden p-1.5 sm:block" imgClassName="h-8 w-8" />
                 <div className="min-w-0">
-                  <p className="text-[10px] font-black uppercase tracking-[0.3em] text-cyan-300 sm:text-xs">
+                  <p className="hidden text-[10px] font-black uppercase tracking-[0.22em] text-cyan-300 sm:block">
                     {t('brand')}
                   </p>
-                  <h1 className="truncate text-lg font-black text-white sm:text-2xl md:text-3xl">{t('app.title')}</h1>
+                  <h1 className="truncate text-sm font-black text-white sm:text-xl">{t('app.title')}</h1>
                 </div>
               </button>
               <button
@@ -183,11 +186,11 @@ function Shell() {
                 ) : (
                   <UserCircle className="h-8 w-8 shrink-0 text-slate-500" />
                 )}
-                <span className="truncate font-black text-cyan-300">{badgeRole}</span>
+                <span className="max-w-[7.5rem] truncate font-black text-cyan-300 sm:max-w-[12rem]">{badgeRole}</span>
               </button>
             </div>
 
-            <div className="flex items-center justify-end gap-2">
+            <div className="flex shrink-0 items-center justify-end gap-1 sm:gap-2">
               {canAccessSettings && (
                 <button
                   type="button"
@@ -236,7 +239,9 @@ function Shell() {
           </header>
 
           <DepartmentTopBar />
+          </div>
 
+          <div className="relative z-0 min-h-0 flex-1 space-y-3 overflow-y-auto overflow-x-hidden pb-[max(0.75rem,env(safe-area-inset-bottom))] [-ms-overflow-style:none] [scrollbar-width:none] sm:space-y-5 [&::-webkit-scrollbar]:hidden">
           {permsLoadError && (
             <div className="flex flex-wrap items-center justify-between gap-2 rounded-2xl border border-amber-500/40 bg-amber-500/10 px-4 py-3 text-sm text-amber-100">
               <p className="font-bold">{t('permissions.loadFailed')}</p>
@@ -306,10 +311,17 @@ function Shell() {
                   <SettingsPage />
                 </LazyPage>
               )}
-              {nav.productionArea !== 'assembly' && nav.productionPage !== 'settings' && (
-                <ProductionAreaPlaceholderPage area={nav.productionArea} />
+              {nav.productionPage === 'overview' && (navLoading || canViewPage(pagePermForProduction('home'))) && (
+                <ProductionOverviewPage />
               )}
-              {nav.productionArea === 'assembly' && (
+              {nav.productionArea === 'body' && <LineShopRoutes area="body" />}
+              {nav.productionArea === 'paint' && <LineShopRoutes area="paint" />}
+              {nav.productionPage !== 'overview' &&
+                nav.productionArea !== 'assembly' &&
+                nav.productionArea !== 'body' &&
+                nav.productionArea !== 'paint' &&
+                nav.productionPage !== 'settings' && <ProductionAreaPlaceholderPage area={nav.productionArea} />}
+              {nav.productionPage !== 'overview' && nav.productionArea === 'assembly' && (
                 <>
                   {nav.productionPage === 'home' && (navLoading || canViewPage(pagePermForProduction('home'))) && (
                     <HomePage />
@@ -400,6 +412,7 @@ function Shell() {
               )}
             </>
           )}
+          </div>
         </div>
       </main>
     </VehiclesProvider>

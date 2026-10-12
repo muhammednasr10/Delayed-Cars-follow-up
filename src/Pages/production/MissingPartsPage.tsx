@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState, useCallback } from 'react'
 import { useLang } from '../../i18n/LanguageContext'
+import { useNavigation } from '../../Context/NavigationContext'
 import { useEmployees } from '../../hooks/useEmployees'
 import { useFactoryOrgScope } from '../../hooks/useFactoryOrgScope'
 import { useMpLookups } from '../../hooks/useMpLookups'
@@ -23,6 +24,7 @@ import { MissingPartsReportTab } from '../../Components/missingParts/MissingPart
 import { MissingPartsBulkBar } from '../../Components/missingParts/MissingPartsBulkBar'
 import { MergeShortageGroupModal } from '../../Components/missingParts/MergeShortageGroupModal'
 import { MissingPartsPageDialogs } from '../../Components/missingParts/MissingPartsPageDialogs'
+import { productionAreaOrgUnitId } from '../../Utils/productionAreaCounts'
 import { scratchAreaLabel } from '../../Utils/scratchAreaOptions'
 import type { MissingPartDetail } from '../../Types/missingPart'
 import type { MpFollowUpAssignment } from '../../Types/mpVehicleActions'
@@ -31,6 +33,7 @@ import type { VinListModalPayload } from '../../Components/VinListModal'
 
 export function MissingPartsPage() {
   const { t } = useLang()
+  const { productionArea } = useNavigation()
   const { reasons, departments } = useMpLookups()
   const {
     role,
@@ -273,6 +276,11 @@ export function MissingPartsPage() {
         )}
         {error && !setupRequired && (
           <div className="m-4 rounded-xl border border-red-500/30 bg-red-500/10 p-3 text-sm text-red-200">{error}</div>
+        )}
+        {productionArea === 'paint' && orgUnits.length > 0 && !productionAreaOrgUnitId(orgUnits, 'paint') && (
+          <div className="mx-4 mb-4 rounded-xl border border-amber-500/30 bg-amber-500/10 p-3 text-sm text-amber-100">
+            {t('hub.paint.orgMissing')}
+          </div>
         )}
         {isScopedView && scopeLabel && (
           <div className="mx-4 mb-4 rounded-xl border border-cyan-500/25 bg-cyan-500/10 p-3 text-sm text-cyan-100">

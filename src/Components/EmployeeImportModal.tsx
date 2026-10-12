@@ -5,12 +5,14 @@ import { Modal } from './Modal'
 import { bulkCreateEmployees } from '../services/employeesService'
 import { parseEmployeeImportFile, previewRowToInput, type EmployeeImportPreviewRow } from '../Utils/employeeSheetImport'
 import type { Employee } from '../Types/employee'
+import type { FactoryOrgUnit } from '../Types/factoryOrg'
 import type { WorkArea } from '../Types/settings'
 
 type Props = {
   open: boolean
   employees: Employee[]
   areas: WorkArea[]
+  orgUnits?: FactoryOrgUnit[]
   busy: boolean
   onClose: () => void
   onDone: (imported: number) => void
@@ -22,7 +24,7 @@ function errLabel(t: (k: string) => string, code: string): string {
   return msg === key ? code : msg
 }
 
-export function EmployeeImportModal({ open, employees, areas, busy, onClose, onDone }: Props) {
+export function EmployeeImportModal({ open, employees, areas, orgUnits = [], busy, onClose, onDone }: Props) {
   const { t } = useLang()
   const inputRef = useRef<HTMLInputElement>(null)
   const [preview, setPreview] = useState<EmployeeImportPreviewRow[]>([])
@@ -38,7 +40,7 @@ export function EmployeeImportModal({ open, employees, areas, busy, onClose, onD
     setParseError('')
     setPreview([])
     try {
-      const rows = await parseEmployeeImportFile(file, areas, existingCodes)
+      const rows = await parseEmployeeImportFile(file, areas, existingCodes, orgUnits)
       setPreview(rows)
     } catch (e) {
       const msg = e instanceof Error ? e.message : ''

@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { countsInStopTotals, getProductionLineStops, stopDurationMinutes } from '../services/productionStopService'
+import type { LineScope } from '../Types/navigation'
 
 function currentYm(): { year: number; month: number } {
   const d = new Date()
@@ -13,7 +14,7 @@ export function formatStopHoursForCard(totalMinutes: number): string {
   return String(Math.round(hours))
 }
 
-export function useProductionStopMonthCounts(refreshKey = 0) {
+export function useProductionStopMonthCounts(refreshKey = 0, area: LineScope = 'assembly') {
   const [totalMinutes, setTotalMinutes] = useState(0)
   const [lostVehicles, setLostVehicles] = useState(0)
   const [loading, setLoading] = useState(true)
@@ -22,7 +23,7 @@ export function useProductionStopMonthCounts(refreshKey = 0) {
     let cancelled = false
     const { year, month } = currentYm()
     setLoading(true)
-    void getProductionLineStops(year, month)
+    void getProductionLineStops(year, month, area)
       .then(stops => {
         if (cancelled) return
         const counted = stops.filter(countsInStopTotals)
@@ -41,7 +42,7 @@ export function useProductionStopMonthCounts(refreshKey = 0) {
     return () => {
       cancelled = true
     }
-  }, [refreshKey])
+  }, [refreshKey, area])
 
   return { totalMinutes, lostVehicles, loading }
 }

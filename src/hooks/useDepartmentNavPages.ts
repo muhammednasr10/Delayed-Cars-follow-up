@@ -32,6 +32,7 @@ import {
   type AppPagePermissionKey
 } from '../config/pageAccess'
 import { useNavigation } from '../Context/NavigationContext'
+import { lineShopNavItems, type LineShopArea } from '../navigation/lineShopNav'
 import {
   SETTINGS_TAB_ORDER,
   PRODUCTION_AREA_ORDER,
@@ -57,6 +58,13 @@ export type NavPageItem = {
   icon?: LucideIcon
   children?: NavPageChild[]
 }
+
+const LINE_SHOP_ICONS = {
+  home: Home,
+  training: CalendarDays,
+  missing: AlertTriangle,
+  vehicles: Activity
+} as const
 
 export function useDepartmentNavPages() {
   const { t } = useLang()
@@ -92,7 +100,7 @@ export function useDepartmentNavPages() {
       assembly: Car,
       externalRepair: Truck
     }
-    return PRODUCTION_AREA_ORDER.map(key => ({
+    const areas = PRODUCTION_AREA_ORDER.map(key => ({
       key,
       label: t(`departments.productionArea.${key}`),
       icon: icons[key],
@@ -101,10 +109,22 @@ export function useDepartmentNavPages() {
         navTo({
           department: 'production',
           productionArea: key,
-          ...(key === 'assembly' ? { productionPage: 'home' } : {})
+          ...(key === 'assembly' || key === 'body' || key === 'paint' || nav.productionPage === 'overview'
+            ? { productionPage: 'home' as const }
+            : {})
         })
     }))
-  }, [navTo, t])
+    return [
+      {
+        key: 'overview',
+        label: t('nav.home'),
+        icon: Home,
+        visible: navLoading || canViewPage(pagePermForProduction('home')),
+        onNavigate: () => navTo({ department: 'production', productionPage: 'overview' })
+      },
+      ...areas
+    ]
+  }, [canViewPage, nav.productionPage, navLoading, navTo, t])
 
   const assemblyPages = useMemo<NavPageItem[]>(
     () => [
@@ -236,6 +256,29 @@ export function useDepartmentNavPages() {
     ],
     [canViewPage, navLoading, navTo, t, tabVisible]
   )
+
+  const lineShopPages = useCallback(
+    (area: LineShopArea): NavPageItem[] =>
+      lineShopNavItems(area, t).map(item => ({
+        key: item.key,
+        label: item.label,
+        icon: LINE_SHOP_ICONS[item.key],
+        visible: navLoading || canViewPage(pagePermForProduction(item.perm)),
+        onNavigate: () => navTo(item.patch),
+        children: item.children
+          ?.map(child => ({
+            key: child.key,
+            label: child.label,
+            visible: tabVisible('production_productivity', child.key),
+            onClick: () => navTo(child.patch)
+          }))
+          .filter(child => child.visible !== false)
+      })),
+    [canViewPage, navLoading, navTo, t, tabVisible]
+  )
+
+  const bodyPages = useMemo(() => lineShopPages('body'), [lineShopPages])
+  const paintPages = useMemo(() => lineShopPages('paint'), [lineShopPages])
 
   const productionPages = assemblyPages
 
@@ -400,7 +443,11 @@ export function useDepartmentNavPages() {
   )
 
   function pagesForDepartment(dept: DepartmentId): NavPageItem[] {
-    if (dept === 'production') return assemblyPages
+    if (dept === 'production') {
+      if (nav.productionArea === 'body') return bodyPages
+      if (nav.productionArea === 'paint') return paintPages
+      return assemblyPages
+    }
     if (dept === 'planning') return planningPages
     if (dept === 'engineering') return engineeringPages
     if (dept === 'warehouses') return warehousesPages
@@ -410,14 +457,20 @@ export function useDepartmentNavPages() {
   }
 
   function isProductionAreaActive(areaKey: string): boolean {
-    if (nav.showProfile || nav.productionPage === 'settings') return false
-    return nav.department === 'production' && nav.productionArea === areaKey
+    if (nav.showProfile || nav.department !== 'production' || nav.productionPage === 'settings') return false
+    if (areaKey === 'overview') return nav.productionPage === 'overview'
+    return nav.productionArea === areaKey && nav.productionPage !== 'overview'
   }
 
   function isPageActive(dept: DepartmentId, pageKey: string): boolean {
     if (nav.showProfile) return false
     if (nav.department !== dept) return false
-    if (dept === 'production') return nav.productionArea === 'assembly' && nav.productionPage === pageKey
+    if (dept === 'production')
+      return (
+        (nav.productionArea === 'assembly' || nav.productionArea === 'body' || nav.productionArea === 'paint') &&
+        nav.productionPage !== 'overview' &&
+        nav.productionPage === pageKey
+      )
     if (dept === 'planning') return nav.planningTab === pageKey
     if (dept === 'engineering') return nav.engineeringPage === pageKey
     if (dept === 'warehouses') {
@@ -446,7 +499,7 @@ export function useDepartmentNavPages() {
 
   function selectDepartment(dept: DepartmentId) {
     if (dept === 'production' && nav.productionPage === 'settings') {
-      nav.navigate({ department: 'production', productionArea: 'assembly', productionPage: 'home', showProfile: false })
+      nav.navigate({ department: 'production', productionPage: 'overview', showProfile: false })
       return
     }
     nav.selectDepartment(dept)
@@ -457,6 +510,8 @@ export function useDepartmentNavPages() {
     productionAreaTabs,
     productionPages,
     assemblyPages,
+    bodyPages,
+    paintPages,
     engineeringPages,
     planningPages,
     warehousesPages,

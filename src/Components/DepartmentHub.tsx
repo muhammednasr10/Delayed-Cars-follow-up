@@ -8,7 +8,7 @@ export type HubCard = {
   description?: string
   icon: LucideIcon
   tone: string
-  onClick: () => void
+  onClick?: () => void
   kind?: 'page' | 'action'
   accent?: HubCardAccent
   /** كارت عريض (مثل حضور اليوم بعدة أرقام) */
@@ -38,8 +38,8 @@ function isWideCard(card: HubCard): boolean {
 
 export function DepartmentHub({ title, subtitle, sections, headerAction }: Props) {
   return (
-    <section className="space-y-6">
-      <div className="card-industrial flex flex-col gap-4 p-5 sm:p-6 md:flex-row md:items-center md:justify-between">
+    <section className="space-y-4 sm:space-y-6">
+      <div className="card-industrial flex flex-col gap-3 p-4 sm:gap-4 sm:p-6 md:flex-row md:items-center md:justify-between">
         <div>
           <h2 className="text-xl font-black text-white sm:text-2xl">{title}</h2>
           {subtitle && <p className="mt-1 text-sm text-slate-400">{subtitle}</p>}

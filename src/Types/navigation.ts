@@ -1,6 +1,7 @@
 export type DepartmentId = 'production' | 'warehouses' | 'planning' | 'engineering' | 'maintenance' | 'quality' | 'hr'
 
 export type ProductionPage =
+  | 'overview'
   | 'home'
   | 'missing'
   | 'vehicles'
@@ -21,6 +22,8 @@ export type WorkerProfileTab = (typeof WORKER_PROFILE_TAB_ORDER)[number]
 export const PRODUCTION_AREA_ORDER = ['body', 'paint', 'assembly', 'externalRepair'] as const
 
 export type ProductionArea = (typeof PRODUCTION_AREA_ORDER)[number]
+
+export type LineScope = ProductionArea | 'all'
 
 export type EngineeringPage = 'home' | 'ipl' | 'stations' | 'lineBalancing' | 'sop'
 

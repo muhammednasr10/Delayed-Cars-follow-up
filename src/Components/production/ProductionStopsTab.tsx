@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { AlertOctagon, CircleStop, Pencil, Plus, Trash2 } from 'lucide-react'
 import { useCanManageProduction } from '../../hooks/useCanManageProduction'
+import { useLineSection } from '../../hooks/useLineSection'
 import { useNavigation } from '../../Context/NavigationContext'
 import { useLang } from '../../i18n/LanguageContext'
 import { useMpLookups } from '../../hooks/useMpLookups'
@@ -68,6 +69,7 @@ export function ProductionStopsTab() {
   const { productivityStopFormOpen, setProductivityStopFormOpen } = useNavigation()
   const { departments, orgUnits } = useMpLookups()
   const canManage = useCanManageProduction()
+  const area = useLineSection()
 
   const init = currentYm()
   const [year, setYear] = useState(init.year)
@@ -94,7 +96,7 @@ export function ProductionStopsTab() {
     setLoading(true)
     setError('')
     try {
-      setItems(await getProductionLineStops(year, month))
+      setItems(await getProductionLineStops(year, month, area))
       setSetupRequired(false)
     } catch (e) {
       const msg = e instanceof Error ? e.message : t('common.error')
@@ -104,7 +106,7 @@ export function ProductionStopsTab() {
     } finally {
       setLoading(false)
     }
-  }, [year, month, t])
+  }, [year, month, area, t])
 
   useEffect(() => {
     void load()
@@ -271,8 +273,8 @@ export function ProductionStopsTab() {
     setSaving(true)
     setFormError('')
     try {
-      if (editing) await updateProductionLineStop(editing.id, form)
-      else await createProductionLineStop(form)
+      if (editing) await updateProductionLineStop(editing.id, form, area)
+      else await createProductionLineStop(form, area)
       setFormOpen(false)
       setSuccess(t(editing ? 'settings.updated' : 'settings.added'))
       window.setTimeout(() => setSuccess(''), 2500)
@@ -299,16 +301,20 @@ export function ProductionStopsTab() {
       const jph = config?.lineJph ?? 0
       const takt = computeTaktMinutes(jph > 0 ? jph : null)
       const lost = lostVehiclesFromStopMinutes(stopDurationMinutes(row.startedAt, endedAt), takt)
-      await updateProductionLineStop(row.id, {
-        stopReason: row.stopReason,
-        stopType: row.stopType,
-        vehicleModelId: row.vehicleModelId,
-        startedAt: row.startedAt,
-        endedAt,
-        department: row.department,
-        lostVehicles: row.lostVehicles > 0 ? row.lostVehicles : lost,
-        notes: row.notes
-      })
+      await updateProductionLineStop(
+        row.id,
+        {
+          stopReason: row.stopReason,
+          stopType: row.stopType,
+          vehicleModelId: row.vehicleModelId,
+          startedAt: row.startedAt,
+          endedAt,
+          department: row.department,
+          lostVehicles: row.lostVehicles > 0 ? row.lostVehicles : lost,
+          notes: row.notes
+        },
+        area
+      )
       setSuccess(t('productivity.stops.closed'))
       window.setTimeout(() => setSuccess(''), 2500)
       await load()

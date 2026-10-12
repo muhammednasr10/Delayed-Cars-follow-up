@@ -286,11 +286,10 @@ export function HubStatCard({ card }: Props) {
         className={`pointer-events-none absolute -bottom-12 -start-8 h-28 w-28 rounded-full blur-3xl opacity-60 ${theme.orb}`}
       />
 
-      <button
-        type="button"
-        onClick={card.onClick}
-        className="group relative flex min-h-0 flex-1 flex-col p-5 text-start"
-      >
+      <div className={`group relative flex min-h-0 flex-1 flex-col p-4 text-start sm:p-5 ${card.onClick ? 'cursor-pointer' : ''}`}>
+        {card.onClick ? (
+          <button type="button" onClick={card.onClick} className="absolute inset-0 z-10 cursor-pointer" aria-label={card.title} />
+        ) : null}
         <div className="flex items-start gap-3">
           <div className={`shrink-0 rounded-2xl p-3 ${theme.icon}`}>
             <Icon className="h-6 w-6" strokeWidth={2.25} />
@@ -353,13 +352,15 @@ export function HubStatCard({ card }: Props) {
           </div>
         )}
 
-        <p className={`mt-4 flex items-center gap-1.5 text-xs font-bold transition ${theme.hint}`}>
-          <span>{t('hub.statCardOpen')}</span>
-          <span className="transition-transform group-hover:translate-x-0.5 rtl:group-hover:-translate-x-0.5">
-            {dir === 'rtl' ? '←' : '→'}
-          </span>
-        </p>
-      </button>
+        {card.onClick && (
+          <p className={`mt-4 flex items-center gap-1.5 text-xs font-bold transition ${theme.hint}`}>
+            <span>{t('hub.statCardOpen')}</span>
+            <span className="transition-transform group-hover:translate-x-0.5 rtl:group-hover:-translate-x-0.5">
+              {dir === 'rtl' ? '←' : '→'}
+            </span>
+          </p>
+        )}
+      </div>
 
       {card.footerAction && (
         <div className={`relative border-t px-3 pb-3 pt-0 ${theme.footerBorder}`}>

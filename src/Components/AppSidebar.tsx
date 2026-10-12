@@ -27,6 +27,7 @@ import {
   canViewAnyWarehousesPage
 } from '../config/pageAccess'
 import { useNavigation } from '../Context/NavigationContext'
+import { lineShopNavItems, type LineShopArea } from '../navigation/lineShopNav'
 import { DEPARTMENTS, departmentAccentClass } from '../config/departments'
 import { DeveloperCredit } from './DeveloperCredit'
 import type { DepartmentId, EngineeringPage, ProductionPage } from '../Types/navigation'
@@ -85,6 +86,13 @@ export function AppSidebar() {
     go({ ...patch, showProfile: false, closeSidebar: keepSidebarOpen ? false : true })
   }
 
+  const productionOverviewPage: SidebarPage = {
+    key: 'overview',
+    label: t('nav.home'),
+    visible: navLoading || canViewPage(pagePermForProduction('home')),
+    onNavigate: () => sidebarNav({ department: 'production', productionPage: 'overview' })
+  }
+
   const productionAreaPages: SidebarPage[] = PRODUCTION_AREA_ORDER.map(key => ({
     key,
     label: t(`departments.productionArea.${key}`),
@@ -93,7 +101,9 @@ export function AppSidebar() {
       sidebarNav({
         department: 'production',
         productionArea: key,
-        ...(key === 'assembly' ? { productionPage: 'home' } : {})
+        ...(key === 'assembly' || key === 'body' || key === 'paint' || nav.productionPage === 'overview'
+          ? { productionPage: 'home' }
+          : {})
       })
   }))
 
@@ -195,6 +205,23 @@ export function AppSidebar() {
       onNavigate: () => sidebarNav({ department: 'production', productionArea: 'assembly', productionPage: 'feedback' })
     }
   ]
+
+  function lineShopSidebarPages(area: LineShopArea): SidebarPage[] {
+    return lineShopNavItems(area, t).map(item => ({
+      key: item.key,
+      label: item.label,
+      visible: navLoading || canViewPage(pagePermForProduction(item.perm)),
+      onNavigate: () => sidebarNav(item.patch, item.key === 'vehicles'),
+      children: item.children?.map(child => ({
+        key: child.key,
+        label: child.label,
+        onClick: () => sidebarNav(child.patch)
+      }))
+    }))
+  }
+
+  const bodyPages = lineShopSidebarPages('body')
+  const paintPages = lineShopSidebarPages('paint')
 
   const settingsSidebarPage: SidebarPage = {
     key: 'settings',
@@ -399,9 +426,43 @@ export function AppSidebar() {
   function isProductionAreaActive(key: string) {
     return (
       !nav.showProfile &&
+      !nav.showGlobalHome &&
       nav.department === 'production' &&
       nav.productionArea === key &&
-      nav.productionPage !== 'settings'
+      nav.productionPage !== 'settings' &&
+      nav.productionPage !== 'overview'
+    )
+  }
+
+  function isProductionMenuActive(key: string) {
+    if (key === 'overview') {
+      return (
+        !nav.showProfile &&
+        !nav.showGlobalHome &&
+        nav.department === 'production' &&
+        nav.productionPage === 'overview'
+      )
+    }
+    return isProductionAreaActive(key)
+  }
+
+  function isBodyActive(key: string) {
+    return (
+      !nav.showProfile &&
+      !nav.showGlobalHome &&
+      nav.department === 'production' &&
+      nav.productionArea === 'body' &&
+      nav.productionPage === key
+    )
+  }
+
+  function isPaintActive(key: string) {
+    return (
+      !nav.showProfile &&
+      !nav.showGlobalHome &&
+      nav.department === 'production' &&
+      nav.productionArea === 'paint' &&
+      nav.productionPage === key
     )
   }
 
@@ -557,11 +618,24 @@ export function AppSidebar() {
                   <ChevronDown className={`h-4 w-4 shrink-0 transition-transform ${deptOpen ? 'rotate-180' : ''}`} />
                 </button>
 
-                {deptOpen && isProduction && renderPages('production', productionAreaPages, isProductionAreaActive)}
+                {deptOpen &&
+                  isProduction &&
+                  renderPages('production', [productionOverviewPage, ...productionAreaPages], isProductionMenuActive)}
                 {deptOpen &&
                   isProduction &&
                   nav.productionArea === 'assembly' &&
+                  nav.productionPage !== 'overview' &&
                   renderPages('production', productionPages, isProductionActive)}
+                {deptOpen &&
+                  isProduction &&
+                  nav.productionArea === 'body' &&
+                  nav.productionPage !== 'overview' &&
+                  renderPages('production', bodyPages, isBodyActive)}
+                {deptOpen &&
+                  isProduction &&
+                  nav.productionArea === 'paint' &&
+                  nav.productionPage !== 'overview' &&
+                  renderPages('production', paintPages, isPaintActive)}
                 {deptOpen && isPlanning && renderPages('planning', planningPages, isPlanningActive)}
                 {deptOpen && isEngineering && renderPages('engineering', engineeringPages, isEngineeringActive)}
                 {deptOpen && isWarehouses && renderPages('warehouses', warehousesPages, isWarehousesActive)}

@@ -6,6 +6,7 @@ import { getExitProductivityMonth } from './exitProductivityService'
 import { getRepairProductivityMonth } from './repairProductivityService'
 import { getVehicleModels } from './settingsService'
 import type { VehicleModel } from '../Types/settings'
+import type { ProductionArea } from '../Types/navigation'
 
 function requireClient() {
   if (!supabase) throw new Error('Supabase غير مهيأ. تحقق من ملف .env')
@@ -108,9 +109,10 @@ export async function getProductionPlanWorkDaysMonth(year: number, month: number
 
 export async function getMonthProductivityTotals(
   year: number,
-  month: number
+  month: number,
+  area: ProductionArea = 'assembly'
 ): Promise<{ entryByDate: Map<string, number>; exitByDate: Map<string, number>; repairByDate: Map<string, number> }> {
-  const detail = await getMonthProductivityDetail(year, month)
+  const detail = await getMonthProductivityDetail(year, month, area)
   return {
     entryByDate: detail.entryByDate,
     exitByDate: detail.exitByDate,
@@ -120,7 +122,8 @@ export async function getMonthProductivityTotals(
 
 export async function getMonthProductivityDetail(
   year: number,
-  month: number
+  month: number,
+  area: ProductionArea = 'assembly'
 ): Promise<{
   entryRecords: EntryProductivityDay[]
   exitRecords: EntryProductivityDay[]
@@ -131,9 +134,9 @@ export async function getMonthProductivityDetail(
   repairByDate: Map<string, number>
 }> {
   const [entryRecords, exitRecords, repairRecords, models] = await Promise.all([
-    getEntryProductivityMonth(year, month),
-    getExitProductivityMonth(year, month),
-    getRepairProductivityMonth(year, month),
+    getEntryProductivityMonth(year, month, area),
+    getExitProductivityMonth(year, month, area),
+    getRepairProductivityMonth(year, month, area),
     getVehicleModels()
   ])
   return {

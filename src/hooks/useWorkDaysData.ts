@@ -26,6 +26,7 @@ import { summarizeWorkDays, withDailyDeficits } from '../Utils/workDaysSummary'
 import { delayReasonKey, formatDayLabel, formatEfficiency } from '../Utils/workDayLabels'
 import { getProductionPlanWorkDays } from '../services/productionPlanWorkDaysService'
 import type { ProductivityDelayKind } from '../Types/productivityDelayReason'
+import { useLineSection } from './useLineSection'
 import { buildModelProductivityBreakdown } from '../Utils/productivityBreakdown'
 import { buildWorkDaysExportRows } from '../Utils/planningExport'
 import type { EntryProductivityDay } from '../Types/entryProductivity'
@@ -42,6 +43,8 @@ export function useWorkDaysData(
   variant: 'workDays' | 'summary'
 ) {
   const isWorkDaysOnly = variant === 'workDays'
+  const section = useLineSection()
+  const area = isWorkDaysOnly ? 'assembly' : section
   const { t, lang } = useLang()
   const canManageProduction = useCanManageProduction()
   const canEditRows = canManageProduction && isWorkDaysOnly
@@ -82,15 +85,16 @@ export function useWorkDaysData(
     try {
       const [saved, productivity, stops, employees, attendanceDays, planTargets, workConfig] = await Promise.all([
         getProductionPlanWorkDaysMonth(year, month),
-        getMonthProductivityDetail(year, month),
-        getProductionLineStops(year, month).catch(() => []),
+        getMonthProductivityDetail(year, month, area),
+        getProductionLineStops(year, month, area).catch(() => []),
         getEmployees().catch(() => []),
         getAttendanceDaysForMonth(year, month).catch(() => []),
         getModelPlanTargets(year, month).catch(() => []),
         getProductionPlanWorkDays(year, month).catch(() => null)
       ])
-      setMonthlyPlan(sumPlanTargetsOnce(expandPlanTargetsWithBundles(planTargets)))
-      setLineJph(workConfig?.lineJph ?? 0)
+      const useLinePlan = area === 'assembly'
+      setMonthlyPlan(useLinePlan ? sumPlanTargetsOnce(expandPlanTargetsWithBundles(planTargets)) : 0)
+      setLineJph(useLinePlan ? (workConfig?.lineJph ?? 0) : 0)
       const activeEmployeeIds = employees.filter(e => e.isActive).map(e => e.id)
       const attendanceEfficiencyByDate = computeDailyAttendanceEfficiency(
         activeEmployeeIds,
@@ -112,9 +116,9 @@ export function useWorkDaysData(
       setExitRecords(productivity.exitRecords)
       setRepairRecords(productivity.repairRecords)
       const [entryReasons, exitReasons, repairReasons] = await Promise.all([
-        getProductivityDelayReasonsMonth(year, month, 'entry').catch(() => []),
-        getProductivityDelayReasonsMonth(year, month, 'exit').catch(() => []),
-        getProductivityDelayReasonsMonth(year, month, 'repair').catch(() => [])
+        getProductivityDelayReasonsMonth(year, month, 'entry', area).catch(() => []),
+        getProductivityDelayReasonsMonth(year, month, 'exit', area).catch(() => []),
+        getProductivityDelayReasonsMonth(year, month, 'repair', area).catch(() => [])
       ])
       const reasonsMap = new Map<string, string>()
       for (const record of [...entryReasons, ...exitReasons, ...repairReasons]) {
@@ -130,7 +134,7 @@ export function useWorkDaysData(
     } finally {
       setLoading(false)
     }
-  }, [year, month, t, onAvailableDaysChange])
+  }, [year, month, area, t, onAvailableDaysChange])
 
   useEffect(() => {
     void load()

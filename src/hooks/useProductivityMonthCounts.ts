@@ -6,13 +6,14 @@ import { getEntryProductivityMonth } from '../services/entryProductivityService'
 import { getExitProductivityMonth } from '../services/exitProductivityService'
 import { getProductionPlanWorkDaysMonth, sumProductivityByDate } from '../services/productionPlanWorkDayDailyService'
 import { getProductionPlanWorkDays } from '../services/productionPlanWorkDaysService'
+import type { ProductionArea } from '../Types/navigation'
 
 function currentYm(): { year: number; month: number } {
   const d = new Date()
   return { year: d.getFullYear(), month: d.getMonth() + 1 }
 }
 
-export function useProductivityMonthCounts(refreshKey = 0) {
+export function useProductivityMonthCounts(refreshKey = 0, area: ProductionArea = 'assembly') {
   const [entryVehicles, setEntryVehicles] = useState(0)
   const [exitVehicles, setExitVehicles] = useState(0)
   const [entryEfficiency, setEntryEfficiency] = useState<number | null>(null)
@@ -25,8 +26,8 @@ export function useProductivityMonthCounts(refreshKey = 0) {
     setLoading(true)
 
     void Promise.all([
-      getEntryProductivityMonth(year, month),
-      getExitProductivityMonth(year, month),
+      getEntryProductivityMonth(year, month, area),
+      getExitProductivityMonth(year, month, area),
       getProductionPlanWorkDaysMonth(year, month).catch(() => []),
       getProductionPlanWorkDays(year, month).catch(() => null)
     ])
@@ -59,7 +60,7 @@ export function useProductivityMonthCounts(refreshKey = 0) {
     return () => {
       cancelled = true
     }
-  }, [refreshKey])
+  }, [refreshKey, area])
 
   return { entryVehicles, exitVehicles, entryEfficiency, exitEfficiency, loading }
 }

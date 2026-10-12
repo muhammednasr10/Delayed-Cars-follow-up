@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react'
 import { CalendarDays, LogIn, LogOut, Wrench } from 'lucide-react'
 import { useLang } from '../../i18n/LanguageContext'
 import { useCanViewPage } from '../../hooks/useCanViewPage'
+import { useLineSection } from '../../hooks/useLineSection'
 import { useProductivityWriteScope } from '../../hooks/useProductivityWriteScope'
 import { inputCls } from '../FormField'
 import { ProductionPlanWorkDaysTab } from '../ProductionPlanWorkDaysTab'
@@ -24,6 +25,7 @@ function parseYm(workDate: string): { year: number; month: number } {
 export function ProductionProductivityTab() {
   const { t } = useLang()
   const { canViewTab, loading: permsLoading } = useCanViewPage()
+  const area = useLineSection()
   const { canEditEntry, canEditExit } = useProductivityWriteScope()
 
   const [workDate, setWorkDate] = useState(todayIso)
@@ -40,13 +42,13 @@ export function ProductionProductivityTab() {
   const loadStops = useCallback(async () => {
     setStopsLoading(true)
     try {
-      setStops(await getProductionLineStops(year, month))
+      setStops(await getProductionLineStops(year, month, area))
     } catch {
       setStops([])
     } finally {
       setStopsLoading(false)
     }
-  }, [year, month, refreshKey])
+  }, [year, month, area, refreshKey])
 
   useEffect(() => {
     void loadStops()

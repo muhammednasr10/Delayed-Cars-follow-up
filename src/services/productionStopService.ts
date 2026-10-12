@@ -1,5 +1,6 @@
 import { supabase } from '../lib/supabase'
 import type { ProductionLineStop, ProductionLineStopInput, ProductionStopType } from '../Types/productionStop'
+import type { LineScope, ProductionArea } from '../Types/navigation'
 
 function requireClient() {
   if (!supabase) throw new Error('Supabase غير مهيأ. تحقق من ملف .env')
@@ -39,8 +40,9 @@ function mapRow(row: Row): ProductionLineStop {
   }
 }
 
-function toPayload(input: ProductionLineStopInput) {
+function toPayload(input: ProductionLineStopInput, area: ProductionArea) {
   return {
+    production_area: area,
     stop_reason: input.stopReason.trim(),
     stop_type: input.stopType,
     vehicle_model_id: input.vehicleModelId?.trim() || null,
@@ -54,11 +56,17 @@ function toPayload(input: ProductionLineStopInput) {
 
 const STOP_SELECT = '*, vehicle_models(name)'
 
-export async function getProductionLineStops(year?: number, month?: number): Promise<ProductionLineStop[]> {
+export async function getProductionLineStops(
+  year?: number,
+  month?: number,
+  area: LineScope = 'assembly'
+): Promise<ProductionLineStop[]> {
   let query = requireClient()
     .from('production_line_stops')
     .select(STOP_SELECT)
     .order('started_at', { ascending: false })
+
+  if (area !== 'all') query = query.eq('production_area', area)
 
   if (year && month) {
     const start = `${year}-${String(month).padStart(2, '0')}-01`
@@ -73,10 +81,13 @@ export async function getProductionLineStops(year?: number, month?: number): Pro
   return ((data ?? []) as Row[]).map(mapRow)
 }
 
-export async function createProductionLineStop(input: ProductionLineStopInput): Promise<ProductionLineStop> {
+export async function createProductionLineStop(
+  input: ProductionLineStopInput,
+  area: ProductionArea = 'assembly'
+): Promise<ProductionLineStop> {
   const { data, error } = await requireClient()
     .from('production_line_stops')
-    .insert(toPayload(input))
+    .insert(toPayload(input, area))
     .select(STOP_SELECT)
     .single()
   if (error) throw new Error(error.message)
@@ -85,11 +96,12 @@ export async function createProductionLineStop(input: ProductionLineStopInput): 
 
 export async function updateProductionLineStop(
   id: string,
-  input: ProductionLineStopInput
+  input: ProductionLineStopInput,
+  area: ProductionArea = 'assembly'
 ): Promise<ProductionLineStop> {
   const { data, error } = await requireClient()
     .from('production_line_stops')
-    .update(toPayload(input))
+    .update(toPayload(input, area))
     .eq('id', id)
     .select(STOP_SELECT)
     .single()

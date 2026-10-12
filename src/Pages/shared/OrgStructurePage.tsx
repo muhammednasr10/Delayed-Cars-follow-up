@@ -345,6 +345,7 @@ export function OrgStructurePage({
         open={importOpen}
         employees={employees}
         areas={areas}
+        orgUnits={orgUnits}
         busy={saving}
         onClose={() => setImportOpen(false)}
         onDone={n => {

@@ -1447,7 +1447,29 @@ export const translations = {
       },
       production: {
         title: 'الإنتاج — الرئيسية',
-        subtitle: 'اختصار لكل الصفحات والتبويبات والأوامر الرئيسية'
+        subtitle: 'اختصار لكل الصفحات والتبويبات والأوامر الرئيسية',
+        areasSubtitle: 'البودي، الدهان، التجميع، والإصلاح الخارجي',
+        areaAttendanceHint: 'حاضر من قوة كل قسم',
+        areaMissingHint: 'سيارات النواقص المفتوحة داخل كل قسم',
+        areaAssemblyLineHint: 'مسجّل على خط التجميع',
+        areaEntryHint: 'كل قسم بتسجيله، من غير ما يختلط بالتاني',
+        stopsTotalHint: 'مجموع توقفات كل أقسام الإنتاج'
+      },
+      assembly: {
+        title: 'التجميع',
+        subtitle: 'أرقام التجميع لليوم والشهر'
+      },
+      body: {
+        title: 'البودي',
+        subtitle: 'أرقام البودي لليوم والشهر',
+        attendanceDesc: 'كفاءة حضور عمالة البودي',
+        orgMissing: 'قسم «البودي» غير موجود تحت إدارة الإنتاج في الهيكل التنظيمي.'
+      },
+      paint: {
+        title: 'الدهان',
+        subtitle: 'أرقام الدهان لليوم والشهر',
+        attendanceDesc: 'كفاءة حضور عمالة الدهان',
+        orgMissing: 'قسم «الدهان» غير موجود تحت إدارة الإنتاج في الهيكل التنظيمي.'
       },
       engineering: {
         title: 'التخطيط — الرئيسية',
@@ -2417,7 +2439,7 @@ export const translations = {
         cols: 'الأعمدة: الرقم الوظيفي، الاسم، الوظيفة، حالة التعيين، مكان العمل (نفس أسماء الشيت).',
         encodingTip:
           'لو فتحت CSV في Excel وظهرت رموز غريبة (Ø§Ù…) — الملف اتلف؛ نزّل .xlsx من Google وارفعه للتطبيق بدون Excel.',
-        areas: 'أضف أماكن العمل في الإعدادات بنفس الاسم الموجود في الشيت قبل الاستيراد.',
+        areas: 'مكان العمل يطابق قسم في الهيكل (مثل اللحام أو السمكرة تحت البودي) أو مكان عمل بنفس الاسم في الإعدادات.',
         chooseFile: 'اختر ملف CSV',
         confirm: 'استيراد {n} موظف',
         summary: 'جاهز: {ok} · أخطاء: {bad} · الإجمالي: {total}',
@@ -2431,7 +2453,7 @@ export const translations = {
           MISSING_ROLE: 'الوظيفة فارغة',
           UNKNOWN_ROLE: 'وظيفة غير معروفة',
           UNKNOWN_ASSIGNMENT: 'حالة تعيين غير معروفة (متعين أو كاجوال فقط)',
-          UNKNOWN_WORK_AREA: 'مكان العمل غير موجود في الإعدادات',
+          UNKNOWN_WORK_AREA: 'مكان العمل غير موجود في الهيكل التنظيمي أو الإعدادات',
           DUPLICATE_CODE: 'الكود موجود مسبقاً',
           EMPTY_SHEET: 'الملف فارغ أو بدون صف عناوين وبيانات'
         }
@@ -5255,7 +5277,29 @@ export const translations = {
       },
       production: {
         title: 'Production — Home',
-        subtitle: 'Shortcuts to pages, tabs, and main commands'
+        subtitle: 'Shortcuts to pages, tabs, and main commands',
+        areasSubtitle: 'Body, paint, assembly, and external repair',
+        areaAttendanceHint: 'Present staff out of each area workforce',
+        areaMissingHint: 'Open shortage vehicles inside each area',
+        areaAssemblyLineHint: 'Recorded on the assembly line',
+        areaEntryHint: 'Each section keeps its own records',
+        stopsTotalHint: 'Stops from every production section, added together'
+      },
+      assembly: {
+        title: 'Assembly',
+        subtitle: 'Assembly figures for today and this month'
+      },
+      body: {
+        title: 'Body',
+        subtitle: 'Body figures for today and this month',
+        attendanceDesc: 'Body workforce attendance efficiency',
+        orgMissing: 'The body section is not under production in the org structure.'
+      },
+      paint: {
+        title: 'Paint',
+        subtitle: 'Paint figures for today and this month',
+        attendanceDesc: 'Paint workforce attendance efficiency',
+        orgMissing: 'The paint section is not under production in the org structure.'
       },
       engineering: {
         title: 'Planning — Home',
@@ -6235,7 +6279,7 @@ export const translations = {
         encodingTip:
           'Garbled text in Excel (Ø§Ù…) means wrong encoding — re-download .xlsx from Google and upload to the app without Excel.',
         cols: 'Columns: employee ID, name, job title, assignment status, workplace (same headers as your sheet).',
-        areas: 'Create work areas in Settings with the exact names from your sheet first.',
+        areas: 'The workplace must match an org unit (such as welding or bodywork under body) or a work area with the same name in settings.',
         chooseFile: 'Choose CSV file',
         confirm: 'Import {n} employees',
         summary: 'Ready: {ok} · Errors: {bad} · Total: {total}',
@@ -6249,7 +6293,7 @@ export const translations = {
           MISSING_ROLE: 'Missing job title',
           UNKNOWN_ROLE: 'Unknown job title',
           UNKNOWN_ASSIGNMENT: 'Unknown assignment (متعين or كاجوال only)',
-          UNKNOWN_WORK_AREA: 'Workplace not found in settings',
+          UNKNOWN_WORK_AREA: 'Workplace is not in the org structure or in settings',
           DUPLICATE_CODE: 'Employee ID already exists',
           EMPTY_SHEET: 'File is empty or has no header/data rows'
         }
