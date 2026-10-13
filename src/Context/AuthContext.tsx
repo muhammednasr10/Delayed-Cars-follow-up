@@ -287,6 +287,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       clearSentryUser()
       setSession(null)
       setProfile(null)
+      void clearAppIconBadge()
       setAccessDeniedMessage(SESSION_EXPIRED_MSG_AR)
     })
     return () => registerAuthFailureHandler(null)

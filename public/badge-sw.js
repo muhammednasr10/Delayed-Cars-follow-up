@@ -42,6 +42,8 @@ self.addEventListener('push', event => {
         vibrate: [120, 60, 120]
       })
       if (typeof payload.count === 'number') await applyBadge(payload.count)
+      const windows = await self.clients.matchAll({ type: 'window', includeUncontrolled: true })
+      for (const client of windows) client.postMessage({ type: 'INBOX_REFRESH' })
     })()
   )
 })

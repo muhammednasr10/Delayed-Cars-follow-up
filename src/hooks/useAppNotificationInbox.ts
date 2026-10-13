@@ -1,10 +1,15 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { useAuth, profileIsAdmin } from '../Context/AuthContext'
 import type { AppNotificationItem } from '../Types/appNotification'
 import { fetchAppNotificationCounts, type AppNotificationCounts } from '../services/notificationService'
 import { listAppNotifications, markAppNotificationsRead } from '../services/appNotificationService'
 
 const POLL_MS = 30_000
+const REFRESH_COALESCE_MS = 400
+
+export function isInboxRefreshMessage(data: unknown): boolean {
+  return Boolean(data && typeof data === 'object' && (data as { type?: unknown }).type === 'INBOX_REFRESH')
+}
 
 const EMPTY_COUNTS: AppNotificationCounts = { pendingMissions: 0, pendingRequests: 0 }
 
@@ -25,16 +30,36 @@ export function useAppNotificationInbox() {
     setItems(nextItems)
   }, [employeeId, isAdmin])
 
+  const refreshTimer = useRef<number | null>(null)
+  const scheduleRefresh = useCallback(() => {
+    if (refreshTimer.current != null) window.clearTimeout(refreshTimer.current)
+    refreshTimer.current = window.setTimeout(() => {
+      refreshTimer.current = null
+      void refresh()
+    }, REFRESH_COALESCE_MS)
+  }, [refresh])
+
   useEffect(() => {
     void refresh()
     const id = window.setInterval(() => void refresh(), POLL_MS)
-    const onFocus = () => void refresh()
+    const onFocus = () => scheduleRefresh()
+    const onVisible = () => {
+      if (document.visibilityState === 'visible') scheduleRefresh()
+    }
+    const onMessage = (event: MessageEvent) => {
+      if (isInboxRefreshMessage(event.data)) scheduleRefresh()
+    }
     window.addEventListener('focus', onFocus)
+    document.addEventListener('visibilitychange', onVisible)
+    navigator.serviceWorker?.addEventListener('message', onMessage)
     return () => {
       window.clearInterval(id)
+      if (refreshTimer.current != null) window.clearTimeout(refreshTimer.current)
       window.removeEventListener('focus', onFocus)
+      document.removeEventListener('visibilitychange', onVisible)
+      navigator.serviceWorker?.removeEventListener('message', onMessage)
     }
-  }, [refresh])
+  }, [refresh, scheduleRefresh])
 
   const markItemRead = useCallback(async (id: string) => {
     await markAppNotificationsRead([id]).catch(() => undefined)
