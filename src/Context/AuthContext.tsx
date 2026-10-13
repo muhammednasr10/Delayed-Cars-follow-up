@@ -14,6 +14,7 @@ import {
   type AppAuthSession
 } from '../services/authService'
 import { clearAppIconBadge } from '../Utils/appIconBadge'
+import { disablePhonePush } from '../services/phonePushService'
 import { clearSentryUser, setSentryUser } from '../lib/sentry'
 
 export type Profile = {
@@ -358,6 +359,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   async function signOut() {
     profileLoadedUidRef.current = null
+    await disablePhonePush().catch(() => undefined)
     clearSession()
     clearSentryUser()
     void clearAppIconBadge()

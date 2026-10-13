@@ -3,6 +3,7 @@ import { createPortal } from 'react-dom'
 import { useLang } from '../../../i18n/LanguageContext'
 import type { AppNotificationItem } from '../../../Types/appNotification'
 import { appNotificationLabel } from '../../../Utils/appNotificationCopy'
+import { PhonePushToggle } from './PhonePushToggle'
 import { formatDateTime } from '../../../Utils/missingPartPageUtils'
 
 type SummaryItem = { key: string; label: string; onClick: () => void }
@@ -117,6 +118,7 @@ function NotificationPanelBody({
         </div>
       )}
       <div className="space-y-1 border-t border-slate-800 p-2">
+        <PhonePushToggle />
         {showMarkAll && (
           <button
             type="button"

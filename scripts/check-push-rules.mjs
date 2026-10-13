@@ -1,0 +1,36 @@
+import assert from 'node:assert/strict'
+
+const target = await import(new URL('../src/Utils/pushNotificationTarget.ts', import.meta.url))
+const delivery = await import(new URL('../supabase/functions/_shared/pushDelivery.ts', import.meta.url))
+const push = { ...target, ...delivery }
+
+assert.deepEqual(push.pushDestination('shortage_added'), { kind: 'missing', tab: 'active' })
+assert.deepEqual(push.pushDestination('shortage_archived'), { kind: 'missing', tab: 'history' })
+assert.deepEqual(push.pushDestination('transfer_requested'), { kind: 'missing', tab: 'approvals' })
+assert.deepEqual(push.pushDestination('mission_assigned'), { kind: 'missions' })
+assert.deepEqual(push.pushDestination('plan_added', 0), { kind: 'planning', tab: 'plan', scope: 'annual' })
+assert.deepEqual(push.pushDestination('plan_edited', 10), { kind: 'planning', tab: 'plan', scope: 'monthly' })
+assert.deepEqual(push.pushDestination('order_added'), { kind: 'planning', tab: 'orders', scope: 'monthly' })
+assert.deepEqual(push.pushDestination('entry_added'), { kind: 'productivity' })
+assert.deepEqual(push.pushDestination('exit_deleted'), { kind: 'productivity' })
+assert.deepEqual(push.pushDestination('stop_added'), { kind: 'stops' })
+assert.deepEqual(push.pushDestination('scratch_edited'), { kind: 'scratches' })
+assert.equal(push.pushDestination('unknown'), null)
+assert.equal(/VIN|شاسيه|قطعة/i.test(push.PUSH_LOCK_SCREEN_BODY), false)
+
+assert.equal(push.deliveryDecision(null), 'send')
+assert.equal(push.deliveryDecision({ status: 'pending', attempts: 1 }), 'skip')
+assert.equal(push.deliveryDecision({ status: 'pending', attempts: 1 }, true), 'send')
+assert.equal(push.deliveryDecision({ status: 'pending', attempts: 3 }, true), 'skip')
+assert.equal(push.deliveryDecision({ status: 'failed', attempts: 1 }), 'send')
+assert.equal(push.deliveryDecision({ status: 'failed', attempts: 2 }), 'send')
+assert.equal(push.deliveryDecision({ status: 'failed', attempts: 3 }), 'skip')
+assert.equal(push.deliveryDecision({ status: 'sent', attempts: 1 }), 'skip')
+assert.equal(push.deliveryDecision({ status: 'gone', attempts: 1 }), 'skip')
+assert.equal(push.pushHttpStatus(0), 200)
+assert.equal(push.pushHttpStatus(2), 503)
+assert.equal(push.isExpiredPushSubscription(410), true)
+assert.equal(push.isExpiredPushSubscription(404), true)
+assert.equal(push.isExpiredPushSubscription(500), false)
+
+console.log('push rules ok')

@@ -10,6 +10,7 @@ import { AppSidebar } from './Components/AppSidebar'
 import { DepartmentTopBar } from './Components/layout/DepartmentTopBar'
 import { HeaderNotificationsBell } from './Components/layout/HeaderNotificationsBell'
 import { NotificationInboxProvider } from './Context/NotificationInboxProvider'
+import { PushOpenListener } from './Components/layout/notifications/PushOpenListener'
 import { HomePage } from './Pages/production/HomePage'
 import { ProductionOverviewPage } from './Pages/production/ProductionOverviewPage'
 import { LineShopRoutes } from './Pages/production/LineShopRoutes'
@@ -142,6 +143,7 @@ function Shell() {
 
   return (
     <NotificationInboxProvider>
+    <PushOpenListener />
     <VehiclesProvider>
       <AppSidebar />
       <main className="flex h-dvh min-h-0 flex-col overflow-hidden bg-[radial-gradient(circle_at_top_left,_rgba(34,211,238,0.16),_transparent_35%),linear-gradient(135deg,_#020617,_#0f172a_45%,_#111827)] px-2 pt-2 text-slate-100 sm:px-6 sm:pt-3 lg:px-8">

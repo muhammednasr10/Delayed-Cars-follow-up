@@ -23,15 +23,54 @@ self.addEventListener('periodicsync', event => {
 })
 
 self.addEventListener('push', event => {
-  if (!event.data) return
-  try {
-    const payload = event.data.json()
-    if (payload && typeof payload.badge === 'number') {
-      event.waitUntil(applyBadge(payload.badge))
-    }
-  } catch {
-    /* not JSON or no badge field */
-  }
+  event.waitUntil(
+    (async () => {
+      let payload = {}
+      try {
+        payload = event.data ? event.data.json() : {}
+      } catch {
+        payload = {}
+      }
+      const title = payload.title || 'نظام المتابعة'
+      const body = payload.body || 'عندك إشعار جديد'
+      await self.registration.showNotification(title, {
+        body,
+        icon: '/pwa-192x192.png',
+        tag: payload.tag || undefined,
+        renotify: Boolean(payload.tag),
+        data: payload.data || {},
+        vibrate: [120, 60, 120]
+      })
+      if (typeof payload.count === 'number') await applyBadge(payload.count)
+    })()
+  )
+})
+
+self.addEventListener('notificationclick', event => {
+  event.notification.close()
+  const data = event.notification.data || {}
+  event.waitUntil(
+    (async () => {
+      const windows = await self.clients.matchAll({ type: 'window', includeUncontrolled: true })
+      const existing = windows.find(client => {
+        try {
+          return new URL(client.url).origin === self.location.origin
+        } catch {
+          return false
+        }
+      })
+      if (existing) {
+        await existing.focus()
+        existing.postMessage({ type: 'PUSH_OPEN', ...data })
+        return
+      }
+      const url = new URL('/', self.location.origin)
+      if (data.eventType) url.searchParams.set('afaPushEvent', data.eventType)
+      if (data.planMonth != null && data.planMonth !== '') url.searchParams.set('afaPushMonth', String(data.planMonth))
+      if (data.notificationId) url.searchParams.set('afaPushId', data.notificationId)
+      await self.clients.openWindow(url.href)
+    })()
+  )
 })
 
 async function applyBadge(count) {
