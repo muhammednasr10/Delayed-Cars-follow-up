@@ -40,7 +40,7 @@ export function useProductionOverviewHubSections(refreshKey = 0) {
   const assemblyLine = useProductivityMonthCounts(refreshKey, 'assembly')
   const { totalMinutes, lostVehicles, loading: stopsLoading } = useProductionStopMonthCounts(refreshKey, 'all')
 
-  const showHomeCard = (card: Parameters<typeof canViewPage>[0]) =>
+  const showHomeCard = (card: Parameters<typeof canViewPage>[0], _moduleOk = true) =>
     loading || loadError || homeProductivityCardVisible(card, canViewPage(card), recorder)
 
   const attendanceStats = PRODUCTION_AREA_ORDER.map(area => {

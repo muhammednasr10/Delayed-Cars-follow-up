@@ -91,7 +91,7 @@ export function useGlobalHubSections(refreshKey = 0) {
   const canManageStops = hasRole('admin', 'production')
   const go = nav.navigate
   const canLineBalancing = loading || moduleAllowed('station_operations')
-  const showHomeCard = (card: Parameters<typeof canViewPage>[0]) =>
+  const showHomeCard = (card: Parameters<typeof canViewPage>[0], _moduleOk = true) =>
     loading || loadError || homeProductivityCardVisible(card, canViewPage(card), recorder)
 
   /** ترتيب تدفق العمل: تخطيط → إنتاج → جودة → عمالة → هندسة → دعم */

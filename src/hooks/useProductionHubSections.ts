@@ -48,7 +48,7 @@ export function useProductionHubSections(refreshKey = 0) {
   const { canViewModule, loading: permsLoading } = usePermissions()
   const { canViewPage, loading: pagesLoading } = useCanViewPage()
   const loading = permsLoading || pagesLoading
-  const showHomeCard = (card: Parameters<typeof canViewPage>[0]) =>
+  const showHomeCard = (card: Parameters<typeof canViewPage>[0], _moduleOk = true) =>
     loading || homeProductivityCardVisible(card, canViewPage(card), recorder)
   const [reportOpen, setReportOpen] = useState(false)
   const { activeVehicles, archiveVehicles, loading: countsLoading } = useMissingPartsVehicleCounts(refreshKey)

@@ -140,7 +140,7 @@ export function useLineAreaDailyHubSections(area: LineHomeArea, refreshKey = 0) 
     }
   }, [area, refreshKey])
 
-  const showHomeCard = (card: Parameters<typeof canViewPage>[0]) =>
+  const showHomeCard = (card: Parameters<typeof canViewPage>[0], _moduleOk = true) =>
     loading || loadError || homeProductivityCardVisible(card, canViewPage(card), recorder)
   const go = nav.navigate
   const canManageStops = hasRole('admin', 'production')
