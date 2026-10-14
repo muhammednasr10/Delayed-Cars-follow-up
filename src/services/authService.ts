@@ -384,7 +384,7 @@ export async function refreshSessionOnWake(): Promise<AppAuthSession | null> {
     return null
   }
 
-  const next = await ensureFreshSession()
+  const next = await ensureFreshSession({ kickOnFailure: true })
   if (next) return next
-  return readRawSession() ? raw : null
+  return readRawSession()
 }

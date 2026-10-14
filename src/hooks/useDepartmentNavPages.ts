@@ -21,7 +21,9 @@ import {
 } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
 import { useLang } from '../i18n/LanguageContext'
+import { useAuth } from '../Context/AuthContext'
 import { usePermissions } from '../Context/PermissionsContext'
+import { isProductivityRecorder } from '../Utils/assemblyAreas'
 import { useCanAccessSettings } from './useCanAccessSettings'
 import { useCanViewPage } from './useCanViewPage'
 import {
@@ -40,6 +42,7 @@ import {
   bomTabPermissionKey,
   type DepartmentId
 } from '../Types/navigation'
+import { productivityNavVisible } from '../config/pageTabAccess'
 import { buildWarehousesNavPages } from './warehouses/buildWarehousesNavPages'
 
 export type NavPageChild = {
@@ -68,7 +71,9 @@ const LINE_SHOP_ICONS = {
 
 export function useDepartmentNavPages() {
   const { t } = useLang()
+  const { profile } = useAuth()
   const { loading: permsLoading } = usePermissions()
+  const recorder = isProductivityRecorder(profile?.system_role_code, profile?.system_role_name_ar)
   const { canAccess: canAccessSettings } = useCanAccessSettings()
   const { canViewPage, canViewTab, loading: pagesLoading } = useCanViewPage()
   const nav = useNavigation()
@@ -146,7 +151,7 @@ export function useDepartmentNavPages() {
         key: 'vehicles',
         label: t('nav.productivity'),
         icon: Activity,
-        visible: navLoading || canViewPage(pagePermForProduction('vehicles')),
+        visible: navLoading || productivityNavVisible(canViewPage, canViewTab, recorder),
         onNavigate: () =>
           navTo({
             department: 'production',
@@ -254,7 +259,7 @@ export function useDepartmentNavPages() {
         onNavigate: () => navTo({ department: 'production', productionArea: 'assembly', productionPage: 'feedback' })
       }
     ],
-    [canViewPage, navLoading, navTo, t, tabVisible]
+    [canViewPage, canViewTab, navLoading, navTo, recorder, t, tabVisible]
   )
 
   const lineShopPages = useCallback(
@@ -263,7 +268,11 @@ export function useDepartmentNavPages() {
         key: item.key,
         label: item.label,
         icon: LINE_SHOP_ICONS[item.key],
-        visible: navLoading || canViewPage(pagePermForProduction(item.perm)),
+        visible:
+          navLoading ||
+          (item.perm === 'vehicles'
+            ? productivityNavVisible(canViewPage, canViewTab, recorder)
+            : canViewPage(pagePermForProduction(item.perm))),
         onNavigate: () => navTo(item.patch),
         children: item.children
           ?.map(child => ({
@@ -274,7 +283,7 @@ export function useDepartmentNavPages() {
           }))
           .filter(child => child.visible !== false)
       })),
-    [canViewPage, navLoading, navTo, t, tabVisible]
+    [canViewPage, canViewTab, navLoading, navTo, recorder, t, tabVisible]
   )
 
   const bodyPages = useMemo(() => lineShopPages('body'), [lineShopPages])

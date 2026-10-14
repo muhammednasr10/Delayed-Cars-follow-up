@@ -62,6 +62,16 @@ export function areasCoveredByOrgUnit(rootId: string | null | undefined, units: 
   return areas
 }
 
+export function isProductivityRecorder(
+  roleCode: string | null | undefined,
+  roleNameAr: string | null | undefined,
+  jobRole?: string | null
+): boolean {
+  if (roleCode === 'data_entry' || jobRole === 'data_entry') return true
+  const name = roleNameAr?.trim() ?? ''
+  return name.includes('مدخل بيانات') || name.includes('إدخال بيانات')
+}
+
 export type ProductivityWriteScope = {
   canEditEntry: boolean
   canEditExit: boolean
@@ -73,13 +83,16 @@ type ScopeEmployee = {
   workAreaName: string | null
 }
 
-/** مشرف قسم أب يغطي التريمين يكتب الدخول، ومشرف الشاسيه والفاينال يكتب الخروج. المساعد عرض. */
+/** مشرف قسم أب يغطي التريمين يكتب الدخول، ومشرف الشاسيه والفاينال يكتب الخروج. المساعد عرض. مدخل البيانات يكتب الاتنين لما الصلاحية مفتوحة. */
 export function productivityWriteScope(
   employee: ScopeEmployee | null | undefined,
   units: FactoryOrgUnit[],
-  isAdmin: boolean
+  isAdmin: boolean,
+  recordBoth = false
 ): ProductivityWriteScope {
-  if (isAdmin) return { canEditEntry: true, canEditExit: true }
+  if (isAdmin || recordBoth || employee?.jobRole === 'data_entry') {
+    return { canEditEntry: true, canEditExit: true }
+  }
   if (!employee || employee.jobRole !== 'supervisor') return { canEditEntry: false, canEditExit: false }
 
   const areas =

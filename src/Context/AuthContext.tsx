@@ -298,7 +298,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     const refreshIfNeeded = () => {
       void refreshSessionOnWake().then(next => {
-        if (next) setSession(next)
+        if (!next) return
+        setSession(current =>
+          current?.access_token === next.access_token && current.user.id === next.user.id ? current : next
+        )
       })
     }
 

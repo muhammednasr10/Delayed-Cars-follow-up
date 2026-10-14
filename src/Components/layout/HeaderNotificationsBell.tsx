@@ -5,6 +5,7 @@ import { useNavigation } from '../../Context/NavigationContext'
 import { useNotificationInbox } from '../../Context/NotificationInboxProvider'
 import { isMissionNotificationEvent, type AppNotificationItem } from '../../Types/appNotification'
 import { activityNotificationTarget } from '../../Utils/appNotificationCopy'
+import { navigateNotificationDestination } from '../../Utils/notificationNavigation'
 import {
   dispatchOpenMissingPartsTab,
   missingPartsTabForNotification,
@@ -57,37 +58,7 @@ export function HeaderNotificationsBell() {
       return
     }
     setOpen(false)
-    if (target.kind === 'planning') {
-      nav.navigate({
-        department: 'planning',
-        planningTab: target.tab,
-        planScope: target.scope,
-        showProfile: false,
-        showGlobalHome: false,
-        closeSidebar: true
-      })
-      return
-    }
-    if (target.kind === 'scratches') {
-      nav.navigate({
-        department: 'production',
-        productionArea: 'assembly',
-        productionPage: 'scratches',
-        showProfile: false,
-        showGlobalHome: false,
-        closeSidebar: true
-      })
-      return
-    }
-    nav.navigate({
-      department: 'production',
-      productionArea: 'assembly',
-      productionPage: 'vehicles',
-      productivityTab: target.kind === 'stops' ? 'stops' : 'productivity',
-      showProfile: false,
-      showGlobalHome: false,
-      closeSidebar: true
-    })
+    navigateNotificationDestination(nav.navigate, target)
   }
 
   async function openItem(item: AppNotificationItem) {

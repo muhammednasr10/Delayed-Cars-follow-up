@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import type { JobRole } from '../Types/enums'
 import type { FactoryOrgUnit } from '../Types/factoryOrg'
-import { areasInName, productivityWriteScope } from './assemblyAreas'
+import { areasInName, isProductivityRecorder, productivityWriteScope } from './assemblyAreas'
 
 function unit(id: string, name: string, parentId: string | null, kind: FactoryOrgUnit['unitKind']): FactoryOrgUnit {
   return { id, name, parentId, unitKind: kind, sortOrder: 0, isActive: true }
@@ -32,6 +32,14 @@ describe('areasInName', () => {
   })
 })
 
+describe('isProductivityRecorder', () => {
+  it('recognizes the data entry role by code or Arabic name', () => {
+    expect(isProductivityRecorder('data_entry', null)).toBe(true)
+    expect(isProductivityRecorder('custom', 'مدخل بيانات')).toBe(true)
+    expect(isProductivityRecorder('supervisor', 'مشرف')).toBe(false)
+  })
+})
+
 describe('productivityWriteScope', () => {
   it('lets the trim parent supervisor edit entry only', () => {
     expect(productivityWriteScope(supervisor('trim'), units, false)).toEqual({
@@ -52,6 +60,13 @@ describe('productivityWriteScope', () => {
     expect(productivityWriteScope(supervisor('trim-a', 'assistant_supervisor'), units, false)).toEqual({
       canEditEntry: false,
       canEditExit: false
+    })
+  })
+
+  it('lets a data entry clerk edit entry and exit', () => {
+    expect(productivityWriteScope(supervisor('trim-a', 'data_entry'), units, false)).toEqual({
+      canEditEntry: true,
+      canEditExit: true
     })
   })
 

@@ -16,6 +16,8 @@ import { getEmployees } from '../services/employeesService'
 import { getFactoryOrgUnits } from '../services/factoryOrgService'
 import { getMissingParts } from '../services/missingPartsService'
 import { getProductionPlanDayType } from '../services/productionPlanWorkDayDailyService'
+import { isProductivityRecorder } from '../Utils/assemblyAreas'
+import { homeProductivityCardVisible } from '../config/pageTabAccess'
 import { buildAttendanceHubStats } from '../Utils/attendanceHubStats'
 import { shortageVehicleCountsByArea, workforceIdsForArea } from '../Utils/productionAreaCounts'
 import { useCanReportMissingPart } from './useCanReportMissingPart'
@@ -38,7 +40,8 @@ export function useLineAreaDailyHubSections(area: LineHomeArea, refreshKey = 0) 
   const { t } = useLang()
   const nav = useNavigation()
   const { canReport } = useCanReportMissingPart()
-  const { hasRole } = useAuth()
+  const { hasRole, profile } = useAuth()
+  const recorder = isProductivityRecorder(profile?.system_role_code, profile?.system_role_name_ar)
   const { canViewModule, loading: permsLoading, loadError } = usePermissions()
   const { canViewPage, loading: pagesLoading } = useCanViewPage()
   const loading = permsLoading || pagesLoading
@@ -137,8 +140,8 @@ export function useLineAreaDailyHubSections(area: LineHomeArea, refreshKey = 0) 
     }
   }, [area, refreshKey])
 
-  const showHomeCard = (card: Parameters<typeof canViewPage>[0], moduleOk = true) =>
-    loading || loadError || (canViewPage(card) && moduleOk)
+  const showHomeCard = (card: Parameters<typeof canViewPage>[0]) =>
+    loading || loadError || homeProductivityCardVisible(card, canViewPage(card), recorder)
   const go = nav.navigate
   const canManageStops = hasRole('admin', 'production')
   const {

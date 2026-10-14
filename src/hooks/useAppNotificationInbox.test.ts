@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { isInboxRefreshMessage } from './useAppNotificationInbox'
+import { isInboxRefreshMessage } from './inboxRefresh'
 
 describe('isInboxRefreshMessage', () => {
   it('accepts only the service worker inbox refresh signal', () => {

@@ -3,7 +3,7 @@ import { profileIsAdmin, useAuth } from '../Context/AuthContext'
 import type { FactoryOrgUnit } from '../Types/factoryOrg'
 import { getFactoryOrgUnits } from '../services/factoryOrgService'
 import { useEmployees } from './useEmployees'
-import { productivityWriteScope } from '../Utils/assemblyAreas'
+import { isProductivityRecorder, productivityWriteScope } from '../Utils/assemblyAreas'
 
 export function useProductivityWriteScope() {
   const { profile } = useAuth()
@@ -22,8 +22,14 @@ export function useProductivityWriteScope() {
     [employees, employeeId]
   )
 
+  const recordBoth = isProductivityRecorder(
+    profile?.system_role_code,
+    profile?.system_role_name_ar,
+    viewer?.jobRole
+  )
+
   return useMemo(
-    () => productivityWriteScope(viewer, orgUnits, profileIsAdmin(profile)),
-    [viewer, orgUnits, profile]
+    () => productivityWriteScope(viewer, orgUnits, profileIsAdmin(profile), recordBoth),
+    [viewer, orgUnits, profile, recordBoth]
   )
 }

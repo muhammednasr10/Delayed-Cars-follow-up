@@ -18,6 +18,8 @@ import { useAuth, profileIsAdmin } from '../Context/AuthContext'
 import { usePermissions } from '../Context/PermissionsContext'
 import { useCanAccessSettings } from '../hooks/useCanAccessSettings'
 import { useCanViewPage } from '../hooks/useCanViewPage'
+import { productivityNavVisible } from '../config/pageTabAccess'
+import { isProductivityRecorder } from '../Utils/assemblyAreas'
 import {
   pagePermForEngineering,
   pagePermForPlanning,
@@ -48,8 +50,9 @@ export function AppSidebar() {
   const { t } = useLang()
   const { loading: permsLoading, canViewModule } = usePermissions()
   const { canAccess: canAccessSettings } = useCanAccessSettings()
-  const { canViewPage, loading: pagesLoading } = useCanViewPage()
+  const { canViewPage, canViewTab, loading: pagesLoading } = useCanViewPage()
   const { profile } = useAuth()
+  const recorder = isProductivityRecorder(profile?.system_role_code, profile?.system_role_name_ar)
   const nav = useNavigation()
 
   /** البنود مقفولة افتراضياً — المستخدم يفتح ما يحتاجه */
@@ -123,7 +126,7 @@ export function AppSidebar() {
     {
       key: 'vehicles',
       label: t('nav.productivity'),
-      visible: navLoading || canViewPage(pagePermForProduction('vehicles')),
+      visible: navLoading || productivityNavVisible(canViewPage, canViewTab, recorder),
       onNavigate: () =>
         sidebarNav({ department: 'production', productionArea: 'assembly', productionPage: 'vehicles' }, true),
       children: [
@@ -210,7 +213,11 @@ export function AppSidebar() {
     return lineShopNavItems(area, t).map(item => ({
       key: item.key,
       label: item.label,
-      visible: navLoading || canViewPage(pagePermForProduction(item.perm)),
+      visible:
+        navLoading ||
+        (item.perm === 'vehicles'
+          ? productivityNavVisible(canViewPage, canViewTab, recorder)
+          : canViewPage(pagePermForProduction(item.perm))),
       onNavigate: () => sidebarNav(item.patch, item.key === 'vehicles'),
       children: item.children?.map(child => ({
         key: child.key,

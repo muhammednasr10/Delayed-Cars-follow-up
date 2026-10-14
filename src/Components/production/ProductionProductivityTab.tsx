@@ -35,8 +35,8 @@ export function ProductionProductivityTab() {
   const [refreshKey, setRefreshKey] = useState(0)
 
   const { year, month } = useMemo(() => parseYm(workDate), [workDate])
-  const canRegisterEntry = permsLoading || canViewTab('production_productivity', 'entry')
-  const canRegisterExit = permsLoading || canViewTab('production_productivity', 'exit')
+  const canRegisterEntry = permsLoading || canEditEntry
+  const canRegisterExit = permsLoading || canEditExit
   const canRegisterRepair = permsLoading || canViewTab('production_productivity', 'repair')
 
   const loadStops = useCallback(async () => {
@@ -65,9 +65,9 @@ export function ProductionProductivityTab() {
           <input type="date" className={inputCls()} value={workDate} onChange={e => setWorkDate(e.target.value)} />
         </label>
 
-        {((canRegisterEntry && canEditEntry) || (canRegisterExit && canEditExit) || canRegisterRepair) && (
+        {(canRegisterEntry || canRegisterExit || canRegisterRepair) && (
           <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap">
-            {canRegisterEntry && canEditEntry && (
+            {canRegisterEntry && (
               <button
                 type="button"
                 onClick={() => setModalKind('entry')}
@@ -77,7 +77,7 @@ export function ProductionProductivityTab() {
                 {t('productivity.registerEntry')}
               </button>
             )}
-            {canRegisterExit && canEditExit && (
+            {canRegisterExit && (
               <button
                 type="button"
                 onClick={() => setModalKind('exit')}

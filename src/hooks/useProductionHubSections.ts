@@ -26,6 +26,8 @@ import { formatStopHoursForCard, useProductionStopMonthCounts } from './useProdu
 import { useTodayAttendanceEfficiency } from './useTodayAttendanceEfficiency'
 import { usePermissions } from '../Context/PermissionsContext'
 import { useNavigation } from '../Context/NavigationContext'
+import { isProductivityRecorder } from '../Utils/assemblyAreas'
+import { homeProductivityCardVisible } from '../config/pageTabAccess'
 import { buildAttendanceHubStats } from '../Utils/attendanceHubStats'
 import { SETTINGS_TAB_ORDER } from '../Types/navigation'
 import { useLang } from '../i18n/LanguageContext'
@@ -39,14 +41,15 @@ function formatEfficiencyPct(value: number | null, loading: boolean): string {
 export function useProductionHubSections(refreshKey = 0) {
   const { t } = useLang()
   const nav = useNavigation()
-  const { hasRole } = useAuth()
+  const { hasRole, profile } = useAuth()
+  const recorder = isProductivityRecorder(profile?.system_role_code, profile?.system_role_name_ar)
   const { canAccess: canAccessSettings } = useCanAccessSettings()
   const { canReport } = useCanReportMissingPart()
   const { canViewModule, loading: permsLoading } = usePermissions()
   const { canViewPage, loading: pagesLoading } = useCanViewPage()
   const loading = permsLoading || pagesLoading
-  const showHomeCard = (card: Parameters<typeof canViewPage>[0], moduleOk = true) =>
-    loading || (canViewPage(card) && moduleOk)
+  const showHomeCard = (card: Parameters<typeof canViewPage>[0]) =>
+    loading || homeProductivityCardVisible(card, canViewPage(card), recorder)
   const [reportOpen, setReportOpen] = useState(false)
   const { activeVehicles, archiveVehicles, loading: countsLoading } = useMissingPartsVehicleCounts(refreshKey)
   const {

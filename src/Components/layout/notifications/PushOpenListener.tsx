@@ -2,7 +2,7 @@ import { useEffect, useRef } from 'react'
 import { useNavigation } from '../../../Context/NavigationContext'
 import { useNotificationInbox } from '../../../Context/NotificationInboxProvider'
 import { markAppNotificationsRead } from '../../../services/appNotificationService'
-import { dispatchOpenMissingPartsTab, productionNavigatePatch } from '../../../Utils/openMissingPartsTab'
+import { navigateNotificationDestination } from '../../../Utils/notificationNavigation'
 import { pushDestination } from '../../../Utils/pushNotificationTarget'
 
 type PushMessage = {
@@ -49,47 +49,7 @@ export function PushOpenListener() {
       }
       const destination = pushDestination(message.eventType, message.planMonth)
       if (!destination) return
-      const go = navRef.current
-      if (destination.kind === 'missing') {
-        go.navigate(productionNavigatePatch('missing'))
-        queueMicrotask(() => dispatchOpenMissingPartsTab(destination.tab))
-        return
-      }
-      if (destination.kind === 'missions') {
-        go.navigate(productionNavigatePatch('missions'))
-        return
-      }
-      if (destination.kind === 'planning') {
-        go.navigate({
-          department: 'planning',
-          planningTab: destination.tab,
-          planScope: destination.scope,
-          showProfile: false,
-          showGlobalHome: false,
-          closeSidebar: true
-        })
-        return
-      }
-      if (destination.kind === 'scratches') {
-        go.navigate({
-          department: 'production',
-          productionArea: 'assembly',
-          productionPage: 'scratches',
-          showProfile: false,
-          showGlobalHome: false,
-          closeSidebar: true
-        })
-        return
-      }
-      go.navigate({
-        department: 'production',
-        productionArea: 'assembly',
-        productionPage: 'vehicles',
-        productivityTab: destination.kind === 'stops' ? 'stops' : 'productivity',
-        showProfile: false,
-        showGlobalHome: false,
-        closeSidebar: true
-      })
+      navigateNotificationDestination(navRef.current.navigate, destination)
     }
 
     const launch = readLaunchHint()

@@ -18,6 +18,8 @@ import { useAuth } from '../Context/AuthContext'
 import { usePermissions } from '../Context/PermissionsContext'
 import { useNavigation } from '../Context/NavigationContext'
 import { useLang } from '../i18n/LanguageContext'
+import { isProductivityRecorder } from '../Utils/assemblyAreas'
+import { homeProductivityCardVisible } from '../config/pageTabAccess'
 import { buildAttendanceHubStats } from '../Utils/attendanceHubStats'
 import { useCanReportMissingPart } from './useCanReportMissingPart'
 import { useCanViewPage } from './useCanViewPage'
@@ -37,7 +39,8 @@ export function useAssemblyDailyHubSections(refreshKey = 0) {
   const { t } = useLang()
   const nav = useNavigation()
   const { canReport } = useCanReportMissingPart()
-  const { hasRole } = useAuth()
+  const { hasRole, profile } = useAuth()
+  const recorder = isProductivityRecorder(profile?.system_role_code, profile?.system_role_name_ar)
   const { canViewModule, loading: permsLoading, loadError } = usePermissions()
   const { canViewPage, loading: pagesLoading } = useCanViewPage()
   const loading = permsLoading || pagesLoading
@@ -66,8 +69,8 @@ export function useAssemblyDailyHubSections(refreshKey = 0) {
 
   const canManageStops = hasRole('admin', 'production')
   const go = nav.navigate
-  const showHomeCard = (card: Parameters<typeof canViewPage>[0], moduleOk = true) =>
-    loading || loadError || (canViewPage(card) && moduleOk)
+  const showHomeCard = (card: Parameters<typeof canViewPage>[0]) =>
+    loading || loadError || homeProductivityCardVisible(card, canViewPage(card), recorder)
 
   const cards = [
     showHomeCard('production_home__attendance', moduleAllowed('training_matrix')) && {

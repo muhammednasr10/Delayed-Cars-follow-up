@@ -1,6 +1,9 @@
 import { AlertOctagon, AlertTriangle, CalendarClock, LogIn, LogOut } from 'lucide-react'
 import type { HubCard, HubSection } from '../Components/DepartmentHub'
+import { useAuth } from '../Context/AuthContext'
 import { usePermissions } from '../Context/PermissionsContext'
+import { homeProductivityCardVisible } from '../config/pageTabAccess'
+import { isProductivityRecorder } from '../Utils/assemblyAreas'
 import { useLang } from '../i18n/LanguageContext'
 import type { ProductionArea } from '../Types/navigation'
 import { PRODUCTION_AREA_ORDER } from '../Types/navigation'
@@ -25,6 +28,8 @@ function recordedAreaValue(
 
 export function useProductionOverviewHubSections(refreshKey = 0) {
   const { t } = useLang()
+  const { profile } = useAuth()
+  const recorder = isProductivityRecorder(profile?.system_role_code, profile?.system_role_name_ar)
   const { canViewModule, loading: permsLoading, loadError } = usePermissions()
   const { canViewPage, loading: pagesLoading } = useCanViewPage()
   const loading = permsLoading || pagesLoading
@@ -35,8 +40,8 @@ export function useProductionOverviewHubSections(refreshKey = 0) {
   const assemblyLine = useProductivityMonthCounts(refreshKey, 'assembly')
   const { totalMinutes, lostVehicles, loading: stopsLoading } = useProductionStopMonthCounts(refreshKey, 'all')
 
-  const showHomeCard = (card: Parameters<typeof canViewPage>[0], moduleOk = true) =>
-    loading || loadError || (canViewPage(card) && moduleOk)
+  const showHomeCard = (card: Parameters<typeof canViewPage>[0]) =>
+    loading || loadError || homeProductivityCardVisible(card, canViewPage(card), recorder)
 
   const attendanceStats = PRODUCTION_AREA_ORDER.map(area => {
     const count = attendance?.[area]

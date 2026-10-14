@@ -208,7 +208,7 @@ describe('authService session helpers', () => {
     vi.useRealTimers()
   }, 15_000)
 
-  it('refreshSessionOnWake kicks only when refresh token is expired', async () => {
+  it('refreshSessionOnWake keeps a valid session and drops a rejected one', async () => {
     const now = Math.floor(Date.now() / 1000)
     const kicked = vi.fn()
     registerAuthFailureHandler(kicked)
@@ -223,6 +223,18 @@ describe('authService session helpers', () => {
     const awake = await refreshSessionOnWake()
     expect(awake?.user.id).toBe('user-1')
     expect(kicked).not.toHaveBeenCalled()
+
+    kicked.mockClear()
+    saveSession(makeSession({ accessExp: now - 120, refreshExp: now + 86400 }))
+    vi.spyOn(globalThis, 'fetch').mockResolvedValue(
+      new Response(JSON.stringify({ error: 'Invalid or expired refresh token' }), {
+        status: 401,
+        headers: { 'Content-Type': 'application/json' }
+      })
+    )
+    await refreshSessionOnWake()
+    expect(kicked).toHaveBeenCalledOnce()
+    expect(readRawSession()).toBeNull()
   })
 
   it('withTimeout resolves fallback when promise is slow', async () => {

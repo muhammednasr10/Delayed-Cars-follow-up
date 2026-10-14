@@ -22,6 +22,8 @@ import { GlobalHomePage } from './Pages/shared/GlobalHomePage'
 import { ProductionAreaPlaceholderPage } from './Pages/production/ProductionAreaPlaceholderPage'
 import { useCanAccessSettings } from './hooks/useCanAccessSettings'
 import { useCanViewPage } from './hooks/useCanViewPage'
+import { productivityNavVisible } from './config/pageTabAccess'
+import { isProductivityRecorder } from './Utils/assemblyAreas'
 import {
   pagePermForEngineering,
   pagePermForPlanning,
@@ -78,7 +80,7 @@ function Shell() {
   const { configured, loading, session, profile, signOut, displayRole } = useAuth()
   const { canAccess: canAccessSettings } = useCanAccessSettings()
   const { loading: permsLoading, canViewModule, loadError: permsLoadError, reload: reloadPermissions } = usePermissions()
-  const { canViewPage, loading: pagesLoading } = useCanViewPage()
+  const { canViewPage, canViewTab, loading: pagesLoading } = useCanViewPage()
   const { t, lang, toggle } = useLang()
   const nav = useNavigation()
 
@@ -331,7 +333,12 @@ function Shell() {
                   {nav.productionPage === 'missing' &&
                     (navLoading || canViewPage(pagePermForProduction('missing'))) && <MissingPartsPage />}
                   {nav.productionPage === 'vehicles' &&
-                    (navLoading || canViewPage(pagePermForProduction('vehicles'))) && (
+                    (navLoading ||
+                      productivityNavVisible(
+                        canViewPage,
+                        canViewTab,
+                        isProductivityRecorder(profile?.system_role_code, profile?.system_role_name_ar)
+                      )) && (
                       <LazyPage>
                         <ProductivityPage />
                       </LazyPage>

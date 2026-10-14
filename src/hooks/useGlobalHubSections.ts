@@ -31,6 +31,8 @@ import { useTodayAttendanceEfficiency } from './useTodayAttendanceEfficiency'
 import { useHomeCardMonthStats } from './useHomeCardMonthStats'
 import { useProductionPlanHubStats } from './useProductionPlanHubStats'
 import { useLang } from '../i18n/LanguageContext'
+import { isProductivityRecorder } from '../Utils/assemblyAreas'
+import { homeProductivityCardVisible } from '../config/pageTabAccess'
 import { buildAttendanceHubStats } from '../Utils/attendanceHubStats'
 
 function formatCost(value: number | null, loading: boolean): string {
@@ -50,7 +52,8 @@ export function useGlobalHubSections(refreshKey = 0) {
   const nav = useNavigation()
   const { canAccess: canAccessSettings } = useCanAccessSettings()
   const { canReport } = useCanReportMissingPart()
-  const { hasRole } = useAuth()
+  const { hasRole, profile } = useAuth()
+  const recorder = isProductivityRecorder(profile?.system_role_code, profile?.system_role_name_ar)
   const { canViewModule, loading: permsLoading, loadError } = usePermissions()
   const { canViewPage, loading: pagesLoading } = useCanViewPage()
   const loading = permsLoading || pagesLoading
@@ -88,8 +91,8 @@ export function useGlobalHubSections(refreshKey = 0) {
   const canManageStops = hasRole('admin', 'production')
   const go = nav.navigate
   const canLineBalancing = loading || moduleAllowed('station_operations')
-  const showHomeCard = (card: Parameters<typeof canViewPage>[0], moduleOk = true) =>
-    loading || loadError || (canViewPage(card) && moduleOk)
+  const showHomeCard = (card: Parameters<typeof canViewPage>[0]) =>
+    loading || loadError || homeProductivityCardVisible(card, canViewPage(card), recorder)
 
   /** ترتيب تدفق العمل: تخطيط → إنتاج → جودة → عمالة → هندسة → دعم */
   const home: HubSection = {

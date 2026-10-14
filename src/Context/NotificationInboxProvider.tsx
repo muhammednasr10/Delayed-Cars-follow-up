@@ -1,6 +1,6 @@
-import { createContext, useContext, useEffect, type ReactNode } from 'react'
+import { createContext, useContext, type ReactNode } from 'react'
 import { useAppNotificationInbox } from '../hooks/useAppNotificationInbox'
-import { registerBadgeBackgroundSync, syncAppIconBadge } from '../Utils/appIconBadge'
+import { useNotificationBadgeSync } from '../hooks/useNotificationBadgeSync'
 
 type InboxValue = ReturnType<typeof useAppNotificationInbox>
 
@@ -8,23 +8,7 @@ const NotificationInboxContext = createContext<InboxValue | null>(null)
 
 export function NotificationInboxProvider({ children }: { children: ReactNode }) {
   const inbox = useAppNotificationInbox()
-
-  useEffect(() => {
-    void syncAppIconBadge(inbox.total)
-  }, [inbox.total])
-
-  useEffect(() => {
-    void registerBadgeBackgroundSync()
-    const onHide = () => {
-      if (document.visibilityState === 'hidden') void syncAppIconBadge(inbox.total)
-    }
-    document.addEventListener('visibilitychange', onHide)
-    window.addEventListener('pagehide', onHide)
-    return () => {
-      document.removeEventListener('visibilitychange', onHide)
-      window.removeEventListener('pagehide', onHide)
-    }
-  }, [inbox.total])
+  useNotificationBadgeSync(inbox.total)
 
   return <NotificationInboxContext.Provider value={inbox}>{children}</NotificationInboxContext.Provider>
 }

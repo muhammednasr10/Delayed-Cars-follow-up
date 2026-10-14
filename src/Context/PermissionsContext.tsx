@@ -15,7 +15,9 @@ type PermissionsContextValue = {
 const PermissionsContext = createContext<PermissionsContextValue | undefined>(undefined)
 
 export function PermissionsProvider({ children }: { children: ReactNode }) {
-  const { session, profile, loading: authLoading } = useAuth()
+  const { session, loading: authLoading } = useAuth()
+  const userId = session?.user?.id ?? null
+  const accessToken = session?.access_token ?? null
   const [permissions, setPermissions] = useState<PermissionMap>({})
   const [loading, setLoading] = useState(false)
   const [loadError, setLoadError] = useState(false)
@@ -24,7 +26,7 @@ export function PermissionsProvider({ children }: { children: ReactNode }) {
 
   const reload = useCallback(async () => {
     if (authLoading) return
-    if (!session) {
+    if (!userId) {
       setPermissions({})
       setLoading(false)
       setLoadError(false)
@@ -32,37 +34,49 @@ export function PermissionsProvider({ children }: { children: ReactNode }) {
       return
     }
 
-    const cacheKey = profile?.id ?? session.user.id
-    if (loadedForRef.current === cacheKey && inflightRef.current) {
+    if (loadedForRef.current === userId) return
+    if (inflightRef.current) {
       await inflightRef.current
       return
     }
 
-    const firstLoad = loadedForRef.current !== cacheKey
-    if (firstLoad) setLoading(true)
+    setLoading(true)
 
     const task = (async () => {
-      try {
+      const loadOnce = async () => {
         const next = await fetchCurrentUserPermissions()
         setPermissions(next)
         setLoadError(false)
-        loadedForRef.current = cacheKey
+        loadedForRef.current = userId
+      }
+      try {
+        await loadOnce()
       } catch (err) {
-        console.error('Failed to load permissions:', err)
-        setLoadError(true)
+        try {
+          await new Promise(resolve => window.setTimeout(resolve, 800))
+          const { ensureFreshSession } = await import('../services/authService')
+          await ensureFreshSession()
+          await loadOnce()
+        } catch (retryErr) {
+          console.error('Failed to load permissions:', retryErr ?? err)
+          if (loadedForRef.current !== userId) setLoadError(true)
+        }
       } finally {
-        if (firstLoad) setLoading(false)
+        setLoading(false)
       }
     })()
 
     inflightRef.current = task
-    await task
-    inflightRef.current = null
-  }, [authLoading, session, profile?.id])
+    try {
+      await task
+    } finally {
+      inflightRef.current = null
+    }
+  }, [authLoading, userId])
 
   useEffect(() => {
     void reload()
-  }, [reload])
+  }, [reload, accessToken])
 
   const hasPermission = useCallback(
     (module: string, action: string) => {

@@ -50,7 +50,7 @@ type NavState = {
   sidebarOpen: boolean
 }
 
-type NavigatePatch = Partial<
+export type NavigatePatch = Partial<
   Pick<
     NavState,
     | 'department'
