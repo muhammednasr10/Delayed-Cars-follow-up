@@ -1,4 +1,4 @@
-export const IPL_OPERATION_KINDS = ['تركيب', 'فرد', 'فك', 'شد', 'ربط', 'لصق', 'ضبط', 'فحص'] as const
+export const IPL_OPERATION_KINDS = ['تركيب', 'فرد', 'تعزيم', 'فك', 'شد', 'ربط', 'لصق', 'ضبط', 'فحص'] as const
 
 export type IplOperationKind = (typeof IPL_OPERATION_KINDS)[number]
 

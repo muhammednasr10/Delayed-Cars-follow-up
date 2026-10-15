@@ -9,6 +9,7 @@ describe('ipl operation kind', () => {
 
   it('reads the verb back from the operation name', () => {
     expect(iplOperationKindFromName('فرد سقف')).toBe('فرد')
+    expect(iplOperationKindFromName('تعزيم خرطوم')).toBe('تعزيم')
     expect(iplOperationKindFromName('أكر')).toBe('')
   })
 })

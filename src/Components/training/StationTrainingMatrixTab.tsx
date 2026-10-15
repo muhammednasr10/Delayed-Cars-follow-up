@@ -46,6 +46,8 @@ const LEVEL_TONE: Record<TrainingLevel, string> = {
 }
 
 const LEVEL_SHORT = ['L1', 'L2', 'L3', 'L4'] as const
+const ROW_HEIGHT = 52
+const ROW_OVERSCAN = 8
 
 function sortStations(a: Station, b: Station) {
   const oa = a.sort_order ?? 0
@@ -104,7 +106,8 @@ export function StationTrainingMatrixTab({ employees, stations, levels, canManag
   const topInnerRef = useRef<HTMLDivElement>(null)
   const scrollLock = useRef(false)
   const employeeBoxRef = useRef<HTMLDivElement>(null)
-  const rowRefs = useRef<Map<string, HTMLTableRowElement>>(new Map())
+  const [scrollTop, setScrollTop] = useState(0)
+  const [viewportHeight, setViewportHeight] = useState(520)
 
   const allActiveEmployees = useMemo(() => activeEmployeeList(employees), [employees])
   const activeEmployeeIds = useMemo(() => new Set(allActiveEmployees.map(e => e.id)), [allActiveEmployees])
@@ -158,15 +161,14 @@ export function StationTrainingMatrixTab({ employees, stations, levels, canManag
     }
     let assigned = 0
     let atLeastL3 = 0
+    const columns = new Set(matrixColumns.map(col => `${col.stationId}:${col.levelTrack}`))
 
-    for (const emp of allActiveEmployees) {
-      for (const col of matrixColumns) {
-        const level = levelMap.get(cellKey(emp.id, col.stationId, col.levelTrack))?.level ?? null
-        if (!level) continue
-        assigned++
-        byLevel[level]++
-        if (level === 'level_3' || level === 'level_4') atLeastL3++
-      }
+    for (const row of levelMap.values()) {
+      if (!activeEmployeeIds.has(row.employeeId)) continue
+      if (!columns.has(`${row.stationId}:${row.levelTrack}`)) continue
+      assigned++
+      byLevel[row.level]++
+      if (row.level === 'level_3' || row.level === 'level_4') atLeastL3++
     }
 
     const coverage = totalSlots > 0 ? Math.round((assigned / totalSlots) * 100) : 0
@@ -183,7 +185,7 @@ export function StationTrainingMatrixTab({ employees, stations, levels, canManag
       byLevel,
       atLeastL3
     }
-  }, [allActiveEmployees, matrixColumns, matrixStations.length, levelMap])
+  }, [activeEmployeeIds, allActiveEmployees.length, levelMap, matrixColumns, matrixStations.length])
 
   const syncTopWidth = useCallback(() => {
     if (tableRef.current && topInnerRef.current) {
@@ -199,7 +201,17 @@ export function StationTrainingMatrixTab({ employees, stations, levels, canManag
     const ro = new ResizeObserver(() => syncTopWidth())
     if (tableRef.current) ro.observe(tableRef.current)
     return () => ro.disconnect()
-  }, [syncTopWidth])
+  }, [syncTopWidth, allActiveEmployees.length])
+
+  useEffect(() => {
+    const el = bottomScrollRef.current
+    if (!el) return
+    const measure = () => setViewportHeight(el.clientHeight || 520)
+    measure()
+    const ro = new ResizeObserver(measure)
+    ro.observe(el)
+    return () => ro.disconnect()
+  }, [allActiveEmployees.length, matrixColumns.length])
 
   useEffect(() => {
     function onDocClick(e: MouseEvent) {
@@ -227,9 +239,16 @@ export function StationTrainingMatrixTab({ employees, stations, levels, canManag
 
   useEffect(() => {
     if (!quickEmployeeId) return
-    const row = rowRefs.current.get(quickEmployeeId)
-    row?.scrollIntoView({ block: 'nearest', behavior: 'smooth' })
-  }, [quickEmployeeId, matrixColumns])
+    const index = allActiveEmployees.findIndex(emp => emp.id === quickEmployeeId)
+    if (index < 0) return
+    bottomScrollRef.current?.scrollTo({ top: index * ROW_HEIGHT, behavior: 'smooth' })
+  }, [quickEmployeeId, allActiveEmployees])
+
+  function onBodyScroll(event: React.UIEvent<HTMLDivElement>) {
+    syncHorizontal(event.currentTarget)
+    const top = event.currentTarget.scrollTop
+    setScrollTop(prev => (Math.floor(prev / ROW_HEIGHT) === Math.floor(top / ROW_HEIGHT) ? prev : top))
+  }
 
   function syncHorizontal(source: HTMLDivElement | null) {
     if (!source || scrollLock.current) return
@@ -289,6 +308,22 @@ export function StationTrainingMatrixTab({ employees, stations, levels, canManag
   const pickerColumn = picker
     ? matrixColumns.find(c => c.stationId === picker.stationId && c.levelTrack === picker.levelTrack)
     : null
+
+  const startIndex = Math.max(0, Math.floor(scrollTop / ROW_HEIGHT) - ROW_OVERSCAN)
+  const visibleCount = Math.ceil(viewportHeight / ROW_HEIGHT) + ROW_OVERSCAN * 2
+  const visibleEmployees = allActiveEmployees.slice(
+    startIndex,
+    Math.min(allActiveEmployees.length, startIndex + visibleCount)
+  )
+  const matrixMinWidth = 168 + matrixColumns.length * 76
+  const cellClickTitle = t('training.stationMatrix.cellClick')
+  const levelText: Record<TrainingLevel, string> = {
+    level_0: '—',
+    level_1: t('training.stationMatrix.lvl.level_1'),
+    level_2: t('training.stationMatrix.lvl.level_2'),
+    level_3: t('training.stationMatrix.lvl.level_3'),
+    level_4: t('training.stationMatrix.lvl.level_4')
+  }
 
   const summaryCards = [
     {
@@ -565,13 +600,14 @@ export function StationTrainingMatrixTab({ employees, stations, levels, canManag
             </div>
             <div
               ref={bottomScrollRef}
-              onScroll={e => syncHorizontal(e.currentTarget)}
-              className="overflow-x-auto rounded-b-xl border border-t-0 border-slate-700/70 bg-slate-900/80 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden sm:rounded-b-2xl"
+              onScroll={onBodyScroll}
+              className="max-h-[calc(100dvh-16rem)] overflow-auto rounded-b-xl border border-t-0 border-slate-700/70 bg-slate-900/80 sm:rounded-b-2xl"
             >
+              <div style={{ height: allActiveEmployees.length * ROW_HEIGHT, minWidth: matrixMinWidth, position: 'relative' }}>
               <table
                 ref={tableRef}
                 className="w-full table-fixed border-separate border-spacing-0 text-start text-sm"
-                style={{ minWidth: 168 + matrixColumns.length * 76 }}
+                style={{ position: 'absolute', top: startIndex * ROW_HEIGHT, minWidth: matrixMinWidth }}
               >
                 <colgroup>
                   <col style={{ width: 168 }} />
@@ -580,17 +616,14 @@ export function StationTrainingMatrixTab({ employees, stations, levels, canManag
                   ))}
                 </colgroup>
                 <tbody>
-                  {allActiveEmployees.map(emp => (
+                  {visibleEmployees.map(emp => (
                     <tr
                       key={emp.id}
-                      ref={el => {
-                        if (el) rowRefs.current.set(emp.id, el)
-                        else rowRefs.current.delete(emp.id)
-                      }}
-                      className={`border-t border-slate-800 ${emp.id === quickEmployeeId ? 'bg-cyan-500/5' : ''}`}
+                      style={{ height: ROW_HEIGHT }}
+                      className={emp.id === quickEmployeeId ? 'bg-cyan-500/5' : undefined}
                     >
                       <td className="sticky start-0 z-10 min-w-[168px] border-b border-e border-slate-800 bg-slate-900 px-3 py-2 font-bold text-slate-100">
-                        <span className="block">{emp.fullName}</span>
+                        <span className="block truncate">{emp.fullName}</span>
                         <span className="block text-[10px] text-slate-500" dir="ltr">
                           {emp.employeeCode}
                         </span>
@@ -606,12 +639,12 @@ export function StationTrainingMatrixTab({ employees, stations, levels, canManag
                               type="button"
                               disabled={!canManage || busy}
                               onClick={e => openPicker(e, emp.id, col.stationId, col.levelTrack)}
-                              className={`flex h-9 w-full min-w-[60px] items-center justify-center rounded-md px-0.5 text-[10px] font-black ring-1 ${tone} ${
+                              className={`flex h-9 w-full items-center justify-center rounded-md px-0.5 text-[10px] font-black ring-1 ${tone} ${
                                 canManage ? 'cursor-pointer hover:brightness-125' : 'cursor-default'
                               } ${busy ? 'opacity-50' : ''}`}
-                              title={t('training.stationMatrix.cellClick')}
+                              title={cellClickTitle}
                             >
-                              {current ? t(`training.stationMatrix.lvl.${current}`) : '—'}
+                              {current ? levelText[current] : '—'}
                             </button>
                           </td>
                         )
@@ -620,6 +653,7 @@ export function StationTrainingMatrixTab({ employees, stations, levels, canManag
                   ))}
                 </tbody>
               </table>
+              </div>
             </div>
           </>
         )}

@@ -1,6 +1,14 @@
 import { describe, expect, it } from 'vitest'
 import type { BomItemDetail } from '../Types/bom'
-import { groupIplFittedPartsByStation, iplPartIdFromNotes, iplPartNote, iplStationKey } from './iplStationParts'
+import {
+  groupIplFittedPartsByStation,
+  iplPartCopyFromNotes,
+  iplPartIdFromNotes,
+  iplPartNote,
+  iplPartNumberFromNotes,
+  iplStationKey,
+  mergeFittedPartsAcrossModels
+} from './iplStationParts'
 
 function row(partial: Partial<BomItemDetail> & Pick<BomItemDetail, 'id' | 'part_id'>): BomItemDetail {
   return {
@@ -18,6 +26,11 @@ function row(partial: Partial<BomItemDetail> & Pick<BomItemDetail, 'id' | 'part_
 describe('ipl station parts', () => {
   it('round-trips the part id stored on an operation', () => {
     expect(iplPartIdFromNotes(iplPartNote('part-1'))).toBe('part-1')
+    expect(iplPartIdFromNotes(iplPartNote('part-1', 2))).toBe('part-1')
+    expect(iplPartCopyFromNotes(iplPartNote('part-1'))).toBe(0)
+    expect(iplPartCopyFromNotes(iplPartNote('part-1', 2))).toBe(2)
+    expect(iplPartIdFromNotes(iplPartNote('part-1', 0, '60-T8'))).toBe('part-1')
+    expect(iplPartNumberFromNotes(iplPartNote('part-1', 2, '60-T8'))).toBe('60-T8')
     expect(iplPartIdFromNotes('رف رك ي')).toBeNull()
   })
 
@@ -57,5 +70,34 @@ describe('ipl station parts', () => {
     const pbs01 = grouped.get(iplStationKey('PBS-01')) ?? []
     expect(pbs01.map(p => p.partNumber)).toEqual(['A-1'])
     expect(grouped.get(iplStationKey('PBS-02'))?.map(p => p.partNumber)).toEqual(['B-1'])
+  })
+
+  it('keeps each selected model’s part number instead of one number for all', () => {
+    const grouped = mergeFittedPartsAcrossModels(
+      [
+        row({
+          id: 'a',
+          part_id: 'p1',
+          part_number: '60-T4',
+          part_name_ar: 'خرطوم',
+          vehicle_model_name: 'T4',
+          quantity: 1
+        }),
+        row({
+          id: 'b',
+          part_id: 'p1',
+          part_number: '60-T8',
+          part_name_ar: 'خرطوم',
+          vehicle_model_name: 'T8',
+          quantity: 2
+        })
+      ],
+      ['T4', 'T8']
+    )
+    const part = grouped.get(iplStationKey('PBS-01'))?.[0]
+    expect(part?.models).toEqual([
+      { modelName: 'T4', partNumber: '60-T4', quantity: 1 },
+      { modelName: 'T8', partNumber: '60-T8', quantity: 2 }
+    ])
   })
 })

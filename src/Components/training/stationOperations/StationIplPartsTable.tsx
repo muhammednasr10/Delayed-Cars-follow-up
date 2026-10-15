@@ -1,4 +1,4 @@
-import { iplPartIdFromNotes, type IplStationPart } from '../../../Utils/iplStationParts'
+import { iplPartCopyFromNotes, iplPartIdFromNotes, type IplStationPart } from '../../../Utils/iplStationParts'
 import { formatStationWorkerDisplayCode } from '../../../Utils/stationHierarchy'
 import type { ParentStationOperationsGroup, WorkerOperationsGroup } from '../../../Types/timeStudy'
 
@@ -10,7 +10,7 @@ function workerLineLabel(worker: WorkerOperationsGroup): string {
 
 function assignedWorkerId(parent: ParentStationOperationsGroup, partId: string): string {
   for (const worker of parent.workers) {
-    if (worker.operations.some(op => iplPartIdFromNotes(op.notes) === partId)) return worker.stationId
+    if (worker.operations.some(op => iplPartIdFromNotes(op.notes) === partId && iplPartCopyFromNotes(op.notes) === 0)) return worker.stationId
   }
   return ''
 }
