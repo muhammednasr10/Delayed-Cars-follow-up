@@ -53,7 +53,7 @@ async function resolveMasterStationRow(masterOrWorker: Station): Promise<Station
 export async function syncWorkerLinesToHeadcount(
   masterOrWorker: Station,
   headcount?: number | null
-): Promise<Station[]> {
+): Promise<{ lines: Station[]; changed: boolean }> {
   const master = await resolveMasterStationRow(masterOrWorker)
   const target = resolveHeadcountTarget(master, headcount)
   const base = normalizeStationReferenceCode(master.station_number)
