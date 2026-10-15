@@ -74,7 +74,9 @@ export type ProductivityTab = 'productivity' | 'stops'
 
 export type ProductivitySubTab = 'daily' | 'monthly'
 
-export type AttendanceSubTab = 'monthly' | 'yearly' | 'today'
+export type AttendanceSubTab = 'monthly' | 'yearly' | 'today' | 'report'
+
+export const ATTENDANCE_SUB_TABS: AttendanceSubTab[] = ['monthly', 'yearly', 'today', 'report']
 
 /** تبويبات قسم التخطيط */
 export const PLANNING_TAB_ORDER = ['plan', 'workDays', 'tracking', 'orders'] as const

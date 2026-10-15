@@ -93,6 +93,7 @@ export async function syncWorkerLinesToHeadcount(
   for (const row of children ?? []) register(row)
   for (const row of bySuffix ?? []) register(row)
 
+  let changed = false
   const ensured: Station[] = []
   for (let i = 1; i <= target; i++) {
     const workerNum = composeStationNumber(base, `L${i}`)
@@ -104,8 +105,10 @@ export async function syncWorkerLinesToHeadcount(
           is_active: true,
           ...(linkParentId ? { parent_station_id: linkParentId } : {})
         })
+        changed = true
       } else if (linkParentId && worker.parent_station_id !== linkParentId) {
         worker = await updateStation(worker.id, { parent_station_id: linkParentId })
+        changed = true
       }
       workersByIndex.set(i, worker)
       ensured.push(worker)
@@ -128,6 +131,7 @@ export async function syncWorkerLinesToHeadcount(
             is_active: true,
             ...(linkParentId ? { parent_station_id: linkParentId } : {})
           })
+      if (!existing.is_active || (linkParentId && existing.parent_station_id !== linkParentId)) changed = true
     } else {
       worker = await createStation({
         station_number: workerNum,
@@ -139,6 +143,7 @@ export async function syncWorkerLinesToHeadcount(
         sort_order: (master.sort_order ?? 0) + i,
         is_active: master.is_active !== false
       })
+      changed = true
     }
 
     workersByIndex.set(i, worker)
@@ -152,28 +157,33 @@ export async function syncWorkerLinesToHeadcount(
     if (masterOrWorker.id !== l1.id) moveFromIds.add(masterOrWorker.id)
     if (master.id !== l1.id && master.id !== masterOrWorker.id) moveFromIds.add(master.id)
     for (const fromId of moveFromIds) {
-      const { error: moveErr } = await client()
+      const { data: moved, error: moveErr } = await client()
         .from('station_operations')
         .update({ station_id: l1.id })
         .eq('station_id', fromId)
         .eq('is_active', true)
+        .select('id')
       if (moveErr) throw new Error(moveErr.message)
+      if ((moved ?? []).length > 0) changed = true
     }
   }
 
   for (const [idx, worker] of workersByIndex) {
     if (idx <= target || !worker.is_active) continue
     const opCount = await countActiveOperations(worker.id)
-    if (opCount === 0) await deactivateStation(worker.id)
+    if (opCount === 0) {
+      await deactivateStation(worker.id)
+      changed = true
+    }
   }
 
-  return ensured.sort(
+  return { lines: ensured.sort(
     (a, b) => (workerIndexFromStationCode(a.station_number) ?? 0) - (workerIndexFromStationCode(b.station_number) ?? 0)
-  )
+  ), changed }
 }
 
 export async function ensureFirstWorkerLine(master: Station): Promise<Station> {
-  const lines = await syncWorkerLinesToHeadcount(master)
+  const { lines } = await syncWorkerLinesToHeadcount(master)
   return lines.find(l => workerIndexFromStationCode(l.station_number) === 1) ?? lines[0] ?? master
 }
 
@@ -187,8 +197,8 @@ export async function syncAllWorkerHeadcountsFromGroups(
     if (target < 1 || countWorkerLines(parent) >= target) continue
     const master = resolveMasterStationRecord(parent, allStations)
     if (!master) continue
-    await syncWorkerLinesToHeadcount(master, target)
-    changed = true
+    const { changed: wrote } = await syncWorkerLinesToHeadcount(master, target)
+    if (wrote) changed = true
   }
   return changed
 }

@@ -100,12 +100,13 @@ function WorkerOperationsPanel({
   onDeleteOp: (op: StationOperationDetail) => void
   onMoveOp: (op: StationOperationDetail, workerStationId: string) => void
   onDeleteWorker: (worker: WorkerOperationsGroup) => void
-  onSummarySaved: () => void
+  onSummarySaved: (stationId: string, summary: string) => void
   t: (key: string, vars?: Record<string, string | number>) => string
 }) {
   const [open, setOpen] = useState(false)
   const [summary, setSummary] = useState(worker.worker1OperationsSummary ?? '')
   const [savingSummary, setSavingSummary] = useState(false)
+  const [summaryError, setSummaryError] = useState('')
   const workerRows = flattenOperationRows(parent).filter(r => r.worker.stationId === worker.stationId)
   const workerCode = formatStationWorkerDisplayCode(worker.displayCode || worker.stationNumber)
   const workerTimeMin = worker.totalWorkerTimeMinutes
@@ -116,9 +117,13 @@ function WorkerOperationsPanel({
     const prev = (worker.worker1OperationsSummary ?? '').trim()
     if (next === prev) return
     setSavingSummary(true)
+    setSummaryError('')
     try {
       await updateStationWorker1Summary(worker.stationId, next)
-      onSummarySaved()
+      setSummary(next)
+      onSummarySaved(worker.stationId, next)
+    } catch (error) {
+      setSummaryError(error instanceof Error ? error.message : t('common.error'))
     } finally {
       setSavingSummary(false)
     }
@@ -158,6 +163,7 @@ function WorkerOperationsPanel({
               onChange={e => setSummary(e.target.value)}
               onBlur={() => void saveSummary()}
             />
+            {summaryError ? <span className="text-xs text-red-300">{summaryError}</span> : null}
           </label>
         </div>
         <div className="flex flex-wrap items-center gap-2">
@@ -208,7 +214,7 @@ export function ParentStationBlock({
   onDeleteOp,
   onMoveOp,
   onDeleteWorker,
-  onReload,
+  onSummarySaved,
   iplParts,
   onAssignIplPart,
   t
@@ -223,7 +229,7 @@ export function ParentStationBlock({
   onDeleteOp: (op: StationOperationDetail) => void
   onMoveOp: (op: StationOperationDetail, workerStationId: string) => void
   onDeleteWorker: (worker: WorkerOperationsGroup) => void
-  onReload: () => void
+  onSummarySaved: (stationId: string, summary: string) => void
   iplParts?: IplStationPart[]
   onAssignIplPart?: (part: IplStationPart, workerStationId: string | null) => Promise<void>
   t: (key: string, vars?: Record<string, string | number>) => string
@@ -321,7 +327,7 @@ export function ParentStationBlock({
                 onDeleteOp={onDeleteOp}
                 onMoveOp={onMoveOp}
                 onDeleteWorker={onDeleteWorker}
-                onSummarySaved={onReload}
+                onSummarySaved={onSummarySaved}
                 t={t}
               />
             ))

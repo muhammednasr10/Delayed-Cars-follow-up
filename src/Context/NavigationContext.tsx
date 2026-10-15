@@ -20,7 +20,12 @@ import type {
   QualityTab,
   WorkerProfileTab
 } from '../Types/navigation'
-import { normalizeBomTab, SETTINGS_STATIONS_SUB_TAB_ORDER, SETTINGS_TAB_ORDER } from '../Types/navigation'
+import {
+  ATTENDANCE_SUB_TABS,
+  normalizeBomTab,
+  SETTINGS_STATIONS_SUB_TAB_ORDER,
+  SETTINGS_TAB_ORDER
+} from '../Types/navigation'
 import { PROFILE_TABS, profileTabFromWorkerTab, type ProfileTab } from '../Types/profile'
 
 type NavState = {
@@ -192,6 +197,9 @@ function loadNavState(): NavState {
       planningTab,
       planScope,
       profileTab,
+      attendanceSubTab: ATTENDANCE_SUB_TABS.includes(parsed.attendanceSubTab as AttendanceSubTab)
+        ? (parsed.attendanceSubTab as AttendanceSubTab)
+        : initialState.attendanceSubTab,
       settingsTab,
       settingsStationsSubTab,
       ...(legacyToPlanning

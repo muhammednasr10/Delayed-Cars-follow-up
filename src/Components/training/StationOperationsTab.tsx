@@ -52,7 +52,8 @@ type Props = {
   loading: boolean
   loadError: string
   canManage: boolean
-  onReload: () => Promise<void>
+  onReload: (options?: { silent?: boolean }) => Promise<void>
+  onWorkerSummarySaved: (stationId: string, summary: string) => void
   notify: (msg: string, isError?: boolean) => void
 }
 
@@ -61,7 +62,16 @@ type DeleteTarget =
   | { kind: 'worker'; workerId: string; label: string }
   | { kind: 'operation'; operationId: string; label: string }
 
-export function StationOperationsTab({ parentGroups, models, loading, loadError, canManage, onReload, notify }: Props) {
+export function StationOperationsTab({
+  parentGroups,
+  models,
+  loading,
+  loadError,
+  canManage,
+  onReload,
+  onWorkerSummarySaved,
+  notify
+}: Props) {
   const { t } = useLang()
   const [activeLine, setActiveLine] = useState<ModelLine>(MODEL_LINES[0])
   const [activeVariant, setActiveVariant] = useState('')
@@ -101,13 +111,13 @@ export function StationOperationsTab({ parentGroups, models, loading, loadError,
         const master = resolveMasterStationRecord(parent, allStations)
         if (!master) continue
         try {
-          await syncWorkerLinesToHeadcount(master, target)
-          needsReload = true
+          const { changed } = await syncWorkerLinesToHeadcount(master, target)
+          if (changed) needsReload = true
         } catch {
           // retry on next refresh
         }
       }
-      if (needsReload && !cancelled) await reload()
+      if (needsReload && !cancelled) await onReload({ silent: true })
     })()
     return () => {
       cancelled = true
@@ -161,8 +171,8 @@ export function StationOperationsTab({ parentGroups, models, loading, loadError,
     return { parentId, workerIds: workerIds.filter(id => id !== parentId) }
   }
 
-  async function reload() {
-    await onReload()
+  async function reload(options?: { silent?: boolean }) {
+    await onReload(options)
   }
 
   const lineVariantModels = useMemo(
@@ -398,7 +408,7 @@ export function StationOperationsTab({ parentGroups, models, loading, loadError,
             onDeleteWorker={worker =>
               setDeleteTarget({ kind: 'worker', workerId: worker.stationId, label: worker.displayCode })
             }
-            onReload={() => void reload()}
+            onSummarySaved={onWorkerSummarySaved}
             onAssignIplPart={async (part, workerStationId) => {
               if (!selectedVariantId) {
                 notify(t('operations.pickModelForIpl', { line: activeLine }), true)

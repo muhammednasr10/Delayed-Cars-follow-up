@@ -1,9 +1,10 @@
 import { useState } from 'react'
-import { CalendarClock, CalendarRange, ClipboardList } from 'lucide-react'
+import { BarChart3, CalendarClock, CalendarRange, ClipboardList } from 'lucide-react'
 import { useLang } from '../i18n/LanguageContext'
 import { useNavigation } from '../Context/NavigationContext'
 import { EmployeeAttendanceTab } from './EmployeeAttendanceTab'
 import { EmployeeYearAttendanceTab } from './EmployeeYearAttendanceTab'
+import { TodayAttendanceReportTab } from './TodayAttendanceReportTab'
 import { TodayAttendanceTab } from './TodayAttendanceTab'
 import type { Employee } from '../Types/employee'
 
@@ -20,7 +21,8 @@ export function WorkforceAttendanceSection({ employees, canManage }: Props) {
   const subTabs = [
     { key: 'monthly' as const, label: t('training.attendanceTabs.monthly'), icon: ClipboardList },
     { key: 'yearly' as const, label: t('training.attendanceTabs.yearly'), icon: CalendarRange },
-    { key: 'today' as const, label: t('training.attendanceTabs.today'), icon: CalendarClock }
+    { key: 'today' as const, label: t('training.attendanceTabs.today'), icon: CalendarClock },
+    { key: 'report' as const, label: t('training.attendanceTabs.report'), icon: BarChart3 }
   ]
 
   return (
@@ -62,6 +64,7 @@ export function WorkforceAttendanceSection({ employees, canManage }: Props) {
             onSaved={() => setMonthlyRefreshKey(k => k + 1)}
           />
         )}
+        {attendanceSubTab === 'report' && <TodayAttendanceReportTab employees={employees} />}
       </div>
     </section>
   )

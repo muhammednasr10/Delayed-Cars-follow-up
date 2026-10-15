@@ -1566,6 +1566,25 @@ export const translations = {
             chassis: 'الشاسيه',
             final: 'الفاينال'
           }
+        },
+        report: {
+          title: 'تقرير النهاردة',
+          hint: 'الكفاءة = (حاضر + تأخير) من إجمالي العدد. المدير والمهندس يظهروا في صفهم حتى لو تبعيتهم على الخط.',
+          loadError: 'تعذر تحميل تقرير اليوم.',
+          group: 'المجموعة',
+          headcount: 'العدد',
+          efficiency: 'الكفاءة',
+          totalRow: 'الإجمالي',
+          groups: {
+            trimA: 'تريم أ',
+            trimB: 'تريم ب',
+            chassis: 'الشاسيه',
+            final: 'الفاينال',
+            dm: 'DM',
+            managers: 'مديرين',
+            engineers: 'مهندسين',
+            other: 'غير مصنف'
+          }
         }
       },
       monthEditor: 'تسجيل الشهر يوماً بيوم',
@@ -2580,7 +2599,7 @@ export const translations = {
           byLevel: 'حسب أعلى مستوى'
         }
       },
-      attendanceTabs: { monthly: 'شهري', yearly: 'سنوي', today: 'تسجيل اليوم' },
+      attendanceTabs: { monthly: 'شهري', yearly: 'سنوي', today: 'تسجيل اليوم', report: 'تقرير النهاردة' },
       opsQual: {
         station: 'المحطة',
         searchPh: 'بحث باسم العملية…',
@@ -2936,7 +2955,18 @@ export const translations = {
         suggestFromBom: 'اقتراح من BOM المحطة',
         linked: 'تم ربط الجزء',
         removed: 'تم إزالة الربط',
-        suggested: 'تم إضافة {n} جزء من BOM'
+        suggested: 'تم إضافة {n} جزء من BOM',
+        hint: 'الأجزاء ومحطاتها من IPL. اختَر نوع العملية والعامل، فتظهر العملية تحت هذا العامل في Line Balancing.',
+        pickModel: 'اختر موديل الفرع لعرض أجزاء IPL الخاصة به.',
+        noIplParts: 'لا توجد أجزاء مركّبة لهذا الموديل في IPL.',
+        noStation: 'المحطة غير موجودة في Line Balancing.',
+        noWorkers: 'أضف خطوط العمال لهذه المحطة من تبويب العمليات أولاً.',
+        pickKind: 'اختر نوع العملية',
+        kind: 'نوع العملية',
+        worker: 'العامل',
+        partCount: '{n} جزء',
+        assigned: 'نزلت العملية تحت العامل',
+        cleared: 'تم إلغاء العملية من العامل'
       },
       dashTitle: 'هندسة الإنتاج',
       dashOps: 'إجمالي العمليات',
@@ -5403,6 +5433,25 @@ export const translations = {
             chassis: 'Chassis',
             final: 'Final'
           }
+        },
+        report: {
+          title: "Today's report",
+          hint: 'Efficiency = (present + late) of the headcount. Managers and engineers stay in their own row even when assigned to a line.',
+          loadError: 'Could not load today’s report.',
+          group: 'Group',
+          headcount: 'Headcount',
+          efficiency: 'Efficiency',
+          totalRow: 'Total',
+          groups: {
+            trimA: 'Trim A',
+            trimB: 'Trim B',
+            chassis: 'Chassis',
+            final: 'Final',
+            dm: 'DM',
+            managers: 'Managers',
+            engineers: 'Engineers',
+            other: 'Unassigned'
+          }
         }
       },
       monthEditor: 'Month (day by day)',
@@ -6426,7 +6475,7 @@ export const translations = {
           byLevel: 'By highest level'
         }
       },
-      attendanceTabs: { monthly: 'Monthly', yearly: 'Yearly', today: 'Today' },
+      attendanceTabs: { monthly: 'Monthly', yearly: 'Yearly', today: 'Today', report: "Today's report" },
       opsQual: {
         station: 'Station',
         searchPh: 'Search operation…',
@@ -6781,7 +6830,18 @@ export const translations = {
         suggestFromBom: 'Suggest from station BOM',
         linked: 'Part linked',
         removed: 'Link removed',
-        suggested: 'Added {n} parts from BOM'
+        suggested: 'Added {n} parts from BOM',
+        hint: 'Parts and stations come from IPL. Pick the operation type and the worker, and the operation is added under that worker in Line Balancing.',
+        pickModel: 'Choose a variant to load its IPL parts.',
+        noIplParts: 'This model has no fitted IPL parts.',
+        noStation: 'This station is not in Line Balancing.',
+        noWorkers: 'Add worker lines for this station from the Operations tab first.',
+        pickKind: 'Choose the operation type',
+        kind: 'Operation type',
+        worker: 'Worker',
+        partCount: '{n} parts',
+        assigned: 'Operation added under the worker',
+        cleared: 'Operation removed from the worker'
       },
       dashTitle: 'Production engineering',
       dashOps: 'Total operations',

@@ -23,7 +23,7 @@ export function LineBalancingPage() {
   const { lineBalancingTab: tab } = useNavigation()
 
   const [models, setModels] = useState<VehicleModel[]>([])
-  const { parentGroups, loading, error, reload } = useStationOperations()
+  const { parentGroups, loading, error, reload, patchWorkerOperationsSummary } = useStationOperations()
   const [success, setSuccess] = useState('')
   const [errorMsg, setErrorMsg] = useState('')
 
@@ -64,10 +64,20 @@ export function LineBalancingPage() {
           loadError={error}
           canManage={canManage}
           onReload={reload}
+          onWorkerSummarySaved={patchWorkerOperationsSummary}
           notify={notify}
         />
       )}
-      {tab === 'opParts' && <OperationPartsTab canManage={canManage} notify={notify} />}
+      {tab === 'opParts' && (
+        <OperationPartsTab
+          canManage={canManage}
+          models={models}
+          parentGroups={parentGroups}
+          groupsLoading={loading}
+          onChanged={() => reload({ silent: true })}
+          notify={notify}
+        />
+      )}
       {tab === 'timeStudy' && <TimeStudyTab models={models} canManage={canManage} notify={notify} />}
       {tab === 'routing' && <ModelRoutingTab models={models} canManage={canManage} notify={notify} />}
       {tab === 'manpower' && <ManpowerAllocationTab models={models} canManage={canManage} notify={notify} />}

@@ -8,6 +8,7 @@ import type { TrainingLevel } from '../../Types/enums'
 import type { Employee } from '../../Types/employee'
 import type { EmployeeStationLevel } from '../../Types/training'
 import type { Station } from '../../Types/settings'
+import { workerLineCommonName } from '../../Utils/workerLineCommonName'
 
 type Props = {
   employees: Employee[]
@@ -69,14 +70,14 @@ function masterStations(stations: Station[]) {
   return stations.filter(s => s.is_active && !s.parent_station_id).sort(sortStations)
 }
 
-function buildMatrixColumns(stations: Station[]): MatrixColumn[] {
-  return stations.flatMap(st =>
+function buildMatrixColumns(masters: Station[], allStations: Station[]): MatrixColumn[] {
+  return masters.flatMap(st =>
     LEVEL_SHORT.map((_, idx) => {
       const levelTrack = idx + 1
       return {
         stationId: st.id,
         stationNumber: st.station_number,
-        stationName: st.station_name,
+        stationName: workerLineCommonName(allStations, st, levelTrack),
         levelTrack,
         label: stationColLabel(st.station_number, levelTrack)
       }
@@ -97,9 +98,11 @@ export function StationTrainingMatrixTab({ employees, stations, levels, canManag
   const [detailOpen, setDetailOpen] = useState(false)
 
   const topScrollRef = useRef<HTMLDivElement>(null)
+  const headerScrollRef = useRef<HTMLDivElement>(null)
   const bottomScrollRef = useRef<HTMLDivElement>(null)
   const tableRef = useRef<HTMLTableElement>(null)
   const topInnerRef = useRef<HTMLDivElement>(null)
+  const scrollLock = useRef(false)
   const employeeBoxRef = useRef<HTMLDivElement>(null)
   const rowRefs = useRef<Map<string, HTMLTableRowElement>>(new Map())
 
@@ -112,8 +115,14 @@ export function StationTrainingMatrixTab({ employees, stations, levels, canManag
     return allMasterStations.filter(s => s.id === stationFilter)
   }, [allMasterStations, stationFilter])
 
-  const matrixColumns = useMemo(() => buildMatrixColumns(matrixStations), [matrixStations])
-  const allVirtualColumns = useMemo(() => buildMatrixColumns(allMasterStations), [allMasterStations])
+  const matrixColumns = useMemo(
+    () => buildMatrixColumns(matrixStations, stations),
+    [matrixStations, stations]
+  )
+  const allVirtualColumns = useMemo(
+    () => buildMatrixColumns(allMasterStations, stations),
+    [allMasterStations, stations]
+  )
 
   const levelMap = useMemo(() => {
     const map = new Map<string, EmployeeStationLevel>()
@@ -222,16 +231,14 @@ export function StationTrainingMatrixTab({ employees, stations, levels, canManag
     row?.scrollIntoView({ block: 'nearest', behavior: 'smooth' })
   }, [quickEmployeeId, matrixColumns])
 
-  function onTopScroll() {
-    if (topScrollRef.current && bottomScrollRef.current) {
-      bottomScrollRef.current.scrollLeft = topScrollRef.current.scrollLeft
+  function syncHorizontal(source: HTMLDivElement | null) {
+    if (!source || scrollLock.current) return
+    scrollLock.current = true
+    const left = source.scrollLeft
+    for (const el of [topScrollRef.current, headerScrollRef.current, bottomScrollRef.current]) {
+      if (el && el !== source && el.scrollLeft !== left) el.scrollLeft = left
     }
-  }
-
-  function onBottomScroll() {
-    if (topScrollRef.current && bottomScrollRef.current) {
-      topScrollRef.current.scrollLeft = bottomScrollRef.current.scrollLeft
-    }
+    scrollLock.current = false
   }
 
   async function applyLevel(employeeId: string, stationId: string, levelTrack: number, target: TrainingLevel | null) {
@@ -430,7 +437,7 @@ export function StationTrainingMatrixTab({ employees, stations, levels, canManag
                 <option value="">{t('training.stationMatrix.quickEdit.pickStation')}</option>
                 {allVirtualColumns.map(col => (
                   <option key={`${col.stationId}:${col.levelTrack}`} value={`${col.stationId}:${col.levelTrack}`}>
-                    {col.label} — {col.stationName}
+                    {col.stationName ? `${col.label} — ${col.stationName}` : col.label}
                   </option>
                 ))}
               </select>
@@ -498,43 +505,80 @@ export function StationTrainingMatrixTab({ employees, stations, levels, canManag
         </div>
       </div>
 
-      <div className="card-industrial overflow-hidden">
+      <div>
         {allActiveEmployees.length === 0 || matrixColumns.length === 0 ? (
-          <EmptyState
-            title={t('training.stationMatrix.empty')}
-            hint={canManage ? t('training.stationMatrix.emptyHint') : undefined}
-          />
+          <div className="card-industrial">
+            <EmptyState
+              title={t('training.stationMatrix.empty')}
+              hint={canManage ? t('training.stationMatrix.emptyHint') : undefined}
+            />
+          </div>
         ) : (
           <>
-            <div
-              ref={topScrollRef}
-              onScroll={onTopScroll}
-              className="overflow-x-auto border-b border-slate-800"
-              aria-hidden
-            >
-              <div ref={topInnerRef} className="h-3" />
-            </div>
-            <div ref={bottomScrollRef} onScroll={onBottomScroll} className="overflow-x-auto">
-              <table ref={tableRef} className="w-full border-collapse text-start text-sm">
-                <thead className="bg-slate-950/90">
-                  <tr>
-                    <th className="sticky start-0 z-20 min-w-[140px] border-b border-slate-800 bg-slate-950/90 px-3 py-2 text-start text-xs font-black uppercase text-slate-400">
-                      {t('training.rec.employee')}
-                    </th>
+            <div className="sticky top-0 z-30 rounded-t-xl border border-b-0 border-slate-700/70 bg-slate-950 sm:rounded-t-2xl">
+              <div
+                ref={topScrollRef}
+                onScroll={e => syncHorizontal(e.currentTarget)}
+                className="overflow-x-auto border-b border-slate-800 bg-slate-950"
+                aria-hidden
+              >
+                <div ref={topInnerRef} className="h-3" />
+              </div>
+              <div
+                ref={headerScrollRef}
+                onScroll={e => syncHorizontal(e.currentTarget)}
+                className="overflow-x-auto bg-slate-950 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+              >
+                <table
+                  className="w-full table-fixed border-separate border-spacing-0 text-start text-sm"
+                  style={{ minWidth: 168 + matrixColumns.length * 76 }}
+                >
+                  <colgroup>
+                    <col style={{ width: 168 }} />
                     {matrixColumns.map(col => (
-                      <th
-                        key={`${col.stationId}-${col.levelTrack}`}
-                        className="min-w-[64px] border-b border-slate-800 px-1 py-2 text-center text-[10px] font-bold text-slate-300"
-                        title={col.stationName}
-                      >
-                        <span className="block" dir="ltr">
-                          {col.label}
-                        </span>
-                        <span className="block truncate text-[9px] font-normal text-slate-500">{col.stationName}</span>
-                      </th>
+                      <col key={`${col.stationId}-${col.levelTrack}`} style={{ width: 76 }} />
                     ))}
-                  </tr>
-                </thead>
+                  </colgroup>
+                  <thead>
+                    <tr>
+                      <th className="sticky start-0 z-40 min-w-[168px] border-b border-e border-slate-800 bg-slate-950 px-3 py-2 text-start text-xs font-black uppercase text-slate-400">
+                        {t('training.rec.employee')}
+                      </th>
+                      {matrixColumns.map(col => (
+                        <th
+                          key={`${col.stationId}-${col.levelTrack}`}
+                          className="min-w-[76px] border-b border-slate-800 bg-slate-950 px-1 py-2 text-center text-[10px] font-bold text-slate-300"
+                          title={col.stationName}
+                        >
+                          <span className="block" dir="ltr">
+                            {col.label}
+                          </span>
+                          {col.stationName ? (
+                            <span className="block truncate text-[9px] font-normal text-slate-400">{col.stationName}</span>
+                          ) : null}
+                        </th>
+                      ))}
+                    </tr>
+                  </thead>
+                </table>
+              </div>
+            </div>
+            <div
+              ref={bottomScrollRef}
+              onScroll={e => syncHorizontal(e.currentTarget)}
+              className="overflow-x-auto rounded-b-xl border border-t-0 border-slate-700/70 bg-slate-900/80 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden sm:rounded-b-2xl"
+            >
+              <table
+                ref={tableRef}
+                className="w-full table-fixed border-separate border-spacing-0 text-start text-sm"
+                style={{ minWidth: 168 + matrixColumns.length * 76 }}
+              >
+                <colgroup>
+                  <col style={{ width: 168 }} />
+                  {matrixColumns.map(col => (
+                    <col key={`${col.stationId}-${col.levelTrack}`} style={{ width: 76 }} />
+                  ))}
+                </colgroup>
                 <tbody>
                   {allActiveEmployees.map(emp => (
                     <tr
@@ -545,7 +589,7 @@ export function StationTrainingMatrixTab({ employees, stations, levels, canManag
                       }}
                       className={`border-t border-slate-800 ${emp.id === quickEmployeeId ? 'bg-cyan-500/5' : ''}`}
                     >
-                      <td className="sticky start-0 z-10 bg-slate-900 px-3 py-2 font-bold text-slate-100">
+                      <td className="sticky start-0 z-10 min-w-[168px] border-b border-e border-slate-800 bg-slate-900 px-3 py-2 font-bold text-slate-100">
                         <span className="block">{emp.fullName}</span>
                         <span className="block text-[10px] text-slate-500" dir="ltr">
                           {emp.employeeCode}
@@ -557,7 +601,7 @@ export function StationTrainingMatrixTab({ employees, stations, levels, canManag
                         const tone = current ? LEVEL_TONE[current] : LEVEL_TONE.level_0
 
                         return (
-                          <td key={`${col.stationId}-${col.levelTrack}`} className="p-0.5 text-center">
+                          <td key={`${col.stationId}-${col.levelTrack}`} className="border-b border-slate-800 p-0.5 text-center">
                             <button
                               type="button"
                               disabled={!canManage || busy}

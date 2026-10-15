@@ -1,17 +1,23 @@
 import { isPendingBomItemId } from '../../Utils/iplModelParts'
+import { iplOperationName } from '../../Utils/iplOperationKind'
 import { iplPartIdFromNotes, iplPartNote, type IplStationPart } from '../../Utils/iplStationParts'
 import type { StationOperationDetail } from '../../Types/timeStudy'
 import { addOperationPart } from '../operationPartsService'
-import { createStationOperation, deactivateStationOperation, moveStationOperation } from './operationsCrud'
+import { createStationOperation, deactivateStationOperation, moveStationOperation, updateIplOperationLabel } from './operationsCrud'
 
 export async function assignIplPartToWorkerLine(input: {
   part: IplStationPart
   workerStationId: string | null
   parentModelId: string
   operationType: string
+  operationKind?: string
   operations: StationOperationDetail[]
 }): Promise<void> {
   const existing = input.operations.find(op => iplPartIdFromNotes(op.notes) === input.part.partId) ?? null
+  const operationNameAr = iplOperationName(
+    input.operationKind ?? '',
+    input.part.partName === '—' ? input.part.partNumber : input.part.partName
+  )
   if (!input.workerStationId) {
     if (existing) await deactivateStationOperation(existing.id)
     return
@@ -19,7 +25,7 @@ export async function assignIplPartToWorkerLine(input: {
   if (!existing) {
     const operationId = await createStationOperation(input.workerStationId, {
       toolSpec: null,
-      operationNameAr: input.part.partName === '—' ? input.part.partNumber : input.part.partName,
+      operationNameAr,
       operationNameEn: null,
       operationType: input.operationType,
       parentModelId: input.parentModelId,
@@ -45,5 +51,16 @@ export async function assignIplPartToWorkerLine(input: {
   }
   if (existing.stationId !== input.workerStationId) {
     await moveStationOperation(existing.id, input.workerStationId)
+  }
+  if (
+    existing.operationNameAr !== operationNameAr ||
+    existing.operationType !== input.operationType ||
+    existing.parentModelId !== input.parentModelId
+  ) {
+    await updateIplOperationLabel(existing.id, {
+      operationNameAr,
+      operationType: input.operationType,
+      parentModelId: input.parentModelId
+    })
   }
 }

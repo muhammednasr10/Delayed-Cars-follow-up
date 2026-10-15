@@ -52,6 +52,23 @@ async function replaceOperationHardware(operationId: string, hardware: Operation
   if (error) throw new Error(error.message)
 }
 
+export async function updateIplOperationLabel(
+  id: string,
+  input: { operationNameAr: string; operationType: string; parentModelId: string | null }
+): Promise<void> {
+  const payload = {
+    operation_name_ar: input.operationNameAr.trim(),
+    operation_type: input.operationType,
+    parent_model_id: input.parentModelId
+  }
+  let { error } = await client().from('station_operations').update(payload).eq('id', id)
+  if (error && String(error.message).includes('parent_model_id')) {
+    const { parent_model_id: _drop, ...fallback } = payload
+    ;({ error } = await client().from('station_operations').update(fallback).eq('id', id))
+  }
+  if (error) throw new Error(error.message)
+}
+
 export async function updateStationOperation(id: string, input: StationOperationUpdate): Promise<void> {
   let { error } = await client()
     .from('station_operations')
