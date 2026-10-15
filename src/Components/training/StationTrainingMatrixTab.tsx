@@ -392,141 +392,105 @@ export function StationTrainingMatrixTab({ employees, stations, levels, canManag
         </div>
       )}
 
-      <div className="card-industrial p-4">
-        <div className="flex flex-wrap items-start justify-between gap-3">
-          <p className="text-sm text-slate-400">{t('training.stationMatrix.hint')}</p>
-          <button
-            type="button"
-            onClick={() => setDetailOpen(true)}
-            className="flex shrink-0 items-center gap-2 rounded-xl bg-violet-500/15 px-4 py-2 text-sm font-black text-violet-200 ring-1 ring-violet-400/30 hover:bg-violet-500/25"
-          >
-            <ListOrdered className="h-4 w-4" />
-            {t('training.stationMatrix.detailModal.button')}
-          </button>
-        </div>
-
-        <div className="mt-4 rounded-xl border border-slate-800 bg-slate-900/40 p-4">
-          <h4 className="mb-3 text-xs font-black uppercase tracking-wide text-cyan-300">
-            {t('training.stationMatrix.quickEdit.title')}
-          </h4>
-          <div className="grid grid-cols-1 gap-3 lg:grid-cols-3">
-            <div ref={employeeBoxRef} className="relative">
-              <label className="mb-1 block text-xs text-slate-500">
-                {t('training.stationMatrix.quickEdit.employee')}
-              </label>
-              <div className="relative">
-                <Search className="pointer-events-none absolute start-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-500" />
-                <input
-                  className="input-dark ps-9"
-                  placeholder={t('training.stationMatrix.quickEdit.employeePh')}
-                  value={employeeQuery}
-                  onChange={e => {
-                    setEmployeeQuery(e.target.value)
-                    setEmployeeDropdownOpen(true)
-                    if (!e.target.value.trim()) clearQuickEmployee()
-                  }}
-                  onFocus={() => setEmployeeDropdownOpen(true)}
-                />
-                {quickEmployeeId && (
-                  <button
-                    type="button"
-                    onClick={clearQuickEmployee}
-                    className="absolute end-2 top-1/2 -translate-y-1/2 rounded p-1 text-slate-500 hover:bg-slate-800 hover:text-slate-300"
-                  >
-                    <X className="h-4 w-4" />
-                  </button>
-                )}
-              </div>
-              {employeeDropdownOpen && employeeMatches.length > 0 && (
-                <ul className="absolute z-30 mt-1 max-h-52 w-full overflow-auto rounded-xl border border-slate-700 bg-slate-900 shadow-xl">
-                  {employeeMatches.map(emp => (
-                    <li key={emp.id}>
-                      <button
-                        type="button"
-                        onClick={() => pickEmployee(emp)}
-                        className={`w-full px-3 py-2 text-start text-sm hover:bg-slate-800 ${
-                          emp.id === quickEmployeeId ? 'bg-cyan-500/10 text-cyan-200' : 'text-slate-200'
-                        }`}
-                      >
-                        <span className="block font-bold">{emp.fullName}</span>
-                        <span className="block text-[11px] text-slate-500" dir="ltr">
-                          {emp.employeeCode}
-                        </span>
-                      </button>
-                    </li>
-                  ))}
-                </ul>
-              )}
-            </div>
-
-            <div>
-              <label className="mb-1 block text-xs text-slate-500">
-                {t('training.stationMatrix.quickEdit.station')}
-              </label>
-              <select
-                className="input-dark"
-                value={quickVirtualKey}
-                disabled={!quickEmployeeId}
-                onChange={e => setQuickVirtualKey(e.target.value)}
-              >
-                <option value="">{t('training.stationMatrix.quickEdit.pickStation')}</option>
-                {allVirtualColumns.map(col => (
-                  <option key={`${col.stationId}:${col.levelTrack}`} value={`${col.stationId}:${col.levelTrack}`}>
-                    {col.stationName ? `${col.label} — ${col.stationName}` : col.label}
-                  </option>
-                ))}
-              </select>
-            </div>
-
-            <div>
-              <label className="mb-1 block text-xs text-slate-500">{t('training.stationMatrix.quickEdit.level')}</label>
-              <div className="flex flex-wrap gap-2">
-                {WORK_LEVELS.map(l => (
-                  <button
-                    key={l}
-                    type="button"
-                    disabled={!canManage || !quickEmployeeId || !quickVirtual || busyKey !== ''}
-                    onClick={() =>
-                      quickEmployee &&
-                      quickVirtual &&
-                      applyLevel(quickEmployee.id, quickVirtual.stationId, quickVirtual.levelTrack, l)
-                    }
-                    className={`rounded-lg px-3 py-2 text-xs font-black ring-1 ${LEVEL_TONE[l]} ${
-                      quickLevel === l ? 'ring-2 ring-white/50' : ''
-                    } disabled:cursor-not-allowed disabled:opacity-40`}
-                  >
-                    {t(`training.stationMatrix.lvl.${l}`)}
-                  </button>
-                ))}
+      <div className="card-industrial sticky top-0 z-40 !bg-slate-950 p-2 shadow-lg shadow-black/30">
+        <div className="flex flex-wrap items-center gap-2">
+          <div ref={employeeBoxRef} className="relative min-w-[12rem] flex-1">
+            <label className="sr-only">{t('training.stationMatrix.quickEdit.employee')}</label>
+            <div className="relative">
+              <Search className="pointer-events-none absolute start-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-500" />
+              <input
+                className="input-dark ps-9"
+                placeholder={t('training.stationMatrix.quickEdit.employeePh')}
+                value={employeeQuery}
+                onChange={e => {
+                  setEmployeeQuery(e.target.value)
+                  setEmployeeDropdownOpen(true)
+                  if (!e.target.value.trim()) clearQuickEmployee()
+                }}
+                onFocus={() => setEmployeeDropdownOpen(true)}
+              />
+              {quickEmployeeId && (
                 <button
                   type="button"
-                  disabled={!canManage || !quickEmployeeId || !quickVirtual || !quickLevel || busyKey !== ''}
-                  onClick={() =>
-                    quickEmployee &&
-                    quickVirtual &&
-                    applyLevel(quickEmployee.id, quickVirtual.stationId, quickVirtual.levelTrack, null)
-                  }
-                  className="rounded-lg bg-slate-800 px-3 py-2 text-xs font-bold text-slate-400 ring-1 ring-slate-700 disabled:cursor-not-allowed disabled:opacity-40"
+                  onClick={clearQuickEmployee}
+                  className="absolute end-2 top-1/2 -translate-y-1/2 rounded p-1 text-slate-500 hover:bg-slate-800 hover:text-slate-300"
                 >
-                  {t('training.stationMatrix.quickEdit.clear')}
+                  <X className="h-4 w-4" />
                 </button>
-              </div>
-              {quickEmployee && quickVirtual && (
-                <p className="mt-2 text-xs text-slate-500">
-                  {t('training.stationMatrix.quickEdit.current')}:{' '}
-                  <span className="font-bold text-slate-300" dir="ltr">
-                    {quickVirtual.label} {quickLevel ? `→ ${t(`training.stationMatrix.lvl.${quickLevel}`)}` : '→ —'}
-                  </span>
-                </p>
               )}
             </div>
+            {employeeDropdownOpen && employeeMatches.length > 0 && (
+              <ul className="absolute z-50 mt-1 max-h-52 w-full overflow-auto rounded-xl border border-slate-700 bg-slate-900 shadow-xl">
+                {employeeMatches.map(emp => (
+                  <li key={emp.id}>
+                    <button
+                      type="button"
+                      onClick={() => pickEmployee(emp)}
+                      className={`w-full px-3 py-2 text-start text-sm hover:bg-slate-800 ${
+                        emp.id === quickEmployeeId ? 'bg-cyan-500/10 text-cyan-200' : 'text-slate-200'
+                      }`}
+                    >
+                      <span className="block font-bold">{emp.fullName}</span>
+                      <span className="block text-[11px] text-slate-500" dir="ltr">
+                        {emp.employeeCode}
+                      </span>
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            )}
           </div>
-        </div>
 
-        <div className="mt-3">
-          <label className="mb-1 block text-xs text-slate-500">{t('training.stationMatrix.tableStationFilter')}</label>
           <select
-            className="input-dark max-w-md"
+            className="input-dark w-full sm:w-56"
+            aria-label={t('training.stationMatrix.quickEdit.station')}
+            value={quickVirtualKey}
+            disabled={!quickEmployeeId}
+            onChange={e => setQuickVirtualKey(e.target.value)}
+          >
+            <option value="">{t('training.stationMatrix.quickEdit.pickStation')}</option>
+            {allVirtualColumns.map(col => (
+              <option key={`${col.stationId}:${col.levelTrack}`} value={`${col.stationId}:${col.levelTrack}`}>
+                {col.stationName ? `${col.label} — ${col.stationName}` : col.label}
+              </option>
+            ))}
+          </select>
+
+          <div className="flex flex-wrap items-center gap-1">
+            {WORK_LEVELS.map(l => (
+              <button
+                key={l}
+                type="button"
+                disabled={!canManage || !quickEmployeeId || !quickVirtual || busyKey !== ''}
+                onClick={() =>
+                  quickEmployee &&
+                  quickVirtual &&
+                  applyLevel(quickEmployee.id, quickVirtual.stationId, quickVirtual.levelTrack, l)
+                }
+                className={`rounded-lg px-2 py-1 text-[11px] font-black ring-1 ${LEVEL_TONE[l]} ${
+                  quickLevel === l ? 'ring-2 ring-white/50' : ''
+                } disabled:cursor-not-allowed disabled:opacity-40`}
+              >
+                {t(`training.stationMatrix.lvl.${l}`)}
+              </button>
+            ))}
+            <button
+              type="button"
+              disabled={!canManage || !quickEmployeeId || !quickVirtual || !quickLevel || busyKey !== ''}
+              onClick={() =>
+                quickEmployee &&
+                quickVirtual &&
+                applyLevel(quickEmployee.id, quickVirtual.stationId, quickVirtual.levelTrack, null)
+              }
+              className="rounded-lg bg-slate-800 px-2 py-1 text-[11px] font-bold text-slate-400 ring-1 ring-slate-700 disabled:cursor-not-allowed disabled:opacity-40"
+            >
+              {t('training.stationMatrix.quickEdit.clear')}
+            </button>
+          </div>
+
+          <select
+            className="input-dark w-full sm:w-52"
+            aria-label={t('training.stationMatrix.tableStationFilter')}
             value={stationFilter}
             onChange={e => setStationFilter(e.target.value)}
           >
@@ -537,6 +501,15 @@ export function StationTrainingMatrixTab({ employees, stations, levels, canManag
               </option>
             ))}
           </select>
+
+          <button
+            type="button"
+            onClick={() => setDetailOpen(true)}
+            className="flex shrink-0 items-center gap-1.5 rounded-lg bg-violet-500/15 px-3 py-1.5 text-xs font-black text-violet-200 ring-1 ring-violet-400/30 hover:bg-violet-500/25"
+          >
+            <ListOrdered className="h-3.5 w-3.5" />
+            {t('training.stationMatrix.detailModal.button')}
+          </button>
         </div>
       </div>
 
@@ -550,7 +523,7 @@ export function StationTrainingMatrixTab({ employees, stations, levels, canManag
           </div>
         ) : (
           <>
-            <div className="sticky top-0 z-30 rounded-t-xl border border-b-0 border-slate-700/70 bg-slate-950 sm:rounded-t-2xl">
+            <div className="sticky top-16 z-30 rounded-t-xl border border-b-0 border-slate-700/70 bg-slate-950 sm:rounded-t-2xl">
               <div
                 ref={topScrollRef}
                 onScroll={e => syncHorizontal(e.currentTarget)}
