@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import { BadgeCheck } from 'lucide-react'
+import { BadgeCheck, Plus, X } from 'lucide-react'
 import { useLang } from '../../i18n/LanguageContext'
 import { Modal } from '../Modal'
 import { Field, inputCls } from '../FormField'
@@ -9,55 +9,20 @@ import { MpLookupCreatableSelect } from '../MpLookupCreatableSelect'
 import { getWorkerLinesForStationAndModels } from '../../services/stationOperationsService'
 import { createQnCategoryOption } from '../../services/qualityNotesLookupService'
 import { formatStationReferenceCode } from '../../Utils/stationHierarchy'
-import type { QualityNoteInput, QualityNoteRecord, QualityNoteSeverity } from '../../Types/qualityNote'
+import type {
+  QualityNoteInput,
+  QualityNoteRecord,
+  QualityNoteRepairTime,
+  QualityNoteSeverity
+} from '../../Types/qualityNote'
 import type { MpLookupOption } from '../../Types/mpLookup'
 import type { Station, VehicleModel } from '../../Types/settings'
-
-const SEVERITIES: QualityNoteSeverity[] = ['low', 'medium', 'high', 'critical']
-
-type FormState = {
-  vehicleModelIds: string[]
-  stationId: string
-  workerLineStationId: string
-  category: string
-  severity: QualityNoteSeverity
-  notedAt: string
-  description: string
-  vehicleCount: number
-  specifyVins: boolean
-  vins: string[]
-}
-
-function recordToForm(row: QualityNoteRecord): FormState {
-  const hasVins = row.vins.length > 0
-  return {
-    vehicleModelIds: [...row.vehicleModelIds],
-    stationId: row.stationId ?? '',
-    workerLineStationId: row.workerLineStationId ?? '',
-    category: row.category,
-    severity: row.severity,
-    notedAt: row.notedAt.slice(0, 10),
-    description: row.description,
-    vehicleCount: row.vehicleCount,
-    specifyVins: hasVins,
-    vins: hasVins ? [...row.vins] : ['']
-  }
-}
-
-function emptyForm(): FormState {
-  return {
-    vehicleModelIds: [],
-    stationId: '',
-    workerLineStationId: '',
-    category: '',
-    severity: 'medium',
-    notedAt: new Date().toISOString().slice(0, 10),
-    description: '',
-    vehicleCount: 1,
-    specifyVins: false,
-    vins: ['']
-  }
-}
+import { QUALITY_NOTE_REPAIR_TIMES, QUALITY_NOTE_SEVERITIES } from './qualityNoteConstants'
+import {
+  emptyQualityNoteForm,
+  qualityNoteRecordToForm,
+  type QualityNoteFormState
+} from './qualityNoteFormState'
 
 type Props = {
   open: boolean
@@ -83,20 +48,22 @@ export function QualityNoteFormModal({
   editing = null
 }: Props) {
   const { t } = useLang()
-  const [form, setForm] = useState<FormState>(emptyForm)
+  const [form, setForm] = useState<QualityNoteFormState>(emptyQualityNoteForm)
   const [stationQuery, setStationQuery] = useState('')
   const [error, setError] = useState('')
-  const [workerLines, setWorkerLines] = useState<{ stationId: string; displayCode: string }[]>([])
+  const [workerLines, setWorkerLines] = useState<
+    { stationId: string; displayCode: string; commonName: string | null }[]
+  >([])
   const [workerLinesLoading, setWorkerLinesLoading] = useState(false)
   const wasOpen = useRef(false)
 
   useEffect(() => {
     if (open && !wasOpen.current) {
       if (editing) {
-        setForm(recordToForm(editing))
+        setForm(qualityNoteRecordToForm(editing))
         setStationQuery(editing.stationCode ? formatStationReferenceCode(editing.stationCode) : '')
       } else {
-        const defaults = emptyForm()
+        const defaults = emptyQualityNoteForm()
         if (categories.length > 0) defaults.category = categories[0].code
         setForm(defaults)
         setStationQuery('')
@@ -141,31 +108,16 @@ export function QualityNoteFormModal({
     }
   }, [workerLines, form.workerLineStationId])
 
-  useEffect(() => {
-    const n = Math.max(1, form.vehicleCount)
-    if (!form.specifyVins) return
-    setForm(f => {
-      const next = [...f.vins]
-      while (next.length < n) next.push('')
-      if (next.length > n) next.length = n
-      return { ...f, vins: next }
-    })
-  }, [form.vehicleCount, form.specifyVins])
-
-  function setVehicleCount(count: number) {
-    const n = Math.max(1, Math.min(99, count || 1))
-    setForm(f => ({ ...f, vehicleCount: n }))
-  }
-
   function validate(): string | null {
     if (form.vehicleModelIds.length === 0) return t('qualityNotes.errModel')
     if (!form.stationId) return t('qualityNotes.errStation')
     if (!form.category) return t('qualityNotes.errCategory')
     if (!form.description.trim()) return t('qualityNotes.errDescription')
     if (!form.notedAt) return t('qualityNotes.errDate')
-    if (form.vehicleCount < 1) return t('qualityNotes.errVehicleCount')
+    if (!form.severity) return t('qualityNotes.errSeverity')
+    if (!form.repairTime) return t('qualityNotes.errRepairTime')
     if (form.specifyVins) {
-      if (form.vins.length !== form.vehicleCount) return t('qualityNotes.errVinCount')
+      if (form.vins.length < 1) return t('qualityNotes.errVin')
       for (const vin of form.vins) {
         if (vin.trim().length < 4) return t('qualityNotes.errVin')
       }
@@ -185,8 +137,8 @@ export function QualityNoteFormModal({
       workerLineStationId: form.workerLineStationId || null,
       category: form.category,
       severity: form.severity,
+      repairTime: form.repairTime,
       description: form.description.trim(),
-      vehicleCount: form.vehicleCount,
       vins: form.specifyVins ? form.vins.map(v => v.trim().toUpperCase()) : [],
       notedAt: form.notedAt
     })
@@ -264,15 +216,14 @@ export function QualityNoteFormModal({
             </p>
           ) : (
             <select
-              className={`${inputCls()} font-mono`}
-              dir="ltr"
+              className={inputCls()}
               value={form.workerLineStationId}
               onChange={e => setForm(f => ({ ...f, workerLineStationId: e.target.value }))}
             >
               <option value="">—</option>
               {workerLines.map(w => (
                 <option key={w.stationId} value={w.stationId}>
-                  {w.displayCode}
+                  {w.commonName ? `${w.displayCode} — ${w.commonName}` : w.displayCode}
                 </option>
               ))}
             </select>
@@ -298,30 +249,35 @@ export function QualityNoteFormModal({
           />
         </Field>
 
-        <Field label={t('qualityNotes.cols.severity')} required>
-          <select
-            className={inputCls()}
-            value={form.severity}
-            onChange={e => setForm(f => ({ ...f, severity: e.target.value as QualityNoteSeverity }))}
-          >
-            {SEVERITIES.map(key => (
-              <option key={key} value={key}>
-                {t(`qualityNotes.severity.${key}`)}
-              </option>
-            ))}
-          </select>
-        </Field>
+        <div className="grid gap-4 sm:grid-cols-2">
+          <Field label={t('qualityNotes.cols.severity')} required>
+            <select
+              className={inputCls()}
+              value={form.severity}
+              onChange={e => setForm(f => ({ ...f, severity: e.target.value as QualityNoteSeverity }))}
+            >
+              {QUALITY_NOTE_SEVERITIES.map(key => (
+                <option key={key} value={key}>
+                  {t(`qualityNotes.severity.${key}`)}
+                </option>
+              ))}
+            </select>
+          </Field>
 
-        <Field label={t('qualityNotes.cols.vehicleCount')} required>
-          <input
-            type="number"
-            min={1}
-            max={99}
-            className={inputCls()}
-            value={form.vehicleCount}
-            onChange={e => setVehicleCount(Number(e.target.value))}
-          />
-        </Field>
+          <Field label={t('qualityNotes.cols.repairTime')} required>
+            <select
+              className={inputCls()}
+              value={form.repairTime}
+              onChange={e => setForm(f => ({ ...f, repairTime: e.target.value as QualityNoteRepairTime }))}
+            >
+              {QUALITY_NOTE_REPAIR_TIMES.map(key => (
+                <option key={key} value={key}>
+                  {t(`qualityNotes.repairTime.${key}`)}
+                </option>
+              ))}
+            </select>
+          </Field>
+        </div>
 
         <label className="flex cursor-pointer items-center gap-2 text-sm font-bold text-slate-300">
           <input
@@ -332,7 +288,7 @@ export function QualityNoteFormModal({
               setForm(f => ({
                 ...f,
                 specifyVins: e.target.checked,
-                vins: e.target.checked ? Array.from({ length: f.vehicleCount }, (_, i) => f.vins[i] ?? '') : []
+                vins: e.target.checked ? (f.vins.length > 0 ? f.vins : ['']) : []
               }))
             }
           />
@@ -341,22 +297,51 @@ export function QualityNoteFormModal({
 
         {form.specifyVins && (
           <div className="space-y-2 rounded-xl border border-slate-700 bg-slate-900/40 p-3">
-            <p className="text-xs font-bold text-slate-400">{t('qualityNotes.vinsHint', { n: form.vehicleCount })}</p>
+            <div className="flex items-center justify-between gap-2">
+              <p className="text-xs font-bold text-slate-400">{t('qualityNotes.vinsListHint')}</p>
+              <button
+                type="button"
+                onClick={() => setForm(f => ({ ...f, vins: [...f.vins, ''] }))}
+                className="inline-flex items-center gap-1 rounded-lg bg-slate-800 px-2 py-1 text-xs font-bold text-cyan-200 hover:bg-slate-700"
+              >
+                <Plus className="h-3.5 w-3.5" />
+                {t('qualityNotes.addVin')}
+              </button>
+            </div>
             {form.vins.map((vin, idx) => (
-              <Field key={idx} label={t('qualityNotes.vinN', { n: idx + 1 })}>
-                <input
-                  className={inputCls()}
-                  value={vin}
-                  placeholder={t('qualityNotes.vinPlaceholder')}
-                  onChange={e =>
-                    setForm(f => {
-                      const vins = [...f.vins]
-                      vins[idx] = e.target.value
-                      return { ...f, vins }
-                    })
-                  }
-                />
-              </Field>
+              <div key={idx} className="flex items-end gap-2">
+                <div className="min-w-0 flex-1">
+                  <Field label={t('qualityNotes.vinN', { n: idx + 1 })}>
+                    <input
+                      className={inputCls()}
+                      value={vin}
+                      placeholder={t('qualityNotes.vinPlaceholder')}
+                      onChange={e =>
+                        setForm(f => {
+                          const vins = [...f.vins]
+                          vins[idx] = e.target.value
+                          return { ...f, vins }
+                        })
+                      }
+                    />
+                  </Field>
+                </div>
+                {form.vins.length > 1 && (
+                  <button
+                    type="button"
+                    onClick={() =>
+                      setForm(f => ({
+                        ...f,
+                        vins: f.vins.filter((_, i) => i !== idx)
+                      }))
+                    }
+                    className="mb-1 rounded-lg p-2 text-slate-400 hover:bg-slate-800 hover:text-red-300"
+                    title={t('common.delete')}
+                  >
+                    <X className="h-4 w-4" />
+                  </button>
+                )}
+              </div>
             ))}
           </div>
         )}

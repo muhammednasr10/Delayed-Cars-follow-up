@@ -57,7 +57,7 @@ export function StationIplPartsTable({
                 <tr key={part.partId} className="bg-slate-900/30">
                   <td className="table-cell text-center font-bold text-slate-100">{part.partName}</td>
                   <td className="table-cell text-center font-mono font-bold text-cyan-100" dir="ltr">
-                    {part.partNumber}
+                    {part.partNumber || t('bom.partNumberUnset')}
                   </td>
                   <td className="table-cell text-center font-mono text-slate-300" dir="ltr">
                     {part.quantity}

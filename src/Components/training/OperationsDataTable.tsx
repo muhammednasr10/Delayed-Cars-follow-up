@@ -1,9 +1,18 @@
-import { ArrowRightLeft, Pencil, Trash2 } from 'lucide-react'
+import { useMemo, useState } from 'react'
 import { useLang } from '../../i18n/LanguageContext'
-import { formatStationWorkerDisplayCode } from '../../Utils/stationHierarchy'
-import { formatOperationClassification } from '../../Utils/operationClassification'
+import { iplPartIdFromNotes } from '../../Utils/iplStationParts'
+import {
+  buildOperationCompareRow,
+  classifyHardwareFromIpl,
+  classifyOperationCompare,
+  type HardwareIplCompare,
+  type OperationClassCompare
+} from '../../Utils/operationIplCompare'
+import type { BomItemDetail } from '../../Types/bom'
 import type { ModelLine } from '../../Utils/modelLines'
 import type { ParentStationOperationsGroup, StationOperationDetail, WorkerOperationsGroup } from '../../Types/timeStudy'
+import { OperationSharedDiffCard } from './OperationSharedDiffCard'
+import { OperationsDataTableRow } from './OperationsDataTableRow'
 
 export type OperationTableRow = {
   op: StationOperationDetail
@@ -16,180 +25,208 @@ type Props = {
   contextLine: ModelLine | null
   canManage: boolean
   compact?: boolean
+  compareModels?: string[]
+  bomByPartId?: Map<string, BomItemDetail[]>
+  hardwareBomRows?: BomItemDetail[]
   onEdit: (op: StationOperationDetail) => void
   onDelete: (op: StationOperationDetail) => void
   onMove: (op: StationOperationDetail, workerStationId: string) => void
 }
 
-function formatHardware(op: StationOperationDetail): string {
-  if (op.hardware.length === 0) return '—'
-  return op.hardware.map(h => `${h.hardwareName}${h.hardwareQty != null ? ` ×${h.hardwareQty}` : ''}`).join(' · ')
-}
-
-function formatSecInt(seconds: number | null, minutes: number | null): string {
-  const sec = seconds != null && Number.isFinite(seconds) ? seconds : minutes != null ? minutes * 60 : null
-  if (sec == null || !Number.isFinite(sec)) return '—'
-  return String(Math.round(sec))
-}
-
-function formatMin(minutes: number | null): string {
-  if (minutes == null || !Number.isFinite(minutes)) return '—'
-  return Number.isInteger(minutes) ? String(minutes) : minutes.toFixed(2)
-}
+type DetailState =
+  | {
+      kind: 'classification'
+      title: string
+      subtitle: string
+      compare: OperationClassCompare
+    }
+  | {
+      kind: 'hardware'
+      title: string
+      subtitle: string
+      op: StationOperationDetail
+      hardwareCompare: HardwareIplCompare
+    }
 
 export function OperationsDataTable({
   rows,
   contextLine,
   canManage,
   compact = false,
+  compareModels = [],
+  bomByPartId,
+  hardwareBomRows = [],
   onEdit,
   onDelete,
   onMove
 }: Props) {
   const { t } = useLang()
+  const [detail, setDetail] = useState<DetailState | null>(null)
+
+  const compareByPartId = useMemo(() => {
+    const map = new Map<string, OperationClassCompare>()
+    if (!bomByPartId || compareModels.length === 0) return map
+    for (const [partId, bomRows] of bomByPartId) {
+      const row = buildOperationCompareRow(partId, compareModels, bomRows)
+      if (!row) continue
+      map.set(partId, classifyOperationCompare(row, compareModels))
+    }
+    return map
+  }, [bomByPartId, compareModels])
+
+  const hardwareCompareByOpId = useMemo(() => {
+    const map = new Map<string, HardwareIplCompare>()
+    for (const { op } of rows) {
+      map.set(op.id, classifyHardwareFromIpl(op.hardware, compareModels, hardwareBomRows))
+    }
+    return map
+  }, [rows, compareModels, hardwareBomRows])
 
   if (rows.length === 0) {
     return <p className="p-4 text-center text-sm text-slate-500">{t('common.noData')}</p>
   }
 
   return (
-    <div className="overflow-x-auto">
-      <table className={`w-full text-center text-xs ${compact ? 'min-w-[720px]' : 'min-w-[1280px]'}`}>
-        <thead className="bg-slate-950/90">
-          <tr>
-            {!compact && (
-              <th className="table-cell text-center font-black uppercase text-slate-400">
-                {t('operations.cols.stationWorker')}
-              </th>
-            )}
-            <th className="table-cell text-center font-black uppercase text-slate-400">
-              {t('operations.cols.operationKind')}
-            </th>
-            <th className="table-cell text-center font-black uppercase text-slate-400">
-              {t('operations.cols.operation')}
-            </th>
-            <th className="table-cell text-center font-black uppercase text-slate-400">
-              {t('operations.cols.classification')}
-            </th>
-            <th className="table-cell text-center font-black uppercase text-slate-400">
-              {t('operations.cols.hardware')}
-            </th>
-            <th className="table-cell text-center font-black uppercase text-slate-400">
-              {t('operations.cols.techPosition')}
-            </th>
-            <th className="table-cell text-center font-black uppercase text-slate-400">
-              {t('operations.cols.taskPrecedence')}
-            </th>
-            <th className="table-cell text-center font-black uppercase text-slate-400">
-              {t('operations.cols.rankedWeight')}
-            </th>
-            <th className="table-cell text-center font-black uppercase text-slate-400">
-              {t('operations.cols.zoning')}
-            </th>
-            <th className="table-cell text-center font-black uppercase text-slate-400">
-              {t('operations.cols.timeSec')}
-            </th>
-            <th className="table-cell text-center font-black uppercase text-slate-400">
-              {t('operations.cols.timeMin')}
-            </th>
-            {!compact && (
-              <th className="table-cell text-center font-black uppercase text-slate-400">
-                {t('operations.cols.workerMin')}
-              </th>
-            )}
-            {!compact && (
-              <>
-                <th className="table-cell text-center font-black uppercase text-slate-400">
-                  {t('operations.cols.totalWorkers')}
-                </th>
-                <th className="table-cell text-center font-black uppercase text-slate-400">
-                  {t('operations.cols.avgStationMin')}
-                </th>
-              </>
-            )}
-            {canManage && (
-              <th className="table-cell text-center font-black uppercase text-slate-400">{t('common.actions')}</th>
-            )}
-          </tr>
-        </thead>
-        <tbody className="divide-y divide-slate-800">
-          {rows.map(({ op, worker, parent }) => (
-            <tr key={op.id} className="bg-slate-900/30 hover:bg-slate-800/40">
+    <>
+      <div className="overflow-x-auto">
+        <table className={`w-full text-center text-xs ${compact ? 'min-w-[720px]' : 'min-w-[1280px]'}`}>
+          <thead className="bg-slate-950/90">
+            <tr>
               {!compact && (
-                <td className="table-cell whitespace-nowrap text-center font-mono font-bold text-cyan-200" dir="ltr">
-                  {formatStationWorkerDisplayCode(worker.displayCode || worker.stationNumber)}
-                </td>
+                <th className="table-cell text-center font-black uppercase text-slate-400">
+                  {t('operations.cols.stationWorker')}
+                </th>
               )}
-              <td className="table-cell text-center text-slate-300">{op.toolSpec?.trim() || '—'}</td>
-              <td className="table-cell min-w-[10rem] text-center font-bold text-slate-100">{op.operationNameAr}</td>
-              <td className="table-cell text-center text-slate-300">
-                {formatOperationClassification(op.operationType, contextLine ?? undefined)}
-              </td>
-              <td className="table-cell max-w-[12rem] text-center text-slate-400" title={formatHardware(op)}>
-                <span className="line-clamp-2">{formatHardware(op)}</span>
-              </td>
-              <td className="table-cell text-center text-slate-300">{op.technicianPosition?.trim() || '—'}</td>
-              <td className="table-cell text-center text-slate-300">{op.taskPrecedence?.trim() || '—'}</td>
-              <td className="table-cell text-center font-mono text-slate-300" dir="ltr">
-                {op.rankedPositionalWeight != null ? formatMin(op.rankedPositionalWeight) : '—'}
-              </td>
-              <td className="table-cell max-w-[10rem] text-center text-slate-400">
-                {op.zoningConstraints?.trim() || '—'}
-              </td>
-              <td className="table-cell text-center font-mono text-orange-200" dir="ltr">
-                {formatSecInt(op.standardTimeSeconds, op.standardTimeMinutes)}
-              </td>
-              <td className="table-cell text-center font-mono text-orange-200" dir="ltr">
-                {formatMin(op.standardTimeMinutes)}
-              </td>
+              <th className="table-cell text-center font-black uppercase text-slate-400">
+                {t('operations.cols.operationKind')}
+              </th>
+              <th className="table-cell text-center font-black uppercase text-slate-400">
+                {t('operations.cols.part')}
+              </th>
+              <th className="table-cell text-center font-black uppercase text-slate-400">
+                {t('operations.cols.classification')}
+              </th>
+              <th className="table-cell text-center font-black uppercase text-slate-400">
+                {t('operations.cols.hardware')}
+              </th>
+              <th className="table-cell text-center font-black uppercase text-slate-400">
+                {t('operations.cols.techPosition')}
+              </th>
+              <th className="table-cell text-center font-black uppercase text-slate-400">
+                {t('operations.cols.taskPrecedence')}
+              </th>
+              <th className="table-cell text-center font-black uppercase text-slate-400">
+                {t('operations.cols.rankedWeight')}
+              </th>
+              <th className="table-cell text-center font-black uppercase text-slate-400">
+                {t('operations.cols.zoning')}
+              </th>
+              <th className="table-cell text-center font-black uppercase text-slate-400">
+                {t('operations.cols.timeSec')}
+              </th>
+              <th className="table-cell text-center font-black uppercase text-slate-400">
+                {t('operations.cols.timeMin')}
+              </th>
               {!compact && (
-                <td className="table-cell text-center font-mono text-orange-200" dir="ltr">
-                  {formatMin(op.workerTimeMinutes)}
-                </td>
+                <th className="table-cell text-center font-black uppercase text-slate-400">
+                  {t('operations.cols.workerMin')}
+                </th>
               )}
               {!compact && (
                 <>
-                  <td className="table-cell text-center font-bold text-white">{parent.totalWorkers}</td>
-                  <td className="table-cell text-center font-mono text-orange-200" dir="ltr">
-                    {parent.avgStationTimeMinutes != null ? formatMin(parent.avgStationTimeMinutes) : '—'}
-                  </td>
+                  <th className="table-cell text-center font-black uppercase text-slate-400">
+                    {t('operations.cols.totalWorkers')}
+                  </th>
+                  <th className="table-cell text-center font-black uppercase text-slate-400">
+                    {t('operations.cols.avgStationMin')}
+                  </th>
                 </>
               )}
               {canManage && (
-                <td className="table-cell whitespace-nowrap text-center">
-                  <div className="flex justify-center gap-1">
-                    <button
-                      type="button"
-                      onClick={() => onMove(op, worker.stationId)}
-                      title={t('operations.moveOperation')}
-                      className="rounded p-1.5 text-slate-400 hover:bg-violet-500/15 hover:text-violet-300"
-                    >
-                      <ArrowRightLeft className="h-3.5 w-3.5" />
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => onEdit(op)}
-                      title={t('operations.editOp')}
-                      className="rounded p-1.5 text-slate-400 hover:bg-slate-800 hover:text-cyan-300"
-                    >
-                      <Pencil className="h-3.5 w-3.5" />
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => onDelete(op)}
-                      title={t('operations.deleteOperation')}
-                      className="rounded p-1.5 text-slate-400 hover:bg-red-500/15 hover:text-red-300"
-                    >
-                      <Trash2 className="h-3.5 w-3.5" />
-                    </button>
-                  </div>
-                </td>
+                <th className="table-cell text-center font-black uppercase text-slate-400">{t('common.actions')}</th>
               )}
             </tr>
-          ))}
-        </tbody>
-      </table>
-    </div>
+          </thead>
+          <tbody className="divide-y divide-slate-800">
+            {rows.map(({ op, worker, parent }) => {
+              const partId = iplPartIdFromNotes(op.notes)
+              const compare = partId ? compareByPartId.get(partId) : undefined
+              const hardwareCompare = hardwareCompareByOpId.get(op.id) ?? {
+                mode: 'missing' as const,
+                qtyLabel: '0',
+                compare: null,
+                titleName: ''
+              }
+              return (
+                <OperationsDataTableRow
+                  key={op.id}
+                  op={op}
+                  worker={worker}
+                  parent={parent}
+                  contextLine={contextLine}
+                  canManage={canManage}
+                  compact={compact}
+                  compare={compare}
+                  hardwareCompare={hardwareCompare}
+                  onOpenClassification={(next, partLabel) =>
+                    setDetail({
+                      kind: 'classification',
+                      title:
+                        next.overall === 'shared'
+                          ? t('operations.sharedDiff.sharedInTitle')
+                          : t('operations.sharedDiff.differentInTitle'),
+                      subtitle: partLabel,
+                      compare: next
+                    })
+                  }
+                  onOpenHardware={(next, partLabel, operation) =>
+                    setDetail({
+                      kind: 'hardware',
+                      title:
+                        next.mode === 'shared'
+                          ? t('operations.sharedDiff.sharedHardwareTitle')
+                          : t('operations.sharedDiff.differentHardwareTitle'),
+                      subtitle: next.titleName || partLabel,
+                      op: operation,
+                      hardwareCompare: next
+                    })
+                  }
+                  onEdit={onEdit}
+                  onDelete={onDelete}
+                  onMove={onMove}
+                />
+              )
+            })}
+          </tbody>
+        </table>
+      </div>
+
+      {detail?.kind === 'classification' ? (
+        <OperationSharedDiffCard
+          kind="classification"
+          open
+          title={detail.title}
+          subtitle={detail.subtitle}
+          sections={[
+            { label: t('bom.col.part_number'), result: detail.compare.partNumber, mono: true },
+            { label: t('bom.station'), result: detail.compare.station },
+            { label: t('bom.qtyPerCar'), result: detail.compare.quantity }
+          ]}
+          onClose={() => setDetail(null)}
+        />
+      ) : null}
+      {detail?.kind === 'hardware' ? (
+        <OperationSharedDiffCard
+          kind="hardware"
+          open
+          title={detail.title}
+          subtitle={detail.subtitle}
+          hardware={detail.op.hardware}
+          compare={detail.hardwareCompare.compare}
+          onClose={() => setDetail(null)}
+        />
+      ) : null}
+    </>
   )
 }
 

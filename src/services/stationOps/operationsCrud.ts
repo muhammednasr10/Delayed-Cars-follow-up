@@ -27,6 +27,13 @@ export type StationOperationUpdate = {
   hardware: OperationHardwareInput[]
 }
 
+export async function setStationOperationHardware(
+  operationId: string,
+  hardware: OperationHardwareInput[]
+): Promise<void> {
+  await replaceOperationHardware(operationId, hardware)
+}
+
 async function replaceOperationHardware(operationId: string, hardware: OperationHardwareInput[]): Promise<void> {
   const { error: delErr } = await client()
     .from('operation_hardware_requirements')

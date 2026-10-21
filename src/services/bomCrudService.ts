@@ -282,8 +282,8 @@ export async function updateBomItem(id: string, input: BomItemUpdateInput): Prom
     parts: { part_number: string } | null
   }
 
+  // Per-model part numbers stay on bom_items only — never overwrite parts.part_number (master key).
   if (
-    input.part_number != null ||
     input.part_name_ar != null ||
     input.part_name_en != null ||
     input.part_number_new != null ||
@@ -293,8 +293,6 @@ export async function updateBomItem(id: string, input: BomItemUpdateInput): Prom
     const { error } = await client()
       .from('parts')
       .update({
-        ...(input.part_number != null ? { part_number: input.part_number.trim() } : {}),
-        ...(input.part_number != null ? { normalized_part_number: normalizePartNumber(input.part_number) } : {}),
         ...(input.part_name_ar != null ? { part_name_ar: input.part_name_ar.trim() || null } : {}),
         ...(input.part_name_en != null ? { part_name_en: input.part_name_en.trim() || null } : {}),
         ...(input.part_number_new != null ? { part_number_new: input.part_number_new.trim() || null } : {}),
@@ -318,7 +316,8 @@ export async function updateBomItem(id: string, input: BomItemUpdateInput): Prom
     modelName = '_'
   }
 
-  const norm = normalizePartNumber(partNumber)
+  const displayPn = partNumber.trim()
+  const norm = displayPn ? normalizePartNumber(displayPn) : `UNSET-${row.part_id}`
   const lineKey = bomImportLineKey({
     normalizedPart: norm,
     stationCode: stationCode || '_',
@@ -538,6 +537,84 @@ export async function getBomItemsForPartIds(partIds: string[], modelName: string
   }
 
   return result
+}
+
+export async function getActiveBomRowsForPartIds(partIds: string[]): Promise<BomItemDetail[]> {
+  const ids = [...new Set(partIds.map(id => id.trim()).filter(Boolean))]
+  if (ids.length === 0) return []
+  const rows: BomItemDetail[] = []
+  const CHUNK = 80
+  for (let i = 0; i < ids.length; i += CHUNK) {
+    const chunk = ids.slice(i, i + CHUNK)
+    const { data, error } = await client()
+      .from('v_bom_items_detail')
+      .select('*')
+      .eq('is_active', true)
+      .in('part_id', chunk)
+    if (error) throw new Error(error.message)
+    rows.push(...((data ?? []) as BomItemDetail[]))
+  }
+  return rows
+}
+
+/** BOM rows for linked hardware — match by part number and/or Arabic name. */
+export async function getActiveBomRowsForHardwareRefs(input: {
+  partNumbers: string[]
+  partNames: string[]
+}): Promise<BomItemDetail[]> {
+  const numbers = [...new Set(input.partNumbers.map(value => value.trim()).filter(Boolean))]
+  const names = [...new Set(input.partNames.map(value => value.trim()).filter(Boolean))]
+  if (numbers.length === 0 && names.length === 0) return []
+
+  const byId = new Map<string, BomItemDetail>()
+  const CHUNK = 40
+
+  for (let i = 0; i < numbers.length; i += CHUNK) {
+    const chunk = numbers.slice(i, i + CHUNK)
+    const { data, error } = await client()
+      .from('v_bom_items_detail')
+      .select('*')
+      .eq('is_active', true)
+      .in('part_number', chunk)
+    if (error) throw new Error(error.message)
+    for (const row of (data ?? []) as BomItemDetail[]) byId.set(row.id, row)
+  }
+
+  for (let i = 0; i < names.length; i += CHUNK) {
+    const chunk = names.slice(i, i + CHUNK)
+    const { data, error } = await client()
+      .from('v_bom_items_detail')
+      .select('*')
+      .eq('is_active', true)
+      .in('part_name_ar', chunk)
+    if (error) throw new Error(error.message)
+    for (const row of (data ?? []) as BomItemDetail[]) byId.set(row.id, row)
+  }
+
+  const matched = [...byId.values()]
+  if (matched.length === 0) return []
+
+  const nameKeys = [
+    ...new Set(
+      matched
+        .map(row => (row.part_name_ar ?? row.part_name ?? '').trim())
+        .filter(Boolean)
+    )
+  ]
+  if (nameKeys.length === 0) return matched
+
+  for (let i = 0; i < nameKeys.length; i += CHUNK) {
+    const chunk = nameKeys.slice(i, i + CHUNK)
+    const { data, error } = await client()
+      .from('v_bom_items_detail')
+      .select('*')
+      .eq('is_active', true)
+      .in('part_name_ar', chunk)
+    if (error) throw new Error(error.message)
+    for (const row of (data ?? []) as BomItemDetail[]) byId.set(row.id, row)
+  }
+
+  return [...byId.values()]
 }
 
 export async function fetchBomRowsForPart(partId: string): Promise<BomItemDetail[]> {

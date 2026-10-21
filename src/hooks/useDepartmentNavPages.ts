@@ -350,7 +350,7 @@ export function useDepartmentNavPages() {
         visible: canShowLineBalancing,
         onNavigate: () =>
           navTo({ department: 'engineering', engineeringPage: 'lineBalancing', lineBalancingTab: 'operations' }),
-        children: (['operations', 'opParts', 'timeStudy', 'routing', 'manpower', 'import'] as const)
+        children: (['operations', 'timeStudy', 'routing', 'manpower', 'import'] as const)
           .map(key => ({
             key,
             label: t(`lineBalancing.tabs.${key}`),

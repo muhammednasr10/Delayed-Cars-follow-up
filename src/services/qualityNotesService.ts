@@ -1,6 +1,13 @@
 import { supabase } from '../lib/supabase'
-import type { QualityNoteInput, QualityNoteRecord, QualityNoteStudyPatch } from '../Types/qualityNote'
+import type {
+  QualityNoteInput,
+  QualityNoteRecord,
+  QualityNoteRepairTime,
+  QualityNoteSeverity,
+  QualityNoteStudyPatch
+} from '../Types/qualityNote'
 import { formatStationWorkerDisplayCode } from '../Utils/stationHierarchy'
+import { parseQualityNote8D, trimQualityNote8D } from '../Utils/qualityNote8d'
 
 function requireClient() {
   if (!supabase) throw new Error('Supabase غير مهيأ. تحقق من ملف .env')
@@ -13,17 +20,21 @@ type Row = {
   station_id: string | null
   worker_line_station_id: string | null
   category: string
-  severity: QualityNoteRecord['severity']
+  severity: string
+  repair_time?: string | null
   status: QualityNoteRecord['status']
   description: string
   study_notes: string | null
-  vehicle_count: number | string
+  study_8d?: unknown
+  vehicle_count?: number | string
   vins: string[] | null
   noted_at: string
   created_at: string
   updated_at: string
   stations?:
-    { station_number: string; station_name: string } | { station_number: string; station_name: string }[] | null
+    | { station_number: string; station_name: string }
+    | { station_number: string; station_name: string }[]
+    | null
   worker_line?: { station_number: string } | { station_number: string }[] | null
 }
 
@@ -34,6 +45,15 @@ function relOne<T>(value: T | T[] | null | undefined): T | null {
 
 const SELECT =
   '*, stations!station_id(station_number, station_name), worker_line:stations!worker_line_station_id(station_number)'
+
+function normalizeSeverity(raw: string): QualityNoteSeverity {
+  return raw === 'critical' ? 'critical' : 'recurring'
+}
+
+function normalizeRepairTime(raw: string | null | undefined): QualityNoteRepairTime {
+  if (raw === 'little' || raw === 'medium' || raw === 'much') return raw
+  return 'medium'
+}
 
 function mapRow(row: Row, modelNameById?: Map<string, string>): QualityNoteRecord {
   const station = relOne(row.stations)
@@ -51,11 +71,12 @@ function mapRow(row: Row, modelNameById?: Map<string, string>): QualityNoteRecor
     workerLineStationId: row.worker_line_station_id,
     workerLineCode: workerLineRaw ? formatStationWorkerDisplayCode(workerLineRaw) : null,
     category: row.category,
-    severity: row.severity,
+    severity: normalizeSeverity(row.severity),
+    repairTime: normalizeRepairTime(row.repair_time),
     status: row.status,
     description: row.description,
     studyNotes: row.study_notes,
-    vehicleCount: Number(row.vehicle_count) || 1,
+    study8d: parseQualityNote8D(row.study_8d),
     vins: row.vins ?? [],
     notedAt: row.noted_at,
     createdAt: row.created_at,
@@ -71,8 +92,9 @@ function toPayload(input: QualityNoteInput) {
     worker_line_station_id: input.workerLineStationId || null,
     category: input.category,
     severity: input.severity,
+    repair_time: input.repairTime,
     description: input.description.trim(),
-    vehicle_count: input.vehicleCount,
+    vehicle_count: Math.max(1, vins.length || 1),
     vins,
     noted_at: input.notedAt ?? new Date().toISOString().slice(0, 10)
   }
@@ -122,12 +144,15 @@ export async function updateQualityNoteStudy(
   patch: QualityNoteStudyPatch,
   modelNameById?: Map<string, string>
 ): Promise<QualityNoteRecord> {
+  const body: Record<string, unknown> = {
+    status: patch.status
+  }
+  if (patch.studyNotes !== undefined) body.study_notes = patch.studyNotes?.trim() || null
+  if (patch.study8d !== undefined) body.study_8d = trimQualityNote8D(patch.study8d)
+
   const { data, error } = await requireClient()
     .from('quality_notes')
-    .update({
-      status: patch.status,
-      study_notes: patch.studyNotes?.trim() || null
-    })
+    .update(body)
     .eq('id', id)
     .select(SELECT)
     .single()

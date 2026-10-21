@@ -119,20 +119,13 @@ function masterSupplySource(input: PartMasterInput): string {
   return effectiveSupplySource(input.common_supply_source ?? DEFAULT_SUPPLY_SOURCE)
 }
 
-function partNumberSeed(input: PartMasterInput): string {
-  return (
-    trimOrNull(input.common_name) ||
-    trimOrNull(input.part_name_en) ||
-    trimOrNull(input.part_name_ar) ||
-    trimOrNull(input.common_station) ||
-    ''
-  )
-}
-
-function generatedPartNumber(seed: string): string {
-  const base = normalizePartNumber(seed, { ignoreDashes: false }).replace(/[^A-Z0-9-]/g, '')
-  const suffix = Date.now().toString(36).toUpperCase()
-  return (base ? base.slice(0, 32) : 'PART') + '-' + suffix
+/** DB-only unique key for a master row with no real part number. Never shown in IPL UI. */
+function unsetMasterPartNumber(): string {
+  const id =
+    typeof crypto !== 'undefined' && 'randomUUID' in crypto
+      ? crypto.randomUUID().replace(/-/g, '')
+      : `${Date.now().toString(36)}${Math.random().toString(36).slice(2)}`
+  return `UNSET-${id.toUpperCase()}`
 }
 
 export async function createPartMaster(input: PartMasterInput): Promise<{ id: string }> {
@@ -145,7 +138,8 @@ export async function createPartMaster(input: PartMasterInput): Promise<{ id: st
     return { id: existing.id }
   }
 
-  const partNumber = generatedPartNumber(partNumberSeed(input) || 'PART')
+  // Master has no OEM number — each model stores its own on bom_items; unset stays unset in UI.
+  const partNumber = unsetMasterPartNumber()
 
   const { data, error } = await client()
     .from('parts')

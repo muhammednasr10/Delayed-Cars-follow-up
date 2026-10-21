@@ -19,7 +19,10 @@ export function useInboxRefreshSignals(refresh: () => Promise<void> | void) {
 
   useEffect(() => {
     void refresh()
-    const id = window.setInterval(() => void refresh(), POLL_MS)
+    const id = window.setInterval(() => {
+      if (document.visibilityState === 'hidden') return
+      void refresh()
+    }, POLL_MS)
     const onFocus = () => scheduleRefresh()
     const onVisible = () => {
       if (document.visibilityState === 'visible') scheduleRefresh()

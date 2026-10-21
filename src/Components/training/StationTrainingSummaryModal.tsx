@@ -5,9 +5,14 @@ import { Modal } from '../Modal'
 import type { TrainingLevel } from '../../Types/enums'
 import type { EmployeeStationLevel } from '../../Types/training'
 import type { Station } from '../../Types/settings'
+import {
+  stationWorkerTrackCount,
+  stationWorkerTrackIndexes,
+  stationWorkerTrackLabel
+} from '../../Utils/stationWorkerTracks'
+import { isMasterReferenceStation } from '../../Utils/stationMaster'
 
 const WORK_LEVELS: TrainingLevel[] = ['level_1', 'level_2', 'level_3', 'level_4']
-const LEVEL_SHORT = ['L1', 'L2', 'L3', 'L4'] as const
 
 const LEVEL_TONE: Record<TrainingLevel, string> = {
   level_0: 'bg-slate-800/40 text-slate-500',
@@ -37,6 +42,8 @@ type Props = {
   open: boolean
   onClose: () => void
   stations: Station[]
+  /** All stations including worker lines — used to resolve headcount / L* fallbacks. */
+  allStations?: Station[]
   levels: EmployeeStationLevel[]
   activeEmployeeIds: Set<string>
 }
@@ -51,29 +58,33 @@ function sortStations(a: Station, b: Station) {
 export function buildStationWorkforceDetails(
   stations: Station[],
   levels: EmployeeStationLevel[],
-  activeEmployeeIds: Set<string>
+  activeEmployeeIds: Set<string>,
+  allStations: Station[] = stations
 ): StationWorkforceDetail[] {
   const relevant = levels.filter(l => activeEmployeeIds.has(l.employeeId))
+  const masters = stations.filter(st => isMasterReferenceStation(st))
 
-  return stations.map(st => {
-    const tracks: TrackDetail[] = LEVEL_SHORT.map((_, idx) => {
-      const levelTrack = idx + 1
-      const label = `${st.station_number}-${LEVEL_SHORT[idx]}`
-      const rows = relevant.filter(l => l.stationId === st.id && l.levelTrack === levelTrack)
-      const byLevel: Record<TrainingLevel, number> = {
-        level_0: 0,
-        level_1: 0,
-        level_2: 0,
-        level_3: 0,
-        level_4: 0
+  return masters.map(st => {
+    const tracks: TrackDetail[] = stationWorkerTrackIndexes(stationWorkerTrackCount(st, allStations)).map(
+      levelTrack => {
+        const label = stationWorkerTrackLabel(st.station_number, levelTrack)
+        const rows = relevant.filter(l => l.stationId === st.id && l.levelTrack === levelTrack)
+        const byLevel: Record<TrainingLevel, number> = {
+          level_0: 0,
+          level_1: 0,
+          level_2: 0,
+          level_3: 0,
+          level_4: 0
+        }
+        rows.forEach(r => {
+          byLevel[r.level]++
+        })
+        return { levelTrack, label, workerCount: rows.length, byLevel }
       }
-      rows.forEach(r => {
-        byLevel[r.level]++
-      })
-      return { levelTrack, label, workerCount: rows.length, byLevel }
-    })
+    )
 
-    const stationRows = relevant.filter(l => l.stationId === st.id)
+    const allowedTracks = new Set(tracks.map(t => t.levelTrack))
+    const stationRows = relevant.filter(l => l.stationId === st.id && allowedTracks.has(l.levelTrack))
     const unique = new Set(stationRows.map(l => l.employeeId))
 
     return {
@@ -87,12 +98,21 @@ export function buildStationWorkforceDetails(
   })
 }
 
-export function StationTrainingSummaryModal({ open, onClose, stations, levels, activeEmployeeIds }: Props) {
+export function StationTrainingSummaryModal({
+  open,
+  onClose,
+  stations,
+  allStations,
+  levels,
+  activeEmployeeIds
+}: Props) {
   const { t } = useLang()
+  const stationUniverse = allStations ?? stations
 
   const details = useMemo(
-    () => buildStationWorkforceDetails([...stations].sort(sortStations), levels, activeEmployeeIds),
-    [stations, levels, activeEmployeeIds]
+    () =>
+      buildStationWorkforceDetails([...stations].sort(sortStations), levels, activeEmployeeIds, stationUniverse),
+    [stations, levels, activeEmployeeIds, stationUniverse]
   )
 
   const totals = useMemo(() => {

@@ -294,7 +294,7 @@ export function AppSidebar() {
       label: t('nav.lineBalancing'),
       visible: canShowLineBalancing,
       onNavigate: () => sidebarNav({ department: 'engineering', engineeringPage: 'lineBalancing' }, true),
-      children: (['operations', 'opParts', 'timeStudy', 'routing', 'manpower', 'import'] as const).map(key => ({
+      children: (['operations', 'timeStudy', 'routing', 'manpower', 'import'] as const).map(key => ({
         key,
         label: t(`lineBalancing.tabs.${key}`),
         onClick: () =>

@@ -5,4 +5,4 @@ export { updateStationOperation, createStationOperation, updateIplOperationLabel
 export type { OperationHardwareInput, StationOperationUpdate } from './operationsCrud'
 
 export { syncWorkerLinesToHeadcount, ensureFirstWorkerLine, syncAllWorkerHeadcountsFromGroups, createParentStation, createWorkerStation, deactivateStationWithWorkers } from './workerLineSync'
-export { assignIplPartToWorkerLine } from './assignIplPartLine'
+export { assignIplPartToWorkerLine, listAssignedIplPartIds } from './assignIplPartLine'

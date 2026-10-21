@@ -1,5 +1,5 @@
-import { useMemo, useState } from 'react'
-import { Boxes, GitCompare, Info, Pencil } from 'lucide-react'
+import { useEffect, useMemo, useState } from 'react'
+import { Boxes, GitCompare, Info, ListChecks, Pencil } from 'lucide-react'
 import { useLang } from '../../i18n/LanguageContext'
 import {
   buildIplCompareRows,
@@ -13,6 +13,8 @@ import type { IplFitCounts } from '../../Utils/iplFitStatus'
 import { IplCompareFieldCell } from './IplCompareFieldCell'
 import { IplCompareDetailCard } from './IplCompareDetailCard'
 import { IplComparePartCard, partIdFromCompareRow } from './IplComparePartCard'
+import { IplPartOperationsModal } from './IplPartOperationsModal'
+import { listAssignedIplPartIds } from '../../services/stationOperationsService'
 import { IplModelTraitCompareModal } from './IplModelTraitCompareModal'
 import { IplAllModelsFeedingModal, IplAllModelsInfoModal } from './IplAllModelsDataModals'
 import { IplFitCountBadges } from './IplFitCountBadges'
@@ -56,6 +58,8 @@ export function IplModelCompareTable({
   const { t } = useLang()
   const [detailModal, setDetailModal] = useState<DetailModalState | null>(null)
   const [partCard, setPartCard] = useState<IplCompareRow | null>(null)
+  const [opsRow, setOpsRow] = useState<IplCompareRow | null>(null)
+  const [assignedPartIds, setAssignedPartIds] = useState<Set<string>>(() => new Set())
   const [traitRow, setTraitRow] = useState<IplCompareRow | null>(null)
   const [infoRow, setInfoRow] = useState<IplCompareRow | null>(null)
   const [feedingRow, setFeedingRow] = useState<IplCompareRow | null>(null)
@@ -64,6 +68,16 @@ export function IplModelCompareTable({
     [openTabs, itemsByModel, stations]
   )
   const rows = rowsProp ?? builtRows
+
+  function reloadAssignedParts() {
+    listAssignedIplPartIds()
+      .then(setAssignedPartIds)
+      .catch(() => setAssignedPartIds(new Set()))
+  }
+
+  useEffect(() => {
+    reloadAssignedParts()
+  }, [])
 
   function openDetail(row: IplCompareRow, field: 'part_number' | 'station' | 'qty', result: FieldCompareResult, mono?: boolean) {
     const titles = {
@@ -89,16 +103,15 @@ export function IplModelCompareTable({
 
   return (
     <>
-      <div className="overflow-x-auto">
-        <table className="w-full min-w-[640px] text-sm">
-          <thead>
-            <tr className="border-b border-slate-800 text-[10px] font-black uppercase text-slate-500">
-              <th className="sticky start-0 z-10 bg-slate-950 px-3 py-2 text-start">{t('bom.col.part_name_ar')}</th>
-              <th className="px-3 py-2 text-start">{t('bom.col.part_name_en')}</th>
-              <th className="px-3 py-2 text-center">{t('bom.col.part_number')}</th>
-              <th className="px-3 py-2 text-center">{t('bom.station')}</th>
-              <th className="px-3 py-2 text-center">{t('bom.qtyPerCar')}</th>
-              <th className="px-3 py-2 text-center">{t('common.actions')}</th>
+      <table className="w-full min-w-[640px] text-sm">
+          <thead className="sticky top-0 z-20">
+            <tr className="border-b border-slate-700 bg-slate-950 text-[10px] font-black uppercase text-slate-400 shadow-sm shadow-black/40">
+              <th className="sticky start-0 top-0 z-30 bg-slate-950 px-3 py-2.5 text-start">{t('bom.col.part_name_ar')}</th>
+              <th className="bg-slate-950 px-3 py-2.5 text-start">{t('bom.col.part_name_en')}</th>
+              <th className="bg-slate-950 px-3 py-2.5 text-center">{t('bom.col.part_number')}</th>
+              <th className="bg-slate-950 px-3 py-2.5 text-center">{t('bom.station')}</th>
+              <th className="bg-slate-950 px-3 py-2.5 text-center">{t('bom.qtyPerCar')}</th>
+              <th className="bg-slate-950 px-3 py-2.5 text-center">{t('common.actions')}</th>
             </tr>
           </thead>
           <tbody>
@@ -107,14 +120,25 @@ export function IplModelCompareTable({
               const stations = compareStations(row, openTabs)
               const quantities = compareQuantities(row, openTabs)
               const counts = fitCountsByKey?.get(row.key) ?? EMPTY_COUNTS
+              const partId = partIdFromCompareRow(row)
+              const hasWorker = partId != null && assignedPartIds.has(partId)
+              const fullyClassified = counts.unset === 0 && counts.fitted + counts.notFitted > 0
 
               return (
                 <tr
                   key={row.key}
-                  className="cursor-pointer border-b border-slate-800/60 hover:bg-slate-900/40"
+                  className={
+                    fullyClassified
+                      ? 'cursor-pointer border-b border-emerald-500/20 bg-emerald-500/10 hover:bg-emerald-500/15'
+                      : 'cursor-pointer border-b border-slate-800/60 hover:bg-slate-900/40'
+                  }
                   onClick={() => setPartCard(row)}
                 >
-                  <td className="sticky start-0 z-10 bg-slate-950/95 px-3 py-2 font-medium text-white">
+                  <td
+                    className={`sticky start-0 z-10 px-3 py-2 font-medium text-white ${
+                      fullyClassified ? 'bg-emerald-950/90' : 'bg-slate-950/95'
+                    }`}
+                  >
                     <span className="inline-flex max-w-full flex-wrap items-center gap-y-1">
                       <span>{row.partNameAr}</span>
                       <IplFitCountBadges counts={counts} modelTotal={fitModelTotal} />
@@ -148,6 +172,21 @@ export function IplModelCompareTable({
                   </td>
                   <td className="px-3 py-2 text-center">
                     <div className="flex items-center justify-center gap-1">
+                      <button
+                        type="button"
+                        className={
+                          hasWorker
+                            ? 'rounded-lg bg-cyan-400/20 p-1.5 text-cyan-200 ring-1 ring-cyan-300/70 hover:bg-cyan-400/30'
+                            : 'rounded-lg p-1.5 text-slate-400 hover:bg-slate-800 hover:text-cyan-300'
+                        }
+                        title={t('bom.partOps.action')}
+                        onClick={e => {
+                          e.stopPropagation()
+                          setOpsRow(row)
+                        }}
+                      >
+                        <ListChecks className="h-4 w-4" />
+                      </button>
                       <button
                         type="button"
                         className="rounded-lg p-1.5 text-slate-400 hover:bg-slate-800 hover:text-cyan-300"
@@ -202,7 +241,6 @@ export function IplModelCompareTable({
             })}
           </tbody>
         </table>
-      </div>
       <p className="border-t border-slate-800 px-4 py-2 text-center text-xs text-slate-500">
         {t('bom.iplModelCompareShowing', { n: rows.length })}
       </p>
@@ -237,6 +275,16 @@ export function IplModelCompareTable({
         models={openTabs}
         canUpdate={canUpdate}
         onClose={() => setTraitRow(null)}
+      />
+      <IplPartOperationsModal
+        open={Boolean(opsRow)}
+        row={opsRow}
+        models={openTabs}
+        canUpdate={canUpdate}
+        onClose={() => {
+          setOpsRow(null)
+          reloadAssignedParts()
+        }}
       />
       {partCard && (
         <IplComparePartCard

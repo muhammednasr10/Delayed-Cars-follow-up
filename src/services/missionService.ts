@@ -151,6 +151,40 @@ export async function listOpenScratchMissions(scratchIds: string[], vins: string
   return out
 }
 
+export async function listOpenQualityNoteMissions(noteIds: string[]): Promise<ShortageMissionLink[]> {
+  const ids = [...new Set(noteIds.filter(Boolean))]
+  if (ids.length === 0) return []
+  const { data, error } = await requireClient()
+    .from('team_missions')
+    .select('id, title, status, source_vehicle_id, source_missing_part_id, source_scratch_id, source_quality_note_id, source_vin')
+    .in('source_quality_note_id', ids)
+    .in('status', ['pending', 'in_progress'])
+  if (error) {
+    const m = error.message.toLowerCase()
+    if (m.includes('schema cache') || m.includes('does not exist') || m.includes('source_quality_note')) return []
+    throw new Error(error.message)
+  }
+  return ((data ?? []) as {
+    id: string
+    title: string
+    status: ShortageMissionLink['status']
+    source_vehicle_id: string | null
+    source_missing_part_id: string | null
+    source_scratch_id?: string | null
+    source_quality_note_id?: string | null
+    source_vin: string | null
+  }[]).map(row => ({
+    id: row.id,
+    title: row.title,
+    status: row.status,
+    sourceVehicleId: row.source_vehicle_id,
+    sourceMissingPartId: row.source_missing_part_id,
+    sourceScratchId: row.source_scratch_id ?? null,
+    sourceQualityNoteId: row.source_quality_note_id ?? null,
+    sourceVin: row.source_vin
+  }))
+}
+
 export async function createTeamMission(input: TeamMissionInput): Promise<TeamMission> {
   if (!input.assigneeIds.length) throw new Error('ASSIGNEES_REQUIRED')
   const { data, error } = await requireClient().from('team_missions').insert(toMissionPayload(input)).select('id').single()

@@ -9,6 +9,12 @@ import type { Employee } from '../../Types/employee'
 import type { EmployeeStationLevel } from '../../Types/training'
 import type { Station } from '../../Types/settings'
 import { workerLineCommonName } from '../../Utils/workerLineCommonName'
+import { isMasterReferenceStation } from '../../Utils/stationMaster'
+import {
+  stationWorkerTrackCount,
+  stationWorkerTrackIndexes,
+  stationWorkerTrackLabel
+} from '../../Utils/stationWorkerTracks'
 
 type Props = {
   employees: Employee[]
@@ -45,7 +51,6 @@ const LEVEL_TONE: Record<TrainingLevel, string> = {
   level_4: 'bg-cyan-500/25 text-cyan-100 ring-cyan-400/40'
 }
 
-const LEVEL_SHORT = ['L1', 'L2', 'L3', 'L4'] as const
 const ROW_HEIGHT = 52
 const ROW_OVERSCAN = 8
 
@@ -54,10 +59,6 @@ function sortStations(a: Station, b: Station) {
   const ob = b.sort_order ?? 0
   if (oa !== ob) return oa - ob
   return a.station_number.localeCompare(b.station_number, undefined, { numeric: true })
-}
-
-function stationColLabel(stationNumber: string, levelTrack: number) {
-  return `${stationNumber}-${LEVEL_SHORT[levelTrack - 1]}`
 }
 
 function cellKey(employeeId: string, stationId: string, levelTrack: number) {
@@ -69,21 +70,19 @@ function activeEmployeeList(employees: Employee[]) {
 }
 
 function masterStations(stations: Station[]) {
-  return stations.filter(s => s.is_active && !s.parent_station_id).sort(sortStations)
+  return stations.filter(s => s.is_active && isMasterReferenceStation(s)).sort(sortStations)
 }
 
+/** Columns follow Line Balancing headcount (not a fixed L1–L4). */
 function buildMatrixColumns(masters: Station[], allStations: Station[]): MatrixColumn[] {
   return masters.flatMap(st =>
-    LEVEL_SHORT.map((_, idx) => {
-      const levelTrack = idx + 1
-      return {
-        stationId: st.id,
-        stationNumber: st.station_number,
-        stationName: workerLineCommonName(allStations, st, levelTrack),
-        levelTrack,
-        label: stationColLabel(st.station_number, levelTrack)
-      }
-    })
+    stationWorkerTrackIndexes(stationWorkerTrackCount(st, allStations)).map(levelTrack => ({
+      stationId: st.id,
+      stationNumber: st.station_number,
+      stationName: workerLineCommonName(allStations, st, levelTrack),
+      levelTrack,
+      label: stationWorkerTrackLabel(st.station_number, levelTrack)
+    }))
   )
 }
 
@@ -141,6 +140,19 @@ export function StationTrainingMatrixTab({ employees, stations, levels, canManag
       .slice(0, 25)
   }, [allActiveEmployees, employeeQuery])
 
+  /** Rows shown in the matrix: selected worker, or live search matches, otherwise everyone. */
+  const matrixEmployees = useMemo(() => {
+    if (quickEmployeeId) {
+      const selected = allActiveEmployees.find(e => e.id === quickEmployeeId)
+      return selected ? [selected] : []
+    }
+    const q = employeeQuery.trim().toLowerCase()
+    if (!q) return allActiveEmployees
+    return allActiveEmployees.filter(
+      e => e.fullName.toLowerCase().includes(q) || e.employeeCode.toLowerCase().includes(q)
+    )
+  }, [allActiveEmployees, employeeQuery, quickEmployeeId])
+
   const quickEmployee = allActiveEmployees.find(e => e.id === quickEmployeeId) ?? null
   const quickVirtual = allVirtualColumns.find(c => `${c.stationId}:${c.levelTrack}` === quickVirtualKey) ?? null
   const quickLevel =
@@ -195,13 +207,13 @@ export function StationTrainingMatrixTab({ employees, stations, levels, canManag
 
   useLayoutEffect(() => {
     syncTopWidth()
-  }, [syncTopWidth, allActiveEmployees, matrixColumns])
+  }, [syncTopWidth, matrixEmployees, matrixColumns])
 
   useEffect(() => {
     const ro = new ResizeObserver(() => syncTopWidth())
     if (tableRef.current) ro.observe(tableRef.current)
     return () => ro.disconnect()
-  }, [syncTopWidth, allActiveEmployees.length])
+  }, [syncTopWidth, matrixEmployees.length])
 
   useEffect(() => {
     const el = bottomScrollRef.current
@@ -211,7 +223,7 @@ export function StationTrainingMatrixTab({ employees, stations, levels, canManag
     const ro = new ResizeObserver(measure)
     ro.observe(el)
     return () => ro.disconnect()
-  }, [allActiveEmployees.length, matrixColumns.length])
+  }, [matrixEmployees.length, matrixColumns.length])
 
   useEffect(() => {
     function onDocClick(e: MouseEvent) {
@@ -237,12 +249,11 @@ export function StationTrainingMatrixTab({ employees, stations, levels, canManag
     }
   }, [picker])
 
+  // Keep virtualization window in sync when search selection / filter changes.
   useEffect(() => {
-    if (!quickEmployeeId) return
-    const index = allActiveEmployees.findIndex(emp => emp.id === quickEmployeeId)
-    if (index < 0) return
-    bottomScrollRef.current?.scrollTo({ top: index * ROW_HEIGHT, behavior: 'smooth' })
-  }, [quickEmployeeId, allActiveEmployees])
+    setScrollTop(0)
+    bottomScrollRef.current?.scrollTo({ top: 0, behavior: 'auto' })
+  }, [quickEmployeeId, employeeQuery])
 
   function onBodyScroll(event: React.UIEvent<HTMLDivElement>) {
     syncHorizontal(event.currentTarget)
@@ -311,9 +322,9 @@ export function StationTrainingMatrixTab({ employees, stations, levels, canManag
 
   const startIndex = Math.max(0, Math.floor(scrollTop / ROW_HEIGHT) - ROW_OVERSCAN)
   const visibleCount = Math.ceil(viewportHeight / ROW_HEIGHT) + ROW_OVERSCAN * 2
-  const visibleEmployees = allActiveEmployees.slice(
+  const visibleEmployees = matrixEmployees.slice(
     startIndex,
-    Math.min(allActiveEmployees.length, startIndex + visibleCount)
+    Math.min(matrixEmployees.length, startIndex + visibleCount)
   )
   const matrixMinWidth = 168 + matrixColumns.length * 76
   const cellClickTitle = t('training.stationMatrix.cellClick')
@@ -521,6 +532,13 @@ export function StationTrainingMatrixTab({ employees, stations, levels, canManag
               hint={canManage ? t('training.stationMatrix.emptyHint') : undefined}
             />
           </div>
+        ) : matrixEmployees.length === 0 ? (
+          <div className="card-industrial">
+            <EmptyState
+              title={t('training.stationMatrix.noEmployeeMatch')}
+              hint={t('training.stationMatrix.noEmployeeMatchHint')}
+            />
+          </div>
         ) : (
           <>
             <div className="sticky top-16 z-30 rounded-t-xl border border-b-0 border-slate-700/70 bg-slate-950 sm:rounded-t-2xl">
@@ -576,7 +594,7 @@ export function StationTrainingMatrixTab({ employees, stations, levels, canManag
               onScroll={onBodyScroll}
               className="max-h-[calc(100dvh-16rem)] overflow-auto rounded-b-xl border border-t-0 border-slate-700/70 bg-slate-900/80 sm:rounded-b-2xl"
             >
-              <div style={{ height: allActiveEmployees.length * ROW_HEIGHT, minWidth: matrixMinWidth, position: 'relative' }}>
+              <div style={{ height: matrixEmployees.length * ROW_HEIGHT, minWidth: matrixMinWidth, position: 'relative' }}>
               <table
                 ref={tableRef}
                 className="w-full table-fixed border-separate border-spacing-0 text-start text-sm"
@@ -636,6 +654,7 @@ export function StationTrainingMatrixTab({ employees, stations, levels, canManag
         open={detailOpen}
         onClose={() => setDetailOpen(false)}
         stations={allMasterStations}
+        allStations={stations}
         levels={levels}
         activeEmployeeIds={activeEmployeeIds}
       />

@@ -1,4 +1,4 @@
-import { createContext, useContext, useEffect, useMemo, useState, type ReactNode } from 'react'
+import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import { supabase } from '../lib/supabase'
 import type { VehicleInput, VehicleOverview, VehicleUpdateInput } from '../Types/vehicle'
 import {
@@ -17,6 +17,8 @@ type VehiclesContextValue = {
   loading: boolean
   error: string
   setupRequired: boolean
+  /** Start loading vehicles (no-op after first call). Pages that need data call this via useVehicles. */
+  ensureLoaded: () => void
   refresh: () => Promise<void>
   addVehicle: (input: VehicleInput) => Promise<Result>
   updateVehicle: (id: string, input: VehicleUpdateInput) => Promise<Result>
@@ -27,7 +29,6 @@ type VehiclesContextValue = {
 
 const VehiclesContext = createContext<VehiclesContextValue | undefined>(undefined)
 
-// The schema/migrations have not been applied yet (PostgREST schema-cache miss).
 function isSchemaMissing(message: string): boolean {
   const m = message.toLowerCase()
   return (
@@ -40,33 +41,52 @@ function isSchemaMissing(message: string): boolean {
 
 export function VehiclesProvider({ children }: { children: ReactNode }) {
   const [vehicles, setVehicles] = useState<VehicleOverview[]>([])
-  const [loading, setLoading] = useState(true)
+  const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const [setupRequired, setSetupRequired] = useState(false)
+  const [wanted, setWanted] = useState(false)
+  const inflightRef = useRef<Promise<void> | null>(null)
 
-  async function refresh() {
+  const refresh = useCallback(async () => {
     if (!supabase) {
       setError('Supabase غير مهيأ. أضف VITE_SUPABASE_URL و VITE_SUPABASE_ANON_KEY.')
       setLoading(false)
       return
     }
+    if (inflightRef.current) {
+      await inflightRef.current
+      return
+    }
     setLoading(true)
     setError('')
+    const task = (async () => {
+      try {
+        setVehicles(await getVehicles())
+        setSetupRequired(false)
+      } catch (err) {
+        const message = err instanceof Error ? err.message : 'تعذر تحميل السيارات.'
+        setSetupRequired(isSchemaMissing(message))
+        setError(message)
+      } finally {
+        setLoading(false)
+      }
+    })()
+    inflightRef.current = task
     try {
-      setVehicles(await getVehicles())
-      setSetupRequired(false)
-    } catch (err) {
-      const message = err instanceof Error ? err.message : 'تعذر تحميل السيارات.'
-      setSetupRequired(isSchemaMissing(message))
-      setError(message)
+      await task
     } finally {
-      setLoading(false)
+      inflightRef.current = null
     }
-  }
+  }, [])
+
+  const ensureLoaded = useCallback(() => {
+    setWanted(true)
+  }, [])
 
   useEffect(() => {
-    refresh()
-  }, [])
+    if (!wanted) return
+    void refresh()
+  }, [wanted, refresh])
 
   async function addVehicle(input: VehicleInput): Promise<Result> {
     try {
@@ -98,8 +118,6 @@ export function VehiclesProvider({ children }: { children: ReactNode }) {
     }
   }
 
-  // Critical actions re-fetch from the DB so the UI reflects rules enforced
-  // server-side (a rejected release must NOT look successful).
   async function release(id: string): Promise<Result> {
     try {
       await releaseVehicleForDelivery(id)
@@ -126,6 +144,7 @@ export function VehiclesProvider({ children }: { children: ReactNode }) {
       loading,
       error,
       setupRequired,
+      ensureLoaded,
       refresh,
       addVehicle,
       updateVehicle,
@@ -133,7 +152,7 @@ export function VehiclesProvider({ children }: { children: ReactNode }) {
       release,
       deliver
     }),
-    [vehicles, loading, error, setupRequired]
+    [vehicles, loading, error, setupRequired, ensureLoaded, refresh]
   )
 
   return <VehiclesContext.Provider value={value}>{children}</VehiclesContext.Provider>
@@ -142,5 +161,9 @@ export function VehiclesProvider({ children }: { children: ReactNode }) {
 export function useVehicles() {
   const context = useContext(VehiclesContext)
   if (!context) throw new Error('useVehicles must be used inside VehiclesProvider')
+  const { ensureLoaded } = context
+  useEffect(() => {
+    ensureLoaded()
+  }, [ensureLoaded])
   return context
 }

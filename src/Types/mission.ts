@@ -65,6 +65,8 @@ export type TeamMission = {
 
   sourceScratchId: string | null
 
+  sourceQualityNoteId: string | null
+
   sourceVin: string | null
 
   sourceModelName: string | null
@@ -112,6 +114,8 @@ export type TeamMissionInput = {
   sourceMissingPartId?: string | null
 
   sourceScratchId?: string | null
+
+  sourceQualityNoteId?: string | null
 
   sourceVin?: string | null
 
@@ -161,6 +165,7 @@ export type ShortageMissionLink = {
   sourceVehicleId: string | null
   sourceMissingPartId: string | null
   sourceScratchId: string | null
+  sourceQualityNoteId?: string | null
   sourceVin: string | null
 }
 

@@ -15,6 +15,8 @@ export {
   deleteBomItem,
   getBomFilterOptions,
   getBomItemsForPartIds,
+  getActiveBomRowsForPartIds,
+  getActiveBomRowsForHardwareRefs,
   fetchBomRowsForPart,
   type BomExcelColumnFilters,
   type BomListFilters,

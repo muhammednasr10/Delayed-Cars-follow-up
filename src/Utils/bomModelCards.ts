@@ -2,6 +2,7 @@ import { DEFAULT_PART_KIND, DEFAULT_SUPPLY_SOURCE, effectivePartKind, effectiveS
 import { resolveSupplySource } from './bomDisplayFormat'
 import { formatQtyByModelRaw, maxModelQty, modelQtyFromBomRow, parseApplicableModelNames } from './bomQtyByModel'
 import { notFittedModelsFromBomRow } from './iplFitStatus'
+import { iplDisplayPartNumber } from './iplModelParts'
 import { iplFeedingCardFromBomItem, type BomIplFeedingCard } from './iplBomLogistics'
 import { normalizeBomStationCodeText, findMasterStationByCode } from './bomStationCode'
 import { bomModelBreakdownFamilies, lineDraftFromBreakdown, type BomModelLineDraft } from './bomModelBreakdown'
@@ -64,7 +65,8 @@ export function partitionIplModelCards(cards: ModelCardDraft[]) {
   return {
     fitted: cards.filter(c => {
       const q = Number(c.qty)
-      return !c.notFitted && c.part_number.trim() && c.modelId && Number.isFinite(q) && q > 0
+      // Qty marks fitted; part number is per-model and may stay empty (لم يحدد).
+      return !c.notFitted && c.modelId && Number.isFinite(q) && q > 0
     }),
     notFitted: cards.filter(c => c.notFitted && c.modelId)
   }
@@ -96,7 +98,7 @@ export function cardsFromBomRow(
   }
 
   const seed: Partial<ModelCardDraft> = {
-    part_number: row.part_number,
+    part_number: iplDisplayPartNumber(row.part_number),
     part_number_new: row.part_number_new ?? '',
     alternative_part_no: row.alternative_part_no ?? '',
     part_kind: effectivePartKind(row.part_type),
@@ -459,7 +461,7 @@ export function bomRowsToModelCards(
       if (m.parent_model_id && !familyIds.includes(m.parent_model_id)) familyIds.push(m.parent_model_id)
       cards.push(
         emptyCard(m, {
-          part_number: row.part_number,
+          part_number: iplDisplayPartNumber(row.part_number),
           part_number_new: row.part_number_new ?? '',
           alternative_part_no: row.alternative_part_no ?? '',
           qty: String(qty),

@@ -11,10 +11,6 @@ import { DepartmentTopBar } from './Components/layout/DepartmentTopBar'
 import { HeaderNotificationsBell } from './Components/layout/HeaderNotificationsBell'
 import { NotificationInboxProvider } from './Context/NotificationInboxProvider'
 import { PushOpenListener } from './Components/layout/notifications/PushOpenListener'
-import { HomePage } from './Pages/production/HomePage'
-import { ProductionOverviewPage } from './Pages/production/ProductionOverviewPage'
-import { LineShopRoutes } from './Pages/production/LineShopRoutes'
-import { MissingPartsPage } from './Pages/production/MissingPartsPage'
 import { LoginPage } from './Pages/shared/LoginPage'
 import { MyProfilePage } from './Pages/shared/MyProfilePage'
 import { DepartmentPlaceholderPage } from './Pages/shared/DepartmentPlaceholderPage'
@@ -39,6 +35,16 @@ import { usePresenceHeartbeat } from './hooks/usePresenceHeartbeat'
 
 export type { AppPage as Page, DepartmentId, ProductionPage, EngineeringPage } from './Types/navigation'
 
+const HomePage = lazy(() => import('./Pages/production/HomePage').then(m => ({ default: m.HomePage })))
+const ProductionOverviewPage = lazy(() =>
+  import('./Pages/production/ProductionOverviewPage').then(m => ({ default: m.ProductionOverviewPage }))
+)
+const LineShopRoutes = lazy(() =>
+  import('./Pages/production/LineShopRoutes').then(m => ({ default: m.LineShopRoutes }))
+)
+const MissingPartsPage = lazy(() =>
+  import('./Pages/production/MissingPartsPage').then(m => ({ default: m.MissingPartsPage }))
+)
 const TrainingMatrixPage = lazy(() =>
   import('./Pages/production/TrainingMatrixPage').then(m => ({ default: m.TrainingMatrixPage }))
 )
@@ -251,7 +257,7 @@ function Shell() {
               <p className="font-bold">{t('permissions.loadFailed')}</p>
               <button
                 type="button"
-                onClick={() => void reloadPermissions()}
+                onClick={() => void reloadPermissions({ force: true })}
                 className="rounded-xl bg-amber-400 px-3 py-1.5 text-xs font-black text-slate-950 hover:bg-amber-300"
               >
                 {t('permissions.retryLoad')}
@@ -316,10 +322,20 @@ function Shell() {
                 </LazyPage>
               )}
               {nav.productionPage === 'overview' && (navLoading || canViewPage(pagePermForProduction('home'))) && (
-                <ProductionOverviewPage />
+                <LazyPage>
+                  <ProductionOverviewPage />
+                </LazyPage>
               )}
-              {nav.productionArea === 'body' && <LineShopRoutes area="body" />}
-              {nav.productionArea === 'paint' && <LineShopRoutes area="paint" />}
+              {nav.productionArea === 'body' && (
+                <LazyPage>
+                  <LineShopRoutes area="body" />
+                </LazyPage>
+              )}
+              {nav.productionArea === 'paint' && (
+                <LazyPage>
+                  <LineShopRoutes area="paint" />
+                </LazyPage>
+              )}
               {nav.productionPage !== 'overview' &&
                 nav.productionArea !== 'assembly' &&
                 nav.productionArea !== 'body' &&
@@ -328,10 +344,16 @@ function Shell() {
               {nav.productionPage !== 'overview' && nav.productionArea === 'assembly' && (
                 <>
                   {nav.productionPage === 'home' && (navLoading || canViewPage(pagePermForProduction('home'))) && (
-                    <HomePage />
+                    <LazyPage>
+                      <HomePage />
+                    </LazyPage>
                   )}
                   {nav.productionPage === 'missing' &&
-                    (navLoading || canViewPage(pagePermForProduction('missing'))) && <MissingPartsPage />}
+                    (navLoading || canViewPage(pagePermForProduction('missing'))) && (
+                      <LazyPage>
+                        <MissingPartsPage />
+                      </LazyPage>
+                    )}
                   {nav.productionPage === 'vehicles' &&
                     (navLoading ||
                       productivityNavVisible(

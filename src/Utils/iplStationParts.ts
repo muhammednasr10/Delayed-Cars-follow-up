@@ -23,12 +23,15 @@ export type IplStationPart = {
 
 const IPL_PART_NOTE_PREFIX = 'ipl-part:'
 
-export function iplPartNote(partId: string, copyIndex = 0, partNumber?: string): string {
+export function iplPartNote(partId: string, copyIndex = 0, partNumber?: string, stationKey?: string): string {
   const id = partId.trim()
   const base = !copyIndex ? `${IPL_PART_NOTE_PREFIX}${id}` : `${IPL_PART_NOTE_PREFIX}${id}#${copyIndex}`
   const number = partNumber?.trim()
-  if (!number) return base
-  return `${base}@${number}`
+  const station = stationKey?.trim()
+  let note = base
+  if (number) note += `@${number}`
+  if (station) note += `~${station}`
+  return note
 }
 
 function iplPartNoteBody(notes: string): string | null {
@@ -36,7 +39,11 @@ function iplPartNoteBody(notes: string): string | null {
   if (!text.startsWith(IPL_PART_NOTE_PREFIX)) return null
   const rest = text.slice(IPL_PART_NOTE_PREFIX.length).trim()
   const at = rest.indexOf('@')
-  return (at >= 0 ? rest.slice(0, at) : rest).trim()
+  const tilde = rest.indexOf('~')
+  let end = rest.length
+  if (at >= 0) end = Math.min(end, at)
+  if (tilde >= 0) end = Math.min(end, tilde)
+  return rest.slice(0, end).trim()
 }
 
 export function iplPartIdFromNotes(notes: string | null | undefined): string | null {
@@ -62,7 +69,17 @@ export function iplPartNumberFromNotes(notes: string | null | undefined): string
   const rest = text.slice(IPL_PART_NOTE_PREFIX.length)
   const at = rest.indexOf('@')
   if (at < 0) return ''
-  return rest.slice(at + 1).trim()
+  const tail = rest.slice(at + 1)
+  const tilde = tail.indexOf('~')
+  return (tilde >= 0 ? tail.slice(0, tilde) : tail).trim()
+}
+
+export function iplPartStationFromNotes(notes: string | null | undefined): string {
+  const text = notes?.trim() ?? ''
+  if (!text.startsWith(IPL_PART_NOTE_PREFIX)) return ''
+  const tilde = text.lastIndexOf('~')
+  if (tilde < 0) return ''
+  return text.slice(tilde + 1).trim()
 }
 
 /** Same station key for IPL codes (PBS-01) and worker lines (PBS01-L1). */
@@ -88,12 +105,12 @@ export function groupIplFittedPartsByStation(
     if (!station) continue
     const qty = Number(row.quantity)
     const quantity = Number.isFinite(qty) && qty > 0 ? qty : 1
-    const partNumber = iplDisplayPartNumber(row.part_number) || row.part_number?.trim() || '—'
+    const partNumber = iplDisplayPartNumber(row.part_number)
     const part: IplStationPart = {
       bomItemId: row.id,
       partId: row.part_id,
       partNumber,
-      partName: row.part_name_ar?.trim() || row.part_number?.trim() || '—',
+      partName: row.part_name_ar?.trim() || row.part_name_en?.trim() || partNumber || '—',
       quantity,
       models: [{ modelName: model, partNumber, quantity }]
     }

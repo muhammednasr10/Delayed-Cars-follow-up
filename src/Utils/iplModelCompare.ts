@@ -8,12 +8,19 @@ import {
   resolveBomStationSortRank
 } from './bomStationCode'
 import { modelQtyForBomRow } from './bomQtyByModel'
-import { compareTokenForFitStatus, iplFitStatusForModel, isIplCompareFitToken } from './iplFitStatus'
+import {
+  compareTokenForFitStatus,
+  IPL_COMPARE_UNSET,
+  IPL_EMPTY_PART_NUMBER,
+  iplFitStatusForModel,
+  isIplCompareFitToken
+} from './iplFitStatus'
 
 export type { IplFitStatus } from './iplFitStatus'
 export {
   IPL_COMPARE_NOT_FITTED,
   IPL_COMPARE_UNSET,
+  IPL_EMPTY_PART_NUMBER,
   iplFitStatusForModel,
   isIplCompareFitToken
 } from './iplFitStatus'
@@ -176,8 +183,20 @@ function compareField(
 }
 
 export function comparePartNumbers(row: IplCompareRow, openTabs: string[]): FieldCompareResult {
-  return compareField(openTabs, row.byModel, (item, model) =>
-    fittedOrToken(item, model, iplDisplayPartNumber(item?.part_number))
+  return compareField(
+    openTabs,
+    row.byModel,
+    (item, model) => {
+      const token = compareTokenForFitStatus(iplFitStatusForModel(item, model))
+      if (token) return token
+      // Fitted with no number → explicit empty (لم يحدد), not "missing".
+      return iplDisplayPartNumber(item?.part_number) || IPL_EMPTY_PART_NUMBER
+    },
+    raw => {
+      if (isIplCompareFitToken(raw)) return raw
+      if (raw === IPL_EMPTY_PART_NUMBER) return IPL_COMPARE_UNSET
+      return raw
+    }
   )
 }
 

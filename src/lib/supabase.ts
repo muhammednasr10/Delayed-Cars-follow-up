@@ -10,6 +10,13 @@ if (!supabaseUrl || !supabaseAnonKey) {
 let accessToken: string | null = null
 let client: SupabaseClient | null = null
 
+/** Cached dynamic import — avoids re-parsing authService on every API call (circular with this module). */
+let authServiceMod: Promise<typeof import('../services/authService')> | null = null
+function loadAuthService() {
+  if (!authServiceMod) authServiceMod = import('../services/authService')
+  return authServiceMod
+}
+
 function requestUrl(input: RequestInfo | URL): string {
   if (typeof input === 'string') return input
   if (input instanceof URL) return input.href
@@ -33,10 +40,12 @@ async function authAwareFetch(input: RequestInfo | URL, init: RequestInit = {}):
 
   if (!skipRefresh) {
     try {
-      const { readRawSession, isAccessTokenExpired, ensureFreshSession } = await import('../services/authService')
+      const { readRawSession, isAccessTokenExpired, ensureFreshSession } = await loadAuthService()
       const stored = readRawSession()
       if (stored && isAccessTokenExpired(stored)) {
         await ensureFreshSession({ kickOnFailure: true })
+      } else if (stored && stored.access_token !== accessToken) {
+        setSupabaseAccessToken(stored.access_token)
       }
     } catch {
       // auth helpers unavailable during early boot
@@ -54,10 +63,14 @@ async function authAwareFetch(input: RequestInfo | URL, init: RequestInit = {}):
       msg?: string
     } | null
     const message = `${body?.message ?? ''} ${body?.error ?? ''} ${body?.msg ?? ''}`
-    const { isJwtExpiredMessage, ensureFreshSession, withTimeout } = await import('../services/authService')
+    const { isJwtExpiredMessage, ensureFreshSession, withTimeout } = await loadAuthService()
     if (!isJwtExpiredMessage(message)) return response
 
-    const refreshed = await withTimeout(ensureFreshSession({ kickOnFailure: true }), 15_000, null)
+    const refreshed = await withTimeout(
+      ensureFreshSession({ kickOnFailure: true, force: true }),
+      15_000,
+      null
+    )
     if (!refreshed) return response
     response = await run()
   } catch {

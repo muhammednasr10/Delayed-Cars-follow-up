@@ -5,6 +5,7 @@ import { inputCls } from '../../FormField'
 import { formatStationWorkerDisplayCode } from '../../../Utils/stationHierarchy'
 import { updateStationWorker1Summary } from '../../../services/stationOperationsService'
 import type { ModelLine } from '../../../Utils/modelLines'
+import type { BomItemDetail } from '../../../Types/bom'
 import type { IplStationPart } from '../../../Utils/iplStationParts'
 import type {
   ParentStationOperationsGroup,
@@ -89,6 +90,9 @@ function WorkerOperationsPanel({
   onMoveOp,
   onDeleteWorker,
   onSummarySaved,
+  compareModels,
+  bomByPartId,
+  hardwareBomRows,
   t
 }: {
   worker: WorkerOperationsGroup
@@ -101,6 +105,9 @@ function WorkerOperationsPanel({
   onMoveOp: (op: StationOperationDetail, workerStationId: string) => void
   onDeleteWorker: (worker: WorkerOperationsGroup) => void
   onSummarySaved: (stationId: string, summary: string) => void
+  compareModels?: string[]
+  bomByPartId?: Map<string, BomItemDetail[]>
+  hardwareBomRows?: BomItemDetail[]
   t: (key: string, vars?: Record<string, string | number>) => string
 }) {
   const [open, setOpen] = useState(false)
@@ -194,6 +201,9 @@ function WorkerOperationsPanel({
           contextLine={contextLine}
           canManage={canManage}
           compact
+          compareModels={compareModels}
+          bomByPartId={bomByPartId}
+          hardwareBomRows={hardwareBomRows}
           onEdit={onEditOp}
           onDelete={onDeleteOp}
           onMove={onMoveOp}
@@ -217,6 +227,9 @@ export function ParentStationBlock({
   onSummarySaved,
   iplParts,
   onAssignIplPart,
+  compareModels,
+  bomByPartId,
+  hardwareBomRows,
   t
 }: {
   parent: ParentStationOperationsGroup
@@ -232,6 +245,9 @@ export function ParentStationBlock({
   onSummarySaved: (stationId: string, summary: string) => void
   iplParts?: IplStationPart[]
   onAssignIplPart?: (part: IplStationPart, workerStationId: string | null) => Promise<void>
+  compareModels?: string[]
+  bomByPartId?: Map<string, BomItemDetail[]>
+  hardwareBomRows?: BomItemDetail[]
   t: (key: string, vars?: Record<string, string | number>) => string
 }) {
   const [open, setOpen] = useState(false)
@@ -328,6 +344,9 @@ export function ParentStationBlock({
                 onMoveOp={onMoveOp}
                 onDeleteWorker={onDeleteWorker}
                 onSummarySaved={onSummarySaved}
+                compareModels={compareModels}
+                bomByPartId={bomByPartId}
+                hardwareBomRows={hardwareBomRows}
                 t={t}
               />
             ))

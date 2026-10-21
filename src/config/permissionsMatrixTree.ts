@@ -497,11 +497,6 @@ export const PERMISSIONS_MATRIX_TREE: MatrixTreeNode[] = [
             pagePerm: 'engineering_line_balancing__operations'
           },
           {
-            id: 'eng_lb_parts',
-            labelKey: 'lineBalancing.tabs.opParts',
-            pagePerm: 'engineering_line_balancing__opParts'
-          },
-          {
             id: 'eng_lb_ts',
             labelKey: 'lineBalancing.tabs.timeStudy',
             pagePerm: 'engineering_line_balancing__timeStudy'

@@ -57,7 +57,9 @@ export function bomTabPermissionKey(tab: BomTab): string {
   return tab
 }
 
-export type LineBalancingTab = 'operations' | 'opParts' | 'timeStudy' | 'routing' | 'manpower' | 'import'
+export const LINE_BALANCING_TAB_ORDER = ['operations', 'timeStudy', 'routing', 'manpower', 'import'] as const
+
+export type LineBalancingTab = (typeof LINE_BALANCING_TAB_ORDER)[number]
 
 export type TrainingTab =
   'org' | 'attendance' | 'manpower' | 'operations' | 'stationSkills' | 'matrix' | 'qualification' | 'expiry'

@@ -235,12 +235,15 @@ async function refreshAppSessionWithRetry(session: AppAuthSession): Promise<Refr
   return { kind: 'transient' }
 }
 
-export async function ensureFreshSession(options?: { kickOnFailure?: boolean }): Promise<AppAuthSession | null> {
+export async function ensureFreshSession(options?: {
+  kickOnFailure?: boolean
+  force?: boolean
+}): Promise<AppAuthSession | null> {
   const kickOnFailure = options?.kickOnFailure ?? false
   const current = readRawSession()
   if (!current) return null
 
-  if (!isAccessTokenExpired(current)) {
+  if (!options?.force && !isAccessTokenExpired(current)) {
     applySession(current)
     return current
   }
@@ -265,7 +268,7 @@ export async function ensureFreshSession(options?: { kickOnFailure?: boolean }):
 
 export async function handleAuthApiError(message: string): Promise<boolean> {
   if (!isJwtExpiredMessage(message)) return false
-  return Boolean(await ensureFreshSession({ kickOnFailure: true }))
+  return Boolean(await ensureFreshSession({ kickOnFailure: true, force: true }))
 }
 
 async function tryGoTrueLogin(

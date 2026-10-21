@@ -1,4 +1,5 @@
 import { supabase } from '../lib/supabase'
+import { effectivePartKind, HARDWARE_PART_KIND } from '../Utils/bomDefaults'
 import { normalizePartNumber } from '../Utils/partNumberNormalize'
 import { iplStationKey } from '../Utils/iplStationParts'
 import { formatStationDisplayCode, normalizeStationReferenceCode } from '../Utils/stationHierarchy'
@@ -180,6 +181,30 @@ export async function searchPartsForLink(
 ): Promise<{ id: string; part_number: string; part_name_ar: string | null }[]> {
   const hits = await searchPartsWithDetails(term, limit)
   return hits.map(p => ({ id: p.id, part_number: p.part_number, part_name_ar: p.part_name_ar }))
+}
+
+const HARDWARE_PART_TYPES = ['H/W', 'h/w', 'HW', 'hw', 'H', '2', 'Hardware', 'HARDWARE', 'هاردوير']
+
+export async function searchHardwareParts(term: string, limit = 12): Promise<PartLookupHit[]> {
+  const q = term.trim().replace(/[%(),]/g, '')
+  if (!q) return []
+  const { data, error } = await client()
+    .from('parts')
+    .select('id, part_number, part_name_ar, part_type')
+    .eq('is_active', true)
+    .in('part_type', HARDWARE_PART_TYPES)
+    .or(`part_number.ilike.%${q}%,normalized_part_number.ilike.%${q}%,part_name_ar.ilike.%${q}%`)
+    .order('part_number')
+    .limit(limit)
+  if (error) throw new Error(error.message)
+  return (data ?? [])
+    .filter(row => effectivePartKind(row.part_type) === HARDWARE_PART_KIND)
+    .map(row => ({
+      id: row.id,
+      part_number: row.part_number,
+      part_name_ar: row.part_name_ar,
+      part_type: row.part_type
+    }))
 }
 
 export async function searchPartsWithDetails(term: string, limit = 20): Promise<PartLookupHit[]> {

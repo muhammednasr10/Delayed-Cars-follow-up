@@ -1,11 +1,23 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { handleAuthApiError, ensureFreshSession, isJwtExpiredMessage } from '../services/authService'
+import { handleAuthApiError, ensureFreshSession, formatAuthApiError, isJwtExpiredMessage } from '../services/authService'
 import { getStations } from '../services/settingsService'
 import {
   getParentStationOperationsGroups,
   syncAllWorkerHeadcountsFromGroups
 } from '../services/stationOperationsService'
 import type { ParentStationOperationsGroup } from '../Types/timeStudy'
+
+async function loadGroupsWithOptionalHeadcountSync(): Promise<ParentStationOperationsGroup[]> {
+  let groups = await getParentStationOperationsGroups()
+  try {
+    const stations = await getStations()
+    const changed = await syncAllWorkerHeadcountsFromGroups(groups, stations)
+    if (changed) groups = await getParentStationOperationsGroups()
+  } catch {
+    // قد يفشل بدون صلاحية تعديل — نعرض البيانات الحالية
+  }
+  return groups
+}
 
 export function useStationOperations() {
   const [parentGroups, setParentGroups] = useState<ParentStationOperationsGroup[]>([])
@@ -33,14 +45,7 @@ export function useStationOperations() {
     }
     try {
       await ensureFreshSession()
-      let groups = await getParentStationOperationsGroups()
-      try {
-        const stations = await getStations()
-        const changed = await syncAllWorkerHeadcountsFromGroups(groups, stations)
-        if (changed) groups = await getParentStationOperationsGroups()
-      } catch {
-        // قد يفشل بدون صلاحية تعديل — نعرض البيانات الحالية
-      }
+      const groups = await loadGroupsWithOptionalHeadcountSync()
       if (id !== requestId.current) return
       setParentGroups(groups)
     } catch (e) {
@@ -49,27 +54,21 @@ export function useStationOperations() {
         const refreshed = await handleAuthApiError(msg)
         if (refreshed) {
           try {
-            let groups = await getParentStationOperationsGroups()
-            try {
-              const stations = await getStations()
-              const changed = await syncAllWorkerHeadcountsFromGroups(groups, stations)
-              if (changed) groups = await getParentStationOperationsGroups()
-            } catch {
-              // ignore sync errors on retry
-            }
+            const groups = await loadGroupsWithOptionalHeadcountSync()
             if (id !== requestId.current) return
             setParentGroups(groups)
             return
           } catch (retryErr) {
             if (id !== requestId.current) return
-            setError(retryErr instanceof Error ? retryErr.message : msg)
+            const retryMsg = retryErr instanceof Error ? retryErr.message : msg
+            setError(formatAuthApiError(retryMsg))
             setParentGroups([])
             return
           }
         }
       }
       if (id !== requestId.current) return
-      setError(msg)
+      setError(formatAuthApiError(msg))
       setParentGroups([])
     } finally {
       if (!options?.silent) setLoading(false)

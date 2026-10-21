@@ -22,6 +22,7 @@ import type {
 } from '../Types/navigation'
 import {
   ATTENDANCE_SUB_TABS,
+  LINE_BALANCING_TAB_ORDER,
   normalizeBomTab,
   SETTINGS_STATIONS_SUB_TAB_ORDER,
   SETTINGS_TAB_ORDER
@@ -189,10 +190,15 @@ function loadNavState(): NavState {
       ? (parsed.settingsStationsSubTab as SettingsStationsSubTab)
       : initialState.settingsStationsSubTab
 
+    const lineBalancingTab = LINE_BALANCING_TAB_ORDER.includes(parsed.lineBalancingTab as LineBalancingTab)
+      ? (parsed.lineBalancingTab as LineBalancingTab)
+      : initialState.lineBalancingTab
+
     return {
       ...initialState,
       ...parsed,
       bomTab: normalizeBomTab(parsed.bomTab as string | undefined),
+      lineBalancingTab,
       productivityTab,
       planningTab,
       planScope,

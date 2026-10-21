@@ -110,7 +110,6 @@ export function EngineeringHomePage() {
       ? (
           [
             { key: 'operations', tab: 'operations' as const, icon: ClipboardList },
-            { key: 'opParts', tab: 'opParts' as const, icon: Layers },
             { key: 'timeStudy', tab: 'timeStudy' as const, icon: Timer },
             { key: 'routing', tab: 'routing' as const, icon: Map },
             { key: 'manpower', tab: 'manpower' as const, icon: Users },

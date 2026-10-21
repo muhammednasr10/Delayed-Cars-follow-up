@@ -10,6 +10,7 @@ export {
   deactivateStationOperation,
   moveStationOperation,
   assignIplPartToWorkerLine,
+  listAssignedIplPartIds,
   syncWorkerLinesToHeadcount,
   ensureFirstWorkerLine,
   syncAllWorkerHeadcountsFromGroups,

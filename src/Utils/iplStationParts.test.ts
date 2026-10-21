@@ -6,6 +6,7 @@ import {
   iplPartIdFromNotes,
   iplPartNote,
   iplPartNumberFromNotes,
+  iplPartStationFromNotes,
   iplStationKey,
   mergeFittedPartsAcrossModels
 } from './iplStationParts'
@@ -31,6 +32,9 @@ describe('ipl station parts', () => {
     expect(iplPartCopyFromNotes(iplPartNote('part-1', 2))).toBe(2)
     expect(iplPartIdFromNotes(iplPartNote('part-1', 0, '60-T8'))).toBe('part-1')
     expect(iplPartNumberFromNotes(iplPartNote('part-1', 2, '60-T8'))).toBe('60-T8')
+    expect(iplPartIdFromNotes(iplPartNote('part-1', 0, undefined, 'PBS01'))).toBe('part-1')
+    expect(iplPartStationFromNotes(iplPartNote('part-1', 0, '60-T8', 'PBS05'))).toBe('PBS05')
+    expect(iplPartNumberFromNotes(iplPartNote('part-1', 2, '60-T8', 'PBS05'))).toBe('60-T8')
     expect(iplPartIdFromNotes('رف رك ي')).toBeNull()
   })
 

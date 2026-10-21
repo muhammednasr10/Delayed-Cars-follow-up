@@ -341,6 +341,8 @@ export type LineBalanceWorkerLine = {
   stationId: string
   stationNumber: string
   displayCode: string
+  /** Common name from Line Balancing operations tab (`worker1_operations_summary`). */
+  commonName: string | null
 }
 
 export async function getWorkerLinesForStationAndModels(
@@ -370,7 +372,8 @@ export async function getWorkerLinesForStationAndModels(
     .map(w => ({
       stationId: w.stationId,
       stationNumber: w.stationNumber,
-      displayCode: formatStationWorkerDisplayCode(w.displayCode || w.stationNumber)
+      displayCode: formatStationWorkerDisplayCode(w.displayCode || w.stationNumber),
+      commonName: w.worker1OperationsSummary?.trim() || null
     }))
     .sort(
       (a, b) =>

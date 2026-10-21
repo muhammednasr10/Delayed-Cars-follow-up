@@ -6,7 +6,6 @@ import { useStationOperations } from '../../hooks/useStationOperations'
 import { getVehicleModels } from '../../services/settingsService'
 import { StationOperationsTab } from '../../Components/training/StationOperationsTab'
 import { ImportTimeStudyTab } from '../../Components/training/ImportTimeStudyTab'
-import { OperationPartsTab } from '../../Components/lineBalancing/OperationPartsTab'
 import { TimeStudyTab } from '../../Components/lineBalancing/TimeStudyTab'
 import { ModelRoutingTab } from '../../Components/lineBalancing/ModelRoutingTab'
 import { ManpowerAllocationTab } from '../../Components/lineBalancing/ManpowerAllocationTab'
@@ -65,16 +64,6 @@ export function LineBalancingPage() {
           canManage={canManage}
           onReload={reload}
           onWorkerSummarySaved={patchWorkerOperationsSummary}
-          notify={notify}
-        />
-      )}
-      {tab === 'opParts' && (
-        <OperationPartsTab
-          canManage={canManage}
-          models={models}
-          parentGroups={parentGroups}
-          groupsLoading={loading}
-          onChanged={() => reload({ silent: true })}
           notify={notify}
         />
       )}

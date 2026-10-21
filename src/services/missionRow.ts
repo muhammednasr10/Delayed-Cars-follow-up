@@ -23,6 +23,7 @@ export type MissionDbRow = {
   source_vehicle_id?: string | null
   source_missing_part_id?: string | null
   source_scratch_id?: string | null
+  source_quality_note_id?: string | null
   source_vin?: string | null
   source_model_name?: string | null
   parent_model_id?: string | null
@@ -105,6 +106,7 @@ export function mapMissionRow(row: MissionDbRow): TeamMission {
     sourceVehicleId: row.source_vehicle_id ?? null,
     sourceMissingPartId: row.source_missing_part_id ?? null,
     sourceScratchId: row.source_scratch_id ?? null,
+    sourceQualityNoteId: row.source_quality_note_id ?? null,
     sourceVin: row.source_vin ?? null,
     sourceModelName: row.source_model_name ?? null,
     parentModelId: row.parent_model_id ?? null,
@@ -157,10 +159,16 @@ export function toMissionPayload(input: TeamMissionInput) {
       partName: part.partName
     }))
   }
-  if (input.sourceVehicleId !== undefined || input.sourceScratchId !== undefined) {
+  if (
+    input.sourceVehicleId !== undefined ||
+    input.sourceScratchId !== undefined ||
+    input.sourceMissingPartId !== undefined ||
+    input.sourceQualityNoteId !== undefined
+  ) {
     payload.source_vehicle_id = input.sourceVehicleId || null
     payload.source_missing_part_id = input.sourceMissingPartId || null
     payload.source_scratch_id = input.sourceScratchId || null
+    payload.source_quality_note_id = input.sourceQualityNoteId || null
     payload.source_vin = input.sourceVin?.trim() || null
     payload.source_model_name = input.sourceModelName?.trim() || null
   }

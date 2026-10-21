@@ -170,6 +170,27 @@ describe('authService session helpers', () => {
     expect(kicked).toHaveBeenCalledOnce()
   })
 
+  it('forces a refresh when the server rejects a token that still looks valid locally', async () => {
+    const now = Math.floor(Date.now() / 1000)
+    const session = makeSession({ accessExp: now + 3600, refreshExp: now + 86400 })
+    saveSession(session)
+    const refreshed = makeSession({ accessExp: now + 7200, refreshExp: now + 86400 })
+    vi.spyOn(globalThis, 'fetch').mockResolvedValue(
+      new Response(
+        JSON.stringify({
+          access_token: refreshed.access_token,
+          refresh_token: refreshed.refresh_token,
+          expires_at: refreshed.expires_at,
+          user: refreshed.user
+        }),
+        { status: 200, headers: { 'Content-Type': 'application/json' } }
+      )
+    )
+
+    const next = await ensureFreshSession({ force: true })
+    expect(next?.access_token).toBe(refreshed.access_token)
+  })
+
   it('refreshes via app-auth when access token is stale', async () => {
     const now = Math.floor(Date.now() / 1000)
     const session = makeSession({ accessExp: now - 120, refreshExp: now + 86400 })

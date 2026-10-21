@@ -7,6 +7,7 @@ alter table public.app_notifications
   add constraint app_notifications_event_type_check
   check (event_type in (
     'shortage_added',
+    'shortage_edited',
     'shortage_archived',
     'shortage_deleted',
     'transfer_requested',

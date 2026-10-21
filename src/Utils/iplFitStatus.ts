@@ -9,6 +9,8 @@ export const IPL_NOT_FITTED_SHEET = 'ipl_not_fitted'
 
 export const IPL_COMPARE_UNSET = '__IPL_UNSET__'
 export const IPL_COMPARE_NOT_FITTED = '__IPL_NOT_FITTED__'
+/** Fitted model line with no real part number yet (لم يحدد). */
+export const IPL_EMPTY_PART_NUMBER = '__IPL_PN_EMPTY__'
 
 export type IplFitStatus = 'fitted' | 'not_fitted' | 'unset'
 

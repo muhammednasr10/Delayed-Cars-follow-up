@@ -9,7 +9,7 @@ type PermissionsContextValue = {
   loadError: boolean
   hasPermission: (module: string, action: string) => boolean
   canViewModule: (module: string) => boolean
-  reload: () => Promise<void>
+  reload: (options?: { force?: boolean }) => Promise<void>
 }
 
 const PermissionsContext = createContext<PermissionsContextValue | undefined>(undefined)
@@ -24,7 +24,7 @@ export function PermissionsProvider({ children }: { children: ReactNode }) {
   const loadedForRef = useRef<string | null>(null)
   const inflightRef = useRef<Promise<void> | null>(null)
 
-  const reload = useCallback(async () => {
+  const reload = useCallback(async (options?: { force?: boolean }) => {
     if (authLoading) return
     if (!userId) {
       setPermissions({})
@@ -32,6 +32,11 @@ export function PermissionsProvider({ children }: { children: ReactNode }) {
       setLoadError(false)
       loadedForRef.current = null
       return
+    }
+
+    if (options?.force) {
+      loadedForRef.current = null
+      setLoadError(false)
     }
 
     if (loadedForRef.current === userId) return

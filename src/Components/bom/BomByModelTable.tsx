@@ -18,9 +18,9 @@ export function BomByModelTable({ data }: { data: BomByModelDataReturn }) {
   } = data
 
   return (
-    <div className="card-industrial relative overflow-x-auto">
+    <div className="card-industrial relative max-h-[min(72vh,calc(100dvh-13rem))] overflow-auto">
       {perModel && (loading || iplRefreshing) && (
-        <div className="pointer-events-none absolute inset-x-0 top-0 z-20 h-0.5 bg-slate-800">
+        <div className="pointer-events-none absolute inset-x-0 top-0 z-30 h-0.5 bg-slate-800">
           <div className="h-full w-full animate-pulse bg-cyan-400/90" />
         </div>
       )}

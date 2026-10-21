@@ -5,7 +5,7 @@ import { useLineSection } from '../../hooks/useLineSection'
 import { useNavigation } from '../../Context/NavigationContext'
 import { useLang } from '../../i18n/LanguageContext'
 import { useMpLookups } from '../../hooks/useMpLookups'
-import { mpLookupLabel } from '../../Utils/mpLookupLabel'
+import { departmentLeafLabel } from '../../Utils/mpLookupLabel'
 import { computeTaktMinutes, lostVehiclesFromStopMinutes } from '../../Utils/productionLineRate'
 import { Modal } from '../Modal'
 import { ConfirmDialog } from '../ConfirmDialog'
@@ -166,12 +166,12 @@ export function ProductionStopsTab() {
     return [...map.entries()]
       .map(([code, stats]) => ({
         code,
-        label: mpLookupLabel(departments, code, lang),
+        label: departmentLeafLabel(code, departments, orgUnits, lang),
         lost: stats.lost,
         minutes: stats.minutes
       }))
       .sort((a, b) => b.lost - a.lost || b.minutes - a.minutes)
-  }, [countedStops, departments, lang])
+  }, [countedStops, departments, orgUnits, lang])
 
   const deptExportColumns = useMemo(
     (): TableExportColumn<DeptSummaryRow & { downtimeLabel: string }>[] => [
@@ -490,7 +490,7 @@ export function ProductionStopsTab() {
                   <td className={`${cell} font-mono text-cyan-300`}>
                     {open ? t('productivity.stops.open') : formatDuration(mins)}
                   </td>
-                  <td className={cell}>{mpLookupLabel(departments, row.department, lang)}</td>
+                  <td className={cell}>{departmentLeafLabel(row.department, departments, orgUnits, lang)}</td>
                   <td className={`${cell} font-black text-amber-300`}>{row.lostVehicles}</td>
                   {canManage && (
                     <td className={cell}>

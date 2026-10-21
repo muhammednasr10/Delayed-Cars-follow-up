@@ -1,7 +1,9 @@
 import { AlertOctagon } from 'lucide-react'
 import { useLang } from '../../i18n/LanguageContext'
+import { useMpLookups } from '../../hooks/useMpLookups'
 import { countsInStopTotals, stopDurationMinutes } from '../../services/productionStopService'
 import type { ProductionLineStop } from '../../Types/productionStop'
+import { departmentLeafLabel } from '../../Utils/mpLookupLabel'
 
 type Props = {
   workDate: string
@@ -10,7 +12,8 @@ type Props = {
 }
 
 export function ProductivityDailyStopsSummary({ workDate, stops, compact }: Props) {
-  const { t } = useLang()
+  const { t, lang } = useLang()
+  const { departments, orgUnits } = useMpLookups()
   const dayStops = stops.filter(s => s.startedAt.slice(0, 10) === workDate)
   const counted = dayStops.filter(countsInStopTotals)
   const totalMinutes = counted.reduce((sum, s) => sum + stopDurationMinutes(s.startedAt, s.endedAt), 0)
@@ -53,7 +56,9 @@ export function ProductivityDailyStopsSummary({ workDate, stops, compact }: Prop
               {dayStops.map(stop => (
                 <tr key={stop.id} className="border-b border-slate-900/80">
                   <td className="px-2 py-2 text-start text-slate-200">{stop.stopReason || '—'}</td>
-                  <td className="px-2 py-2 text-center text-slate-300">{stop.department || '—'}</td>
+                  <td className="px-2 py-2 text-center text-slate-300">
+                    {departmentLeafLabel(stop.department, departments, orgUnits, lang)}
+                  </td>
                   <td className="px-2 py-2 text-center text-slate-300">
                     {stop.endedAt
                       ? `${stopDurationMinutes(stop.startedAt, stop.endedAt)} ${t('productivity.stops.minutesShort')}`

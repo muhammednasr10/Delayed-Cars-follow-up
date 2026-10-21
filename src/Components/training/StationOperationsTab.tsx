@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { Plus } from 'lucide-react'
 import { useLang } from '../../i18n/LanguageContext'
 import { ConfirmDialog } from '../ConfirmDialog'
@@ -17,6 +17,13 @@ import {
 } from '../../services/stationOperationsService'
 import { deactivateStation, getStations, getWorkAreas, updateStation } from '../../services/settingsService'
 import {
+  countEmployeeLevelsForStation,
+  countEmployeeLevelsOnTracks,
+  deleteEmployeeLevelsAboveTrack,
+  deleteEmployeeLevelsForStation,
+  deleteEmployeeLevelsOnTracks
+} from '../../services/employeeStationLevelService'
+import {
   masterStationCode,
   filterMasterReferenceStations,
   resolveMasterStationRecord,
@@ -26,24 +33,26 @@ import {
   normalizeStationReferenceCode,
   composeStationNumber,
   parseStationNumberParts,
-  formatStationWorkerDisplayCode
+  formatStationWorkerDisplayCode,
+  workerIndexFromStationCode
 } from '../../Utils/stationHierarchy'
-import { MODEL_LINES, MODEL_LINE_STYLES, type ModelLine } from '../../Utils/modelLines'
-import { catalogVariantsForLine } from '../../Utils/vehicleModelHierarchy'
-import { familyModelIdForLine } from '../../Utils/operationClassificationBuilder'
-import { operationMatchesLineFilter } from '../../Utils/operationClassification'
+import { MODEL_LINES, MODEL_LINE_STYLES, modelBelongsToLine, type ModelLine } from '../../Utils/modelLines'
+import { defaultIplCompareModelNames, selectableVehicleModels } from '../../Utils/vehicleModelHierarchy'
+import { IplModelTabsBar } from '../bom/IplModelTabsBar'
 import {
   emptyStationWizardValues,
   parseHeadcountWorkers,
   resolveEditStationId,
-  stationToWizardValues
+  stationToWizardValues,
+  type StationWizardValues
 } from '../../Utils/stationFormValues'
 import type { ParentStationOperationsGroup, StationOperationDetail } from '../../Types/timeStudy'
 import type { Station, VehicleModel, WorkArea } from '../../Types/settings'
 import { normalizeStationType } from '../../Utils/stationDisplay'
-import { iplStationKey, type IplStationPart } from '../../Utils/iplStationParts'
-import { fetchIplFittedPartsByStation } from '../../services/iplStationPartsService'
-import { StationOperationsLineFilter, VariantFilter } from './stationOperations/StationOperationsLineFilter'
+import { iplStationKey } from '../../Utils/iplStationParts'
+import { isJwtExpiredMessage } from '../../services/authService'
+import { useStationOpsCompareData } from '../../hooks/useStationOpsCompareData'
+import { filterParentsForSelectedModels } from '../../Utils/stationOpsParentFilter'
 import { ParentStationBlock } from './stationOperations/StationOperationsParentBlock'
 
 type Props = {
@@ -58,9 +67,24 @@ type Props = {
 }
 
 type DeleteTarget =
-  | { kind: 'parent'; parentId: string; workerIds: string[]; label: string }
-  | { kind: 'worker'; workerId: string; label: string }
+  | { kind: 'parent'; parentId: string; workerIds: string[]; label: string; trainingCount: number }
+  | {
+      kind: 'worker'
+      workerId: string
+      masterStationId: string | null
+      levelTrack: number | null
+      label: string
+      trainingCount: number
+    }
   | { kind: 'operation'; operationId: string; label: string }
+
+type HeadcountWarn = {
+  values: StationWizardValues
+  stationId: string
+  newHeadcount: number
+  total: number
+  tracksLabel: string
+}
 
 export function StationOperationsTab({
   parentGroups,
@@ -73,8 +97,8 @@ export function StationOperationsTab({
   notify
 }: Props) {
   const { t } = useLang()
-  const [activeLine, setActiveLine] = useState<ModelLine>(MODEL_LINES[0])
-  const [activeVariant, setActiveVariant] = useState('')
+  const [openTabs, setOpenTabs] = useState<string[]>([])
+  const didInitTabs = useRef(false)
   const [editingOp, setEditingOp] = useState<StationOperationDetail | null>(null)
   const [creatingOpContext, setCreatingOpContext] = useState<{ stationId: string; label: string } | null>(null)
   const [addParentOpen, setAddParentOpen] = useState(false)
@@ -82,23 +106,29 @@ export function StationOperationsTab({
   const [allStations, setAllStations] = useState<Station[]>([])
   const [workAreas, setWorkAreas] = useState<WorkArea[]>([])
   const [deleteTarget, setDeleteTarget] = useState<DeleteTarget | null>(null)
+  const [headcountWarn, setHeadcountWarn] = useState<HeadcountWarn | null>(null)
   const [moveOp, setMoveOp] = useState<{ op: StationOperationDetail; workerStationId: string } | null>(null)
   const [busy, setBusy] = useState(false)
-  const [iplByStation, setIplByStation] = useState<Record<string, IplStationPart[]>>({})
 
   const stationNumbers = useMemo(() => allStations.map(s => s.station_number), [allStations])
 
   useEffect(() => {
+    let cancelled = false
     Promise.all([getStations(), getWorkAreas()])
       .then(([st, areas]) => {
+        if (cancelled) return
         setAllStations(st)
         setWorkAreas(areas)
       })
       .catch(() => {
+        if (cancelled) return
         setAllStations([])
         setWorkAreas([])
       })
-  }, [parentGroups])
+    return () => {
+      cancelled = true
+    }
+  }, [])
 
   useEffect(() => {
     if (!canManage || allStations.length === 0) return
@@ -171,71 +201,105 @@ export function StationOperationsTab({
     return { parentId, workerIds: workerIds.filter(id => id !== parentId) }
   }
 
-  async function reload(options?: { silent?: boolean }) {
-    await onReload(options)
+  /** Always silent after mutations so the list stays mounted and scroll position is kept. */
+  async function reload() {
+    await onReload({ silent: true })
   }
 
-  const lineVariantModels = useMemo(
-    () => catalogVariantsForLine(models, activeLine),
-    [models, activeLine]
+  async function applyEditParentStation(
+    values: StationWizardValues,
+    options?: { clearTrainingAbove?: number }
+  ): Promise<boolean> {
+    if (!editParent) return false
+    const stations = await getStations()
+    const station = resolveMasterStationRecord(editParent, stations)
+    const id = station?.id ?? editParent.stationId ?? resolveEditStationId(editParent)
+    if (!id) {
+      notify(t('operations.noParentStationId'), true)
+      return false
+    }
+    const oldBase = normalizeStationReferenceCode(station?.station_number ?? editParent.stationNumber)
+    const patch = {
+      station_number: values.station_number,
+      station_name: values.station_name,
+      station_type: normalizeStationType(values.station_type),
+      sort_order: values.sort_order ? Number(values.sort_order) : 0,
+      work_area_id: values.work_area_id || null,
+      is_active: values.is_active !== 'false',
+      headcount_workers: parseHeadcountWorkers(values.headcount_workers)
+    }
+    await updateStation(id, patch)
+    if (options?.clearTrainingAbove != null) {
+      await deleteEmployeeLevelsAboveTrack(id, options.clearTrainingAbove)
+    }
+    const freshStation = stations.find(s => s.id === id) ?? station
+    if (freshStation) {
+      try {
+        await syncWorkerLinesToHeadcount(
+          { ...freshStation, ...patch, id },
+          patch.headcount_workers
+        )
+      } catch (syncErr) {
+        notify(syncErr instanceof Error ? syncErr.message : t('operations.workerLinesSyncFailed'), true)
+      }
+    }
+    const newBase = normalizeStationReferenceCode(values.station_number || values.station_base)
+    if (newBase !== oldBase) {
+      for (const worker of editParent.workers) {
+        if (!worker.stationId || worker.stationId === id) continue
+        const { base, workerSuffix } = parseStationNumberParts(worker.stationNumber)
+        if (normalizeStationReferenceCode(base) !== oldBase) continue
+        const station_number = workerSuffix ? composeStationNumber(newBase, workerSuffix) : newBase
+        await updateStation(worker.stationId, { station_number })
+      }
+    }
+    await reload()
+    setAllStations(await getStations())
+    setEditParent(null)
+    setHeadcountWarn(null)
+    notify(t('settings.updated'))
+    return true
+  }
+
+  const assignableModels = useMemo(() => selectableVehicleModels(models), [models])
+  const selectedModels = useMemo(
+    () => assignableModels.filter(model => openTabs.includes(model.name)),
+    [assignableModels, openTabs]
   )
-  const lineVariants = useMemo(() => lineVariantModels.map(m => m.name), [lineVariantModels])
-  const lineFamilyId = useMemo(() => familyModelIdForLine(models, activeLine), [models, activeLine])
-  const selectedVariantId = useMemo(
-    () => (activeVariant ? lineVariantModels.find(m => m.name === activeVariant)?.id ?? null : null),
-    [lineVariantModels, activeVariant]
-  )
-  const lineVariantIds = useMemo(() => new Set(lineVariantModels.map(m => m.id)), [lineVariantModels])
+  const fitModelNames = useMemo(() => selectedModels.map(model => model.name), [selectedModels])
+  const singleModel = selectedModels.length === 1 ? selectedModels[0] : null
+  const activeVariant = singleModel?.name ?? ''
+  const selectedVariantId = singleModel?.id ?? null
+  const activeLine = useMemo(() => {
+    const name = selectedModels[0]?.name ?? ''
+    return MODEL_LINES.find(line => name && modelBelongsToLine(name, line)) ?? MODEL_LINES[0]
+  }, [selectedModels])
+  const { bomByPartId, hardwareBomRows, iplByStation } = useStationOpsCompareData(parentGroups, activeVariant)
 
   useEffect(() => {
-    if (!activeVariant) {
-      setIplByStation({})
-      return
-    }
-    let cancelled = false
-    fetchIplFittedPartsByStation(activeVariant)
-      .then(grouped => {
-        if (cancelled) return
-        setIplByStation(Object.fromEntries(grouped))
-      })
-      .catch(() => {
-        if (!cancelled) setIplByStation({})
-      })
-    return () => {
-      cancelled = true
-    }
-  }, [activeVariant])
+    if (assignableModels.length === 0 || didInitTabs.current) return
+    didInitTabs.current = true
+    const defaults = defaultIplCompareModelNames(models, assignableModels)
+    setOpenTabs(defaults.length > 0 ? defaults : assignableModels.map(model => model.name))
+  }, [assignableModels, models])
 
-  const filteredParents = useMemo(() => {
-    return parentGroups
-      .map(p => ({
-        ...p,
-        workers: p.workers.map(w => ({
-          ...w,
-          operations: w.operations.filter(op => {
-            if (selectedVariantId && op.parentModelId === selectedVariantId) return true
-            if (
-              op.parentModelId &&
-              lineVariantIds.has(op.parentModelId) &&
-              op.parentModelId !== selectedVariantId
-            ) {
-              return false
-            }
-            if (
-              !selectedVariantId &&
-              op.parentModelId &&
-              lineFamilyId &&
-              op.parentModelId !== lineFamilyId &&
-              !lineVariantIds.has(op.parentModelId)
-            ) {
-              return false
-            }
-            return operationMatchesLineFilter(op.operationType, activeLine, '', lineVariants)
-          })
-        }))
-      }))
-      .filter(p => p.workers.length > 0)
-  }, [parentGroups, activeLine, activeVariant, lineVariants, lineFamilyId, selectedVariantId, lineVariantIds])
+  function toggleModelTab(name: string) {
+    setOpenTabs(prev => (prev.includes(name) ? prev.filter(item => item !== name) : [...prev, name].sort((a, b) => a.localeCompare(b))))
+  }
+
+  function toggleFamilyTabs(variantNames: string[]) {
+    setOpenTabs(prev => {
+      const allOn = variantNames.length > 0 && variantNames.every(name => prev.includes(name))
+      return allOn
+        ? prev.filter(name => !variantNames.includes(name))
+        : [...new Set([...prev, ...variantNames])].sort((a, b) => a.localeCompare(b))
+    })
+  }
+
+  const filteredParents = useMemo(
+    () => filterParentsForSelectedModels(parentGroups, selectedModels),
+    [parentGroups, selectedModels]
+  )
 
   const stats = useMemo(() => {
     const workers = filteredParents.reduce((n, p) => n + p.workers.length, 0)
@@ -276,52 +340,57 @@ export function StationOperationsTab({
     return list.sort((a, b) => a.sortKey.localeCompare(b.sortKey)).map(({ sortKey: _s, ...rest }) => rest)
   }, [parentGroups, editingOp?.id])
 
-  function selectLine(line: ModelLine) {
-    setActiveLine(line)
-    setActiveVariant('')
-  }
-
-  if (loading) {
+  // Only block the UI on the first load — refreshes must stay silent so edit/delete don't jump to top.
+  if (loading && parentGroups.length === 0) {
     return <div className="card-industrial p-8 text-center text-slate-400">{t('common.loading')}</div>
   }
 
   if (loadError) {
+    const sessionExpired = isJwtExpiredMessage(loadError)
     return (
       <div className="card-industrial p-6 text-sm text-red-300">
         {loadError}
-        <p className="mt-2 text-xs text-slate-500">{t('operations.schemaHint')}</p>
+        {sessionExpired ? (
+          <button
+            type="button"
+            onClick={() => void onReload()}
+            className="mt-3 rounded-lg bg-slate-800 px-3 py-1.5 text-xs font-bold text-slate-200 ring-1 ring-slate-700 hover:bg-slate-700"
+          >
+            {t('permissions.retryLoad')}
+          </button>
+        ) : (
+          <p className="mt-2 text-xs text-slate-500">{t('operations.schemaHint')}</p>
+        )}
       </div>
     )
   }
 
   return (
     <div className="space-y-4">
-      <StationOperationsLineFilter
-        activeLine={activeLine}
-        lineVariants={lineVariants}
-        onSelectLine={selectLine}
-        t={t}
-      />
+      <div className="card-industrial p-4">
+        <IplModelTabsBar
+          models={assignableModels}
+          allModels={models}
+          openTabs={openTabs}
+          onToggleModel={toggleModelTab}
+          onToggleFamily={toggleFamilyTabs}
+        />
+      </div>
 
       <div className="card-industrial flex flex-wrap items-center justify-between gap-3 p-4">
         <div>
           <h3 className={`text-lg font-black ${MODEL_LINE_STYLES[activeLine].titleText}`}>
-            {t('operations.modelPageTitle', { model: activeVariant || activeLine })}
+            {singleModel
+              ? t('operations.modelPageTitle', { model: singleModel.name })
+              : t('operations.modelsPageTitle', { n: selectedModels.length })}
           </h3>
           <p className="text-xs text-slate-500">
-            {activeVariant
-              ? t('operations.variantPageHint', { line: activeLine, variant: activeVariant })
-              : t('operations.pickModelForIpl', { line: activeLine })}
+            {singleModel
+              ? t('operations.variantPageHint', { line: activeLine, variant: singleModel.name })
+              : selectedModels.length > 0
+                ? t('operations.modelsPageHint')
+                : t('operations.pickModels')}
           </p>
-          {lineVariants.length > 0 && (
-            <VariantFilter
-              line={activeLine}
-              variants={lineVariants}
-              activeVariant={activeVariant}
-              onSelect={setActiveVariant}
-              t={t}
-            />
-          )}
         </div>
         <div className="flex flex-wrap items-center gap-3">
           <span className="text-sm text-slate-400">
@@ -369,16 +438,29 @@ export function StationOperationsTab({
                 notify(t('operations.noParentStationId'), true)
                 return
               }
-              setDeleteTarget({
-                kind: 'parent',
-                parentId: ids.parentId,
-                workerIds: ids.workerIds,
-                label: parent.stationName || parent.displayCode
-              })
+              void (async () => {
+                let trainingCount = 0
+                try {
+                  trainingCount = await countEmployeeLevelsForStation(ids.parentId)
+                } catch {
+                  trainingCount = 0
+                }
+                const baseLabel = parent.stationName || parent.displayCode
+                setDeleteTarget({
+                  kind: 'parent',
+                  parentId: ids.parentId,
+                  workerIds: ids.workerIds,
+                  trainingCount,
+                  label:
+                    trainingCount > 0
+                      ? `${baseLabel}\n\n${t('operations.trainingLevelsOnStationWarn', { n: trainingCount })}`
+                      : baseLabel
+                })
+              })()
             }}
             onAddOp={worker => {
               if (!selectedVariantId) {
-                notify(t('operations.pickModelForIpl', { line: activeLine }), true)
+                notify(t('operations.pickOneModel'), true)
                 return
               }
               void (async () => {
@@ -405,13 +487,44 @@ export function StationOperationsTab({
             onEditOp={setEditingOp}
             onDeleteOp={op => setDeleteTarget({ kind: 'operation', operationId: op.id, label: op.operationNameAr })}
             onMoveOp={(op, workerStationId) => setMoveOp({ op, workerStationId })}
-            onDeleteWorker={worker =>
-              setDeleteTarget({ kind: 'worker', workerId: worker.stationId, label: worker.displayCode })
-            }
+            onDeleteWorker={worker => {
+              void (async () => {
+                const master = resolveMasterStation(parent)
+                const levelTrack = workerIndexFromStationCode(worker.stationNumber)
+                let trainingCount = 0
+                if (master && levelTrack != null) {
+                  try {
+                    trainingCount = (
+                      await countEmployeeLevelsOnTracks(master.id, [levelTrack])
+                    ).total
+                  } catch {
+                    trainingCount = 0
+                  }
+                }
+                const trackLabel = levelTrack != null ? `L${levelTrack}` : worker.displayCode
+                setDeleteTarget({
+                  kind: 'worker',
+                  workerId: worker.stationId,
+                  masterStationId: master?.id ?? null,
+                  levelTrack,
+                  trainingCount,
+                  label:
+                    trainingCount > 0
+                      ? `${worker.displayCode}\n\n${t('operations.trainingLevelsOnTrackWarn', {
+                          n: trainingCount,
+                          track: trackLabel
+                        })}`
+                      : worker.displayCode
+                })
+              })()
+            }}
             onSummarySaved={onWorkerSummarySaved}
+            compareModels={fitModelNames}
+            bomByPartId={bomByPartId}
+            hardwareBomRows={hardwareBomRows}
             onAssignIplPart={async (part, workerStationId) => {
               if (!selectedVariantId) {
-                notify(t('operations.pickModelForIpl', { line: activeLine }), true)
+                notify(t('operations.pickOneModel'), true)
                 return
               }
               try {
@@ -498,40 +611,30 @@ export function StationOperationsTab({
               notify(t('operations.noParentStationId'), true)
               return false
             }
-            const oldBase = normalizeStationReferenceCode(station?.station_number ?? editParent.stationNumber)
-            const patch = {
-              station_number: values.station_number,
-              station_name: values.station_name,
-              station_type: normalizeStationType(values.station_type),
-              sort_order: values.sort_order ? Number(values.sort_order) : 0,
-              work_area_id: values.work_area_id || null,
-              is_active: values.is_active !== 'false',
-              headcount_workers: parseHeadcountWorkers(values.headcount_workers)
-            }
-            await updateStation(id, patch)
-            const freshStation = stations.find(s => s.id === id) ?? station
-            if (freshStation) {
-              try {
-                await syncWorkerLinesToHeadcount(freshStation, patch.headcount_workers)
-              } catch (syncErr) {
-                notify(syncErr instanceof Error ? syncErr.message : t('operations.workerLinesSyncFailed'), true)
+            const oldHeadcount =
+              station?.headcount_workers ??
+              editParent.headcountWorkersOverride ??
+              editParent.totalWorkers ??
+              0
+            const newHeadcount = parseHeadcountWorkers(values.headcount_workers) ?? 0
+            if (newHeadcount > 0 && oldHeadcount > newHeadcount) {
+              const removedTracks = Array.from(
+                { length: oldHeadcount - newHeadcount },
+                (_, i) => newHeadcount + 1 + i
+              )
+              const { total, byTrack } = await countEmployeeLevelsOnTracks(id, removedTracks)
+              if (total > 0) {
+                setHeadcountWarn({
+                  values,
+                  stationId: id,
+                  newHeadcount,
+                  total,
+                  tracksLabel: byTrack.map(row => `L${row.track} (${row.count})`).join(' · ')
+                })
+                return false
               }
             }
-            const newBase = normalizeStationReferenceCode(values.station_number || values.station_base)
-            if (newBase !== oldBase) {
-              for (const worker of editParent.workers) {
-                if (!worker.stationId || worker.stationId === id) continue
-                const { base, workerSuffix } = parseStationNumberParts(worker.stationNumber)
-                if (normalizeStationReferenceCode(base) !== oldBase) continue
-                const station_number = workerSuffix ? composeStationNumber(newBase, workerSuffix) : newBase
-                await updateStation(worker.stationId, { station_number })
-              }
-            }
-            await reload()
-            setAllStations(await getStations())
-            setEditParent(null)
-            notify(t('settings.updated'))
-            return true
+            return await applyEditParentStation(values)
           } catch (e) {
             notify(e instanceof Error ? e.message : t('common.error'), true)
             return false
@@ -561,7 +664,7 @@ export function StationOperationsTab({
             const payload = {
               ...input,
               parentModelId: creatingOpContext
-                ? selectedVariantId ?? lineFamilyId ?? input.parentModelId
+                ? selectedVariantId ?? input.parentModelId
                 : editingOp?.parentModelId ?? input.parentModelId
             }
             if (creatingOpContext) {
@@ -617,13 +720,58 @@ export function StationOperationsTab({
               if (deleteTarget.kind === 'operation') {
                 await deactivateStationOperation(deleteTarget.operationId)
               } else if (deleteTarget.kind === 'worker') {
+                if (
+                  deleteTarget.trainingCount > 0 &&
+                  deleteTarget.masterStationId &&
+                  deleteTarget.levelTrack != null
+                ) {
+                  await deleteEmployeeLevelsOnTracks(deleteTarget.masterStationId, [
+                    deleteTarget.levelTrack
+                  ])
+                }
                 await deactivateStation(deleteTarget.workerId)
               } else {
+                if (deleteTarget.trainingCount > 0) {
+                  await deleteEmployeeLevelsForStation(deleteTarget.parentId)
+                }
                 await deactivateStationWithWorkers(deleteTarget.parentId, deleteTarget.workerIds)
               }
               setDeleteTarget(null)
               await reload()
               notify(t('settings.deleted'))
+            } catch (e) {
+              notify(e instanceof Error ? e.message : t('common.error'), true)
+            } finally {
+              setBusy(false)
+            }
+          })()
+        }}
+      />
+
+      <ConfirmDialog
+        open={Boolean(headcountWarn)}
+        title={t('operations.trainingLevelsHeadcountTitle')}
+        message={
+          headcountWarn
+            ? t('operations.trainingLevelsHeadcountWarn', {
+                n: headcountWarn.total,
+                tracks: headcountWarn.tracksLabel,
+                count: headcountWarn.newHeadcount
+              })
+            : ''
+        }
+        confirmLabel={t('operations.trainingLevelsHeadcountConfirm')}
+        cancelLabel={t('common.cancel')}
+        busy={busy}
+        onCancel={() => setHeadcountWarn(null)}
+        onConfirm={() => {
+          if (!headcountWarn) return
+          void (async () => {
+            setBusy(true)
+            try {
+              await applyEditParentStation(headcountWarn.values, {
+                clearTrainingAbove: headcountWarn.newHeadcount
+              })
             } catch (e) {
               notify(e instanceof Error ? e.message : t('common.error'), true)
             } finally {
