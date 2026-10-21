@@ -36,6 +36,7 @@ export function QualityNoteStudyModal({ open, note, onClose, onSave, saving }: P
   }, [open, note])
 
   if (!note) return null
+  const current = note
 
   const filled = qualityNote8dFilledCount(study8d)
 
@@ -44,7 +45,7 @@ export function QualityNoteStudyModal({ open, note, onClose, onSave, saving }: P
   }
 
   function submit() {
-    onSave(note.id, {
+    onSave(current.id, {
       status,
       studyNotes: summary.trim() || null,
       study8d
