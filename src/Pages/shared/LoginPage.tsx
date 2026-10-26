@@ -3,6 +3,7 @@ import { Eye, EyeOff, LogIn } from 'lucide-react'
 import { useAuth } from '../../Context/AuthContext'
 import { useLang } from '../../i18n/LanguageContext'
 import { AppLogo } from '../../Components/AppLogo'
+import { ThemeToggle } from '../../theme/ThemeToggle'
 import { DeveloperCredit } from '../../Components/DeveloperCredit'
 import { UserSupportRequestModal } from '../../Components/permissions/UserSupportRequestModal'
 
@@ -41,7 +42,7 @@ export function LoginPage() {
   }
 
   return (
-    <main className="grid min-h-screen min-h-[100dvh] place-items-center bg-[radial-gradient(circle_at_top_left,_rgba(34,211,238,0.16),_transparent_35%),linear-gradient(135deg,_#020617,_#0f172a_45%,_#111827)] px-3 py-6 text-slate-100 sm:px-4">
+    <main className="app-canvas grid min-h-screen min-h-[100dvh] place-items-center px-3 py-6 text-slate-100 sm:px-4">
       <div className="w-full max-w-md card-industrial p-5 sm:p-8">
         <div className="mb-6 flex items-center justify-between gap-3">
           <div className="flex items-center gap-3">
@@ -51,13 +52,16 @@ export function LoginPage() {
               <p className="text-sm text-slate-400">{t('login.subtitle')}</p>
             </div>
           </div>
-          <button
-            type="button"
-            onClick={toggle}
-            className="rounded-xl bg-slate-800 px-3 py-2 text-xs font-bold text-slate-200 hover:bg-slate-700"
-          >
-            {lang === 'ar' ? 'EN' : 'عربي'}
-          </button>
+          <div className="flex items-center gap-2">
+            <ThemeToggle compact />
+            <button
+              type="button"
+              onClick={toggle}
+              className="rounded-xl bg-slate-800 px-3 py-2 text-xs font-bold text-slate-200 hover:bg-slate-700"
+            >
+              {lang === 'ar' ? 'EN' : 'عربي'}
+            </button>
+          </div>
         </div>
 
         {accessDeniedMessage && (

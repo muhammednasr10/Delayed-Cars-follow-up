@@ -17,6 +17,17 @@
       rel="stylesheet"
     />
     <title>Assembly Line Tracking System</title>
+    <script>
+      (function () {
+        try {
+          var theme = localStorage.getItem('afa.theme')
+          document.documentElement.setAttribute('data-theme', theme === 'light' ? 'light' : 'dark')
+          if (theme === 'light') document.documentElement.style.colorScheme = 'light'
+        } catch (e) {
+          document.documentElement.setAttribute('data-theme', 'dark')
+        }
+      })()
+    </script>
   </head>
   <body>
     <div id="root"></div>

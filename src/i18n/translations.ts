@@ -45,6 +45,12 @@ export const translations = {
       cannotUndo: 'لا يمكن التراجع.',
       deleted: 'تم الحذف.'
     },
+    theme: {
+      light: 'نهاري',
+      dark: 'ليلي',
+      toLight: 'المود النهاري',
+      toDark: 'المود الليلي'
+    },
     export: {
       excel: 'Excel',
       pdf: 'PDF',
@@ -4024,6 +4030,12 @@ export const translations = {
       unknown: 'Unknown',
       cannotUndo: 'This cannot be undone.',
       deleted: 'Deleted.'
+    },
+    theme: {
+      light: 'Day',
+      dark: 'Night',
+      toLight: 'Daytime mode',
+      toDark: 'Night mode'
     },
     export: {
       excel: 'Excel',

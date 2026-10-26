@@ -1,5 +1,7 @@
 import { useEffect, lazy, Suspense, type ReactNode } from 'react'
 import { Database, Languages, LogOut, PanelRightOpen, Settings, UserCircle } from 'lucide-react'
+import { ThemeProvider } from './theme/ThemeContext'
+import { ThemeToggle } from './theme/ThemeToggle'
 import { AppLogo } from './Components/AppLogo'
 import { AuthProvider, profileIsAdmin, useAuth } from './Context/AuthContext'
 import { PermissionsProvider, usePermissions } from './Context/PermissionsContext'
@@ -154,7 +156,7 @@ function Shell() {
     <PushOpenListener />
     <VehiclesProvider>
       <AppSidebar />
-      <main className="flex h-dvh min-h-0 flex-col overflow-hidden bg-[radial-gradient(circle_at_top_left,_rgba(34,211,238,0.16),_transparent_35%),linear-gradient(135deg,_#020617,_#0f172a_45%,_#111827)] px-2 pt-2 text-slate-100 sm:px-6 sm:pt-3 lg:px-8">
+      <main className="app-canvas flex h-dvh min-h-0 flex-col overflow-hidden px-2 pt-2 text-slate-100 sm:px-6 sm:pt-3 lg:px-8">
         <div className="mx-auto flex min-h-0 w-full max-w-7xl flex-1 flex-col">
           <div className="relative z-40 shrink-0 space-y-1.5 pb-2">
           <header className="relative z-50 flex flex-col gap-2 rounded-2xl border border-slate-700/70 bg-slate-950/95 p-2 shadow-2xl shadow-black/20 backdrop-blur-md sm:flex-row sm:items-center sm:justify-between sm:gap-3 sm:p-3">
@@ -227,6 +229,7 @@ function Shell() {
               )}
               <PwaInstallButton />
               <HeaderNotificationsBell />
+              <ThemeToggle />
               <button
                 type="button"
                 onClick={toggle}
@@ -453,16 +456,18 @@ function Shell() {
 
 function App() {
   return (
-    <LanguageProvider>
-      <AuthProvider>
-        <PermissionsProvider>
-          <NavigationProvider>
-            <Shell />
-          </NavigationProvider>
-        </PermissionsProvider>
-      </AuthProvider>
-      <PwaInstallPrompt />
-    </LanguageProvider>
+    <ThemeProvider>
+      <LanguageProvider>
+        <AuthProvider>
+          <PermissionsProvider>
+            <NavigationProvider>
+              <Shell />
+            </NavigationProvider>
+          </PermissionsProvider>
+        </AuthProvider>
+        <PwaInstallPrompt />
+      </LanguageProvider>
+    </ThemeProvider>
   )
 }
 

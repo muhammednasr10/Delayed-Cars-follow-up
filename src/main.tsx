@@ -3,7 +3,10 @@ import React from 'react'
 import ReactDOM from 'react-dom/client'
 import App from './App'
 import { AppErrorBoundary } from './Components/AppErrorBoundary'
+import { applyAppTheme, readStoredTheme } from './theme/applyTheme'
 import './index.css'
+
+applyAppTheme(readStoredTheme())
 
 if (import.meta.env.PROD) {
   const { registerSW } = await import('virtual:pwa-register')
