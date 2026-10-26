@@ -6,7 +6,7 @@ import { iplPartNote } from './iplStationParts'
 import { dedupeIplOperationsOnWorker, partFitsMultipleStations, stationGroupsOf } from './iplPartOperationsModel'
 
 function op(id: string, notes: string): StationOperationDetail {
-  return { id, notes, hardware: [] } as StationOperationDetail
+  return { id, notes, hardware: [] } as unknown as StationOperationDetail
 }
 
 function item(overrides: Partial<BomItemDetail> & Pick<BomItemDetail, 'id' | 'part_id'>): BomItemDetail {
