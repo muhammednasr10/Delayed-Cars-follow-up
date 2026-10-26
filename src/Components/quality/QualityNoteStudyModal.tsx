@@ -1,10 +1,14 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { Microscope } from 'lucide-react'
 import { useLang } from '../../i18n/LanguageContext'
 import { Modal } from '../Modal'
 import { Field, inputCls } from '../FormField'
 import { formatStationReferenceCode } from '../../Utils/stationHierarchy'
 import { qualityNote8dFilledCount } from '../../Utils/qualityNote8d'
+import {
+  parseQualityNoteFishbone,
+  serializeQualityNoteFishbone
+} from '../../Utils/qualityNoteFishbone'
 import {
   EMPTY_QUALITY_NOTE_8D,
   type QualityNote8D,
@@ -13,6 +17,7 @@ import {
   type QualityNoteStudyPatch
 } from '../../Types/qualityNote'
 import { QUALITY_NOTE_8D_STEPS, QUALITY_NOTE_STUDY_STATUSES } from './qualityNoteConstants'
+import { QualityNoteFishboneDiagram } from './QualityNoteFishboneDiagram'
 
 type Props = {
   open: boolean
@@ -35,10 +40,12 @@ export function QualityNoteStudyModal({ open, note, onClose, onSave, saving }: P
     setSummary(note.studyNotes ?? '')
   }, [open, note])
 
+  const filled = qualityNote8dFilledCount(study8d)
+  const fishbone = useMemo(() => parseQualityNoteFishbone(study8d.d4RootCause), [study8d.d4RootCause])
+  const problemHead = study8d.d2Problem.trim() || note?.description || ''
+
   if (!note) return null
   const current = note
-
-  const filled = qualityNote8dFilledCount(study8d)
 
   function setStep(key: keyof QualityNote8D, value: string) {
     setStudy8d(prev => ({ ...prev, [key]: value }))
@@ -59,7 +66,7 @@ export function QualityNoteStudyModal({ open, note, onClose, onSave, saving }: P
       subtitle={t('qualityNotes.study8dSubtitle')}
       icon={<Microscope className="h-5 w-5" />}
       onClose={onClose}
-      maxWidthClass="max-w-3xl"
+      maxWidthClass="max-w-5xl"
       footer={
         <div className="flex flex-wrap items-center justify-between gap-2">
           <p className="text-xs font-bold text-slate-400">
@@ -114,12 +121,20 @@ export function QualityNoteStudyModal({ open, note, onClose, onSave, saving }: P
               key={step.key}
               label={`${step.code} — ${t(`qualityNotes.study8d.${step.key}`)}`}
             >
-              <textarea
-                className={`${inputCls()} min-h-[4.5rem] resize-y`}
-                value={study8d[step.key]}
-                onChange={e => setStep(step.key, e.target.value)}
-                placeholder={t(`qualityNotes.study8dPh.${step.key}`)}
-              />
+              {step.key === 'd4RootCause' ? (
+                <QualityNoteFishboneDiagram
+                  value={fishbone}
+                  problem={problemHead}
+                  onChange={next => setStep('d4RootCause', serializeQualityNoteFishbone(next))}
+                />
+              ) : (
+                <textarea
+                  className={`${inputCls()} min-h-[4.5rem] resize-y`}
+                  value={study8d[step.key]}
+                  onChange={e => setStep(step.key, e.target.value)}
+                  placeholder={t(`qualityNotes.study8dPh.${step.key}`)}
+                />
+              )}
             </Field>
           ))}
         </div>

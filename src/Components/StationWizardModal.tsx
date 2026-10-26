@@ -42,6 +42,9 @@ type Props = {
   onClose: () => void
   onSubmit: (values: Values) => Promise<boolean>
   onTypesChanged?: () => void
+  headcountLabel?: string
+  headcountDisabled?: boolean
+  headcountHint?: string
 }
 
 export function StationWizardModal({

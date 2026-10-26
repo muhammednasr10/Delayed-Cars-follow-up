@@ -19,13 +19,6 @@ import {
   hardwareDraftsToInput,
   type HardwareDraft
 } from './OperationHardwareEditor'
-import { OperationPrecedencePicker } from './OperationPrecedencePicker'
-import {
-  encodePredecessorIds,
-  parsePredecessorIds,
-  computeRankedPositionalWeightMinutes,
-  type PredecessorCandidate
-} from '../../Utils/operationPrecedence'
 import type { ModelLine } from '../../Utils/modelLines'
 import type { VehicleModel } from '../../Types/settings'
 
@@ -36,7 +29,6 @@ type Props = {
   models: VehicleModel[]
   modelLine: ModelLine
   stationId: string | null
-  predecessorCandidates: PredecessorCandidate[]
   workerLabel?: string | null
   busy: boolean
   onClose: () => void
@@ -50,7 +42,6 @@ export function StationOperationForm({
   models,
   modelLine,
   stationId,
-  predecessorCandidates,
   workerLabel,
   busy,
   onClose,
@@ -62,9 +53,6 @@ export function StationOperationForm({
   const [parentModelId, setParentModelId] = useState('')
   const [selectedVariants, setSelectedVariants] = useState<string[]>([])
   const [hardwareRows, setHardwareRows] = useState<HardwareDraft[]>([])
-  const [predecessorIds, setPredecessorIds] = useState<string[]>([])
-  const [technicianPosition, setTechnicianPosition] = useState('')
-  const [zoningConstraints, setZoningConstraints] = useState('')
   const [timeSec, setTimeSec] = useState('')
   const [timeMin, setTimeMin] = useState('')
   const [notes, setNotes] = useState('')
@@ -76,9 +64,6 @@ export function StationOperationForm({
       setToolSpec('')
       setNameAr('')
       setHardwareRows([])
-      setPredecessorIds([])
-      setTechnicianPosition('')
-      setZoningConstraints('')
       setTimeSec('')
       setTimeMin('')
       setNotes('')
@@ -96,9 +81,6 @@ export function StationOperationForm({
     const init = initClassificationState(models, operation.operationType, familyId)
     setSelectedVariants(init.selectedVariantNames)
     setHardwareRows(hardwareDraftsFromOperation(operation.hardware))
-    setTechnicianPosition(operation.technicianPosition ?? '')
-    setPredecessorIds(parsePredecessorIds(operation.taskPrecedence))
-    setZoningConstraints(operation.zoningConstraints ?? '')
     const opSec =
       operation.standardTimeSeconds != null
         ? String(Math.round(operation.standardTimeSeconds))
@@ -152,11 +134,6 @@ export function StationOperationForm({
     }
   }
 
-  const rankedMinutes = useMemo(
-    () => computeRankedPositionalWeightMinutes(predecessorIds, predecessorCandidates),
-    [predecessorIds, predecessorCandidates]
-  )
-
   async function save() {
     if (!nameAr.trim() || !parentModelId) return
     const stdSec = timeSec.trim() ? Number(timeSec) : null
@@ -170,10 +147,10 @@ export function StationOperationForm({
       standardTimeMinutes: secondsToMinutes(stdSec),
       workerTimeMinutes: operation?.workerTimeMinutes ?? null,
       requiredManpowerCount: 1,
-      technicianPosition: technicianPosition.trim() || null,
-      taskPrecedence: encodePredecessorIds(predecessorIds),
-      rankedPositionalWeight: rankedMinutes,
-      zoningConstraints: zoningConstraints.trim() || null,
+      technicianPosition: operation?.technicianPosition ?? null,
+      taskPrecedence: operation?.taskPrecedence ?? null,
+      rankedPositionalWeight: operation?.rankedPositionalWeight ?? null,
+      zoningConstraints: operation?.zoningConstraints ?? null,
       notes: notes || null,
       isCritical: critical,
       hardware: hardwareDraftsToInput(hardwareRows)
@@ -244,31 +221,6 @@ export function StationOperationForm({
           stationId={stationId}
           modelLine={modelLine}
         />
-
-        <label className="block space-y-1.5 sm:col-span-2">
-          <span className="text-sm font-bold text-slate-300">{t('operations.cols.techPosition')}</span>
-          <input
-            className={inputCls()}
-            value={technicianPosition}
-            onChange={e => setTechnicianPosition(e.target.value)}
-          />
-        </label>
-
-        <OperationPrecedencePicker
-          candidates={predecessorCandidates}
-          selectedIds={predecessorIds}
-          onChange={setPredecessorIds}
-        />
-
-        <label className="block space-y-1.5 sm:col-span-2">
-          <span className="text-sm font-bold text-slate-300">{t('operations.cols.zoning')}</span>
-          <input
-            className={inputCls()}
-            value={zoningConstraints}
-            onChange={e => setZoningConstraints(e.target.value)}
-            dir="ltr"
-          />
-        </label>
 
         <label className="block space-y-1.5">
           <span className="text-sm font-bold text-slate-300">{t('operations.cols.timeSec')}</span>

@@ -1,4 +1,5 @@
 import { EMPTY_QUALITY_NOTE_8D, type QualityNote8D } from '../Types/qualityNote'
+import { parseQualityNoteFishbone, qualityNoteFishboneHasCauses } from './qualityNoteFishbone'
 
 const KEYS = Object.keys(EMPTY_QUALITY_NOTE_8D) as (keyof QualityNote8D)[]
 
@@ -19,5 +20,8 @@ export function trimQualityNote8D(value: QualityNote8D): QualityNote8D {
 }
 
 export function qualityNote8dFilledCount(value: QualityNote8D): number {
-  return KEYS.filter(key => value[key].trim().length > 0).length
+  return KEYS.filter(key => {
+    if (key === 'd4RootCause') return qualityNoteFishboneHasCauses(parseQualityNoteFishbone(value[key]))
+    return value[key].trim().length > 0
+  }).length
 }

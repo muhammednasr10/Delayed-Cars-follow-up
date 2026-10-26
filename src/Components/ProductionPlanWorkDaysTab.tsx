@@ -73,9 +73,9 @@ export function ProductionPlanWorkDaysTab({ onAvailableDaysChange, variant = 'su
 
         {isWorkDaysOnly ? (
           <div className="mt-4 grid grid-cols-1 gap-2 sm:grid-cols-3">
-            <SummaryPill label={t('productionOrders.workDays.available')} value={String(h.availableDays)} tone="violet" />
-            <SummaryPill label={t('productionOrders.workDaysTab.summary.plannedHours')} value={h.totals.plannedHours ? String(h.totals.plannedHours) : '—'} tone="cyan" />
-            <SummaryPill label={t('productionOrders.workDaysTab.summary.actualHours')} value={h.totals.actualHours ? String(h.totals.actualHours) : '—'} tone="slate" />
+          <SummaryPill label={t('productionOrders.workDays.available')} value={String(h.availableDays)} tone="violet" />
+          <SummaryPill label={t('productionOrders.workDaysTab.summary.plannedHours')} value={h.totals.plannedHours ? String(h.totals.plannedHours) : '—'} tone="cyan" />
+          <SummaryPill label={t('productionOrders.workDaysTab.summary.actualHours')} value={h.totals.actualHours ? String(h.totals.actualHours) : '—'} tone="slate" />
           </div>
         ) : (
           <ProductivitySummaryCards

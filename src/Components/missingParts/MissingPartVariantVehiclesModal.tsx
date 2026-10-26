@@ -4,7 +4,7 @@ import { formatVehicleColorLabel } from '../../Utils/vehicleColorLabel'
 import { mpLookupLabel } from '../../Utils/mpLookupLabel'
 import type { MissingPartDetail } from '../../Types/missingPart'
 import type { MpLookupOption } from '../../Types/mpLookup'
-import type { VariantVehicleSummary } from '../../Utils/missingPartPageUtils'
+import { isShortageIssueDone, type VariantVehicleSummary } from '../../Utils/missingPartPageUtils'
 import { notesCountForVehicleIds } from '../../services/vehicleNotesService'
 import { Modal } from '../Modal'
 import { MissingPartVehicleActions } from './MissingPartVehicleActions'
@@ -226,19 +226,29 @@ function VehicleShortageCard({
         )}
       </div>
       <ul className="mt-3 space-y-2">
-        {vehicle.parts.map(part => (
-          <li key={part.id} className="rounded-lg border border-amber-500/20 bg-amber-500/5 px-3 py-2 text-start">
+        {vehicle.parts.map(part => {
+          const done = isShortageIssueDone(part)
+          const nameClass = done
+            ? 'text-slate-500 line-through decoration-slate-500'
+            : 'text-white'
+          return (
+          <li
+            key={part.id}
+            className={`rounded-lg border px-3 py-2 text-start ${
+              done ? 'border-slate-700 bg-slate-950/40' : 'border-amber-500/20 bg-amber-500/5'
+            }`}
+          >
             {onOpenDetail ? (
               <button
                 type="button"
                 onClick={() => onOpenDetail(part)}
-                className="text-start text-sm font-bold text-white hover:text-cyan-200 hover:underline"
+                className={`text-start text-sm font-bold hover:text-cyan-200 hover:underline ${nameClass}`}
                 title={t('mp.detail.title')}
               >
                 {part.partDescription}
               </button>
             ) : (
-              <p className="text-sm font-bold text-white">{part.partDescription}</p>
+              <p className={`text-sm font-bold ${nameClass}`}>{part.partDescription}</p>
             )}
             <div className="mt-1 flex flex-wrap gap-x-3 gap-y-1 text-[11px] text-slate-400">
               <span>
@@ -254,7 +264,8 @@ function VehicleShortageCard({
               </span>
             </div>
           </li>
-        ))}
+          )
+        })}
       </ul>
     </div>
   )

@@ -16,6 +16,25 @@ export function getModelIdsForLine(models: VehicleModel[], line: ModelLine): str
   return models.filter(m => modelBelongsToLine(m.name, line)).map(m => m.id)
 }
 
+export function modelLineForName(name: string): ModelLine | null {
+  return MODEL_LINES.find(line => modelBelongsToLine(name, line)) ?? null
+}
+
+export function selectedModelLines(models: VehicleModel[]): ModelLine[] {
+  const lines = new Set<ModelLine>()
+  for (const model of models) {
+    const line = modelLineForName(model.name)
+    if (line) lines.add(line)
+  }
+  return MODEL_LINES.filter(line => lines.has(line))
+}
+
+/** One product line (T4 / T8 / …) when every selected model belongs to it. */
+export function uniqueSelectedModelLine(models: VehicleModel[]): ModelLine | null {
+  const lines = selectedModelLines(models)
+  return lines.length === 1 ? lines[0] : null
+}
+
 export type ModelLineScope = ModelLine | 'common' | 'other'
 
 /** Per-line colors for tabs, cards, and legend */

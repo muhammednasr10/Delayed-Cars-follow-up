@@ -17,7 +17,7 @@ import { MissingPartsToolbarFilters } from './MissingPartsToolbarFilters'
 
 export type ListTab = MissingPartsListTab
 export type CurrentShortageView = 'active' | 'byFamily'
-export type ReportView = 'reportList' | 'reportDaily' | 'reportCustom'
+export type ReportView = 'reportList' | 'reportDaily' | 'reportCustom' | 'reportStoppage'
 
 type TopTabKey = 'current' | 'summary' | 'report' | 'history' | 'historySummary' | 'historyDiary' | 'approvals'
 
@@ -48,7 +48,7 @@ function isCurrentShortageTab(tab: ListTab): tab is CurrentShortageView {
 }
 
 function isReportTab(tab: ListTab): tab is ReportView {
-  return tab === 'reportList' || tab === 'reportDaily' || tab === 'reportCustom'
+  return tab === 'reportList' || tab === 'reportDaily' || tab === 'reportCustom' || tab === 'reportStoppage'
 }
 
 export function MissingPartsToolbar({
@@ -75,7 +75,10 @@ export function MissingPartsToolbar({
   const { t } = useLang()
   const showCurrentGroup = visibleTabs.includes('active') || visibleTabs.includes('byFamily')
   const showReportGroup =
-    visibleTabs.includes('reportList') || visibleTabs.includes('reportDaily') || visibleTabs.includes('reportCustom')
+    visibleTabs.includes('reportList') ||
+    visibleTabs.includes('reportDaily') ||
+    visibleTabs.includes('reportCustom') ||
+    visibleTabs.includes('reportStoppage')
 
   const topTabs: {
     key: TopTabKey
@@ -138,7 +141,8 @@ export function MissingPartsToolbar({
   const reportViewTabs: { key: ReportView }[] = [
     { key: 'reportList' },
     { key: 'reportDaily' },
-    { key: 'reportCustom' }
+    { key: 'reportCustom' },
+    { key: 'reportStoppage' }
   ]
 
   const onCurrentGroup = isCurrentShortageTab(listTab)

@@ -1,4 +1,10 @@
-import { DEFAULT_PART_KIND, DEFAULT_SUPPLY_SOURCE, HARDWARE_PART_KIND, PLASTICS_PART_KIND } from './bomDefaults'
+import {
+  CHEMICALS_PART_KIND,
+  DEFAULT_PART_KIND,
+  DEFAULT_SUPPLY_SOURCE,
+  HARDWARE_PART_KIND,
+  PLASTICS_PART_KIND
+} from './bomDefaults'
 import { partKindLabel, supplySourceLabel } from './bomDisplayFormat'
 
 export type BomPresetOption = { value: string; label: string }
@@ -7,7 +13,8 @@ export function partKindPresetOptions(t: (k: string) => string): BomPresetOption
   return [
     { value: DEFAULT_PART_KIND, label: t('bom.partKindPart') },
     { value: HARDWARE_PART_KIND, label: t('bom.partKindHardware') },
-    { value: PLASTICS_PART_KIND, label: t('bom.partKindPlastics') }
+    { value: PLASTICS_PART_KIND, label: t('bom.partKindPlastics') },
+    { value: CHEMICALS_PART_KIND, label: t('bom.partKindChemicals') }
   ]
 }
 

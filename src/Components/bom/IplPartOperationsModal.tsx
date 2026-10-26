@@ -5,27 +5,34 @@ import { getParentStationOperationsGroups } from '../../services/stationOperatio
 import { getVehicleModels } from '../../services/settingsService'
 import type { VehicleModel } from '../../Types/settings'
 import type { ParentStationOperationsGroup } from '../../Types/timeStudy'
-import { IPL_OPERATION_KINDS } from '../../Utils/iplOperationKind'
+import { listedIplOperationKinds } from '../../Utils/iplOperationKind'
 import type { IplCompareRow } from '../../Utils/iplModelCompare'
 import { iplStationKey } from '../../Utils/iplStationParts'
 import {
+  compareRowPartNumberKeys,
   emptyIplPartOpSlot,
   fittedModelsForPartOps,
   homeStationKey,
   IPL_PART_OPS_MAX,
-  modelGroupsOf,
+  partFitsMultipleStations,
+  readHardwareParentLinks,
   readLinkedHardwareForPart,
   readStoredIplPartAssignments,
   slotsForPartNumber,
+  slotsForStation,
   stationChoices,
+  stationGroupsOf,
   workersForStation,
+  type HardwareParentLink,
   type IplPartOpSlot,
   type LinkedHardwarePartRef
 } from '../../Utils/iplPartOperationsModel'
 import { saveIplPartOperations } from '../../hooks/useIplPartOperationsSave'
 import { Modal } from '../Modal'
 import { IplHardwareLinkField } from './IplHardwareLinkField'
+import { IplOperationKindSelect } from './IplOperationKindSelect'
 import { partIdFromCompareRow } from './IplComparePartCard'
+import { normalizePartNumber } from '../../Utils/partNumberNormalize'
 
 type Props = {
   open: boolean
@@ -33,9 +40,17 @@ type Props = {
   models: string[]
   canUpdate?: boolean
   onClose: () => void
+  hardwareQtyByPartNumber?: Map<string, number>
 }
 
-export function IplPartOperationsModal({ open, row, models, canUpdate, onClose }: Props) {
+export function IplPartOperationsModal({
+  open,
+  row,
+  models,
+  canUpdate,
+  onClose,
+  hardwareQtyByPartNumber
+}: Props) {
   const { t } = useLang()
   const [loading, setLoading] = useState(false)
   const [saving, setSaving] = useState(false)
@@ -43,12 +58,14 @@ export function IplPartOperationsModal({ open, row, models, canUpdate, onClose }
   const [groups, setGroups] = useState<ParentStationOperationsGroup[]>([])
   const [vehicleModels, setVehicleModels] = useState<VehicleModel[]>([])
   const [multi, setMulti] = useState(false)
-  const [byModel, setByModel] = useState(false)
+  const [byStation, setByStation] = useState(false)
   const [countText, setCountText] = useState('2')
   const [rows, setRows] = useState<IplPartOpSlot[]>([])
   const [groupRows, setGroupRows] = useState<Record<string, IplPartOpSlot[]>>({})
   const [linkHardware, setLinkHardware] = useState(false)
   const [linkedHardware, setLinkedHardware] = useState<LinkedHardwarePartRef[]>([])
+  const [parentLinks, setParentLinks] = useState<HardwareParentLink[]>([])
+  const [kindOptions, setKindOptions] = useState<string[]>(() => listedIplOperationKinds())
 
   useEffect(() => {
     if (!open || !row) return
@@ -56,12 +73,14 @@ export function IplPartOperationsModal({ open, row, models, canUpdate, onClose }
     setLoading(true)
     setError('')
     setMulti(false)
-    setByModel(false)
+    setByStation(false)
     setCountText('2')
     setRows([])
     setGroupRows({})
     setLinkHardware(false)
     setLinkedHardware([])
+    setParentLinks([])
+    setKindOptions(listedIplOperationKinds())
     const partId = partIdFromCompareRow(row)
     Promise.all([getParentStationOperationsGroups(), getVehicleModels()])
       .then(([nextGroups, nextModels]) => {
@@ -69,21 +88,32 @@ export function IplPartOperationsModal({ open, row, models, canUpdate, onClose }
         setGroups(nextGroups)
         setVehicleModels(nextModels)
         const stored = partId ? readStoredIplPartAssignments(nextGroups, partId) : []
+        setKindOptions(listedIplOperationKinds(stored.map(item => item.slot.kind)))
         const linked = partId ? readLinkedHardwareForPart(nextGroups, partId) : []
         setLinkedHardware(linked)
         setLinkHardware(linked.length > 0)
+        const hardwareKeys = compareRowPartNumberKeys(row, models)
+        const links = readHardwareParentLinks(nextGroups, hardwareKeys)
+        const isHardwareChild = links.length > 0
+        setParentLinks(links)
         const home = homeStationKey(row, models)
-        const numbered = stored.filter(item => item.partNumber)
-        if (numbered.length > 0) {
+        const splitStations = partFitsMultipleStations(row, models)
+        setByStation(splitStations)
+        if (splitStations) {
           const next: Record<string, IplPartOpSlot[]> = {}
-          for (const group of modelGroupsOf(row, models)) {
-            next[group.partNumber] = slotsForPartNumber(stored, group.partNumber, group.stationKey)
+          for (const group of stationGroupsOf(row, models)) {
+            const slots = slotsForStation(stored, group.stationKey, group.stationKey)
+            const workerId =
+              links.find(link => link.stationKey === group.stationKey)?.workerId || links[0]?.workerId || ''
+            next[group.stationKey] = isHardwareChild
+              ? slots.map(slot => ({ ...slot, workerId: slot.workerId || workerId }))
+              : slots
           }
-          setByModel(true)
           setGroupRows(next)
           if (Object.values(next).some(slots => slots.length > 1)) setMulti(true)
         }
         const shared = slotsForPartNumber(stored, '', home)
+        const linkedWorker = isHardwareChild ? links[0]?.workerId ?? '' : ''
         if (shared.length > 1 && shared.some(slot => slot.workerId)) {
           setMulti(true)
           setCountText(String(shared.length))
@@ -91,7 +121,8 @@ export function IplPartOperationsModal({ open, row, models, canUpdate, onClose }
         } else {
           const slot = shared[0] ?? emptyIplPartOpSlot(home)
           const onHome = !slot.workerId || !home || slot.stationKey === home
-          setRows([{ ...slot, stationKey: home || slot.stationKey, workerId: onHome ? slot.workerId : '' }])
+          const workerId = slot.workerId || linkedWorker
+          setRows([{ ...slot, stationKey: home || slot.stationKey, workerId: onHome ? workerId : linkedWorker }])
         }
       })
       .catch(() => {
@@ -106,7 +137,8 @@ export function IplPartOperationsModal({ open, row, models, canUpdate, onClose }
   }, [open, row, models, t])
 
   const fitted = useMemo(() => (row ? fittedModelsForPartOps(row, models) : []), [models, row])
-  const modelGroups = useMemo(() => (row ? modelGroupsOf(row, models) : []), [models, row])
+  const stationGroups = useMemo(() => (row ? stationGroupsOf(row, models) : []), [models, row])
+  const linkedAsHardware = parentLinks.length > 0
   const homeKey = useMemo(() => (row ? homeStationKey(row, models) : ''), [models, row])
   const stations = useMemo(() => stationChoices(groups), [groups])
   const count = Math.min(IPL_PART_OPS_MAX, Math.max(0, Number.parseInt(countText, 10) || 0))
@@ -120,24 +152,12 @@ export function IplPartOperationsModal({ open, row, models, canUpdate, onClose }
     return workersForStation(groups, stationKey)
   }
 
-  function enableByModel(checked: boolean) {
-    setByModel(checked)
-    if (!checked) return
+  function updateGroupRow(stationKey: string, index: number, patch: Partial<IplPartOpSlot>) {
     setGroupRows(current => {
-      const next = { ...current }
-      for (const group of modelGroups) {
-        if (!next[group.partNumber]?.length) next[group.partNumber] = [emptyIplPartOpSlot(group.stationKey)]
-      }
-      return next
-    })
-  }
-
-  function updateGroupRow(partNumber: string, index: number, patch: Partial<IplPartOpSlot>) {
-    setGroupRows(current => {
-      const slots = current[partNumber] ?? []
+      const slots = current[stationKey] ?? []
       return {
         ...current,
-        [partNumber]: slots.map((slot, slotIndex) => {
+        [stationKey]: slots.map((slot, slotIndex) => {
           if (slotIndex !== index) return slot
           const next = { ...slot, ...patch }
           if (patch.stationKey && patch.stationKey !== slot.stationKey) {
@@ -150,11 +170,11 @@ export function IplPartOperationsModal({ open, row, models, canUpdate, onClose }
     })
   }
 
-  function changeGroupCount(partNumber: string, value: string, stationKey: string) {
+  function changeGroupCount(stationKey: string, value: string) {
     const nextCount = Math.min(IPL_PART_OPS_MAX, Math.max(0, Number.parseInt(value.replace(/[^\d]/g, ''), 10) || 0))
     setGroupRows(current => ({
       ...current,
-      [partNumber]: Array.from({ length: nextCount }, (_, index) => current[partNumber]?.[index] ?? emptyIplPartOpSlot(stationKey))
+      [stationKey]: Array.from({ length: nextCount }, (_, index) => current[stationKey]?.[index] ?? emptyIplPartOpSlot(stationKey))
     }))
   }
 
@@ -175,9 +195,12 @@ export function IplPartOperationsModal({ open, row, models, canUpdate, onClose }
     setGroupRows(current => {
       const next = { ...current }
       const nextCount = Math.min(IPL_PART_OPS_MAX, Math.max(2, Number.parseInt(countText, 10) || 2))
-      for (const group of modelGroups) {
-        const existing = next[group.partNumber] ?? [emptyIplPartOpSlot(group.stationKey)]
-        next[group.partNumber] = Array.from({ length: Math.max(existing.length, nextCount) }, (_, index) => existing[index] ?? emptyIplPartOpSlot(group.stationKey))
+      for (const group of stationGroups) {
+        const existing = next[group.stationKey] ?? [emptyIplPartOpSlot(group.stationKey)]
+        next[group.stationKey] = Array.from(
+          { length: Math.max(existing.length, nextCount) },
+          (_, index) => existing[index] ?? emptyIplPartOpSlot(group.stationKey)
+        )
       }
       return next
     })
@@ -215,11 +238,11 @@ export function IplPartOperationsModal({ open, row, models, canUpdate, onClose }
         groups,
         vehicleModels,
         multi,
-        byModel,
+        byStation,
         homeKey,
         rows,
         groupRows,
-        modelGroups,
+        stationGroups,
         fittedModelNames: fitted.map(entry => entry.model),
         linkHardware,
         linkedHardware,
@@ -293,14 +316,19 @@ export function IplPartOperationsModal({ open, row, models, canUpdate, onClose }
             )}
           </div>
 
+          {linkedAsHardware ? (
+            <div className="rounded-xl border border-sky-500/40 bg-sky-500/10 px-3 py-2 text-sm font-bold text-sky-100">
+              {parentLinks.map(link => (
+                <p key={`${link.parentPartId}-${link.workerId}`}>
+                  {t('bom.partOps.hardwareLinkedBanner', { part: link.parentName, worker: link.workerLabel })}
+                </p>
+              ))}
+              <p className="mt-1 text-xs font-medium text-sky-200/80">{t('bom.partOps.hardwareLinkedHint')}</p>
+            </div>
+          ) : null}
+
           <label className="flex items-center gap-2 text-sm font-bold text-slate-100">
-            <input
-              type="checkbox"
-              className="h-4 w-4 accent-cyan-400"
-              checked={byModel}
-              disabled={!canUpdate || modelGroups.length === 0}
-              onChange={event => enableByModel(event.target.checked)}
-            />
+            <input type="checkbox" className="h-4 w-4 accent-cyan-400" checked={byStation} disabled readOnly />
             {t('bom.partOps.byModelAsk')}
           </label>
 
@@ -309,22 +337,25 @@ export function IplPartOperationsModal({ open, row, models, canUpdate, onClose }
               type="checkbox"
               className="h-4 w-4 accent-cyan-400"
               checked={multi}
-              disabled={!canUpdate}
+              disabled={!canUpdate || linkedAsHardware}
               onChange={event => enableMulti(event.target.checked)}
             />
             {t('bom.partOps.multiAsk')}
           </label>
 
-          <IplHardwareLinkField
-            enabled={linkHardware}
-            selected={linkedHardware}
-            disabled={!canUpdate}
-            onEnabledChange={setLinkHardware}
-            onChange={setLinkedHardware}
-          />
+          {linkedAsHardware ? null : (
+            <IplHardwareLinkField
+              enabled={linkHardware}
+              selected={linkedHardware}
+              disabled={!canUpdate}
+              onEnabledChange={setLinkHardware}
+              onChange={setLinkedHardware}
+              qtyForPartNumber={partNumber => hardwareQtyByPartNumber?.get(normalizePartNumber(partNumber)) ?? 1}
+            />
+          )}
 
           <div className="space-y-3">
-            {byModel ? (
+            {byStation ? (
               <p className="text-xs text-slate-400">{t('bom.partOps.byModelHint')}</p>
             ) : multi ? (
               <label className="block max-w-[12rem]">
@@ -340,21 +371,21 @@ export function IplPartOperationsModal({ open, row, models, canUpdate, onClose }
             ) : (
               <p className="text-xs text-slate-400">{t('bom.partOps.singleHint')}</p>
             )}
-            {!byModel && multi && count < 2 ? <p className="text-xs text-amber-200">{t('bom.partOps.needCount')}</p> : null}
-            {byModel ? (
+            {!byStation && multi && count < 2 ? <p className="text-xs text-amber-200">{t('bom.partOps.needCount')}</p> : null}
+            {byStation ? (
               <div className="space-y-3">
-                {modelGroups.map(group => {
-                  const storedSlots = groupRows[group.partNumber] ?? [emptyIplPartOpSlot(group.stationKey)]
+                {stationGroups.map(group => {
+                  const storedSlots = groupRows[group.stationKey] ?? [emptyIplPartOpSlot(group.stationKey)]
                   const slots = multi ? storedSlots : [storedSlots[0] ?? emptyIplPartOpSlot(group.stationKey)]
                   const lockedLabel = stations.find(station => station.key === group.stationKey)?.label || group.stationLabel
                   return (
                     <section
-                      key={group.partNumber || `__unset__${group.stationKey}`}
+                      key={group.stationKey}
                       className="space-y-2 rounded-xl border border-violet-400/30 bg-violet-500/5 p-3"
                     >
                       <div className="flex flex-wrap items-center gap-1">
                         <span className="font-mono text-xs font-black text-cyan-200" dir="ltr">
-                          {group.partNumber || t('bom.partNumberUnset')}
+                          {lockedLabel}
                         </span>
                         {group.models.map(modelName => (
                           <span
@@ -365,6 +396,15 @@ export function IplPartOperationsModal({ open, row, models, canUpdate, onClose }
                             {modelName}
                           </span>
                         ))}
+                        {group.partNumbers.map(partNumber => (
+                          <span
+                            key={partNumber}
+                            className="rounded-md bg-slate-800 px-1.5 py-0.5 font-mono text-[10px] font-bold text-cyan-100"
+                            dir="ltr"
+                          >
+                            {partNumber}
+                          </span>
+                        ))}
                       </div>
                       {multi ? (
                         <label className="block max-w-[12rem]">
@@ -373,14 +413,13 @@ export function IplPartOperationsModal({ open, row, models, canUpdate, onClose }
                             className="input-industrial w-full"
                             inputMode="numeric"
                             value={String(storedSlots.length)}
-                            disabled={!canUpdate}
-                            onChange={event => changeGroupCount(group.partNumber, event.target.value, group.stationKey)}
+                            disabled={!canUpdate || linkedAsHardware}
+                            onChange={event => changeGroupCount(group.stationKey, event.target.value)}
                           />
                         </label>
                       ) : null}
                       {slots.map((slot, index) => {
-                        const stationKey = multi ? slot.stationKey || group.stationKey : group.stationKey
-                        const stationWorkers = workersOn(stationKey)
+                        const stationWorkers = workersOn(group.stationKey)
                         return (
                           <div key={index} className="rounded-xl border border-slate-800 bg-slate-950/40 p-3">
                             <p className="mb-2 text-xs font-black text-slate-200">
@@ -389,49 +428,27 @@ export function IplPartOperationsModal({ open, row, models, canUpdate, onClose }
                             <div className="grid gap-2 sm:grid-cols-3">
                               <label className="block">
                                 <span className="mb-1 block text-[11px] font-bold text-slate-500">{t('bom.partOps.station')}</span>
-                                {multi ? (
-                                  <select
-                                    className="input-industrial w-full"
-                                    value={slot.stationKey}
-                                    disabled={!canUpdate}
-                                    onChange={event => updateGroupRow(group.partNumber, index, { stationKey: event.target.value })}
-                                  >
-                                    <option value="">{t('bom.partOps.pickStation')}</option>
-                                    {stations.map(station => (
-                                      <option key={station.key} value={station.key}>
-                                        {station.label}
-                                      </option>
-                                    ))}
-                                  </select>
-                                ) : (
-                                  <p className="rounded-lg bg-slate-900 px-3 py-2 text-sm font-bold text-slate-200" dir="ltr">
-                                    {lockedLabel}
-                                  </p>
-                                )}
+                                <p className="rounded-lg bg-slate-900 px-3 py-2 text-sm font-bold text-slate-200" dir="ltr">
+                                  {lockedLabel}
+                                </p>
                               </label>
                               <label className="block">
                                 <span className="mb-1 block text-[11px] font-bold text-slate-500">{t('bom.partOps.kind')}</span>
-                                <select
-                                  className="input-industrial w-full"
+                                <IplOperationKindSelect
                                   value={slot.kind}
+                                  kinds={kindOptions}
                                   disabled={!canUpdate}
-                                  onChange={event => updateGroupRow(group.partNumber, index, { kind: event.target.value })}
-                                >
-                                  <option value="">{t('bom.partOps.pickKind')}</option>
-                                  {IPL_OPERATION_KINDS.map(kind => (
-                                    <option key={kind} value={kind}>
-                                      {kind}
-                                    </option>
-                                  ))}
-                                </select>
+                                  onChange={kind => updateGroupRow(group.stationKey, index, { kind })}
+                                  onKindsChange={setKindOptions}
+                                />
                               </label>
                               <label className="block">
                                 <span className="mb-1 block text-[11px] font-bold text-slate-500">{t('bom.partOps.technician')}</span>
                                 <select
                                   className="input-industrial w-full"
                                   value={slot.workerId}
-                                  disabled={!canUpdate || stationWorkers.length === 0}
-                                  onChange={event => updateGroupRow(group.partNumber, index, { workerId: event.target.value })}
+                                  disabled={!canUpdate || linkedAsHardware || stationWorkers.length === 0}
+                                  onChange={event => updateGroupRow(group.stationKey, index, { workerId: event.target.value })}
                                 >
                                   <option value="">{t('bom.partOps.pickTechnician')}</option>
                                   {stationWorkers.map(worker => (
@@ -469,7 +486,7 @@ export function IplPartOperationsModal({ open, row, models, canUpdate, onClose }
                           <select
                             className="input-industrial w-full"
                             value={slot.stationKey}
-                            disabled={!canUpdate}
+                            disabled={!canUpdate || linkedAsHardware}
                             onChange={event => updateRow(index, { stationKey: event.target.value })}
                           >
                             <option value="">{t('bom.partOps.pickStation')}</option>
@@ -487,26 +504,20 @@ export function IplPartOperationsModal({ open, row, models, canUpdate, onClose }
                       </label>
                       <label className="block">
                         <span className="mb-1 block text-[11px] font-bold text-slate-500">{t('bom.partOps.kind')}</span>
-                        <select
-                          className="input-industrial w-full"
+                        <IplOperationKindSelect
                           value={slot.kind}
+                          kinds={kindOptions}
                           disabled={!canUpdate}
-                          onChange={event => updateRow(index, { kind: event.target.value })}
-                        >
-                          <option value="">{t('bom.partOps.pickKind')}</option>
-                          {IPL_OPERATION_KINDS.map(kind => (
-                            <option key={kind} value={kind}>
-                              {kind}
-                            </option>
-                          ))}
-                        </select>
+                          onChange={kind => updateRow(index, { kind })}
+                          onKindsChange={setKindOptions}
+                        />
                       </label>
                       <label className="block">
                         <span className="mb-1 block text-[11px] font-bold text-slate-500">{t('bom.partOps.technician')}</span>
                         <select
                           className="input-industrial w-full"
                           value={slot.workerId}
-                          disabled={!canUpdate || stationWorkers.length === 0}
+                          disabled={!canUpdate || linkedAsHardware || stationWorkers.length === 0}
                           onChange={event => updateRow(index, { workerId: event.target.value })}
                         >
                           <option value="">{t('bom.partOps.pickTechnician')}</option>

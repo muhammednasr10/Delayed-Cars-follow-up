@@ -35,6 +35,18 @@ export async function listAssignedIplPartIds(): Promise<Set<string>> {
   return ids
 }
 
+export async function listLinkedHardwarePartKeys(): Promise<Set<string>> {
+  const { data, error } = await client().from('operation_hardware_requirements').select('hardware_name')
+  if (error) throw new Error(error.message)
+  const keys = new Set<string>()
+  for (const row of data ?? []) {
+    const name = String((row as { hardware_name: string | null }).hardware_name ?? '').trim()
+    if (!name) continue
+    keys.add(name.replace(/[\u200B-\u200D\uFEFF\u00A0]/g, '').trim().toUpperCase().replace(/\s+/g, '').replace(/[-–—]/g, ''))
+  }
+  return keys
+}
+
 export async function assignIplPartToWorkerLine(input: {
   part: IplStationPart
   workerStationId: string | null
@@ -60,9 +72,23 @@ export async function assignIplPartToWorkerLine(input: {
     iplPartCopyFromNotes(op.notes) === copyIndex &&
     iplPartNumberFromNotes(op.notes) === partNumberKey &&
     iplPartStationFromNotes(op.notes) === station
+  const sameCopyOnWorker = (op: StationOperationDetail) =>
+    Boolean(input.workerStationId) &&
+    op.stationId === input.workerStationId &&
+    iplPartIdFromNotes(op.notes) === input.part.partId &&
+    iplPartCopyFromNotes(op.notes) === copyIndex
+
   let existing = input.operations.find(op => matches(op, stationKey)) ?? null
   if (!existing && stationKey) {
     existing = input.operations.find(op => matches(op, '')) ?? null
+  }
+  if (!existing && input.workerStationId) {
+    const siblings = input.operations.filter(sameCopyOnWorker)
+    existing =
+      siblings.find(op => !iplPartNumberFromNotes(op.notes)) ??
+      siblings.find(op => iplPartStationFromNotes(op.notes) === stationKey) ??
+      siblings[0] ??
+      null
   }
   const operationName = iplOperationName(
     input.operationKind ?? '',
@@ -98,6 +124,9 @@ export async function assignIplPartToWorkerLine(input: {
       bom_item_id: isPendingBomItemId(input.part.bomItemId) ? null : input.part.bomItemId,
       quantity: input.part.quantity
     })
+    for (const op of input.operations) {
+      if (sameCopyOnWorker(op)) await deactivateStationOperation(op.id)
+    }
     return
   }
   if (existing.stationId !== input.workerStationId) {
@@ -121,4 +150,8 @@ export async function assignIplPartToWorkerLine(input: {
     })
   }
   if (input.hardware) await setStationOperationHardware(existing.id, input.hardware)
+  for (const op of input.operations) {
+    if (op.id === existing.id || !sameCopyOnWorker(op)) continue
+    await deactivateStationOperation(op.id)
+  }
 }

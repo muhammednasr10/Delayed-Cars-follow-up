@@ -3,6 +3,7 @@ import { useLang } from '../i18n/LanguageContext'
 import { mpLookupLabel } from '../Utils/mpLookupLabel'
 import type { MissingPartDetail } from '../Types/missingPart'
 import type { MpLookupOption } from '../Types/mpLookup'
+import { isShortageIssueDone } from '../Utils/missingPartPageUtils'
 import { Modal } from './Modal'
 
 type Props = {
@@ -41,15 +42,25 @@ export function MissingPartIssuesModal({ parts, vin, modelName, reasons, departm
       )}
 
       <div className="max-h-[min(60vh,420px)] space-y-3 overflow-y-auto pe-1">
-        {parts.map((part, i) => (
+        {parts.map((part, i) => {
+          const done = isShortageIssueDone(part)
+          return (
           <article
             key={part.id}
-            className="rounded-xl border border-amber-500/25 bg-amber-500/5 px-4 py-3 text-start"
+            className={`rounded-xl border px-4 py-3 text-start ${
+              done ? 'border-slate-700 bg-slate-950/40 opacity-80' : 'border-amber-500/25 bg-amber-500/5'
+            }`}
           >
             {!single && (
               <>
                 <p className="text-[10px] font-bold uppercase text-slate-500">{i + 1}</p>
-                <p className="mt-1 text-sm font-bold text-white">{part.partDescription}</p>
+                <p
+                  className={`mt-1 text-sm font-bold ${
+                    done ? 'text-slate-500 line-through decoration-slate-500' : 'text-white'
+                  }`}
+                >
+                  {part.partDescription}
+                </p>
               </>
             )}
             <dl className={`grid grid-cols-1 gap-2 sm:grid-cols-2 ${single ? '' : 'mt-3'}`}>
@@ -71,7 +82,8 @@ export function MissingPartIssuesModal({ parts, vin, modelName, reasons, departm
               />
             </dl>
           </article>
-        ))}
+          )
+        })}
       </div>
     </Modal>
   )

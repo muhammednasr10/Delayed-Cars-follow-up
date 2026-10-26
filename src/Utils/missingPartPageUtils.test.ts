@@ -15,7 +15,9 @@ import {
   openVehicleShortageLines,
   uniqueVehicleReps,
   completerNames,
-  shortageDurationDays
+  shortageDurationDays,
+  isShortageIssueDone,
+  isUniqueIssueDone
 } from './missingPartPageUtils'
 import type { MissingPartFilters } from '../Types/missingPart'
 
@@ -379,6 +381,45 @@ describe('completerNames', () => {
 
   it('shows dash when no completer is stored', () => {
     expect(completerNames([part({ id: '1', vehicleId: 'v1', vin: '1' })])).toBe('—')
+  })
+})
+
+describe('isShortageIssueDone', () => {
+  it('marks a line done after the required qty is installed', () => {
+    const open = part({ id: '1', vehicleId: 'v1', vin: '5052', requiredQty: 1, installedQty: 0 })
+    const installed = part({
+      id: '2',
+      vehicleId: 'v1',
+      vin: '5052',
+      requiredQty: 1,
+      installedQty: 1,
+      remainingQty: 0,
+      status: 'qc_pending'
+    })
+    expect(isShortageIssueDone(open)).toBe(false)
+    expect(isShortageIssueDone(installed)).toBe(true)
+  })
+
+  it('treats a unique issue as done only when every matching line is done', () => {
+    const done = part({
+      id: 'a',
+      vehicleId: 'v1',
+      vin: '5052',
+      partDescription: 'خرطوم',
+      requiredQty: 1,
+      installedQty: 1,
+      remainingQty: 0
+    })
+    const open = part({
+      id: 'b',
+      vehicleId: 'v2',
+      vin: '5053',
+      partDescription: 'خرطوم',
+      requiredQty: 1,
+      installedQty: 0
+    })
+    expect(isUniqueIssueDone(done, [done])).toBe(true)
+    expect(isUniqueIssueDone(done, [done, open])).toBe(false)
   })
 })
 

@@ -240,10 +240,34 @@ export function uniqueVehicleReps(parts: MissingPartDetail[]): MissingPartDetail
 export function uniqueIssueReps(parts: MissingPartDetail[]): MissingPartDetail[] {
   const map = new Map<string, MissingPartDetail>()
   for (const part of parts) {
-    const key = `${part.partDescription}|${part.reason}|${part.department}`
+    const key = shortageIssueRepKey(part)
     if (!map.has(key)) map.set(key, part)
   }
   return [...map.values()]
+}
+
+export function shortageIssueRepKey(
+  part: Pick<MissingPartDetail, 'partDescription' | 'reason' | 'department'>
+): string {
+  return `${part.partDescription}|${part.reason}|${part.department}`
+}
+
+/** Fully installed, transferred, closed, or cancelled — keep it visible with a strikethrough. */
+export function isShortageIssueDone(
+  part: Pick<
+    MissingPartDetail,
+    'status' | 'installedQty' | 'requiredQty' | 'shortageResolvedAt' | 'transferredAt'
+  >
+): boolean {
+  if (part.shortageResolvedAt || part.transferredAt) return true
+  if (part.status === 'closed' || part.status === 'cancelled') return true
+  return part.requiredQty > 0 && part.installedQty >= part.requiredQty
+}
+
+export function isUniqueIssueDone(rep: MissingPartDetail, pool: MissingPartDetail[]): boolean {
+  const key = shortageIssueRepKey(rep)
+  const matching = pool.filter(part => shortageIssueRepKey(part) === key)
+  return matching.length > 0 && matching.every(isShortageIssueDone)
 }
 
 export function isMissingPartRowOpen(parts: MissingPartDetail[]): boolean {

@@ -71,7 +71,8 @@ export function MissingPartVehicleActions({
   const linkedMissions = shortageMissionsForParts(deleteTargets, shortageMissions)
   const canAssign =
     onCurrentTab && canAssignMissions && Boolean(onAssignShortageMission) && assignableEmployees.length > 0
-  const showMissionBtn = onCurrentTab && (canAssign || linkedMissions.length > 0)
+  const canAddToQuality = onCurrentTab && deleteTargets.length > 0
+  const showMissionBtn = onCurrentTab && (canAssign || canAddToQuality || linkedMissions.length > 0)
 
   const wrapClass =
     layout === 'stacked' ? 'flex flex-wrap items-center justify-end gap-1' : 'flex items-center justify-center gap-1'
@@ -94,6 +95,7 @@ export function MissingPartVehicleActions({
           busy={assignMissionBusy}
           linkedMissions={linkedMissions}
           canAssign={canAssign}
+          canAddToQuality={canAddToQuality}
           onOpenLinked={() => openShortageMissions(item.vin)}
           className={`relative z-[1] rounded-md p-1.5 ${
             linkedMissions.length > 0

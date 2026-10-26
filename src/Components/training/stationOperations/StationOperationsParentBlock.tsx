@@ -3,8 +3,9 @@ import { ChevronDown, MapPin, Pencil, Plus, Trash2, Users } from 'lucide-react'
 import { flattenOperationRows, OperationsDataTable } from '../OperationsDataTable'
 import { inputCls } from '../../FormField'
 import { formatStationWorkerDisplayCode } from '../../../Utils/stationHierarchy'
+import { MODEL_LINE_STYLES, type ModelLine } from '../../../Utils/modelLines'
+import { resolveStationHeadcountDisplay } from '../../../services/stationLineHeadcountService'
 import { updateStationWorker1Summary } from '../../../services/stationOperationsService'
-import type { ModelLine } from '../../../Utils/modelLines'
 import type { BomItemDetail } from '../../../Types/bom'
 import type { IplStationPart } from '../../../Utils/iplStationParts'
 import type {
@@ -88,6 +89,7 @@ function WorkerOperationsPanel({
   onEditOp,
   onDeleteOp,
   onMoveOp,
+  onStudyFields,
   onDeleteWorker,
   onSummarySaved,
   compareModels,
@@ -103,6 +105,7 @@ function WorkerOperationsPanel({
   onEditOp: (op: StationOperationDetail) => void
   onDeleteOp: (op: StationOperationDetail) => void
   onMoveOp: (op: StationOperationDetail, workerStationId: string) => void
+  onStudyFields: (op: StationOperationDetail) => void
   onDeleteWorker: (worker: WorkerOperationsGroup) => void
   onSummarySaved: (stationId: string, summary: string) => void
   compareModels?: string[]
@@ -204,6 +207,7 @@ function WorkerOperationsPanel({
           compareModels={compareModels}
           bomByPartId={bomByPartId}
           hardwareBomRows={hardwareBomRows}
+          onStudyFields={onStudyFields}
           onEdit={onEditOp}
           onDelete={onDeleteOp}
           onMove={onMoveOp}
@@ -223,6 +227,7 @@ export function ParentStationBlock({
   onEditOp,
   onDeleteOp,
   onMoveOp,
+  onStudyFields,
   onDeleteWorker,
   onSummarySaved,
   iplParts,
@@ -230,6 +235,8 @@ export function ParentStationBlock({
   compareModels,
   bomByPartId,
   hardwareBomRows,
+  headcountsByLine,
+  selectedLines,
   t
 }: {
   parent: ParentStationOperationsGroup
@@ -241,6 +248,7 @@ export function ParentStationBlock({
   onEditOp: (op: StationOperationDetail) => void
   onDeleteOp: (op: StationOperationDetail) => void
   onMoveOp: (op: StationOperationDetail, workerStationId: string) => void
+  onStudyFields: (op: StationOperationDetail) => void
   onDeleteWorker: (worker: WorkerOperationsGroup) => void
   onSummarySaved: (stationId: string, summary: string) => void
   iplParts?: IplStationPart[]
@@ -248,6 +256,8 @@ export function ParentStationBlock({
   compareModels?: string[]
   bomByPartId?: Map<string, BomItemDetail[]>
   hardwareBomRows?: BomItemDetail[]
+  headcountsByLine?: Map<ModelLine, number>
+  selectedLines?: ModelLine[]
   t: (key: string, vars?: Record<string, string | number>) => string
 }) {
   const [open, setOpen] = useState(false)
@@ -255,6 +265,12 @@ export function ParentStationBlock({
   const workplace = parent.workAreaName || parent.lineName || '—'
   const avgText = parent.avgStationTimeMinutes != null ? `${parent.avgStationTimeMinutes.toFixed(1)}` : '—'
   const totalOps = parent.workers.reduce((n, w) => n + w.operations.length, 0)
+  const fallbackWorkers = parent.workers.length || parent.totalWorkers || 0
+  const headcountDisplay = resolveStationHeadcountDisplay(
+    headcountsByLine,
+    selectedLines ?? [],
+    fallbackWorkers
+  )
 
   return (
     <div className="card-industrial overflow-hidden border-cyan-500/20">
@@ -286,8 +302,32 @@ export function ParentStationBlock({
               />
               <HeaderCell
                 label={t('operations.totalWorkers')}
-                value={String(parent.totalWorkers)}
-                icon={<Users className="h-3.5 w-3.5 text-slate-500" />}
+                value={
+                  headcountDisplay.mode === 'split' ? (
+                    <span className="inline-flex flex-wrap items-center justify-center gap-1">
+                      {headcountDisplay.entries.map(entry => (
+                        <span
+                          key={entry.line}
+                          className={`rounded-md px-1.5 py-0.5 text-[10px] font-black ${MODEL_LINE_STYLES[entry.line].badge}`}
+                        >
+                          {entry.line} {entry.count}
+                        </span>
+                      ))}
+                      <span className="rounded-md border border-amber-500/40 bg-amber-500/10 px-1.5 py-0.5 text-[10px] font-black uppercase text-amber-200">
+                        {t('operations.sharedDiff.different')}
+                      </span>
+                    </span>
+                  ) : (
+                    String(headcountDisplay.count || '—')
+                  )
+                }
+                accent={headcountDisplay.mode !== 'split'}
+                dir="ltr"
+                icon={
+                  headcountDisplay.mode === 'split' ? undefined : (
+                    <Users className="h-3.5 w-3.5 text-slate-500" />
+                  )
+                }
               />
             </div>
           </button>
@@ -342,6 +382,7 @@ export function ParentStationBlock({
                 onEditOp={onEditOp}
                 onDeleteOp={onDeleteOp}
                 onMoveOp={onMoveOp}
+                onStudyFields={onStudyFields}
                 onDeleteWorker={onDeleteWorker}
                 onSummarySaved={onSummarySaved}
                 compareModels={compareModels}

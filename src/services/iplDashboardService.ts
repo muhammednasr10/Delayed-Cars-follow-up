@@ -16,6 +16,7 @@ import {
 } from '../Utils/vehicleModelHierarchy'
 import { fetchIplBomAndMasters, buildIplModelMergedRows } from './bomIplService'
 import { getStations, getVehicleModels } from './settingsService'
+import { listAssignedIplPartIds, listLinkedHardwarePartKeys } from './stationOperationsService'
 
 export type { IplDashboardSummary }
 
@@ -24,6 +25,8 @@ export type IplDashboardDataset = {
   masters: Part[]
   models: VehicleModel[]
   stations: Station[]
+  linkedPartIds: Set<string>
+  linkedHardwareKeys: Set<string>
 }
 
 export type IplDashboardFilters = {
@@ -35,12 +38,21 @@ export type IplDashboardFilters = {
 }
 
 export async function loadIplDashboardDataset(): Promise<IplDashboardDataset> {
-  const [source, models, stations] = await Promise.all([
+  const [source, models, stations, linkedPartIds, linkedHardwareKeys] = await Promise.all([
     fetchIplBomAndMasters(),
     getVehicleModels(),
-    getStations()
+    getStations(),
+    listAssignedIplPartIds().catch(() => new Set<string>()),
+    listLinkedHardwarePartKeys().catch(() => new Set<string>())
   ])
-  return { allBom: source.allBom, masters: source.masters, models, stations }
+  return {
+    allBom: source.allBom,
+    masters: source.masters,
+    models,
+    stations,
+    linkedPartIds,
+    linkedHardwareKeys
+  }
 }
 
 export function prepareIplDashboardBase(dataset: IplDashboardDataset, modelNames: string[], stationCode?: string) {
@@ -77,7 +89,14 @@ export function composeIplDashboard(
   })
 
   return {
-    summary: buildIplDashboardSummaryFromCompare(filtered, fitCounts, modelNames, dataset.stations),
+    summary: buildIplDashboardSummaryFromCompare(
+      filtered,
+      fitCounts,
+      modelNames,
+      dataset.stations,
+      dataset.linkedPartIds,
+      dataset.linkedHardwareKeys
+    ),
     suggestions: buildIplSearchSuggestions(rows, modelNames, filters.search)
   }
 }

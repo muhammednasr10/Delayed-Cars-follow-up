@@ -170,6 +170,7 @@ export type MissingPartsListTab =
   | 'reportList'
   | 'reportDaily'
   | 'reportCustom'
+  | 'reportStoppage'
   | 'history'
   | 'historySummary'
   | 'historyDiary'

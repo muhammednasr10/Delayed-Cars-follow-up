@@ -174,9 +174,15 @@ export function UpdateMissingPartModal({ vehicle, onClose, onChanged, onNotify, 
             const hasIncrease = target > saved
             const multiVin = openParts.length > 1 && new Set(openParts.map(p => p.vin)).size > 1
             const transferring = transferringId === part.id
+            const done = target >= required && required > 0
 
             return (
-              <div key={part.id} className="rounded-xl border border-slate-700 bg-slate-950/50 p-3">
+              <div
+                key={part.id}
+                className={`rounded-xl border bg-slate-950/50 p-3 ${
+                  done ? 'border-emerald-500/25 opacity-80' : 'border-slate-700'
+                }`}
+              >
                 <div className="mb-2 flex items-start justify-between gap-2">
                   <div className="min-w-0 text-start">
                     {multiVin && (
@@ -184,7 +190,13 @@ export function UpdateMissingPartModal({ vehicle, onClose, onChanged, onNotify, 
                         {part.vin}
                       </p>
                     )}
-                    <p className="font-bold text-slate-100">{part.partDescription}</p>
+                    <p
+                      className={`font-bold ${
+                        done ? 'text-slate-500 line-through decoration-slate-500' : 'text-slate-100'
+                      }`}
+                    >
+                      {part.partDescription}
+                    </p>
                     <p className="mt-0.5 text-xs text-slate-400">
                       {mpLookupLabel(reasons, part.reason, lang)} · {mpLookupLabel(departments, part.department, lang)}
                     </p>

@@ -21,6 +21,7 @@ import { MissingPartsDailyJournalTab } from '../../Components/missingParts/Missi
 import { MissingPartsFamilyCardsTab } from '../../Components/missingParts/MissingPartsFamilyCardsTab'
 import { MissingPartsSummaryTab } from '../../Components/missingParts/MissingPartsSummaryTab'
 import { MissingPartsReportTab } from '../../Components/missingParts/MissingPartsReportTab'
+import { MissingPartsStoppageReportTab } from '../../Components/missingParts/MissingPartsStoppageReportTab'
 import { MissingPartsBulkBar } from '../../Components/missingParts/MissingPartsBulkBar'
 import { MergeShortageGroupModal } from '../../Components/missingParts/MergeShortageGroupModal'
 import { MissingPartsPageDialogs } from '../../Components/missingParts/MissingPartsPageDialogs'
@@ -333,6 +334,14 @@ export function MissingPartsPage() {
           />
         ) : listTab === 'historyDiary' ? (
           <MissingPartsDailyJournalTab items={scopedItems} loading={loading} canExport={canExport} />
+        ) : listTab === 'reportStoppage' ? (
+          <MissingPartsStoppageReportTab
+            items={filtered}
+            reasons={reasons}
+            departments={departments}
+            loading={loading}
+            canExport={canExport}
+          />
         ) : listTab === 'reportList' || listTab === 'reportDaily' || listTab === 'reportCustom' ? (
           <MissingPartsReportTab
             mode={listTab}

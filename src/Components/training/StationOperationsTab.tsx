@@ -5,6 +5,7 @@ import { ConfirmDialog } from '../ConfirmDialog'
 import { EmptyState } from '../EmptyState'
 import { StationWizardModal } from '../StationWizardModal'
 import { StationOperationForm } from './StationOperationForm'
+import { OperationStudyFieldsModal } from './OperationStudyFieldsModal'
 import { MoveOperationModal } from './MoveOperationModal'
 import {
   assignIplPartToWorkerLine,
@@ -13,7 +14,8 @@ import {
   deactivateStationWithWorkers,
   ensureFirstWorkerLine,
   syncWorkerLinesToHeadcount,
-  updateStationOperation
+  updateStationOperation,
+  updateStationOperationStudyFields
 } from '../../services/stationOperationsService'
 import { deactivateStation, getStations, getWorkAreas, updateStation } from '../../services/settingsService'
 import {
@@ -36,7 +38,21 @@ import {
   formatStationWorkerDisplayCode,
   workerIndexFromStationCode
 } from '../../Utils/stationHierarchy'
-import { MODEL_LINES, MODEL_LINE_STYLES, modelBelongsToLine, type ModelLine } from '../../Utils/modelLines'
+import {
+  MODEL_LINES,
+  MODEL_LINE_STYLES,
+  modelBelongsToLine,
+  selectedModelLines,
+  uniqueSelectedModelLine,
+  type ModelLine
+} from '../../Utils/modelLines'
+import {
+  capForSelectedLines,
+  listStationLineHeadcounts,
+  maxStoredHeadcount,
+  upsertStationLineHeadcount,
+  type StationLineHeadcountMap
+} from '../../services/stationLineHeadcountService'
 import { defaultIplCompareModelNames, selectableVehicleModels } from '../../Utils/vehicleModelHierarchy'
 import { IplModelTabsBar } from '../bom/IplModelTabsBar'
 import {
@@ -100,6 +116,7 @@ export function StationOperationsTab({
   const [openTabs, setOpenTabs] = useState<string[]>([])
   const didInitTabs = useRef(false)
   const [editingOp, setEditingOp] = useState<StationOperationDetail | null>(null)
+  const [studyingOp, setStudyingOp] = useState<StationOperationDetail | null>(null)
   const [creatingOpContext, setCreatingOpContext] = useState<{ stationId: string; label: string } | null>(null)
   const [addParentOpen, setAddParentOpen] = useState(false)
   const [editParent, setEditParent] = useState<ParentStationOperationsGroup | null>(null)
@@ -109,6 +126,21 @@ export function StationOperationsTab({
   const [headcountWarn, setHeadcountWarn] = useState<HeadcountWarn | null>(null)
   const [moveOp, setMoveOp] = useState<{ op: StationOperationDetail; workerStationId: string } | null>(null)
   const [busy, setBusy] = useState(false)
+  const [lineHeadcounts, setLineHeadcounts] = useState<StationLineHeadcountMap>(() => new Map())
+  const selectedLineRef = useRef<ModelLine | null>(null)
+  const lineHeadcountsRef = useRef(lineHeadcounts)
+  lineHeadcountsRef.current = lineHeadcounts
+
+  async function reloadLineHeadcounts() {
+    try {
+      const map = await listStationLineHeadcounts()
+      setLineHeadcounts(map)
+      lineHeadcountsRef.current = map
+      return map
+    } catch {
+      return lineHeadcountsRef.current
+    }
+  }
 
   const stationNumbers = useMemo(() => allStations.map(s => s.station_number), [allStations])
 
@@ -131,12 +163,20 @@ export function StationOperationsTab({
   }, [])
 
   useEffect(() => {
+    void reloadLineHeadcounts()
+  }, [])
+
+  useEffect(() => {
     if (!canManage || allStations.length === 0) return
     let cancelled = false
     void (async () => {
       let needsReload = false
       for (const parent of parentGroups) {
-        const target = parent.headcountWorkersOverride ?? parent.totalWorkers ?? 0
+        const storedMax = maxStoredHeadcount(
+          parent.stationId ? lineHeadcounts.get(parent.stationId) : undefined,
+          parent.headcountWorkersOverride ?? parent.totalWorkers
+        )
+        const target = storedMax || (parent.headcountWorkersOverride ?? parent.totalWorkers ?? 0)
         if (target < 1 || countWorkerLines(parent) >= target) continue
         const master = resolveMasterStationRecord(parent, allStations)
         if (!master) continue
@@ -152,7 +192,7 @@ export function StationOperationsTab({
     return () => {
       cancelled = true
     }
-  }, [parentGroups, allStations, canManage])
+  }, [parentGroups, allStations, canManage, lineHeadcounts])
 
   const linkedMasterCodes = useMemo(
     () => parentGroups.map(p => masterStationCode({ station_number: p.stationNumber }).toUpperCase()),
@@ -172,8 +212,17 @@ export function StationOperationsTab({
   const editParentWizardValues = useMemo(() => {
     if (!editParent) return emptyStationWizardValues()
     const station = resolveMasterStationRecord(editParent, allStations)
-    return station ? stationToWizardValues(station) : emptyStationWizardValues()
-  }, [editParent, allStations])
+    const values = station ? stationToWizardValues(station) : emptyStationWizardValues()
+    const line = uniqueSelectedModelLine(
+      selectableVehicleModels(models).filter(model => openTabs.includes(model.name))
+    )
+    const stationId = station?.id ?? editParent.stationId
+    if (line && stationId) {
+      const n = lineHeadcounts.get(stationId)?.get(line)
+      if (n) values.headcount_workers = String(n)
+    }
+    return values
+  }, [editParent, allStations, lineHeadcounts, models, openTabs])
 
   const editParentExcludeNumbers = useMemo(() => {
     if (!editParent) return [] as string[]
@@ -219,6 +268,14 @@ export function StationOperationsTab({
       return false
     }
     const oldBase = normalizeStationReferenceCode(station?.station_number ?? editParent.stationNumber)
+    const line = selectedLineRef.current
+    const lineHeadcount = parseHeadcountWorkers(values.headcount_workers)
+    let physical = lineHeadcount
+    if (line && lineHeadcount) {
+      await upsertStationLineHeadcount(id, line, lineHeadcount)
+      const map = await reloadLineHeadcounts()
+      physical = maxStoredHeadcount(map.get(id), lineHeadcount)
+    }
     const patch = {
       station_number: values.station_number,
       station_name: values.station_name,
@@ -226,7 +283,7 @@ export function StationOperationsTab({
       sort_order: values.sort_order ? Number(values.sort_order) : 0,
       work_area_id: values.work_area_id || null,
       is_active: values.is_active !== 'false',
-      headcount_workers: parseHeadcountWorkers(values.headcount_workers)
+      headcount_workers: physical
     }
     await updateStation(id, patch)
     if (options?.clearTrainingAbove != null) {
@@ -235,10 +292,7 @@ export function StationOperationsTab({
     const freshStation = stations.find(s => s.id === id) ?? station
     if (freshStation) {
       try {
-        await syncWorkerLinesToHeadcount(
-          { ...freshStation, ...patch, id },
-          patch.headcount_workers
-        )
+        await syncWorkerLinesToHeadcount({ ...freshStation, ...patch, id }, physical)
       } catch (syncErr) {
         notify(syncErr instanceof Error ? syncErr.message : t('operations.workerLinesSyncFailed'), true)
       }
@@ -266,6 +320,18 @@ export function StationOperationsTab({
     () => assignableModels.filter(model => openTabs.includes(model.name)),
     [assignableModels, openTabs]
   )
+  const selectedLine = uniqueSelectedModelLine(selectedModels)
+  selectedLineRef.current = selectedLine
+  const activeHeadcountLines = useMemo(() => selectedModelLines(selectedModels), [selectedModels])
+  const headcountCapByStationId = useMemo(() => {
+    const map = new Map<string, number>()
+    for (const parent of parentGroups) {
+      if (!parent.stationId) continue
+      const cap = capForSelectedLines(lineHeadcounts.get(parent.stationId), activeHeadcountLines)
+      if (cap) map.set(parent.stationId, cap)
+    }
+    return map
+  }, [parentGroups, lineHeadcounts, activeHeadcountLines])
   const fitModelNames = useMemo(() => selectedModels.map(model => model.name), [selectedModels])
   const singleModel = selectedModels.length === 1 ? selectedModels[0] : null
   const activeVariant = singleModel?.name ?? ''
@@ -297,9 +363,23 @@ export function StationOperationsTab({
   }
 
   const filteredParents = useMemo(
-    () => filterParentsForSelectedModels(parentGroups, selectedModels),
-    [parentGroups, selectedModels]
+    () =>
+      filterParentsForSelectedModels(parentGroups, selectedModels, {
+        trimWorkerLines: selectedModels.length > 0 && selectedModels.length < assignableModels.length,
+        headcountCapByStationId
+      }),
+    [parentGroups, selectedModels, assignableModels.length, headcountCapByStationId]
   )
+
+  function originalParent(filtered: ParentStationOperationsGroup): ParentStationOperationsGroup {
+    return (
+      parentGroups.find(
+        p =>
+          (filtered.stationId && p.stationId === filtered.stationId) ||
+          normalizeStationReferenceCode(p.stationNumber) === normalizeStationReferenceCode(filtered.stationNumber)
+      ) ?? filtered
+    )
+  }
 
   const stats = useMemo(() => {
     const workers = filteredParents.reduce((n, p) => n + p.workers.length, 0)
@@ -310,7 +390,7 @@ export function StationOperationsTab({
   const operationFormStationId = editingOp?.stationId ?? creatingOpContext?.stationId ?? null
 
   const operationFormPredecessors = useMemo(() => {
-    const excludeId = editingOp?.id
+    const excludeId = studyingOp?.id ?? editingOp?.id
     const list: {
       id: string
       label: string
@@ -338,7 +418,7 @@ export function StationOperationsTab({
     }
 
     return list.sort((a, b) => a.sortKey.localeCompare(b.sortKey)).map(({ sortKey: _s, ...rest }) => rest)
-  }, [parentGroups, editingOp?.id])
+  }, [parentGroups, editingOp?.id, studyingOp?.id])
 
   // Only block the UI on the first load — refreshes must stay silent so edit/delete don't jump to top.
   if (loading && parentGroups.length === 0) {
@@ -431,9 +511,9 @@ export function StationOperationsTab({
                   []
                 : undefined
             }
-            onEditParent={() => setEditParent(parent)}
+            onEditParent={() => setEditParent(originalParent(parent))}
             onDeleteParent={() => {
-              const ids = resolveParentDeleteIds(parent)
+              const ids = resolveParentDeleteIds(originalParent(parent))
               if (!ids) {
                 notify(t('operations.noParentStationId'), true)
                 return
@@ -487,6 +567,7 @@ export function StationOperationsTab({
             onEditOp={setEditingOp}
             onDeleteOp={op => setDeleteTarget({ kind: 'operation', operationId: op.id, label: op.operationNameAr })}
             onMoveOp={(op, workerStationId) => setMoveOp({ op, workerStationId })}
+            onStudyFields={setStudyingOp}
             onDeleteWorker={worker => {
               void (async () => {
                 const master = resolveMasterStation(parent)
@@ -522,6 +603,8 @@ export function StationOperationsTab({
             compareModels={fitModelNames}
             bomByPartId={bomByPartId}
             hardwareBomRows={hardwareBomRows}
+            headcountsByLine={parent.stationId ? lineHeadcounts.get(parent.stationId) : undefined}
+            selectedLines={activeHeadcountLines}
             onAssignIplPart={async (part, workerStationId) => {
               if (!selectedVariantId) {
                 notify(t('operations.pickOneModel'), true)
@@ -555,6 +638,7 @@ export function StationOperationsTab({
         masterStations={masterStationsAvailable}
         linkFromSettingsOnly
         busy={busy}
+        headcountLabel={t('settings.fields.headcountWorkersForLine', { line: selectedLine ?? 'T4' })}
         onClose={() => setAddParentOpen(false)}
         onSubmit={async values => {
           const base = normalizeStationReferenceCode(values.station_number || values.station_base).toUpperCase()
@@ -565,6 +649,11 @@ export function StationOperationsTab({
           }
           setBusy(true)
           try {
+            const line = selectedLineRef.current ?? 'T4'
+            const lineHeadcount = parseHeadcountWorkers(values.headcount_workers)
+            if (lineHeadcount) await upsertStationLineHeadcount(station.id, line, lineHeadcount)
+            const map = await reloadLineHeadcounts()
+            const physical = maxStoredHeadcount(map.get(station.id), lineHeadcount)
             await updateStation(station.id, {
               station_number: values.station_number,
               station_name: values.station_name,
@@ -572,10 +661,10 @@ export function StationOperationsTab({
               sort_order: values.sort_order ? Number(values.sort_order) : 0,
               work_area_id: values.work_area_id || null,
               is_active: values.is_active !== 'false',
-              headcount_workers: parseHeadcountWorkers(values.headcount_workers)
+              headcount_workers: physical || lineHeadcount
             })
             const freshStation = (await getStations()).find(s => s.id === station.id) ?? station
-            await syncWorkerLinesToHeadcount(freshStation, parseHeadcountWorkers(values.headcount_workers))
+            await syncWorkerLinesToHeadcount(freshStation, physical || lineHeadcount)
             await reload()
             setAllStations(await getStations())
             setAddParentOpen(false)
@@ -599,9 +688,20 @@ export function StationOperationsTab({
         workAreas={workAreas}
         masterStations={allMasterStations}
         busy={busy}
+        headcountLabel={
+          selectedLine
+            ? t('settings.fields.headcountWorkersForLine', { line: selectedLine })
+            : t('settings.fields.headcountWorkers')
+        }
+        headcountDisabled={!selectedLine}
+        headcountHint={!selectedLine ? t('operations.headcountPickLineHint') : undefined}
         onClose={() => setEditParent(null)}
         onSubmit={async values => {
           if (!editParent) return false
+          if (!selectedLineRef.current) {
+            notify(t('operations.headcountPickLineHint'), true)
+            return false
+          }
           setBusy(true)
           try {
             const stations = await getStations()
@@ -616,7 +716,11 @@ export function StationOperationsTab({
               editParent.headcountWorkersOverride ??
               editParent.totalWorkers ??
               0
-            const newHeadcount = parseHeadcountWorkers(values.headcount_workers) ?? 0
+            const requested = parseHeadcountWorkers(values.headcount_workers) ?? 0
+            const line = selectedLineRef.current
+            const byLine = new Map(lineHeadcountsRef.current.get(id) ?? [])
+            if (line && requested) byLine.set(line, requested)
+            const newHeadcount = maxStoredHeadcount(byLine, requested)
             if (newHeadcount > 0 && oldHeadcount > newHeadcount) {
               const removedTracks = Array.from(
                 { length: oldHeadcount - newHeadcount },
@@ -644,6 +748,29 @@ export function StationOperationsTab({
         }}
       />
 
+      <OperationStudyFieldsModal
+        open={Boolean(studyingOp)}
+        operation={studyingOp}
+        predecessorCandidates={operationFormPredecessors}
+        busy={busy}
+        canSave={canManage}
+        onClose={() => setStudyingOp(null)}
+        onSubmit={async input => {
+          if (!studyingOp) return
+          setBusy(true)
+          try {
+            await updateStationOperationStudyFields(studyingOp.id, input)
+            setStudyingOp(null)
+            notify(t('settings.updated'))
+            await reload()
+          } catch (e) {
+            notify(e instanceof Error ? e.message : t('common.error'), true)
+          } finally {
+            setBusy(false)
+          }
+        }}
+      />
+
       <StationOperationForm
         open={Boolean(editingOp) || Boolean(creatingOpContext)}
         mode={creatingOpContext ? 'create' : 'edit'}
@@ -651,7 +778,6 @@ export function StationOperationsTab({
         models={models}
         modelLine={activeLine}
         stationId={operationFormStationId}
-        predecessorCandidates={operationFormPredecessors}
         workerLabel={creatingOpContext?.label ?? null}
         busy={busy}
         onClose={() => {

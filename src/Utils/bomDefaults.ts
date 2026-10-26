@@ -7,10 +7,13 @@ export const HARDWARE_PART_KIND = 'H/W'
 /** Stored value for plastics */
 export const PLASTICS_PART_KIND = 'PL'
 
+/** Stored value for chemicals */
+export const CHEMICALS_PART_KIND = 'CH'
+
 /** Stored value for CKD supplier */
 export const DEFAULT_SUPPLY_SOURCE = 'CKD'
 
-/** Normalize IPL / Excel part-type codes to P or H/W. Unknown → جزء (P). */
+/** Normalize IPL / Excel part-type codes. Unknown stays as-is except empty → جزء (P). */
 export function normalizePartKindRaw(raw?: string | null): string {
   const s = String(raw ?? '').trim()
   if (!s) return DEFAULT_PART_KIND
@@ -22,6 +25,16 @@ export function normalizePartKindRaw(raw?: string | null): string {
   }
   if (u === 'PL' || u === 'PLASTICS' || u === 'PLASTIC' || u.includes('PLAST') || s.includes('بلاستيك')) {
     return PLASTICS_PART_KIND
+  }
+  if (
+    u === 'CH' ||
+    u === 'CHEM' ||
+    u === 'CHEMICAL' ||
+    u === 'CHEMICALS' ||
+    u.includes('CHEM') ||
+    s.includes('كيماو')
+  ) {
+    return CHEMICALS_PART_KIND
   }
   return s
 }

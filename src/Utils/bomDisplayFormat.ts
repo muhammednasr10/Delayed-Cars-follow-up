@@ -20,6 +20,9 @@ export function formatPartKind(raw: string | null | undefined): string {
   if (s === 'PL' || s === 'PLASTICS' || s === 'PLASTIC' || s.includes('PLAST')) {
     return 'plastics'
   }
+  if (s === 'CH' || s === 'CHEM' || s === 'CHEMICAL' || s === 'CHEMICALS' || s.includes('CHEM') || s.includes('كيماو')) {
+    return 'chemicals'
+  }
   return 'other'
 }
 
@@ -28,6 +31,7 @@ export function partKindLabel(raw: string | null | undefined, t: (k: string) => 
   if (kind === 'part') return t('bom.partKindPart')
   if (kind === 'hardware') return t('bom.partKindHardware')
   if (kind === 'plastics') return t('bom.partKindPlastics')
+  if (kind === 'chemicals') return t('bom.partKindChemicals')
   const trimmed = String(raw ?? '').trim()
   return trimmed || t('bom.partKindPart')
 }

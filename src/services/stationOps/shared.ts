@@ -8,6 +8,7 @@ import type {
   OperationHardware,
   StationOperationDetail
 } from '../../Types/timeStudy'
+import { dedupeIplOperationsOnWorker } from '../../Utils/iplPartOperationsModel'
 
 export function client() {
   if (!supabase) throw new Error('Supabase is not configured')
@@ -127,7 +128,7 @@ export function makeWorkerGroup(
     worker1OperationsSummary: meta?.worker1_operations_summary ?? null,
     sortOrder: meta?.sort_order ?? 0,
     totalWorkerTimeMinutes: sumWorkerMinutes(childOps),
-    operations: [...childOps].sort((a, b) => a.sequenceNo - b.sequenceNo)
+    operations: dedupeIplOperationsOnWorker(childOps).sort((a, b) => a.sequenceNo - b.sequenceNo)
   }
 }
 

@@ -1,9 +1,9 @@
-import type { ParentStationOperationsGroup, WorkerOperationsGroup } from '../Types/timeStudy'
+import type { ParentStationOperationsGroup, StationOperationDetail, WorkerOperationsGroup } from '../Types/timeStudy'
 import type { IplCompareRow } from './iplModelCompare'
 import { modelQtyForBomRow } from './bomQtyByModel'
 import { displayBomStationCode } from './bomStationCode'
 import { iplFitStatusForModel } from './iplFitStatus'
-import { iplOperationKindFromName } from './iplOperationKind'
+import { DEFAULT_IPL_OPERATION_KIND, iplOperationKindFromName, iplPartNameFromOperation } from './iplOperationKind'
 import { iplDisplayPartNumber } from './iplModelParts'
 import {
   iplPartCopyFromNotes,
@@ -14,10 +14,12 @@ import {
   type IplStationPart
 } from './iplStationParts'
 import { formatStationWorkerDisplayCode } from './stationHierarchy'
+import { normalizePartNumber } from './partNumberNormalize'
 
 export type LinkedHardwarePartRef = {
   partNumber: string
   partName: string | null
+  qty: number
 }
 
 export type IplPartOpSlot = { kind: string; workerId: string; stationKey: string }
@@ -43,10 +45,25 @@ export type IplPartModelGroup = {
   stationLabel: string
 }
 
+export type IplPartStationGroup = {
+  stationKey: string
+  stationLabel: string
+  models: string[]
+  partNumbers: string[]
+}
+
+export type HardwareParentLink = {
+  parentPartId: string
+  parentName: string
+  workerId: string
+  workerLabel: string
+  stationKey: string
+}
+
 export const IPL_PART_OPS_MAX = 12
 
 export function emptyIplPartOpSlot(stationKey: string): IplPartOpSlot {
-  return { kind: '', workerId: '', stationKey }
+  return { kind: DEFAULT_IPL_OPERATION_KIND, workerId: '', stationKey }
 }
 
 function workerLabel(worker: WorkerOperationsGroup): string {
@@ -120,6 +137,30 @@ export function modelGroupsOf(row: IplCompareRow, models: string[]): IplPartMode
   return [...map.values()]
 }
 
+export function stationGroupsOf(row: IplCompareRow, models: string[]): IplPartStationGroup[] {
+  const map = new Map<string, IplPartStationGroup>()
+  for (const entry of fittedModelsForPartOps(row, models)) {
+    const stationKey = iplStationKey(entry.item.station_code_text || entry.item.station_number || '')
+    if (!stationKey) continue
+    const group = map.get(stationKey) ?? {
+      stationKey,
+      stationLabel: entry.station,
+      models: [],
+      partNumbers: []
+    }
+    if (!group.models.includes(entry.model)) group.models.push(entry.model)
+    if (entry.partNumber && !group.partNumbers.includes(entry.partNumber)) {
+      group.partNumbers.push(entry.partNumber)
+    }
+    map.set(stationKey, group)
+  }
+  return [...map.values()]
+}
+
+export function partFitsMultipleStations(row: IplCompareRow, models: string[]): boolean {
+  return stationGroupsOf(row, models).length > 1
+}
+
 export type StoredIplPartAssignment = {
   partNumber: string
   stationKey: string
@@ -152,7 +193,7 @@ export function readStoredIplPartAssignments(
           noteStation: notedStation,
           copyIndex,
           slot: {
-            kind: iplOperationKindFromName(operation.operationNameAr),
+            kind: iplOperationKindFromName(operation.operationNameAr) || DEFAULT_IPL_OPERATION_KIND,
             workerId: worker.stationId,
             stationKey: stationFromNote
           }
@@ -177,12 +218,49 @@ export function readLinkedHardwareForPart(
           const partNumber = hardware.hardwareName.trim()
           if (!partNumber || seen.has(partNumber)) continue
           seen.add(partNumber)
-          linked.push({ partNumber, partName: hardware.hardwareSize })
+          linked.push({
+            partNumber,
+            partName: hardware.hardwareSize,
+            qty: hardware.hardwareQty != null && hardware.hardwareQty > 0 ? hardware.hardwareQty : 1
+          })
         }
       }
     }
   }
   return linked
+}
+
+export function readHardwareParentLinks(
+  groups: ParentStationOperationsGroup[],
+  hardwarePartNumbers: string[]
+): HardwareParentLink[] {
+  const keys = new Set(hardwarePartNumbers.map(number => normalizePartNumber(number)).filter(Boolean))
+  if (keys.size === 0) return []
+  const links: HardwareParentLink[] = []
+  const seen = new Set<string>()
+  for (const group of groups) {
+    const stationKey = groupStationKey(group)
+    for (const worker of group.workers) {
+      for (const operation of worker.operations) {
+        const parentPartId = iplPartIdFromNotes(operation.notes)
+        if (!parentPartId) continue
+        const linked = operation.hardware.some(item => keys.has(normalizePartNumber(item.hardwareName)))
+        if (!linked) continue
+        const id = `${parentPartId}#${worker.stationId}`
+        if (seen.has(id)) continue
+        seen.add(id)
+        const parentName = iplPartNameFromOperation(operation.operationNameAr) || operation.operationNameAr
+        links.push({
+          parentPartId,
+          parentName,
+          workerId: worker.stationId,
+          workerLabel: workerLabel(worker),
+          stationKey
+        })
+      }
+    }
+  }
+  return links
 }
 
 export function placementsOf(
@@ -207,7 +285,31 @@ export function slotsForPartNumber(
   if (matches.length === 0) return [emptyIplPartOpSlot(fallback)]
   const rows: IplPartOpSlot[] = []
   for (const item of matches) rows[item.copyIndex] = item.slot
-  return rows.map(slot => slot ?? emptyIplPartOpSlot(fallback))
+  return rows.map(slot => {
+    const next = slot ?? emptyIplPartOpSlot(fallback)
+    return { ...next, kind: next.kind || DEFAULT_IPL_OPERATION_KIND }
+  })
+}
+
+export function slotsForStation(
+  stored: StoredIplPartAssignment[],
+  stationKey: string,
+  fallback: string
+): IplPartOpSlot[] {
+  const matches = stored
+    .filter(item => item.stationKey === stationKey || item.noteStation === stationKey)
+    .sort((a, b) => a.copyIndex - b.copyIndex)
+  if (matches.length === 0) return [emptyIplPartOpSlot(fallback)]
+  const byCopy = new Map<number, IplPartOpSlot>()
+  for (const item of matches) {
+    if (!byCopy.has(item.copyIndex)) byCopy.set(item.copyIndex, item.slot)
+  }
+  return [...byCopy.keys()]
+    .sort((a, b) => a - b)
+    .map(index => {
+      const next = byCopy.get(index) ?? emptyIplPartOpSlot(fallback)
+      return { ...next, kind: next.kind || DEFAULT_IPL_OPERATION_KIND }
+    })
 }
 
 export function stationChoices(groups: ParentStationOperationsGroup[]): IplPartStationChoice[] {
@@ -242,4 +344,53 @@ export function workersForStation(
     }
   }
   return choices
+}
+
+export function compareRowPartNumberKeys(row: IplCompareRow, models: string[]): string[] {
+  const keys = new Set<string>()
+  for (const model of models) {
+    const pn = iplDisplayPartNumber(row.byModel.get(model)?.part_number)
+    if (pn) keys.add(normalizePartNumber(pn))
+  }
+  return [...keys]
+}
+
+/** One IPL part on a worker should appear once per copy, even if models use different part numbers. */
+export function dedupeIplOperationsOnWorker(ops: StationOperationDetail[]): StationOperationDetail[] {
+  const kept: StationOperationDetail[] = []
+  const indexByKey = new Map<string, number>()
+  for (const op of ops) {
+    const partId = iplPartIdFromNotes(op.notes)
+    if (!partId) {
+      kept.push(op)
+      continue
+    }
+    const key = `${partId}#${iplPartCopyFromNotes(op.notes)}`
+    const existingAt = indexByKey.get(key)
+    if (existingAt == null) {
+      indexByKey.set(key, kept.length)
+      kept.push(op)
+      continue
+    }
+    const current = kept[existingAt]
+    const preferNext = !iplPartNumberFromNotes(op.notes) && Boolean(iplPartNumberFromNotes(current.notes))
+    if (preferNext) kept[existingAt] = op
+  }
+  return kept
+}
+
+export function iplQtyByPartNumberKey(rows: IplCompareRow[], models: string[]): Map<string, number> {
+  const map = new Map<string, number>()
+  for (const row of rows) {
+    for (const model of models) {
+      const item = row.byModel.get(model)
+      if (!item) continue
+      const pn = iplDisplayPartNumber(item.part_number)
+      if (!pn) continue
+      const key = normalizePartNumber(pn)
+      const qty = modelQtyForBomRow(item, model) || item.quantity || 0
+      if (qty > 0) map.set(key, Math.max(map.get(key) ?? 0, qty))
+    }
+  }
+  return map
 }

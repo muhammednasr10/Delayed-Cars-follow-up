@@ -1,4 +1,4 @@
-import { formatDateTime } from '../../Utils/missingPartPageUtils'
+import { formatDateTime, isShortageIssueDone } from '../../Utils/missingPartPageUtils'
 import { formatVehicleColorLabel } from '../../Utils/vehicleColorLabel'
 import { mpLookupLabel } from '../../Utils/mpLookupLabel'
 import { useMpLookups } from '../../hooks/useMpLookups'
@@ -89,12 +89,15 @@ export function VehicleCardIssueCard({
 }: IssueCardProps) {
   const { date, time } = formatDateTime(part.createdAt, lang)
   const issueOpen = part.status !== 'closed' && part.status !== 'cancelled' && !part.shortageResolvedAt
+  const issueDone = isShortageIssueDone(part)
   const transferPending = Boolean(part.pendingTransferRequestId)
 
   return (
-    <div className="rounded-lg border border-slate-800 bg-slate-900/60 px-3 py-2.5">
+    <div className={`rounded-lg border border-slate-800 bg-slate-900/60 px-3 py-2.5 ${issueDone ? 'opacity-70' : ''}`}>
       <div className="flex items-start justify-between gap-2">
-        <p className="font-medium text-slate-100">{part.partDescription}</p>
+        <p className={`font-medium ${issueDone ? 'text-slate-500 line-through decoration-slate-500' : 'text-slate-100'}`}>
+          {part.partDescription}
+        </p>
         <div className="flex shrink-0 flex-col items-end gap-1.5">
           <span className="font-mono text-xs tabular-nums text-slate-400">
             <span className="text-cyan-200">{part.installedQty}</span>

@@ -1,4 +1,5 @@
 import { assignIplPartToWorkerLine } from '../services/stationOperationsService'
+import { lookupPartByNumber } from '../services/operationPartsService'
 import type { ParentStationOperationsGroup } from '../Types/timeStudy'
 import type { VehicleModel } from '../Types/settings'
 import type { IplCompareRow } from '../Utils/iplModelCompare'
@@ -8,11 +9,12 @@ import {
   readStoredIplPartAssignments,
   toStationPartFromCompare,
   workersForStation,
-  type IplPartModelGroup,
   type IplPartOpSlot,
+  type IplPartStationGroup,
   type LinkedHardwarePartRef
 } from '../Utils/iplPartOperationsModel'
 import { workerIndexFromStationCode } from '../Utils/stationHierarchy'
+import { normalizePartNumber } from '../Utils/partNumberNormalize'
 
 export type SaveIplPartOperationsInput = {
   row: IplCompareRow
@@ -20,11 +22,11 @@ export type SaveIplPartOperationsInput = {
   groups: ParentStationOperationsGroup[]
   vehicleModels: VehicleModel[]
   multi: boolean
-  byModel: boolean
+  byStation: boolean
   homeKey: string
   rows: IplPartOpSlot[]
   groupRows: Record<string, IplPartOpSlot[]>
-  modelGroups: IplPartModelGroup[]
+  stationGroups: IplPartStationGroup[]
   fittedModelNames: string[]
   linkHardware: boolean
   linkedHardware: LinkedHardwarePartRef[]
@@ -58,11 +60,11 @@ export async function saveIplPartOperations(input: SaveIplPartOperationsInput): 
     groups,
     vehicleModels,
     multi,
-    byModel,
+    byStation,
     homeKey,
     rows,
     groupRows,
-    modelGroups,
+    stationGroups,
     fittedModelNames,
     linkHardware,
     linkedHardware,
@@ -75,8 +77,8 @@ export async function saveIplPartOperations(input: SaveIplPartOperationsInput): 
   const sharedRows = multi
     ? rows
     : [{ kind: rows[0]?.kind ?? '', workerId: rows[0]?.workerId ?? '', stationKey: homeKey }]
-  const grouped = modelGroups.map(group => {
-    const slots = groupRows[group.partNumber] ?? [emptyIplPartOpSlot(group.stationKey)]
+  const grouped = stationGroups.map(group => {
+    const slots = groupRows[group.stationKey] ?? [emptyIplPartOpSlot(group.stationKey)]
     const active = multi
       ? slots
       : [
@@ -90,18 +92,16 @@ export async function saveIplPartOperations(input: SaveIplPartOperationsInput): 
     return { group, active }
   })
 
-  if (!byModel && multi && sharedRows.length < 2) return t('bom.partOps.needCount')
+  if (!byStation && multi && sharedRows.length < 2) return t('bom.partOps.needCount')
   if (
-    byModel &&
+    byStation &&
     grouped.some(
-      item =>
-        item.active.length === 0 ||
-        item.active.some(slot => !slot.kind || !slot.workerId || (multi && !slot.stationKey))
+      item => item.active.length === 0 || item.active.some(slot => !slot.kind || !slot.workerId)
     )
   ) {
     return t('bom.partOps.needKindWorker')
   }
-  if (!byModel && sharedRows.some(slot => !slot.kind || !slot.workerId || (multi && !slot.stationKey))) {
+  if (!byStation && sharedRows.some(slot => !slot.kind || !slot.workerId || (multi && !slot.stationKey))) {
     return t('bom.partOps.needKindWorker')
   }
   if (linkHardware && linkedHardware.length === 0) return t('bom.partOps.needHardware')
@@ -116,18 +116,27 @@ export async function saveIplPartOperations(input: SaveIplPartOperationsInput): 
   const hardware = linkHardware
     ? linkedHardware.map(item => ({
         hardwareName: item.partNumber,
-        hardwareQty: 1,
+        hardwareQty: item.qty > 0 ? item.qty : 1,
         hardwareType: null,
         hardwareSize: item.partName
       }))
     : []
   const stored = readStoredIplPartAssignments(groups, stationPart.partId)
+  const assigned: { workerId: string; kind: string; copyIndex: number; stationKey: string }[] = []
 
   async function writeSet(partNumber: string, stationKey: string, slots: IplPartOpSlot[]) {
     const existing = stored
       .filter(item => item.partNumber === partNumber && item.noteStation === stationKey)
       .map(item => item.copyIndex)
     for (let index = 0; index < slots.length; index += 1) {
+      if (slots[index].workerId) {
+        assigned.push({
+          workerId: slots[index].workerId,
+          kind: slots[index].kind,
+          copyIndex: index,
+          stationKey
+        })
+      }
       await assignIplPartToWorkerLine({
         part: stationPart!,
         workerStationId: slots[index].workerId,
@@ -159,64 +168,44 @@ export async function saveIplPartOperations(input: SaveIplPartOperationsInput): 
   }
 
   const placements = placementsOf(row, models)
-  const distinctNumbers = new Set(placements.map(item => item.partNumber).filter(number => number && number !== '—'))
   const distinctStations = new Set(placements.map(item => item.stationKey).filter(Boolean))
-  const numbersDiffer = distinctNumbers.size > 1
   const stationsDiffer = distinctStations.size > 1
 
-  if (!byModel && !multi && (numbersDiffer || stationsDiffer)) {
-    const slot = sharedRows[0]
-    for (const placement of placements) {
-      const workerId = workerOnStation(groups, placement.stationKey, slot?.workerId ?? '')
-      if (!slot?.kind || !workerId) {
-        return t('bom.partOps.noWorkerOnStation', { station: placement.stationLabel || placement.stationKey })
+  const uniqueStationPlacements = [
+    ...new Map(placements.filter(item => item.stationKey).map(item => [item.stationKey, item])).values()
+  ]
+
+  if (byStation) {
+    for (const item of grouped) {
+      const stationKey = item.group.stationKey
+      const slots = item.active.map(slot => ({
+        ...slot,
+        stationKey,
+        workerId: workerOnStation(groups, stationKey, slot.workerId)
+      }))
+      if (slots.some(slot => !slot.kind || !slot.workerId)) {
+        return t('bom.partOps.noWorkerOnStation', { station: item.group.stationLabel || stationKey })
       }
-      await writeSet(numbersDiffer ? placement.partNumber : '', placement.stationKey, [
-        { kind: slot.kind, workerId, stationKey: placement.stationKey }
-      ])
+      await writeSet('', stationKey, slots)
     }
-    const keep = new Set(placements.map(item => `${numbersDiffer ? item.partNumber : ''}#${item.stationKey}`))
+    const keep = new Set(grouped.map(item => `#${item.group.stationKey}`))
     for (const item of stored) {
       if (keep.has(`${item.partNumber}#${item.noteStation}`)) continue
       await writeSet(item.partNumber, item.noteStation, [])
     }
-  } else if (byModel) {
-    for (const item of grouped) {
-      const stationKeys = [
-        ...new Set(
-          placements
-            .filter(place => place.partNumber === item.group.partNumber)
-            .map(place => place.stationKey)
-            .filter(Boolean)
-        )
-      ]
-      const targets = stationKeys.length > 0 ? stationKeys : [item.group.stationKey]
-      for (const stationKey of targets) {
-        const slots = item.active.map(slot => ({
-          ...slot,
-          stationKey,
-          workerId: workerOnStation(groups, stationKey, slot.workerId)
-        }))
-        if (slots.some(slot => !slot.kind || !slot.workerId)) {
-          const label = placements.find(place => place.stationKey === stationKey)?.stationLabel || stationKey
-          return t('bom.partOps.noWorkerOnStation', { station: label })
-        }
-        await writeSet(item.group.partNumber, stationKey, slots)
+  } else if (!multi && stationsDiffer) {
+    const slot = sharedRows[0]
+    for (const placement of uniqueStationPlacements) {
+      const workerId = workerOnStation(groups, placement.stationKey, slot?.workerId ?? '')
+      if (!slot?.kind || !workerId) {
+        return t('bom.partOps.noWorkerOnStation', { station: placement.stationLabel || placement.stationKey })
       }
+      await writeSet('', placement.stationKey, [
+        { kind: slot.kind, workerId, stationKey: placement.stationKey }
+      ])
     }
-    await writeSet('', '', [])
-    const keep = new Set(
-      grouped.flatMap(item => {
-        const stationKeys = placements
-          .filter(place => place.partNumber === item.group.partNumber)
-          .map(place => place.stationKey)
-          .filter(Boolean)
-        const targets = stationKeys.length > 0 ? stationKeys : [item.group.stationKey]
-        return targets.map(stationKey => `${item.group.partNumber}#${stationKey}`)
-      })
-    )
+    const keep = new Set(uniqueStationPlacements.map(item => `#${item.stationKey}`))
     for (const item of stored) {
-      if (!item.partNumber && !item.noteStation) continue
       if (keep.has(`${item.partNumber}#${item.noteStation}`)) continue
       await writeSet(item.partNumber, item.noteStation, [])
     }
@@ -225,6 +214,45 @@ export async function saveIplPartOperations(input: SaveIplPartOperationsInput): 
     for (const item of stored) {
       if (!item.partNumber && !item.noteStation) continue
       await writeSet(item.partNumber, item.noteStation, [])
+    }
+  }
+
+  if (linkHardware) {
+    const uniqueSlots: typeof assigned = []
+    const seen = new Set<string>()
+    for (const slot of assigned) {
+      const key = `${slot.workerId}#${slot.copyIndex}#${slot.stationKey}`
+      if (seen.has(key)) continue
+      seen.add(key)
+      uniqueSlots.push(slot)
+    }
+    const parentKey = normalizePartNumber(stationPart.partNumber)
+    for (const item of linkedHardware) {
+      if (normalizePartNumber(item.partNumber) === parentKey) continue
+      const hit = await lookupPartByNumber(item.partNumber)
+      if (!hit) continue
+      const hardwarePart = {
+        bomItemId: hit.id,
+        partId: hit.id,
+        partNumber: hit.part_number,
+        partName: hit.part_name_ar || hit.part_number,
+        quantity: item.qty > 0 ? item.qty : 1,
+        models: stationPart.models
+      }
+      for (const slot of uniqueSlots) {
+        await assignIplPartToWorkerLine({
+          part: hardwarePart,
+          workerStationId: slot.workerId,
+          parentModelId: sharedParentId,
+          operationType,
+          operationKind: slot.kind,
+          copyIndex: slot.copyIndex,
+          partNumberKey: hit.part_number,
+          stationKey: slot.stationKey || undefined,
+          hardware: [],
+          operations
+        })
+      }
     }
   }
 

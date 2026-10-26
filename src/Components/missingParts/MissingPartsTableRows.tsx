@@ -15,7 +15,9 @@ import {
   completerNames,
   shortageDurationDays,
   uniqueVehicleReps,
-  uniqueIssueReps
+  uniqueIssueReps,
+  isShortageIssueDone,
+  isUniqueIssueDone
 } from '../../Utils/missingPartPageUtils'
 import { MissingPartVehicleActions } from './MissingPartVehicleActions'
 import { notesCountForVehicleIds } from '../../services/vehicleNotesService'
@@ -193,7 +195,12 @@ function StackedShortageReasons({ parts }: { parts: MissingPartDetail[] }) {
       onClick={e => e.stopPropagation()}
     >
       {issues.map(p => (
-        <span key={p.id} className="block w-full text-center">
+        <span
+          key={p.id}
+          className={`block w-full text-center ${
+            isUniqueIssueDone(p, parts) ? 'text-slate-500 line-through decoration-slate-500' : ''
+          }`}
+        >
           {p.partDescription}
         </span>
       ))}
@@ -416,7 +423,13 @@ function PartDataRow({
       </td>
       <td className={cell} title={reasonCell ? undefined : item.partDescription}>
         {reasonCell ?? (
-          <span className="mx-auto block max-w-[140px] truncate text-slate-200">{item.partDescription}</span>
+          <span
+            className={`mx-auto block max-w-[140px] truncate ${
+              isShortageIssueDone(item) ? 'text-slate-500 line-through decoration-slate-500' : 'text-slate-200'
+            }`}
+          >
+            {item.partDescription}
+          </span>
         )}
       </td>
       <td className={cell}>

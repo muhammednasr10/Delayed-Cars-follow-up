@@ -128,23 +128,24 @@ export function HeaderCell({
   dir
 }: {
   label: string
-  value: string
+  value: ReactNode
   accent?: boolean
   accentTone?: 'cyan' | 'orange'
   icon?: ReactNode
   dir?: 'ltr' | 'rtl'
 }) {
   const accentCls = accentTone === 'orange' ? 'text-orange-300' : 'text-cyan-300'
+  const isText = typeof value === 'string' || typeof value === 'number'
   return (
     <div className="text-center">
       <p className="text-xs font-bold uppercase text-slate-500">{label}</p>
-      <p
-        className={`mt-1 flex items-center justify-center gap-1.5 text-base font-black ${accent ? accentCls : 'text-white'} ${dir === 'ltr' ? 'font-mono' : ''}`}
+      <div
+        className={`mt-1 flex items-center justify-center gap-1.5 ${isText ? 'text-base font-black' : ''} ${accent ? accentCls : 'text-white'} ${dir === 'ltr' ? 'font-mono' : ''}`}
         dir={dir}
       >
         {icon}
         {value}
-      </p>
+      </div>
     </div>
   )
 }

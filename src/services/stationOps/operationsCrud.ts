@@ -27,6 +27,13 @@ export type StationOperationUpdate = {
   hardware: OperationHardwareInput[]
 }
 
+export type StationOperationStudyFields = {
+  technicianPosition: string | null
+  taskPrecedence: string | null
+  rankedPositionalWeight: number | null
+  zoningConstraints: string | null
+}
+
 export async function setStationOperationHardware(
   operationId: string,
   hardware: OperationHardwareInput[]
@@ -120,6 +127,22 @@ export async function updateStationOperation(id: string, input: StationOperation
   }
   if (error) throw new Error(error.message)
   await replaceOperationHardware(id, input.hardware)
+}
+
+export async function updateStationOperationStudyFields(
+  id: string,
+  input: StationOperationStudyFields
+): Promise<void> {
+  const { error } = await client()
+    .from('station_operations')
+    .update({
+      technician_position: input.technicianPosition?.trim() || null,
+      task_precedence: input.taskPrecedence?.trim() || null,
+      ranked_positional_weight: input.rankedPositionalWeight,
+      zoning_constraints: input.zoningConstraints?.trim() || null
+    })
+    .eq('id', id)
+  if (error) throw new Error(error.message)
 }
 
 export async function createStationOperation(stationId: string, input: StationOperationUpdate): Promise<string> {

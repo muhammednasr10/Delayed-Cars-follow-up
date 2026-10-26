@@ -91,7 +91,14 @@ export function useBomDashboard() {
       fitCountsByKey: base.fitCounts,
       modelTotal: openTabsActive.length
     })
-    return buildIplDashboardSummaryFromCompare(filtered, base.fitCounts, openTabsActive, dataset.stations)
+    return buildIplDashboardSummaryFromCompare(
+      filtered,
+      base.fitCounts,
+      openTabsActive,
+      dataset.stations,
+      dataset.linkedPartIds,
+      dataset.linkedHardwareKeys
+    )
   }, [dataset, base, openTabsActive, searchDebounced, fitFilter, diffFilter])
 
   const suggestions = useMemo(

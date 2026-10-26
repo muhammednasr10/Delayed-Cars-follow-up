@@ -1,6 +1,7 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useMemo, useState } from 'react'
 import { Boxes, GitCompare, Info, ListChecks, Pencil } from 'lucide-react'
 import { useLang } from '../../i18n/LanguageContext'
+import { useIplLineBalancingLinks } from '../../hooks/useIplLineBalancingLinks'
 import {
   buildIplCompareRows,
   comparePartNumbers,
@@ -10,16 +11,18 @@ import {
   type IplCompareRow
 } from '../../Utils/iplModelCompare'
 import type { IplFitCounts } from '../../Utils/iplFitStatus'
+import { countIplKindLinks } from '../../Utils/iplKindLinks'
+import { compareRowPartNumberKeys, iplQtyByPartNumberKey } from '../../Utils/iplPartOperationsModel'
+import type { BomItemDetail } from '../../Types/bom'
+import type { Station } from '../../Types/settings'
 import { IplCompareFieldCell } from './IplCompareFieldCell'
 import { IplCompareDetailCard } from './IplCompareDetailCard'
 import { IplComparePartCard, partIdFromCompareRow } from './IplComparePartCard'
 import { IplPartOperationsModal } from './IplPartOperationsModal'
-import { listAssignedIplPartIds } from '../../services/stationOperationsService'
 import { IplModelTraitCompareModal } from './IplModelTraitCompareModal'
 import { IplAllModelsFeedingModal, IplAllModelsInfoModal } from './IplAllModelsDataModals'
 import { IplFitCountBadges } from './IplFitCountBadges'
-import type { BomItemDetail } from '../../Types/bom'
-import type { Station } from '../../Types/settings'
+import { IplKindLinkSummary } from './IplKindLinkSummary'
 
 type Props = {
   openTabs: string[]
@@ -59,25 +62,20 @@ export function IplModelCompareTable({
   const [detailModal, setDetailModal] = useState<DetailModalState | null>(null)
   const [partCard, setPartCard] = useState<IplCompareRow | null>(null)
   const [opsRow, setOpsRow] = useState<IplCompareRow | null>(null)
-  const [assignedPartIds, setAssignedPartIds] = useState<Set<string>>(() => new Set())
   const [traitRow, setTraitRow] = useState<IplCompareRow | null>(null)
   const [infoRow, setInfoRow] = useState<IplCompareRow | null>(null)
   const [feedingRow, setFeedingRow] = useState<IplCompareRow | null>(null)
+  const { assignedPartIds, hardwarePartKeys, reload } = useIplLineBalancingLinks()
   const builtRows = useMemo(
     () => buildIplCompareRows(openTabs, itemsByModel, stations),
     [openTabs, itemsByModel, stations]
   )
   const rows = rowsProp ?? builtRows
-
-  function reloadAssignedParts() {
-    listAssignedIplPartIds()
-      .then(setAssignedPartIds)
-      .catch(() => setAssignedPartIds(new Set()))
-  }
-
-  useEffect(() => {
-    reloadAssignedParts()
-  }, [])
+  const hardwareQtyByPartNumber = useMemo(() => iplQtyByPartNumberKey(rows, openTabs), [rows, openTabs])
+  const kindRows = useMemo(
+    () => countIplKindLinks(rows, openTabs, assignedPartIds, hardwarePartKeys),
+    [rows, openTabs, assignedPartIds, hardwarePartKeys]
+  )
 
   function openDetail(row: IplCompareRow, field: 'part_number' | 'station' | 'qty', result: FieldCompareResult, mono?: boolean) {
     const titles = {
@@ -103,7 +101,9 @@ export function IplModelCompareTable({
 
   return (
     <>
-      <table className="w-full min-w-[640px] text-sm">
+      <IplKindLinkSummary rows={kindRows} />
+      <div className="max-h-[min(64vh,calc(100dvh-18rem))] overflow-auto">
+        <table className="w-full min-w-[640px] text-sm">
           <thead className="sticky top-0 z-20">
             <tr className="border-b border-slate-700 bg-slate-950 text-[10px] font-black uppercase text-slate-400 shadow-sm shadow-black/40">
               <th className="sticky start-0 top-0 z-30 bg-slate-950 px-3 py-2.5 text-start">{t('bom.col.part_name_ar')}</th>
@@ -122,6 +122,8 @@ export function IplModelCompareTable({
               const counts = fitCountsByKey?.get(row.key) ?? EMPTY_COUNTS
               const partId = partIdFromCompareRow(row)
               const hasWorker = partId != null && assignedPartIds.has(partId)
+              const hasLinkedHardware = compareRowPartNumberKeys(row, openTabs).some(key => hardwarePartKeys.has(key))
+              const opsLit = hasWorker || hasLinkedHardware
               const fullyClassified = counts.unset === 0 && counts.fitted + counts.notFitted > 0
 
               return (
@@ -175,7 +177,7 @@ export function IplModelCompareTable({
                       <button
                         type="button"
                         className={
-                          hasWorker
+                          opsLit
                             ? 'rounded-lg bg-cyan-400/20 p-1.5 text-cyan-200 ring-1 ring-cyan-300/70 hover:bg-cyan-400/30'
                             : 'rounded-lg p-1.5 text-slate-400 hover:bg-slate-800 hover:text-cyan-300'
                         }
@@ -241,6 +243,7 @@ export function IplModelCompareTable({
             })}
           </tbody>
         </table>
+      </div>
       <p className="border-t border-slate-800 px-4 py-2 text-center text-xs text-slate-500">
         {t('bom.iplModelCompareShowing', { n: rows.length })}
       </p>
@@ -281,9 +284,10 @@ export function IplModelCompareTable({
         row={opsRow}
         models={openTabs}
         canUpdate={canUpdate}
+        hardwareQtyByPartNumber={hardwareQtyByPartNumber}
         onClose={() => {
           setOpsRow(null)
-          reloadAssignedParts()
+          reload()
         }}
       />
       {partCard && (

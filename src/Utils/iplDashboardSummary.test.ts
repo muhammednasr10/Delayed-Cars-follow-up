@@ -120,4 +120,65 @@ describe('buildIplDashboardSummaryFromCompare', () => {
     const summary = buildIplDashboardSummaryFromCompare(rows, new Map(), models, stations)
     expect(summary.byStation.map(row => row.station)).toEqual(['ST-01', 'ST-06'])
   })
+
+  it('counts part kinds and Line Balancing links', () => {
+    const models = ['A']
+    const rows: IplCompareRow[] = [
+      {
+        key: 'part',
+        partNameAr: 'جزء',
+        partNameEn: 'Part',
+        byModel: new Map([
+          ['A', item({ id: '1', part_id: 'p-part', part_type: 'P', vehicle_model_name: 'A' })]
+        ])
+      },
+      {
+        key: 'hw',
+        partNameAr: 'مسمار',
+        partNameEn: 'Bolt',
+        byModel: new Map([
+          [
+            'A',
+            item({
+              id: '2',
+              part_id: 'p-hw',
+              part_type: 'H/W',
+              part_number: 'HW-9',
+              vehicle_model_name: 'A'
+            })
+          ]
+        ])
+      },
+      {
+        key: 'pl',
+        partNameAr: 'بلاستيك',
+        partNameEn: 'Plastic',
+        byModel: new Map([
+          ['A', item({ id: '3', part_id: 'p-pl', part_type: 'PL', vehicle_model_name: 'A' })]
+        ])
+      },
+      {
+        key: 'ch',
+        partNameAr: 'مادة',
+        partNameEn: 'Chem',
+        byModel: new Map([
+          ['A', item({ id: '4', part_id: 'p-ch', part_type: 'CH', vehicle_model_name: 'A' })]
+        ])
+      }
+    ]
+    const summary = buildIplDashboardSummaryFromCompare(
+      rows,
+      new Map(),
+      models,
+      [],
+      new Set(['p-part', 'p-ch']),
+      new Set(['HW9'])
+    )
+    expect(summary.byKind).toEqual([
+      { kind: 'part', total: 1, linked: 1 },
+      { kind: 'hardware', total: 1, linked: 1 },
+      { kind: 'plastics', total: 1, linked: 0 },
+      { kind: 'chemicals', total: 1, linked: 1 }
+    ])
+  })
 })

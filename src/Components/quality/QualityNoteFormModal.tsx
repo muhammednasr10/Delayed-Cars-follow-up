@@ -27,13 +27,16 @@ import {
 type Props = {
   open: boolean
   onClose: () => void
-  onSave: (input: QualityNoteInput) => void
+  onSave: (input: QualityNoteInput) => void | Promise<void>
   saving?: boolean
   stations: Station[]
   models: VehicleModel[]
   categories: MpLookupOption[]
   onCategoriesChange: (options: MpLookupOption[]) => void
   editing?: QualityNoteRecord | null
+  initial?: QualityNoteFormState | null
+  initialStationQuery?: string
+  zIndexClass?: string
 }
 
 export function QualityNoteFormModal({
@@ -45,7 +48,10 @@ export function QualityNoteFormModal({
   models,
   categories,
   onCategoriesChange,
-  editing = null
+  editing = null,
+  initial = null,
+  initialStationQuery = '',
+  zIndexClass
 }: Props) {
   const { t } = useLang()
   const [form, setForm] = useState<QualityNoteFormState>(emptyQualityNoteForm)
@@ -62,6 +68,12 @@ export function QualityNoteFormModal({
       if (editing) {
         setForm(qualityNoteRecordToForm(editing))
         setStationQuery(editing.stationCode ? formatStationReferenceCode(editing.stationCode) : '')
+      } else if (initial) {
+        setForm({
+          ...initial,
+          category: initial.category || categories[0]?.code || ''
+        })
+        setStationQuery(initialStationQuery)
       } else {
         const defaults = emptyQualityNoteForm()
         if (categories.length > 0) defaults.category = categories[0].code
@@ -72,7 +84,7 @@ export function QualityNoteFormModal({
       setWorkerLines([])
     }
     wasOpen.current = open
-  }, [open, categories, editing])
+  }, [open, categories, editing, initial, initialStationQuery])
 
   useEffect(() => {
     if (!open || categories.length === 0) return
@@ -125,23 +137,28 @@ export function QualityNoteFormModal({
     return null
   }
 
-  function submit() {
+  async function submit() {
     const err = validate()
     if (err) {
       setError(err)
       return
     }
-    onSave({
-      vehicleModelIds: form.vehicleModelIds,
-      stationId: form.stationId,
-      workerLineStationId: form.workerLineStationId || null,
-      category: form.category,
-      severity: form.severity,
-      repairTime: form.repairTime,
-      description: form.description.trim(),
-      vins: form.specifyVins ? form.vins.map(v => v.trim().toUpperCase()) : [],
-      notedAt: form.notedAt
-    })
+    setError('')
+    try {
+      await onSave({
+        vehicleModelIds: form.vehicleModelIds,
+        stationId: form.stationId,
+        workerLineStationId: form.workerLineStationId || null,
+        category: form.category,
+        severity: form.severity,
+        repairTime: form.repairTime,
+        description: form.description.trim(),
+        vins: form.specifyVins ? form.vins.map(v => v.trim().toUpperCase()) : [],
+        notedAt: form.notedAt
+      })
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : t('common.error'))
+    }
   }
 
   async function onCreateCategory(labelAr: string) {
@@ -158,6 +175,7 @@ export function QualityNoteFormModal({
       icon={<BadgeCheck className="h-5 w-5" />}
       onClose={onClose}
       maxWidthClass="max-w-xl"
+      zIndexClass={zIndexClass}
       footer={
         <div className="flex justify-end gap-2">
           <button

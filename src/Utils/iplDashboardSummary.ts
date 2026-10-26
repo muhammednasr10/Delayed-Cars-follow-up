@@ -1,4 +1,3 @@
-import type { BomItemDetail } from '../Types/bom'
 import type { Station } from '../Types/settings'
 import { buildStationOrderMap, displayBomStationCode, resolveBomStationSortRank } from './bomStationCode'
 import { summarizeIplCompareFit, type IplCompareFitSummary } from './iplCompareFilters'
@@ -9,6 +8,17 @@ import {
   type IplCompareRow
 } from './iplModelCompare'
 import { iplFitStatusForModel, type IplFitCounts } from './iplFitStatus'
+import { countIplKindLinks, type IplKindLinkRow } from './iplKindLinks'
+
+export {
+  countIplKindLinks,
+  IPL_KIND_LABEL_KEY,
+  IPL_KIND_ORDER,
+  isCompareRowLinkedToLineBalancing,
+  kindKeyOfCompareRow,
+  type IplKindKey,
+  type IplKindLinkRow
+} from './iplKindLinks'
 
 export type IplModelFitRow = {
   model: string
@@ -47,6 +57,7 @@ export type IplDashboardSummary = {
   totalParts: number
   fitSummary: IplCompareFitSummary
   differences: IplDiffSummary
+  byKind: IplKindLinkRow[]
   byModel: IplModelFitRow[]
   byStation: IplStationFitRow[]
   mostUnset: IplPartFitHighlight[]
@@ -80,7 +91,9 @@ export function buildIplDashboardSummaryFromCompare(
   rows: IplCompareRow[],
   fitCountsByKey: Map<string, IplFitCounts>,
   modelNames: string[],
-  stations: Station[] = []
+  stations: Station[] = [],
+  linkedPartIds: ReadonlySet<string> = new Set(),
+  linkedHardwareKeys: ReadonlySet<string> = new Set()
 ): IplDashboardSummary {
   const fitSummary = summarizeIplCompareFit(rows, fitCountsByKey, modelNames.length)
 
@@ -159,6 +172,7 @@ export function buildIplDashboardSummaryFromCompare(
     totalParts: rows.length,
     fitSummary,
     differences: { differentPn, differentStation, differentQty, anyDiff },
+    byKind: countIplKindLinks(rows, modelNames, linkedPartIds, linkedHardwareKeys),
     byModel,
     byStation,
     mostUnset,

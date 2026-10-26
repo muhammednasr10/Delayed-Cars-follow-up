@@ -6,11 +6,13 @@ export {
   getWorkerLinesForStationAndModels,
   updateStationOperation,
   createStationOperation,
+  updateStationOperationStudyFields,
   updateStationWorker1Summary,
   deactivateStationOperation,
   moveStationOperation,
   assignIplPartToWorkerLine,
   listAssignedIplPartIds,
+  listLinkedHardwarePartKeys,
   syncWorkerLinesToHeadcount,
   ensureFirstWorkerLine,
   syncAllWorkerHeadcountsFromGroups,
@@ -21,5 +23,6 @@ export {
 export type {
   LineBalanceWorkerLine,
   OperationHardwareInput,
-  StationOperationUpdate
+  StationOperationUpdate,
+  StationOperationStudyFields
 } from './stationOps'

@@ -7,6 +7,7 @@ import { searchHardwareParts, type PartLookupHit } from '../../services/operatio
 export type LinkedHardwarePart = {
   partNumber: string
   partName: string | null
+  qty: number
 }
 
 type Props = {
@@ -15,11 +16,19 @@ type Props = {
   disabled?: boolean
   onEnabledChange: (checked: boolean) => void
   onChange: (parts: LinkedHardwarePart[]) => void
+  qtyForPartNumber?: (partNumber: string) => number
 }
 
 type DropdownRect = { top: number; left: number; width: number }
 
-export function IplHardwareLinkField({ enabled, selected, disabled, onEnabledChange, onChange }: Props) {
+export function IplHardwareLinkField({
+  enabled,
+  selected,
+  disabled,
+  onEnabledChange,
+  onChange,
+  qtyForPartNumber
+}: Props) {
   const { t } = useLang()
   const inputRef = useRef<HTMLInputElement>(null)
   const [query, setQuery] = useState('')
@@ -69,7 +78,8 @@ export function IplHardwareLinkField({ enabled, selected, disabled, onEnabledCha
 
   function pick(hit: PartLookupHit) {
     if (selected.some(part => part.partNumber === hit.part_number)) return
-    onChange([...selected, { partNumber: hit.part_number, partName: hit.part_name_ar }])
+    const qty = Math.max(1, Math.floor(qtyForPartNumber?.(hit.part_number) ?? 1))
+    onChange([...selected, { partNumber: hit.part_number, partName: hit.part_name_ar, qty }])
     setQuery('')
     setHits([])
     setOpen(false)
@@ -120,6 +130,21 @@ export function IplHardwareLinkField({ enabled, selected, disabled, onEnabledCha
                     {part.partNumber}
                   </span>
                   {part.partName ? <span className="truncate text-slate-300">{part.partName}</span> : null}
+                  <label className="inline-flex items-center gap-1 text-slate-300">
+                    <span className="text-[10px] font-bold">{t('bom.partOps.hardwareQty')}</span>
+                    <input
+                      type="number"
+                      min={1}
+                      step={1}
+                      disabled={disabled}
+                      className="w-14 rounded-md border border-slate-600 bg-slate-950 px-1 py-0.5 text-center font-mono text-xs text-cyan-100"
+                      value={part.qty}
+                      onChange={event => {
+                        const qty = Math.max(1, Math.floor(Number(event.target.value) || 1))
+                        onChange(selected.map(item => (item.partNumber === part.partNumber ? { ...item, qty } : item)))
+                      }}
+                    />
+                  </label>
                   <button
                     type="button"
                     className="text-slate-400 hover:text-rose-300"

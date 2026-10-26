@@ -28,6 +28,7 @@ type Props = {
   compareModels?: string[]
   bomByPartId?: Map<string, BomItemDetail[]>
   hardwareBomRows?: BomItemDetail[]
+  onStudyFields: (op: StationOperationDetail) => void
   onEdit: (op: StationOperationDetail) => void
   onDelete: (op: StationOperationDetail) => void
   onMove: (op: StationOperationDetail, workerStationId: string) => void
@@ -56,6 +57,7 @@ export function OperationsDataTable({
   compareModels = [],
   bomByPartId,
   hardwareBomRows = [],
+  onStudyFields,
   onEdit,
   onDelete,
   onMove
@@ -89,7 +91,7 @@ export function OperationsDataTable({
   return (
     <>
       <div className="overflow-x-auto">
-        <table className={`w-full text-center text-xs ${compact ? 'min-w-[720px]' : 'min-w-[1280px]'}`}>
+        <table className={`w-full text-center text-xs ${compact ? 'min-w-[880px]' : 'min-w-[1280px]'}`}>
           <thead className="bg-slate-950/90">
             <tr>
               {!compact && (
@@ -104,22 +106,19 @@ export function OperationsDataTable({
                 {t('operations.cols.part')}
               </th>
               <th className="table-cell text-center font-black uppercase text-slate-400">
-                {t('operations.cols.classification')}
+                {t('operations.cols.partNumber')}
+              </th>
+              <th className="table-cell text-center font-black uppercase text-slate-400">
+                {t('operations.cols.qtyPerCar')}
+              </th>
+              <th className="table-cell text-center font-black uppercase text-slate-400">
+                {t('operations.cols.station')}
+              </th>
+              <th className="table-cell text-center font-black uppercase text-slate-400">
+                {t('operations.cols.model')}
               </th>
               <th className="table-cell text-center font-black uppercase text-slate-400">
                 {t('operations.cols.hardware')}
-              </th>
-              <th className="table-cell text-center font-black uppercase text-slate-400">
-                {t('operations.cols.techPosition')}
-              </th>
-              <th className="table-cell text-center font-black uppercase text-slate-400">
-                {t('operations.cols.taskPrecedence')}
-              </th>
-              <th className="table-cell text-center font-black uppercase text-slate-400">
-                {t('operations.cols.rankedWeight')}
-              </th>
-              <th className="table-cell text-center font-black uppercase text-slate-400">
-                {t('operations.cols.zoning')}
               </th>
               <th className="table-cell text-center font-black uppercase text-slate-400">
                 {t('operations.cols.timeSec')}
@@ -142,9 +141,7 @@ export function OperationsDataTable({
                   </th>
                 </>
               )}
-              {canManage && (
-                <th className="table-cell text-center font-black uppercase text-slate-400">{t('common.actions')}</th>
-              )}
+              <th className="table-cell text-center font-black uppercase text-slate-400">{t('common.actions')}</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-800">
@@ -191,6 +188,7 @@ export function OperationsDataTable({
                       hardwareCompare: next
                     })
                   }
+                  onStudyFields={onStudyFields}
                   onEdit={onEdit}
                   onDelete={onDelete}
                   onMove={onMove}

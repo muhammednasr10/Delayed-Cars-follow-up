@@ -48,6 +48,7 @@ export function MissingPartsToolbarFilters({
     listTab === 'reportList' ||
     listTab === 'reportDaily' ||
     listTab === 'reportCustom' ||
+    listTab === 'reportStoppage' ||
     listTab === 'history' ||
     listTab === 'historySummary'
 
