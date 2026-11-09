@@ -80,27 +80,39 @@ async function selectKinds(activeOnly: boolean): Promise<EquipmentKind[]> {
   let query = db.from('line_equipment_kinds').select(KIND_SELECT_FULL)
   if (activeOnly) query = query.eq('is_active', true)
   query = query.order('sort_order', { ascending: true }).order('code', { ascending: true })
-  let { data, error } = await query
+  let data: KindRow[] | null = null
+  let error: { message: string } | null = null
+  {
+    const res = await query
+    data = (res.data ?? null) as KindRow[] | null
+    error = res.error
+  }
   if (error && (isMissingOptionalKindCol(error, 'range_min') || isMissingOptionalKindCol(error, 'range_max'))) {
     let fallback = db.from('line_equipment_kinds').select(KIND_SELECT_WITH_RANGE)
     if (activeOnly) fallback = fallback.eq('is_active', true)
     fallback = fallback.order('sort_order', { ascending: true }).order('code', { ascending: true })
-    ;({ data, error } = await fallback)
+    const res = await fallback
+    data = (res.data ?? null) as KindRow[] | null
+    error = res.error
   }
   if (error && isMissingOptionalKindCol(error, 'operating_range')) {
     let fallback = db.from('line_equipment_kinds').select(KIND_SELECT_WITH_MANUFACTURER)
     if (activeOnly) fallback = fallback.eq('is_active', true)
     fallback = fallback.order('sort_order', { ascending: true }).order('code', { ascending: true })
-    ;({ data, error } = await fallback)
+    const res = await fallback
+    data = (res.data ?? null) as KindRow[] | null
+    error = res.error
   }
   if (error && isMissingOptionalKindCol(error, 'manufacturer')) {
     let fallback = db.from('line_equipment_kinds').select(KIND_SELECT_BASIC)
     if (activeOnly) fallback = fallback.eq('is_active', true)
     fallback = fallback.order('sort_order', { ascending: true }).order('code', { ascending: true })
-    ;({ data, error } = await fallback)
+    const res = await fallback
+    data = (res.data ?? null) as KindRow[] | null
+    error = res.error
   }
   if (error) throw error
-  return ((data ?? []) as KindRow[]).map(mapKind)
+  return (data ?? []).map(mapKind)
 }
 
 export async function getEquipmentKinds(): Promise<EquipmentKind[]> {

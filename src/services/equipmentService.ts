@@ -209,14 +209,14 @@ async function writeLineEquipment(
 
 export async function createLineEquipment(input: LineEquipmentInput): Promise<LineEquipment> {
   const client = requireClient()
-  return writeLineEquipment(input, payload =>
+  return writeLineEquipment(input, async payload =>
     client.from('line_equipment').insert(payload).select(EQUIPMENT_SELECT).single()
   )
 }
 
 export async function updateLineEquipment(id: string, input: LineEquipmentInput): Promise<LineEquipment> {
   const client = requireClient()
-  return writeLineEquipment(input, payload =>
+  return writeLineEquipment(input, async payload =>
     client.from('line_equipment').update(payload).eq('id', id).select(EQUIPMENT_SELECT).single()
   )
 }

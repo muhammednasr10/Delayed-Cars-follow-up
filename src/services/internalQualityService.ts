@@ -64,30 +64,42 @@ export function isMissingInternalQualityTable(err: unknown): boolean {
 
 export async function getInternalQualityIssues(): Promise<InternalQualityIssue[]> {
   const db = requireClient()
-  let { data, error } = await db
-    .from('internal_quality_issues')
-    .select(SELECT)
-    .order('updated_at', { ascending: false })
+  let data: Row[] | null = null
+  let error: { message: string } | null = null
+  {
+    const res = await db
+      .from('internal_quality_issues')
+      .select(SELECT)
+      .order('updated_at', { ascending: false })
+    data = (res.data ?? null) as Row[] | null
+    error = res.error
+  }
   if (error && (isMissingCol(error.message, 'study_count') || isMissingCol(error.message, 'last_study_at'))) {
-    ;({ data, error } = await db
+    const res = await db
       .from('internal_quality_issues')
       .select(SELECT_NO_COUNT)
-      .order('updated_at', { ascending: false }))
+      .order('updated_at', { ascending: false })
+    data = (res.data ?? null) as Row[] | null
+    error = res.error
   }
   if (error && (isMissingCol(error.message, 'study_8d') || isMissingCol(error.message, 'status'))) {
-    ;({ data, error } = await db
+    const res = await db
       .from('internal_quality_issues')
       .select(SELECT_NO_8D)
-      .order('updated_at', { ascending: false }))
+      .order('updated_at', { ascending: false })
+    data = (res.data ?? null) as Row[] | null
+    error = res.error
   }
   if (error && isMissingCol(error.message, 'vehicle_model_ids')) {
-    ;({ data, error } = await db
+    const res = await db
       .from('internal_quality_issues')
       .select(SELECT_BASIC)
-      .order('updated_at', { ascending: false }))
+      .order('updated_at', { ascending: false })
+    data = (res.data ?? null) as Row[] | null
+    error = res.error
   }
   if (error) throw new Error(error.message)
-  return ((data ?? []) as Row[]).map(mapRow)
+  return (data ?? []).map(mapRow)
 }
 
 function toPayload(input: InternalQualityIssueInput, includeModels: boolean) {
@@ -126,7 +138,7 @@ export async function createInternalQualityIssue(
   input: InternalQualityIssueInput
 ): Promise<InternalQualityIssue> {
   const db = requireClient()
-  const row = await writeIssue(input, (payload, select) =>
+  const row = await writeIssue(input, async (payload, select) =>
     db.from('internal_quality_issues').insert(payload).select(select).single()
   )
   const { tryCreateAutoRoutedMission } = await import('./missionAutoRouteService')
@@ -145,7 +157,7 @@ export async function updateInternalQualityIssue(
   input: InternalQualityIssueInput
 ): Promise<InternalQualityIssue> {
   const db = requireClient()
-  return writeIssue(input, (payload, select) =>
+  return writeIssue(input, async (payload, select) =>
     db.from('internal_quality_issues').update(payload).eq('id', id).select(select).single()
   )
 }
