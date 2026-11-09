@@ -1,22 +1,44 @@
-import { useState } from 'react'
-import { Hammer, ScrollText, Wrench, Zap } from 'lucide-react'
+import { useEffect, useMemo, useState } from 'react'
+import { PieChart, ScrollText, Wrench } from 'lucide-react'
 import { useLang } from '../../i18n/LanguageContext'
 import { PageTabShell } from '../../Components/layout/PageTabShell'
 import { EquipmentRegistryTab } from '../../Components/equipment/EquipmentRegistryTab'
+import { EquipmentSummaryTab } from '../../Components/equipment/EquipmentSummaryTab'
 import { EquipmentTransactionLogTab } from '../../Components/equipment/EquipmentTransactionLogTab'
+import { getEquipmentKinds } from '../../services/equipmentKindsService'
+import { FALLBACK_EQUIPMENT_KINDS, type EquipmentKind } from '../../Types/equipmentKind'
 
-type EquipmentTab = 'rivet_gun' | 'torque_wrench' | 'other' | 'transaction_log'
+const REGISTRY_TAB = 'registry'
+const SUMMARY_TAB = 'summary'
+const LOG_TAB = 'transaction_log'
 
 export function EquipmentPage() {
   const { t } = useLang()
-  const [tab, setTab] = useState<EquipmentTab>('rivet_gun')
+  const [kinds, setKinds] = useState<EquipmentKind[]>(FALLBACK_EQUIPMENT_KINDS)
+  const [tab, setTab] = useState<string>(REGISTRY_TAB)
 
-  const tabs: { key: EquipmentTab; label: string; icon: typeof Wrench }[] = [
-    { key: 'rivet_gun', label: t('equipment.tabs.rivetGun'), icon: Zap },
-    { key: 'torque_wrench', label: t('equipment.tabs.torqueWrench'), icon: Hammer },
-    { key: 'other', label: t('equipment.tabs.other'), icon: Wrench },
-    { key: 'transaction_log', label: t('equipment.tabs.transactionLog'), icon: ScrollText }
-  ]
+  useEffect(() => {
+    let cancelled = false
+    void getEquipmentKinds()
+      .then(rows => {
+        if (!cancelled) setKinds(rows)
+      })
+      .catch(() => {
+        if (!cancelled) setKinds(FALLBACK_EQUIPMENT_KINDS)
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [])
+
+  const tabs = useMemo(
+    () => [
+      { key: REGISTRY_TAB, label: t('equipment.tabs.registry'), icon: Wrench },
+      { key: SUMMARY_TAB, label: t('equipment.tabs.summary'), icon: PieChart },
+      { key: LOG_TAB, label: t('equipment.tabs.transactionLog'), icon: ScrollText }
+    ],
+    [t]
+  )
 
   return (
     <PageTabShell
@@ -28,10 +50,13 @@ export function EquipmentPage() {
       onTabChange={setTab}
       activeClassName="bg-sky-500 text-slate-950"
     >
-      {tab === 'rivet_gun' && <EquipmentRegistryTab equipmentType="rivet_gun" />}
-      {tab === 'torque_wrench' && <EquipmentRegistryTab equipmentType="torque_wrench" />}
-      {tab === 'other' && <EquipmentRegistryTab equipmentType="other" />}
-      {tab === 'transaction_log' && <EquipmentTransactionLogTab />}
+      {tab === SUMMARY_TAB ? (
+        <EquipmentSummaryTab kinds={kinds} onOpenRegistry={() => setTab(REGISTRY_TAB)} />
+      ) : tab === LOG_TAB ? (
+        <EquipmentTransactionLogTab kinds={kinds} />
+      ) : (
+        <EquipmentRegistryTab kinds={kinds} />
+      )}
     </PageTabShell>
   )
 }

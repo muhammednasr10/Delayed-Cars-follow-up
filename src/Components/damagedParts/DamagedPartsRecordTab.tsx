@@ -1,9 +1,10 @@
-import { useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { Ban, Pencil, Plus, RefreshCcw, Trash2, Wrench } from 'lucide-react'
 import { useLang } from '../../i18n/LanguageContext'
 import { ConfirmDialog } from '../ConfirmDialog'
 import { DamagedPartFormModal } from './DamagedPartFormModal'
 import { ExportableTable } from '../ExportableTable'
+import { OpenLinkedMissionsButton } from '../missions/OpenLinkedMissionsButton'
 import { useFormatError } from '../../hooks/useFormatError'
 import { useDamagedPartsLookups } from '../../hooks/useDamagedPartsLookups'
 import {
@@ -13,9 +14,11 @@ import {
   updateDamagedPartRepairable,
   uploadDamagedPartImage
 } from '../../services/damagedPartsService'
+import { listOpenDamagedPartMissions } from '../../services/missionService'
 import { dpLookupLabel } from '../../Utils/dpLookupLabel'
 import type { DamagedPartInput, DamagedPartRecord } from '../../Types/damagedPart'
 import type { Employee } from '../../Types/employee'
+import type { ShortageMissionLink } from '../../Types/mission'
 import type { VehicleModel } from '../../Types/settings'
 
 const cell = 'table-cell text-center align-middle whitespace-nowrap px-3 py-2.5'
@@ -47,6 +50,33 @@ export function DamagedPartsRecordTab({ items, loading, models, employees, onRel
   const [deleteTarget, setDeleteTarget] = useState<DamagedPartRecord | null>(null)
   const [saving, setSaving] = useState(false)
   const [previewImage, setPreviewImage] = useState<string | null>(null)
+  const [linkedMissions, setLinkedMissions] = useState<ShortageMissionLink[]>([])
+
+  useEffect(() => {
+    let cancelled = false
+    void listOpenDamagedPartMissions(items.map(i => i.id))
+      .then(rows => {
+        if (!cancelled) setLinkedMissions(rows)
+      })
+      .catch(() => {
+        if (!cancelled) setLinkedMissions([])
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [items])
+
+  const linkedById = useMemo(() => {
+    const map = new Map<string, ShortageMissionLink[]>()
+    for (const m of linkedMissions) {
+      const id = m.sourceDamagedPartId
+      if (!id) continue
+      const list = map.get(id) ?? []
+      list.push(m)
+      map.set(id, list)
+    }
+    return map
+  }, [linkedMissions])
 
   function formatDate(iso: string) {
     const d = new Date(iso.includes('T') ? iso : `${iso}T12:00:00`)
@@ -212,7 +242,11 @@ export function DamagedPartsRecordTab({ items, loading, models, employees, onRel
                       </td>
                       <td className={`${cell} max-w-[12rem] truncate text-slate-400`}>{row.notes || '—'}</td>
                       <td data-export-skip className={cell}>
-                        <div className="flex items-center justify-center gap-1">
+                        <div className="flex flex-wrap items-center justify-center gap-1">
+                          <OpenLinkedMissionsButton
+                            linked={linkedById.get(row.id) ?? []}
+                            searchHint={row.partNumber}
+                          />
                           <button
                             type="button"
                             disabled={saving}

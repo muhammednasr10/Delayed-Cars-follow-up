@@ -104,7 +104,25 @@ export async function getDamagedParts(): Promise<DamagedPartRecord[]> {
 export async function createDamagedPart(input: DamagedPartInput): Promise<DamagedPartRecord> {
   const { data, error } = await requireClient().from('damaged_parts').insert(toPayload(input)).select(SELECT).single()
   if (error) throw new Error(error.message)
-  return mapRow(data as Row)
+  const row = mapRow(data as Row)
+  const { tryCreateAutoRoutedMission } = await import('./missionAutoRouteService')
+  const { damagedPartMissionTitle } = await import('../Utils/missionAutoRouteTitles')
+  await tryCreateAutoRoutedMission({
+    eventType: 'damaged_part',
+    title: damagedPartMissionTitle(row.partNumber, row.modelName),
+    description: [
+      row.partNumber,
+      row.partName,
+      row.modelName,
+      row.damageReason,
+      row.finalDecision
+    ]
+      .filter(Boolean)
+      .join(' · '),
+    sourceDamagedPartId: row.id,
+    sourceModelName: row.modelName || null
+  })
+  return row
 }
 
 export async function updateDamagedPart(id: string, input: DamagedPartInput): Promise<DamagedPartRecord> {

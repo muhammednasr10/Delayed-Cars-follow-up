@@ -1,6 +1,5 @@
 import { Plus, Trash2 } from 'lucide-react'
 import { useLang } from '../../i18n/LanguageContext'
-import { Field } from './Field'
 import type { IssueLineDraft } from './types'
 
 export function ReasonItemsField({
@@ -8,18 +7,24 @@ export function ReasonItemsField({
   stockShortage,
   onUpdate,
   onAdd,
-  onRemove
+  onRemove,
+  compact = false
 }: {
   line: IssueLineDraft
   stockShortage: boolean
   onUpdate: (index: number, value: string) => void
   onAdd: () => void
   onRemove: (index: number) => void
+  compact?: boolean
 }) {
   const { t } = useLang()
 
   return (
-    <Field label={t('mp.cols.reason')} required>
+    <div className={compact ? 'block space-y-1' : 'block space-y-2'}>
+      <span className={`font-bold text-slate-400 ${compact ? 'text-[11px]' : 'text-sm text-slate-300'}`}>
+        {t('mp.cols.reason')}
+        <span className="text-red-400"> *</span>
+      </span>
       <div className="space-y-2">
         {line.partItems.map((item, pi) => (
           <div key={pi} className="flex gap-2">
@@ -51,8 +56,12 @@ export function ReasonItemsField({
             )}
           </div>
         ))}
-        <p className="text-[10px] text-slate-500">{stockShortage ? t('mp.stockItemsHint') : t('mp.reasonItemsHint')}</p>
+        {!compact && (
+          <p className="text-[10px] text-slate-500">
+            {stockShortage ? t('mp.stockItemsHint') : t('mp.reasonItemsHint')}
+          </p>
+        )}
       </div>
-    </Field>
+    </div>
   )
 }

@@ -83,6 +83,7 @@ export const translations = {
       requests: 'الطلبات',
       scratches: 'الخدوش',
       equipment: 'العدة',
+      internalQuality: 'الجودة الداخلية',
       feedback: 'المقترحات والشكاوى',
       workerProfile: 'حسابي'
     },
@@ -196,13 +197,45 @@ export const translations = {
     missions: {
       title: 'المهمات',
       subtitle: 'توزيع المهام على الفريق ومتابعة الإنجاز',
-      tabs: { my: 'مهامى', board: 'توزيع المهام', archive: 'أرشيف المهام', leaderboard: 'لوحة الشرف' },
+      tabs: {
+        my: 'مهامى',
+        board: 'توزيع المهام',
+        fixed: 'مهام ثابتة غير التوزيع',
+        archive: 'أرشيف المهام',
+        leaderboard: 'لوحة الشرف'
+      },
       boardHint: 'إنشاء المهام وتوزيعها على المرؤوسين في الشجرة التنظيمية فقط',
       boardNoSubordinates: 'لا يوجد لديك مرؤوسون في الهيكل — يمكنك متابعة مهامك من تبويب «مهامى».',
       archive: {
         hint: 'المهام المكتملة والملغاة — خارج قوائم المهام النشطة.',
         empty: 'لا توجد مهام في الأرشيف.',
         summary: '{completed} مكتملة · {cancelled} ملغاة'
+      },
+      fixedRoutes: {
+        hint: 'عيّن موظفاً ثابتاً لكل نوع حدث — تُنشأ له مهمة تلقائياً عند التسجيل.',
+        hint2: 'المهمة ترتبط بالمصدر (نواقص / خدش / تالف / جودة) ويمكن فتح أي طرف من الآخر.',
+        readOnly: 'عرض فقط — تحتاج صلاحية تعيين المهام لتعديل التعيينات الثابتة.',
+        saved: 'تم حفظ التعيين الثابت.',
+        pickEmployee: 'اختر الموظف المسؤول…',
+        current: 'المعيَّن حالياً',
+        on: 'مفعّل',
+        off: 'معطّل',
+        cols: { event: 'الحدث', assignee: 'الموظف المعيَّن', enabled: 'التفعيل' },
+        events: {
+          missing_part_vehicle: 'تسجيل عربية جديدة في النواقص',
+          scratch: 'تسجيل خدش جديد',
+          damaged_part: 'تسجيل جزء تالف جديد',
+          internal_quality: 'مشكلة جودة داخلية',
+          external_quality: 'ملاحظة جودة خارجية'
+        },
+        eventHints: {
+          missing_part_vehicle: 'عند تبليغ نواقص لعربية — مهمة للموظف المعيَّن',
+          scratch: 'عند إضافة خدش جديد',
+          damaged_part: 'عند تسجيل جزء تالف',
+          internal_quality: 'عند تسجيل مشكلة جودة داخلية',
+          external_quality: 'عند تسجيل ملاحظة جودة (خارجية)'
+        },
+        linkedCount: '{count} مهمة مربوطة'
       },
       errAssigneeNotSubordinate: 'يمكن تعيين المهام للمرؤوسين في شجرتك فقط.',
       my: {
@@ -218,7 +251,14 @@ export const translations = {
         createdAt: 'تاريخ الإنشاء',
         nextOccurrence: 'الموعد التالي التلقائي',
         shortage: 'السيارة / النقص',
-        openShortage: 'افتح النقص'
+        openShortage: 'افتح النقص',
+        openSource: {
+          shortage: 'افتح النقص',
+          scratch: 'افتح الخدش',
+          damaged_part: 'افتح الجزء التالف',
+          internal_quality: 'افتح الجودة الداخلية',
+          external_quality: 'افتح ملاحظة الجودة'
+        }
       },
       delegate: {
         open: 'تحويل لمرؤوس',
@@ -605,12 +645,23 @@ export const translations = {
       title: 'العدة',
       subtitle: 'سجل العدة ومتابعة المعايرة والـ scraps',
       tabs: {
+        registry: 'العدة',
+        summary: 'ملخص العدة',
         rivetGun: 'مسدسات الربط',
         torqueWrench: 'يدات العزم',
         other: 'عدة أخرى',
         transactionLog: 'Transaction log'
       },
+      summary: {
+        title: 'ملخص العدة',
+        hint: 'عدد كل نوع عدة في المصنع، وحالته، وكم قطعة معيّنة على عامل.',
+        total: 'الإجمالي',
+        assigned: 'معيّن لعامل'
+      },
       types: { rivet_gun: 'مسدس ربط', torque_wrench: 'يدة عزم', other: 'عدة أخرى' },
+      kindHint: 'سجّل أي عدة من نوع «{name}» الموجودة في المصنع — لكل قطعة رقم تعريف (ID) فريد.',
+      registryHint: 'سجّل كل العدة في المصنع — اختر النوع من كتالوج الإعدادات، ولكل قطعة رقم تعريف (ID) فريد.',
+      emptyKinds: 'لا توجد أنواع عدة بعد. أضفها من الإعدادات ← العدة.',
       hints: {
         rivet_gun: 'تسجيل مسدسات الربط — لكل مسدس رقم تعريف (ID) فريد',
         torque_wrench: 'تسجيل يدات العزم — لكل يدة رقم تعريف (ID) فريد',
@@ -621,7 +672,25 @@ export const translations = {
       empty: 'لا توجد عدة مسجلة.',
       codePlaceholder: 'مثال: RG-001 أو TW-042',
       errCode: 'رقم تعريف العدة (ID) مطلوب.',
+      errKind: 'نوع العدة مطلوب — اختره من قائمة الإعدادات.',
       errEquipment: 'يجب اختيار العدة.',
+      kindSearchPh: 'ابحث بنوع العدة… مسدس، يد عزم، أو أي نوع',
+      kindSearchEmpty: 'لا يوجد نوع مطابق — أضفه من الإعدادات ← العدة.',
+      selectOrg: 'اختر التبعية التنظيمية',
+      selectWorker: 'ابحث باسم العامل أو رقمه الوظيفي',
+      workerCommonNamePh: 'ابحث بالاسم الشائع… مثل الروف راك',
+      workerCommonNameEmpty: 'لا يوجد اسم شائع في موازنة الخط — أضفه من الهندسية ← موازنة الخط ← العمليات.',
+      workerCommonNameHint: 'اربط العدة بخط العامل من موازنة الخط عبر الاسم الشائع (مثل: الروف راك).',
+      orgPathTitle: 'التبعية التنظيمية',
+      orgPathFull: 'السلسلة الكاملة',
+      orgPathTitle: 'التبعية التنظيمية',
+      orgPathFull: 'السلسلة الكاملة',
+      orgPathTitle: 'التبعية التنظيمية',
+      orgPathFull: 'السلسلة الكاملة',
+      efficiencyPlaceholder: 'مثال: 95',
+      rangePlaceholder: 'مثال: 5–14 Nm',
+      actualRangeHint: 'الرينج الفعلي = الرينج النظري × الكفاءة٪ (مثال: 20–50 بكفاءة 90٪ → 18–45).',
+      errEfficiency: 'كفاءة العدة لازم تكون نسبة من 0 إلى 100.',
       errDate: 'التاريخ والوقت مطلوبان.',
       errScrapReason: 'سبب الـ scrap مطلوب.',
       deleteTitle: 'حذف العدة',
@@ -642,11 +711,18 @@ export const translations = {
       cols: {
         id: 'ID',
         name: 'الاسم / الوصف',
-        model: 'الموديل',
+        model: 'نوع العدة',
         serial: 'الرقم التسلسلي',
         location: 'الموقع',
-        status: 'الحالة',
+        orgUnit: 'التبعية التنظيمية',
+        worker: 'العامل',
+        workerCommonName: 'الاسم الشائع للعامل',
+        status: 'حالة العدة',
+        theoreticalRange: 'الرينج النظري',
+        operatingRange: 'الرينج الفعلي',
+        efficiency: 'كفاءة العدة',
         nextCalibration: 'المعايرة القادمة',
+        lastCalibration: 'تاريخ آخر معايرة',
         equipment: 'العدة',
         equipmentType: 'نوع العدة',
         occurredAt: 'التاريخ والوقت',
@@ -667,6 +743,48 @@ export const translations = {
     feedback: {
       title: 'المقترحات والشكاوى',
       subtitle: 'تسجيل ومتابعة مقترحات التحسين وشكاوى العمال'
+    },
+    internalQuality: {
+      title: 'الجودة الداخلية',
+      subtitle: 'متابعة جودة خط التجميع داخل الإنتاج',
+      readyHint: 'التبويب جاهز تحت التجميع — خاص بقسم الإنتاج فقط.',
+      hint: 'سجّل نوع المشكلة والمشكلة والورشة التي بلّغت، مع تاريخ أول تبليغ.',
+      add: 'إضافة مشكلة',
+      addTitle: 'إضافة مشكلة',
+      editTitle: 'تعديل المشكلة',
+      empty: 'لا توجد مشاكل مسجّلة.',
+      problemTypePh: 'مثال: جودة لحام',
+      problemPh: 'وصف المشكلة…',
+      workshopPh: 'مثال: ورشة البودي',
+      study: 'دراسة',
+      studyTitle: 'دراسة المشكلة',
+      studyNotes: 'ملاحظات الدراسة',
+      studyPh: 'اكتب نتيجة الدراسة أو الإجراء المتخذ…',
+      studySaved: 'تم حفظ الدراسة.',
+      recurrence: 'تكرار المشكلة',
+      recurrenceTitle: 'تكرار المشكلة',
+      recurrenceHint: 'المشكلة اتكررت — عدّل الإجراءات في الدراسة (D5 و D6). الحفظ يزود عداد الدراسة ويحدّث تاريخ آخر تحديث.',
+      recurrenceSaved: 'تم تسجيل تكرار المشكلة وتحديث الإجراءات.',
+      studyCount: 'مرات الدراسة: {n}',
+      deleteTitle: 'حذف المشكلة',
+      deleteConfirm: 'حذف مشكلة «{name}»؟',
+      errType: 'نوع المشكلة مطلوب.',
+      errProblem: 'وصف المشكلة مطلوب.',
+      errWorkshop: 'الورشة مطلوبة.',
+      errDate: 'تاريخ أول تبليغ مطلوب.',
+      linkedModels: 'المشكلة مربوطة بموديلات معينة',
+      modelsPh: 'ابحث عن موديل…',
+      errModels: 'حدّد موديل واحد على الأقل.',
+      setupTitle: 'جدول الجودة الداخلية غير مُفعّل',
+      setupHint: 'طبّق migration 0216_internal_quality_issues.sql على Supabase.',
+      cols: {
+        problemType: 'نوع المشكلة',
+        problem: 'المشكلة',
+        workshop: 'الورشة اللي بلغت',
+        models: 'الموديلات',
+        firstReported: 'تاريخ أول تبليغ',
+        lastUpdated: 'تاريخ آخر تحديث'
+      }
     },
     workerProfile: {
       title: 'حسابي',
@@ -1116,6 +1234,12 @@ export const translations = {
       placeholderDesc:
         'هذا القسم جاهز للهيكلة — سيتم نقل الوحدات المناسبة إليه تدريجياً. كل البيانات الحالية متاحة الآن تحت قسم الإنتاج.',
       goProduction: 'الانتقال إلى قسم الإنتاج'
+    },
+    externalRepair: {
+      noSections: 'لا توجد أقسام تحت «الإصلاح الخارجي» في الهيكل التنظيمي. أضفها من الإعدادات ← الإدارات تحت الإنتاج / الإصلاح الخارجي.',
+      noSectionsShort: 'أضف أقساماً من الإعدادات',
+      sectionHint: 'تبويب العمالة بكل تبويباته لهذا القسم — بشكل مبدئي.',
+      workforceEmpty: 'لا يوجد موظفون مرتبطون بهذا القسم في الهيكل التنظيمي.'
     },
     warehouses: {
       title: 'المخازن',
@@ -1770,7 +1894,7 @@ export const translations = {
     },
     settings: {
       title: 'الإعدادات',
-      subtitle: 'الموديلات، الألوان، الإدارات، تصنيف السبب، الأقسام والمستخدمين — للأدمن فقط.',
+      subtitle: 'الموديلات، الألوان، الإدارات، العدة، تصنيف السبب، الأقسام والمستخدمين — للأدمن فقط.',
       adminOnlyTitle: 'غير مصرح',
       adminOnly:
         'صفحة الإعدادات متاحة لمدير النظام فقط. إذا كان دورك «viewer» في الأعلى، حدّث حسابك في Supabase (انظر README) أو اطلب من أدمن آخر ترقية دورك.',
@@ -1781,9 +1905,26 @@ export const translations = {
         colors: 'ألوان السيارات',
         administrations: 'الإدارات',
         helperLists: 'قوائم مساعدة',
+        equipment: 'العدة',
         reasons: 'تصنيف السبب',
         departments: 'القسم المتسبب',
         users: 'المستخدمون والصلاحيات'
+      },
+      equipment: {
+        hint: 'أضف أنواع العدة الموجودة في المصنع — مسدس برشام، يد عزم، أو أي نوع آخر. تظهر كتبويبات في صفحة العدة في التجميع.',
+        countsHint:
+          'اضغط على الإجمالي لعرض تفصيل العدد حسب البودي / الدهان / التجميع حسب التبعية التنظيمية للعدة.',
+        manufacturerPh: 'مثال: Atlas Copco',
+        rangePh: 'مثال: 5–14 Nm',
+        rangeMinPh: 'مثال: 20',
+        rangeMaxPh: 'مثال: 50',
+        serial: 'مسلسل',
+        countTotal: 'الإجمالي',
+        openAreaCounts: 'عرض تفصيل الأقسام',
+        areaCountsTitle: 'أعداد العدة حسب القسم',
+        unassignedCount: '{n} بدون تبعية تحت الإنتاج',
+        inUse: 'لا يمكن حذف هذا النوع لأن عليه عدة مسجّلة. احذف أو غيّر العدة أولاً.',
+        needsTable: 'شغّل سكربت أنواع العدة في SQL حتى تُحفظ الأنواع الجديدة.'
       },
       helperLists: {
         nestTitle: 'تصنيفات الأسباب حسب الإدارات',
@@ -1853,6 +1994,11 @@ export const translations = {
         code: 'الكود',
         labelAr: 'الاسم (عربي)',
         labelEn: 'الاسم (إنجليزي)',
+        manufacturer: 'الشركة المصنعة',
+        operatingRange: 'الرينج',
+        theoreticalRange: 'الرينج النظري',
+        rangeMin: 'الحد الأدنى',
+        rangeMax: 'الحد الأقصى',
         sortOrder: 'الترتيب',
         colorName: 'اسم اللون',
         color: 'اللون',
@@ -2037,6 +2183,7 @@ export const translations = {
       addingToExistingHint: 'سيارة مسجّلة — أضف النواقص الجديدة في قسم «بيانات النقص» أدناه.',
       errOnePart: 'أضف قطعة ناقصة واحدة على الأقل.',
       errOneIssue: 'أضف مشكلة واحدة على الأقل (وصف السبب).',
+      errReasonClass: 'اختر تصنيف السبب.',
       selectVariant: 'اختر الموديل الفرعي',
       noModelsInSettings: 'لا توجد موديلات في الإعدادات — أضف عائلة وفرعاً من الإعدادات → الموديلات.',
       noColorsInSettings: 'لا توجد ألوان في الإعدادات — أضفها من الإعدادات → الألوان.',
@@ -2089,6 +2236,9 @@ export const translations = {
       filterFollowUpMineNoEmployee: 'حسابك غير مربوط بموظف. اربطه من الصلاحيات أولاً.',
       filterUnassigned: 'غير محدد',
       filterUnassignedHint: 'عرض السيارات التي لا تحتوي على قيمة في هذا الحقل',
+      filterAssignedVehiclesHint: 'عدد السيارات التي تم تحديد قيمة لهذا الحقل',
+      filterUnassignedVehiclesHint: 'عدد السيارات التي لم يُحدَّد لها قيمة في هذا الحقل بعد',
+      filterReasonClassAll: 'كل تصنيفات السبب',
       filterMonth: 'كل الشهور',
       filterMonthLabel: 'الشهر',
       filterSelectedCount: '{n} محدد',
@@ -2984,8 +3134,8 @@ export const translations = {
         generalTab: 'عام',
         generalScope:
           'القالب العام — تعيين العمالة ينعكس على الموديلات. إجمالي العمال = أقصى خطوط عمال من موازنة الخط.',
-        generalOperationsHint: 'مقارنة الاسم الشائع لكل خط عامل من موازنة الخط — عدّله هناك أمام كل خط.',
-        modelOperationsHint: 'الاسم الشائع للعمليات يأتي من موازنة الخط لهذا الموديل.',
+        generalOperationsHint: 'مقارنة الاسم الشائع للعامل لكل خط من موازنة الخط — عدّله هناك أمام كل خط.',
+        modelOperationsHint: 'الاسم الشائع للعامل يأتي من موازنة الخط لهذا الموديل.',
         modelInheritedScope: '{model} — يتبع القالب العام في العمالة.',
         modelOverrideScope: '{model} — فيه تخصيصات عمالة محلية (نقطة برتقالية على التبويب).',
         hasOverrides: 'فيه تخصيصات عمالة',
@@ -3003,11 +3153,12 @@ export const translations = {
           number: 'رقم المحطة',
           workerLine: 'رقم المحطة - العامل',
           name: 'اسم المحطة',
-          operationsName: 'الاسم الشائع للعمليات',
+          operationsName: 'الاسم الشائع للعامل',
           operationsCompare: 'مقارنة التصنيف بين الموديلات',
-          operationsNamePh: 'مثال: تركيب الروف راك، شد البراغي…',
+          operationsNamePh: 'مثال: الروف راك، أكرة ش…',
           manpower: 'العمالة'
         },
+        operationsNamePh: 'مثال: الروف راك، أكرة ش…',
         workerLines: 'عامل'
       },
       history: {
@@ -3787,9 +3938,11 @@ export const translations = {
           production_requests: 'طلبات الفريق والمتابعة',
           production_scratches: 'تسجيل الخدوش',
           production_equipment: 'متابعة المعدات',
+          production_internal_quality: 'الجودة الداخلية لخط التجميع (قسم الإنتاج)',
           production_feedback: 'ملاحظات واقتراحات',
           production_worker_profile: 'بروفايل العامل — محطة، عدة، حضور، أخطاء',
-          production_settings: 'إعدادات النظام (موديلات، محطات، مستخدمين…)',
+          production_settings: 'إعدادات النظام (موديلات، محطات، عدة، مستخدمين…)',
+          production_settings__equipment: 'تبويب العدة في الإعدادات',
           engineering_home: 'الصفحة الرئيسية لقسم الهندسة',
           engineering_ipl: 'قائمة الأجزاء IPL',
           engineering_stations: 'إعداد وعرض المحطات',
@@ -4069,6 +4222,7 @@ export const translations = {
       requests: 'Requests',
       scratches: 'Scratches',
       equipment: 'Equipment',
+      internalQuality: 'Internal quality',
       feedback: 'Suggestions & complaints',
       workerProfile: 'My account'
     },
@@ -4182,13 +4336,45 @@ export const translations = {
     missions: {
       title: 'Missions',
       subtitle: 'Distribute tasks to the team and track completion',
-      tabs: { my: 'My tasks', board: 'Task board', archive: 'Task archive', leaderboard: 'Honor board' },
+      tabs: {
+        my: 'My tasks',
+        board: 'Task board',
+        fixed: 'Fixed routes',
+        archive: 'Task archive',
+        leaderboard: 'Honor board'
+      },
       boardHint: 'Create and assign tasks to subordinates in your org tree only',
       boardNoSubordinates: 'You have no subordinates in the org chart — use the My tasks tab.',
       archive: {
         hint: 'Completed and cancelled missions — removed from active task lists.',
         empty: 'No missions in the archive.',
         summary: '{completed} completed · {cancelled} cancelled'
+      },
+      fixedRoutes: {
+        hint: 'Assign a fixed employee per event — a mission is created automatically on registration.',
+        hint2: 'The mission is linked to the source (shortage / scratch / damaged / quality); either side can open the other.',
+        readOnly: 'View only — you need mission assign permission to edit fixed routes.',
+        saved: 'Fixed route saved.',
+        pickEmployee: 'Pick responsible employee…',
+        current: 'Currently assigned',
+        on: 'On',
+        off: 'Off',
+        cols: { event: 'Event', assignee: 'Assignee', enabled: 'Enabled' },
+        events: {
+          missing_part_vehicle: 'New shortage vehicle',
+          scratch: 'New scratch',
+          damaged_part: 'New damaged part',
+          internal_quality: 'Internal quality issue',
+          external_quality: 'External quality note'
+        },
+        eventHints: {
+          missing_part_vehicle: 'When a shortage is reported for a vehicle',
+          scratch: 'When a new scratch is added',
+          damaged_part: 'When a damaged part is registered',
+          internal_quality: 'When an internal quality issue is registered',
+          external_quality: 'When an external quality note is registered'
+        },
+        linkedCount: '{count} linked mission(s)'
       },
       errAssigneeNotSubordinate: 'Tasks can only be assigned to subordinates in your org tree.',
       my: {
@@ -4204,7 +4390,14 @@ export const translations = {
         createdAt: 'Created at',
         nextOccurrence: 'Next automatic due date',
         shortage: 'Vehicle / shortage',
-        openShortage: 'Open shortage'
+        openShortage: 'Open shortage',
+        openSource: {
+          shortage: 'Open shortage',
+          scratch: 'Open scratch',
+          damaged_part: 'Open damaged part',
+          internal_quality: 'Open internal quality',
+          external_quality: 'Open quality note'
+        }
       },
       delegate: {
         open: 'Delegate to subordinate',
@@ -4591,12 +4784,23 @@ export const translations = {
       title: 'Equipment',
       subtitle: 'Equipment registry, calibration and scrap tracking',
       tabs: {
+        registry: 'Equipment',
+        summary: 'Tools summary',
         rivetGun: 'Rivet guns',
         torqueWrench: 'Torque wrenches',
         other: 'Other equipment',
         transactionLog: 'Transaction log'
       },
+      summary: {
+        title: 'Tools summary',
+        hint: 'How many of each tool kind, by status, and how many are assigned to a worker.',
+        total: 'Total',
+        assigned: 'Assigned'
+      },
       types: { rivet_gun: 'Rivet gun', torque_wrench: 'Torque wrench', other: 'Other' },
+      kindHint: 'Register factory tools of type “{name}” — each with a unique ID.',
+      registryHint: 'Register all factory tools — pick the kind from Settings catalog; each piece needs a unique ID.',
+      emptyKinds: 'No tool kinds yet. Add them from Settings → Tools.',
       hints: {
         rivet_gun: 'Register rivet guns — each with a unique ID',
         torque_wrench: 'Register torque wrenches — each with a unique ID',
@@ -4607,7 +4811,25 @@ export const translations = {
       empty: 'No equipment registered.',
       codePlaceholder: 'e.g. RG-001 or TW-042',
       errCode: 'Equipment ID is required.',
+      errKind: 'Tool kind is required — pick it from the Settings catalog.',
       errEquipment: 'Select equipment.',
+      kindSearchPh: 'Search tool kinds… rivet gun, torque wrench, or any type',
+      kindSearchEmpty: 'No matching kind — add it from Settings → Tools.',
+      selectOrg: 'Select organizational placement',
+      selectWorker: 'Search worker name or employee code',
+      workerCommonNamePh: 'Search worker common name… e.g. roof rack',
+      workerCommonNameEmpty: 'No worker common names in Line Balancing — add them under Engineering → Line Balancing → Operations.',
+      workerCommonNameHint: 'Link the tool to a Line Balancing worker line via its common name (e.g. roof rack).',
+      orgPathTitle: 'Organizational placement',
+      orgPathFull: 'Full path',
+      orgPathTitle: 'Organizational placement',
+      orgPathFull: 'Full path',
+      orgPathTitle: 'Organizational placement',
+      orgPathFull: 'Full path',
+      efficiencyPlaceholder: 'e.g. 95',
+      rangePlaceholder: 'e.g. 5–14 Nm',
+      actualRangeHint: 'Actual range = theoretical × efficiency% (e.g. 20–50 at 90% → 18–45).',
+      errEfficiency: 'Tool efficiency must be a percentage from 0 to 100.',
       errDate: 'Date and time are required.',
       errScrapReason: 'Scrap reason is required.',
       deleteTitle: 'Delete equipment',
@@ -4628,11 +4850,18 @@ export const translations = {
       cols: {
         id: 'ID',
         name: 'Name / description',
-        model: 'Model',
+        model: 'Tool kind',
         serial: 'Serial number',
         location: 'Location',
-        status: 'Status',
+        orgUnit: 'Organizational placement',
+        worker: 'Worker',
+        workerCommonName: 'Worker common name',
+        status: 'Equipment status',
+        theoreticalRange: 'Theoretical range',
+        operatingRange: 'Actual range',
+        efficiency: 'Tool efficiency',
         nextCalibration: 'Next calibration',
+        lastCalibration: 'Last calibration date',
         equipment: 'Equipment',
         equipmentType: 'Equipment type',
         occurredAt: 'Date & time',
@@ -4658,6 +4887,48 @@ export const translations = {
     feedback: {
       title: 'Suggestions & complaints',
       subtitle: 'Record and follow up improvement ideas and worker feedback'
+    },
+    internalQuality: {
+      title: 'Internal quality',
+      subtitle: 'Assembly-line internal quality tracking for production',
+      readyHint: 'This tab is ready under Assembly — production department only.',
+      hint: 'Log the problem type, the problem, the reporting workshop, and the first report date.',
+      add: 'Add issue',
+      addTitle: 'Add issue',
+      editTitle: 'Edit issue',
+      empty: 'No issues recorded.',
+      problemTypePh: 'e.g. weld quality',
+      problemPh: 'Describe the problem…',
+      workshopPh: 'e.g. body shop',
+      study: 'Study',
+      studyTitle: 'Study the issue',
+      studyNotes: 'Study notes',
+      studyPh: 'Write the study result or action taken…',
+      studySaved: 'Study saved.',
+      recurrence: 'Problem recurrence',
+      recurrenceTitle: 'Problem recurrence',
+      recurrenceHint: 'The problem came back — update the actions in the study (D5 and D6). Saving increases the study count and refreshes the last update date.',
+      recurrenceSaved: 'Recurrence recorded and actions updated.',
+      studyCount: 'Study rounds: {n}',
+      deleteTitle: 'Delete issue',
+      deleteConfirm: 'Delete issue «{name}»?',
+      errType: 'Problem type is required.',
+      errProblem: 'Problem description is required.',
+      errWorkshop: 'Workshop is required.',
+      errDate: 'First report date is required.',
+      linkedModels: 'This issue is linked to specific models',
+      modelsPh: 'Search models…',
+      errModels: 'Select at least one model.',
+      setupTitle: 'Internal quality table is not set up',
+      setupHint: 'Apply migration 0216_internal_quality_issues.sql on Supabase.',
+      cols: {
+        problemType: 'Problem type',
+        problem: 'Problem',
+        workshop: 'Reporting workshop',
+        models: 'Models',
+        firstReported: 'First report date',
+        lastUpdated: 'Last update'
+      }
     },
     workerProfile: {
       title: 'My account',
@@ -5109,6 +5380,13 @@ export const translations = {
       placeholderDesc:
         'This department is ready for structure — relevant modules will be moved here step by step. All current data is under Production for now.',
       goProduction: 'Go to Production'
+    },
+    externalRepair: {
+      noSections:
+        'No sections under External repair in the org tree. Add them in Settings → Administrations under Production / External repair.',
+      noSectionsShort: 'Add sections from Settings',
+      sectionHint: 'Workforce tab with all its subtabs for this section — preliminary.',
+      workforceEmpty: 'No employees linked to this section in the organizational structure.'
     },
     warehouses: {
       title: 'Warehouses',
@@ -5772,7 +6050,7 @@ export const translations = {
     },
     settings: {
       title: 'Settings',
-      subtitle: 'Models, colors, factory administrations, lookups and users — admin only.',
+      subtitle: 'Models, colors, factory administrations, tools, lookups and users — admin only.',
       adminOnlyTitle: 'Not authorized',
       adminOnly: 'Settings are available to system administrators only.',
       tabs: {
@@ -5782,9 +6060,26 @@ export const translations = {
         colors: 'Vehicle Colors',
         administrations: 'Administrations',
         helperLists: 'Helper lists',
+        equipment: 'Tools',
         reasons: 'Reason class',
         departments: 'Causing department',
         users: 'Users & Permissions'
+      },
+      equipment: {
+        hint: 'Catalog factory tool kinds — rivet guns, torque wrenches, or any other type. They appear as tabs on the assembly Equipment page.',
+        countsHint:
+          'Click the total to see Body / Paint / Assembly breakdown from each tool’s organizational placement.',
+        manufacturerPh: 'e.g. Atlas Copco',
+        rangePh: 'e.g. 5–14 Nm',
+        rangeMinPh: 'e.g. 20',
+        rangeMaxPh: 'e.g. 50',
+        serial: 'No.',
+        countTotal: 'Total',
+        openAreaCounts: 'Open area breakdown',
+        areaCountsTitle: 'Tool counts by area',
+        unassignedCount: '{n} without a production org placement',
+        inUse: 'This kind cannot be deleted because equipment is registered under it. Remove or reassign those items first.',
+        needsTable: 'Run the equipment-kinds SQL script so new kinds can be saved.'
       },
       helperLists: {
         nestTitle: 'Reason classes by administrations',
@@ -5855,6 +6150,11 @@ export const translations = {
         code: 'Code',
         labelAr: 'Label (Arabic)',
         labelEn: 'Label (English)',
+        manufacturer: 'Manufacturer',
+        operatingRange: 'Range',
+        theoreticalRange: 'Theoretical range',
+        rangeMin: 'Minimum',
+        rangeMax: 'Maximum',
         colorName: 'Color name',
         color: 'Color',
         name: 'Name',
@@ -6022,6 +6322,7 @@ export const translations = {
       addingToExistingHint: 'Registered vehicle — add new shortages in the section below.',
       errOnePart: 'Add at least one missing part.',
       errOneIssue: 'Add at least one issue (reason description).',
+      errReasonClass: 'Select a reason class.',
       selectVariant: 'Select variant model',
       noModelsInSettings: 'No models in Settings — add a family and variant under Settings → Models.',
       noColorsInSettings: 'No colors in Settings — add them under Settings → Colors.',
@@ -6074,6 +6375,9 @@ export const translations = {
       filterFollowUpMineNoEmployee: 'Your account is not linked to an employee. Link it in permissions first.',
       filterUnassigned: 'Unassigned',
       filterUnassignedHint: 'Show vehicles with no value in this field',
+      filterAssignedVehiclesHint: 'Vehicles that already have a value for this field',
+      filterUnassignedVehiclesHint: 'Vehicles that still have no value for this field',
+      filterReasonClassAll: 'All reason classes',
       filterMonth: 'All months',
       filterMonthLabel: 'Month',
       filterSelectedCount: '{n} selected',
@@ -6987,8 +7291,8 @@ export const translations = {
         saved: 'Daily distribution saved.',
         generalTab: 'General',
         generalScope: 'General template — worker assignments apply to all models unless customized per model.',
-        generalOperationsHint: 'Classification comparison from Line Balancing per model — edit labels there.',
-        modelOperationsHint: 'Common operations name comes from Line Balancing for this model.',
+        generalOperationsHint: 'Worker common-name comparison from Line Balancing — edit labels there per worker line.',
+        modelOperationsHint: 'Worker common name comes from Line Balancing for this model.',
         modelInheritedScope: '{model} — follows general worker assignments.',
         modelOverrideScope: '{model} — has local worker customizations (orange dot on tab).',
         hasOverrides: 'Has worker customizations',
@@ -7006,11 +7310,12 @@ export const translations = {
           number: 'Station',
           workerLine: 'Station - Worker',
           name: 'Station name',
-          operationsName: 'Common operations name',
+          operationsName: 'Worker common name',
           operationsCompare: 'Classification across models',
-          operationsNamePh: 'e.g. roof rack install, torque bolts…',
+          operationsNamePh: 'e.g. roof rack, door handle…',
           manpower: 'Manpower'
         },
+        operationsNamePh: 'e.g. roof rack, door handle…',
         workerLines: 'workers'
       },
       history: {
@@ -7793,9 +8098,7 @@ export const translations = {
           production_requests: 'Team requests',
           production_scratches: 'Scratch reports',
           production_equipment: 'Equipment tracking',
-          production_feedback: 'Feedback and suggestions',
-          production_worker_profile: 'Worker profile — station, equipment, attendance, errors',
-          production_settings: 'System settings (models, stations, users…)',
+          production_internal_quality: 'Internal quality for the assembly line (production)',
           engineering_home: 'Engineering department home',
           engineering_ipl: 'IPL parts list',
           engineering_stations: 'Station setup',

@@ -73,6 +73,7 @@ function emptyFilters(overrides: Partial<MissingPartFilters> = {}): MissingPartF
     modelNames: [],
     departments: [],
     completingDepartments: [],
+    reasons: [],
     followUpEmployeeId: '',
     resolvedMonth: null,
     dateFrom: '',

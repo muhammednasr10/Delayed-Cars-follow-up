@@ -169,7 +169,7 @@ function WorkerOperationsPanel({
               className={`${inputCls()} min-w-0 flex-1 py-1.5 text-sm`}
               value={summary}
               disabled={!canManage || savingSummary}
-              placeholder={t('manpower.daily.operationsNamePh')}
+              placeholder={t('manpower.daily.cols.operationsNamePh')}
               onChange={e => setSummary(e.target.value)}
               onBlur={() => void saveSummary()}
             />

@@ -1,7 +1,13 @@
 import { useEffect, useMemo, useState } from 'react'
 import type { FactoryOrgUnit } from '../Types/factoryOrg'
 import { FactoryOrgUnitPicker } from './FactoryOrgUnitPicker'
-import { orgPathFromLeaf, orgPathLabel, orgPathLeaf } from '../Utils/employeeOrgPicker'
+import {
+  administrationOnlyUnits,
+  orgAdministrationId,
+  orgPathFromLeaf,
+  orgPathLabel,
+  orgPathLeaf
+} from '../Utils/employeeOrgPicker'
 
 type Props = {
   units: FactoryOrgUnit[]
@@ -12,6 +18,10 @@ type Props = {
   allowEmpty?: boolean
   showPathPreview?: boolean
   previewClassName?: string
+  /** Only pick top-level administrations (no section / subsection cascade). */
+  administrationsOnly?: boolean
+  /** Hide inner «إدارة / قسم» labels when the outer field already has a title. */
+  hideLevelLabels?: boolean
 }
 
 /** Cascading administration → section → subsection picker; value is the deepest selected unit id. */
@@ -23,31 +33,45 @@ export function OrgUnitCascadeField({
   emptyLabel,
   allowEmpty = true,
   showPathPreview = true,
-  previewClassName
+  previewClassName,
+  administrationsOnly = false,
+  hideLevelLabels = false
 }: Props) {
-  const [path, setPath] = useState<string[]>(() => orgPathFromLeaf(value, units))
+  const pickerUnits = useMemo(
+    () => (administrationsOnly ? administrationOnlyUnits(units) : units),
+    [administrationsOnly, units]
+  )
+  const resolvedValue = useMemo(
+    () => (administrationsOnly ? orgAdministrationId(value, units) : value),
+    [administrationsOnly, value, units]
+  )
+  const [path, setPath] = useState<string[]>(() => orgPathFromLeaf(resolvedValue, pickerUnits))
 
   useEffect(() => {
-    setPath(orgPathFromLeaf(value, units))
-  }, [value, units])
+    setPath(orgPathFromLeaf(resolvedValue, pickerUnits))
+  }, [resolvedValue, pickerUnits])
 
-  const preview = useMemo(() => orgPathLabel(path, units), [path, units])
+  const preview = useMemo(() => orgPathLabel(path, pickerUnits), [path, pickerUnits])
+  const showPreview = showPathPreview && !administrationsOnly
 
   function handlePathChange(next: string[]) {
     setPath(next)
     onChange(orgPathLeaf(next) ?? '')
   }
 
+  const hideLabels = hideLevelLabels || administrationsOnly
+
   return (
-    <div className={className ?? 'space-y-2'}>
+    <div className={className ?? (hideLabels ? undefined : 'space-y-2')}>
       <FactoryOrgUnitPicker
-        units={units}
+        units={pickerUnits}
         path={path}
         onChange={handlePathChange}
         emptyLabel={emptyLabel}
         allowEmpty={allowEmpty}
+        hideLevelLabels={hideLabels}
       />
-      {showPathPreview && preview && (
+      {showPreview && preview && (
         <p
           className={
             previewClassName ??

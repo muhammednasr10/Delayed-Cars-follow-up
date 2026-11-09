@@ -33,6 +33,7 @@ export type AppPagePermissionKey =
   | 'production_requests'
   | 'production_scratches'
   | 'production_equipment'
+  | 'production_internal_quality'
   | 'production_feedback'
   | 'production_worker_profile'
   | 'production_settings'
@@ -337,6 +338,13 @@ export const APP_PAGE_DEFINITIONS: AppPageDef[] = [
     defaultVisible: true
   },
   {
+    permKey: 'production_internal_quality',
+    labelKey: 'nav.internalQuality',
+    descKey: 'permissions.matrix.pageDesc.production_internal_quality',
+    fallbackModule: 'production',
+    defaultVisible: true
+  },
+  {
     permKey: 'production_feedback',
     labelKey: 'nav.feedback',
     descKey: 'permissions.matrix.pageDesc.production_feedback',
@@ -429,6 +437,7 @@ const PAGE_BY_PRODUCTION: Record<string, AppPagePermissionKey> = {
   requests: 'production_requests',
   scratches: 'production_scratches',
   equipment: 'production_equipment',
+  internalQuality: 'production_internal_quality',
   feedback: 'production_feedback',
   workerProfile: 'production_worker_profile',
   settings: 'production_settings'

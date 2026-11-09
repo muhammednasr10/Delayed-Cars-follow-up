@@ -392,6 +392,12 @@ export const PERMISSIONS_MATRIX_TREE: MatrixTreeNode[] = [
         pagePerm: 'production_equipment'
       },
       {
+        id: 'prod_internal_quality',
+        labelKey: 'nav.internalQuality',
+        descKey: 'permissions.matrix.pageDesc.production_internal_quality',
+        pagePerm: 'production_internal_quality'
+      },
+      {
         id: 'prod_feedback',
         labelKey: 'nav.feedback',
         descKey: 'permissions.matrix.pageDesc.production_feedback',
@@ -416,6 +422,11 @@ export const PERMISSIONS_MATRIX_TREE: MatrixTreeNode[] = [
             id: 'prod_set_helper_lists',
             labelKey: 'settings.tabs.helperLists',
             pagePerm: 'production_settings__helperLists'
+          },
+          {
+            id: 'prod_set_equipment',
+            labelKey: 'settings.tabs.equipment',
+            pagePerm: 'production_settings__equipment'
           },
           {
             id: 'prod_set_users',

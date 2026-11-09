@@ -65,11 +65,17 @@ export type TeamMission = {
 
   sourceScratchId: string | null
 
+  sourceDamagedPartId: string | null
+
+  sourceInternalQualityId: string | null
+
   sourceQualityNoteId: string | null
 
   sourceVin: string | null
 
   sourceModelName: string | null
+
+  autoRouteEvent: string | null
 
   parentModelId: string | null
 
@@ -114,6 +120,10 @@ export type TeamMissionInput = {
   sourceMissingPartId?: string | null
 
   sourceScratchId?: string | null
+
+  sourceDamagedPartId?: string | null
+
+  sourceInternalQualityId?: string | null
 
   sourceQualityNoteId?: string | null
 
@@ -165,6 +175,8 @@ export type ShortageMissionLink = {
   sourceVehicleId: string | null
   sourceMissingPartId: string | null
   sourceScratchId: string | null
+  sourceDamagedPartId?: string | null
+  sourceInternalQualityId?: string | null
   sourceQualityNoteId?: string | null
   sourceVin: string | null
 }

@@ -125,6 +125,7 @@ export function MpIssueFollowUpButton({
                 value={completingDepartment}
                 onChange={setCompletingDepartment}
                 emptyLabel={t('mp.followUp.noDepartment')}
+                administrationsOnly
               />
             </div>
           )}

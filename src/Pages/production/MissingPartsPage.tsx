@@ -264,6 +264,7 @@ export function MissingPartsPage() {
           onFiltersChange={patch => setFilters(p => ({ ...p, ...patch }))}
           modelOptions={modelOptions}
           orgUnits={orgUnits}
+          reasons={reasons}
           canReport={canReport}
           role={role}
           onReport={() => setShowReport(true)}

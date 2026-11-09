@@ -23,6 +23,7 @@ export function WorkerProfileEquipmentTab() {
   const [stationNumber, setStationNumber] = useState<string | null>(null)
   const [stationName, setStationName] = useState<string | null>(null)
   const [lineName, setLineName] = useState<string | null>(null)
+  const [employeeId, setEmployeeId] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
   const [err, setErr] = useState('')
 
@@ -35,14 +36,20 @@ export function WorkerProfileEquipmentTab() {
         setStationNumber(profile?.stationNumber ?? null)
         setStationName(profile?.stationName ?? null)
         setLineName(profile?.lineName ?? null)
+        setEmployeeId(profile?.employeeId ?? null)
       })
       .catch(e => setErr(e instanceof Error ? e.message : t('common.error')))
       .finally(() => setLoading(false))
   }, [t])
 
   const items = useMemo(
-    () => all.filter(i => matchesLocation(i, stationNumber, stationName, lineName)),
-    [all, stationNumber, stationName, lineName]
+    () =>
+      all.filter(i =>
+        employeeId && i.assignedEmployeeId
+          ? i.assignedEmployeeId === employeeId
+          : matchesLocation(i, stationNumber, stationName, lineName)
+      ),
+    [all, employeeId, stationNumber, stationName, lineName]
   )
 
   if (loading) {
@@ -74,7 +81,9 @@ export function WorkerProfileEquipmentTab() {
                   <p className="font-mono text-sm font-black text-sky-200" dir="ltr">
                     {item.equipmentCode}
                   </p>
-                  <p className="text-sm text-slate-200">{item.name || t('common.unknown')}</p>
+                  <p className="text-sm text-slate-200">
+                    {item.name || t(`equipment.types.${item.equipmentType}`) || t('common.unknown')}
+                  </p>
                   {item.location && <p className="text-xs text-slate-500">{item.location}</p>}
                 </div>
                 <span className="rounded-full bg-slate-800 px-2.5 py-1 text-[10px] font-bold uppercase text-slate-300">

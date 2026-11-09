@@ -15,13 +15,15 @@ export type CrudField = {
   required?: boolean
   placeholder?: string
   defaultValue?: string
+  /** Force input direction (e.g. English labels with digits like 5LP). */
+  dir?: 'ltr' | 'rtl'
 }
 
 export type CrudColumn<T> = {
   header: string
-  render: (item: T) => ReactNode
+  render: (item: T, index: number) => ReactNode
   className?: string
-  exportValue?: (item: T) => string
+  exportValue?: (item: T, index: number) => string
 }
 
 export type CrudSectionProps<T> = {
@@ -215,7 +217,7 @@ export function CrudSection<T>({
                 </td>
               </tr>
             ) : (
-              items.map(item => {
+              items.map((item, index) => {
                 const id = getId(item)
                 return (
                 <tr
@@ -254,7 +256,7 @@ export function CrudSection<T>({
                   )}
                   {columns.map(col => (
                     <td key={col.header} className={`table-cell ${col.className ?? ''}`}>
-                      {col.render(item)}
+                      {col.render(item, index)}
                     </td>
                   ))}
                   {canManage && (

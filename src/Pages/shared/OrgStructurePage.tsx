@@ -39,11 +39,14 @@ export type RosterMode = 'current' | 'former'
 export function OrgStructurePage({
   embedded = false,
   workforceScope = 'all',
-  rosterMode = 'current'
+  rosterMode = 'current',
+  orgUnitFilterId = null
 }: {
   embedded?: boolean
   workforceScope?: WorkforceScope
   rosterMode?: RosterMode
+  /** قيد إضافي على وحدة تنظيمية (مثل قسم تحت الإصلاح الخارجي). */
+  orgUnitFilterId?: string | null
 }) {
   const { t } = useLang()
   const { hasRole, profile } = useAuth()
@@ -91,7 +94,11 @@ export function OrgStructurePage({
     [employees, orgUnits, isAssemblyScope]
   )
   const { scopedEmployees: assemblyScoped, isScopedView, scopeLabel } = useAssemblyWorkforceScope(assemblyBase)
-  const workforceEmployees = isAssemblyScope ? assemblyScoped : employees
+  const workforceEmployees = useMemo(() => {
+    const base = isAssemblyScope ? assemblyScoped : employees
+    if (!orgUnitFilterId) return base
+    return base.filter(e => employeeMatchesOrgFilter(e.factoryOrgUnitId, orgUnitFilterId, orgUnits))
+  }, [isAssemblyScope, assemblyScoped, employees, orgUnitFilterId, orgUnits])
   const rosterEmployees = useMemo(
     () => excludeAncestorManagers(workforceEmployees, profile?.employee_id ?? null),
     [workforceEmployees, profile?.employee_id]

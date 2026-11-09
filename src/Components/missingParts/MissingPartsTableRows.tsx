@@ -188,10 +188,12 @@ export function GroupBranchRow({
 
 function StackedShortageReasons({ parts }: { parts: MissingPartDetail[] }) {
   const issues = uniqueIssueReps(parts)
+  const exportValue = issues.map(p => p.partDescription.trim()).filter(Boolean).join('\n')
   return (
     <span
+      data-export-value={exportValue}
       className="mx-auto flex max-w-[16rem] flex-col items-center gap-1 py-0.5 text-sm leading-snug text-slate-200"
-      title={issues.map(p => p.partDescription).join('\n')}
+      title={exportValue}
       onClick={e => e.stopPropagation()}
     >
       {issues.map(p => (

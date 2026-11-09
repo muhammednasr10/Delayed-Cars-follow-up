@@ -37,7 +37,7 @@ export function useMissingPartsData() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [setupRequired, setSetupRequired] = useState(false)
-  const [listTab, setListTab] = useState<ListTab>('active')
+  const [listTab, setListTab] = useState<ListTab>('byFamily')
   const [filters, setFilters] = useState<MissingPartFilters>(EMPTY_MISSING_PART_FILTERS)
   const [success, setSuccess] = useState('')
   const [noteCounts, setNoteCounts] = useState<Record<string, number>>({})

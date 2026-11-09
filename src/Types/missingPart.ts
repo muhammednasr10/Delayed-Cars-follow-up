@@ -144,6 +144,7 @@ export type MissingPartFilters = {
   modelNames: string[]
   departments: string[]
   completingDepartments: string[]
+  reasons: string[]
   followUpEmployeeId: string
   resolvedMonth: string | null
   dateFrom: string
@@ -157,6 +158,7 @@ export const EMPTY_MISSING_PART_FILTERS: MissingPartFilters = {
   modelNames: [],
   departments: [],
   completingDepartments: [],
+  reasons: [],
   followUpEmployeeId: '',
   resolvedMonth: null,
   dateFrom: '',

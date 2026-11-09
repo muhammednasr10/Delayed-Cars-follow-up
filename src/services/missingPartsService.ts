@@ -732,6 +732,59 @@ export async function reportMissingPartsBatch(
     }
   }
 
+  const resolvedIds =
+    vehicleIds.length > 0
+      ? vehicleIds
+      : (
+          (
+            await requireClient()
+              .from('vehicles')
+              .select('id')
+              .in('vin', vins.map(v => v.toUpperCase()))
+              .eq('is_deleted', false)
+          ).data ?? []
+        ).map((v: { id: string }) => v.id)
+
+  if (resolvedIds.length > 0) {
+    const { tryCreateAutoRoutedMission } = await import('./missionAutoRouteService')
+    const { missingPartVehicleMissionTitle } = await import('../Utils/missionAutoRouteTitles')
+    let vehicleMeta: { id: string; vin: string; modelName?: string | null }[] = []
+    {
+      const withModel = await requireClient()
+        .from('vehicles')
+        .select('id, vin, model:vehicle_models!vehicles_model_id_fkey(name)')
+        .in('id', resolvedIds)
+      if (!withModel.error && withModel.data) {
+        vehicleMeta = (withModel.data as {
+          id: string
+          vin: string
+          model?: { name: string } | { name: string }[] | null
+        }[]).map(v => {
+          const modelRel = v.model
+          const modelName = Array.isArray(modelRel) ? modelRel[0]?.name : modelRel?.name
+          return { id: v.id, vin: v.vin, modelName: modelName ?? null }
+        })
+      } else {
+        const plain = await requireClient().from('vehicles').select('id, vin').in('id', resolvedIds)
+        vehicleMeta = ((plain.data ?? []) as { id: string; vin: string }[]).map(v => ({
+          id: v.id,
+          vin: v.vin,
+          modelName: null
+        }))
+      }
+    }
+    for (const v of vehicleMeta) {
+      await tryCreateAutoRoutedMission({
+        eventType: 'missing_part_vehicle',
+        title: missingPartVehicleMissionTitle(v.vin, v.modelName),
+        description: noteBody,
+        sourceVehicleId: v.id,
+        sourceVin: v.vin,
+        sourceModelName: v.modelName ?? null
+      })
+    }
+  }
+
   return {
     vehicle_count: row.vehicle_count ?? vins.length,
     part_line_count: row.part_line_count ?? parts.length,

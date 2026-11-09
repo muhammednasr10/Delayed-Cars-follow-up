@@ -53,6 +53,8 @@ type NavState = {
   warehousesEquipmentSubTab: WarehousesEquipmentSubTab
   qualityTab: QualityTab
   workerProfileTab: WorkerProfileTab
+  /** قسم فرعي تحت الإصلاح الخارجي (من هيكل الإعدادات). */
+  externalRepairSectionId: string | null
   sidebarOpen: boolean
 }
 
@@ -82,6 +84,7 @@ export type NavigatePatch = Partial<
     | 'warehousesEquipmentSubTab'
     | 'qualityTab'
     | 'workerProfileTab'
+    | 'externalRepairSectionId'
   >
 > & { closeSidebar?: boolean }
 
@@ -150,6 +153,7 @@ const initialState: NavState = {
   warehousesEquipmentSubTab: 'racks',
   qualityTab: 'record',
   workerProfileTab: 'data',
+  externalRepairSectionId: null,
   sidebarOpen: false
 }
 

@@ -1,7 +1,8 @@
-import { useCallback, useMemo } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import {
   Activity,
   AlertTriangle,
+  BadgeCheck,
   BookOpen,
   Boxes,
   CalendarDays,
@@ -38,10 +39,14 @@ import { lineShopNavItems, type LineShopArea } from '../navigation/lineShopNav'
 import {
   SETTINGS_TAB_ORDER,
   PRODUCTION_AREA_ORDER,
+  TRAINING_TAB_ORDER,
   BOM_TAB_ORDER,
   bomTabPermissionKey,
   type DepartmentId
 } from '../Types/navigation'
+import { getFactoryOrgUnits } from '../services/factoryOrgService'
+import { externalRepairSections } from '../Utils/productionAreaCounts'
+import type { FactoryOrgUnit } from '../Types/factoryOrg'
 import { productivityNavVisible } from '../config/pageTabAccess'
 import { buildWarehousesNavPages } from './warehouses/buildWarehousesNavPages'
 
@@ -77,6 +82,21 @@ export function useDepartmentNavPages() {
   const { canAccess: canAccessSettings } = useCanAccessSettings()
   const { canViewPage, canViewTab, loading: pagesLoading } = useCanViewPage()
   const nav = useNavigation()
+  const [orgUnits, setOrgUnits] = useState<FactoryOrgUnit[]>([])
+
+  useEffect(() => {
+    let cancelled = false
+    void getFactoryOrgUnits()
+      .then(units => {
+        if (!cancelled) setOrgUnits(units)
+      })
+      .catch(() => {
+        if (!cancelled) setOrgUnits([])
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [])
 
   const navLoading = permsLoading || pagesLoading
 
@@ -114,8 +134,16 @@ export function useDepartmentNavPages() {
         navTo({
           department: 'production',
           productionArea: key,
-          ...(key === 'assembly' || key === 'body' || key === 'paint' || nav.productionPage === 'overview'
-            ? { productionPage: 'home' as const }
+          ...(key === 'assembly' || key === 'body' || key === 'paint' || key === 'externalRepair' || nav.productionPage === 'overview'
+            ? {
+                productionPage: key === 'externalRepair' ? ('training' as const) : ('home' as const),
+                ...(key === 'externalRepair'
+                  ? {
+                      externalRepairSectionId: externalRepairSections(orgUnits)[0]?.id ?? null,
+                      trainingTab: 'org' as const
+                    }
+                  : { externalRepairSectionId: null })
+              }
             : {})
         })
     }))
@@ -129,7 +157,55 @@ export function useDepartmentNavPages() {
       },
       ...areas
     ]
-  }, [canViewPage, nav.productionPage, navLoading, navTo, t])
+  }, [canViewPage, nav.productionPage, navLoading, navTo, orgUnits, t])
+
+  const externalRepairPages = useMemo<NavPageItem[]>(() => {
+    const sections = externalRepairSections(orgUnits)
+    if (sections.length === 0) {
+      return [
+        {
+          key: 'externalRepairEmpty',
+          label: t('externalRepair.noSectionsShort'),
+          icon: Factory,
+          visible: true,
+          onNavigate: () =>
+            navTo({
+              department: 'production',
+              productionArea: 'externalRepair',
+              productionPage: 'home',
+              externalRepairSectionId: null
+            })
+        }
+      ]
+    }
+    return sections.map(section => ({
+      key: section.id,
+      label: section.name,
+      icon: Users,
+      visible: navLoading || canViewPage(pagePermForProduction('training')),
+      onNavigate: () =>
+        navTo({
+          department: 'production',
+          productionArea: 'externalRepair',
+          productionPage: 'training',
+          externalRepairSectionId: section.id,
+          trainingTab: 'org'
+        }),
+      children: TRAINING_TAB_ORDER.map(key => ({
+        key,
+        label: t(`training.tabs.${key}`),
+        visible: tabVisible('production_training', key),
+        onClick: () =>
+          navTo({
+            department: 'production',
+            productionArea: 'externalRepair',
+            productionPage: 'training',
+            externalRepairSectionId: section.id,
+            trainingTab: key
+          })
+      })).filter(c => c.visible !== false)
+    }))
+  }, [canViewPage, navLoading, navTo, orgUnits, t, tabVisible])
 
   const assemblyPages = useMemo<NavPageItem[]>(
     () => [
@@ -250,6 +326,14 @@ export function useDepartmentNavPages() {
         icon: Wrench,
         visible: navLoading || canViewPage(pagePermForProduction('equipment')),
         onNavigate: () => navTo({ department: 'production', productionArea: 'assembly', productionPage: 'equipment' })
+      },
+      {
+        key: 'internalQuality',
+        label: t('nav.internalQuality'),
+        icon: BadgeCheck,
+        visible: navLoading || canViewPage(pagePermForProduction('internalQuality')),
+        onNavigate: () =>
+          navTo({ department: 'production', productionArea: 'assembly', productionPage: 'internalQuality' })
       },
       {
         key: 'feedback',
@@ -455,6 +539,7 @@ export function useDepartmentNavPages() {
     if (dept === 'production') {
       if (nav.productionArea === 'body') return bodyPages
       if (nav.productionArea === 'paint') return paintPages
+      if (nav.productionArea === 'externalRepair') return externalRepairPages
       return assemblyPages
     }
     if (dept === 'planning') return planningPages
@@ -474,12 +559,16 @@ export function useDepartmentNavPages() {
   function isPageActive(dept: DepartmentId, pageKey: string): boolean {
     if (nav.showProfile) return false
     if (nav.department !== dept) return false
-    if (dept === 'production')
+    if (dept === 'production') {
+      if (nav.productionArea === 'externalRepair') {
+        return nav.productionPage !== 'overview' && nav.externalRepairSectionId === pageKey
+      }
       return (
         (nav.productionArea === 'assembly' || nav.productionArea === 'body' || nav.productionArea === 'paint') &&
         nav.productionPage !== 'overview' &&
         nav.productionPage === pageKey
       )
+    }
     if (dept === 'planning') return nav.planningTab === pageKey
     if (dept === 'engineering') return nav.engineeringPage === pageKey
     if (dept === 'warehouses') {
@@ -500,6 +589,9 @@ export function useDepartmentNavPages() {
     if (dept === 'engineering' && parentKey === 'lineBalancing') return nav.lineBalancingTab === childKey
     if (dept === 'production' && parentKey === 'vehicles') return nav.productivityTab === childKey
     if (dept === 'production' && parentKey === 'training') return nav.trainingTab === childKey
+    if (dept === 'production' && nav.productionArea === 'externalRepair' && parentKey === nav.externalRepairSectionId) {
+      return nav.trainingTab === childKey
+    }
     if (dept === 'production' && parentKey === 'settings') return nav.settingsTab === childKey
     if (dept === 'quality' && parentKey === 'notes') return nav.qualityTab === childKey
     if (dept === 'warehouses' && parentKey === 'equipment') return nav.warehousesEquipmentSubTab === childKey
@@ -521,6 +613,7 @@ export function useDepartmentNavPages() {
     assemblyPages,
     bodyPages,
     paintPages,
+    externalRepairPages,
     engineeringPages,
     planningPages,
     warehousesPages,

@@ -27,6 +27,30 @@ export function orgPathFromLeaf(leafId: string | null | undefined, units: Factor
   return path
 }
 
+/** Walk up to the administration (root) for a unit id. */
+export function orgAdministrationId(leafId: string | null | undefined, units: FactoryOrgUnit[]): string {
+  if (!leafId) return ''
+  const byId = new Map(units.map(u => [u.id, u]))
+  let cur = byId.get(leafId)
+  if (!cur) return leafId
+  while (cur.parentId) {
+    if (cur.unitKind === 'administration') return cur.id
+    const parent = byId.get(cur.parentId)
+    if (!parent) break
+    cur = parent
+  }
+  return cur.id
+}
+
+export function administrationOnlyUnits(units: FactoryOrgUnit[]): FactoryOrgUnit[] {
+  return units.filter(u => u.unitKind === 'administration')
+}
+
+export function defaultAdministrationId(units: FactoryOrgUnit[]): string {
+  const admins = administrationOnlyUnits(units)
+  return admins.find(u => u.isActive)?.id ?? admins[0]?.id ?? ''
+}
+
 export function orgPathLeaf(path: string[]): string | null {
   for (let i = path.length - 1; i >= 0; i--) {
     if (path[i]) return path[i]

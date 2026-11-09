@@ -154,8 +154,6 @@ export function ReportMissingPartModal({ open, onClose, onReported }: Props) {
                 stockShortage={form.isStockShortageReason(line.reason)}
                 orgUnits={form.orgUnits}
                 reasons={form.reasons}
-                employees={form.employees}
-                canAssignFollowUp={form.canAssignFollowUp}
                 onPatchIssue={form.patchIssue}
                 onPatchIssueReason={form.patchIssueReason}
                 onUpdatePartItem={form.updatePartItem}

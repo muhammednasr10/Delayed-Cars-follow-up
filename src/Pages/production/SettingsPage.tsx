@@ -16,11 +16,14 @@ import {
   SettingsColorsTab,
   SettingsReasonsTab
 } from '../../Components/settings/SettingsLookupTabs'
+import { SettingsEquipmentTab } from '../../Components/settings/SettingsEquipmentTab'
 import { getMpReasonOptions } from '../../services/mpLookupService'
 import type { MpLookupOption } from '../../Types/mpLookup'
+import { getAllEquipmentKinds, isMissingEquipmentKindsTable } from '../../services/equipmentKindsService'
+import type { EquipmentKind } from '../../Types/equipmentKind'
 import { useLang } from '../../i18n/LanguageContext'
 
-const crudTabs: SettingsTab[] = ['administrations', 'models', 'stations', 'colors', 'helperLists']
+const crudTabs: SettingsTab[] = ['administrations', 'models', 'stations', 'colors', 'helperLists', 'equipment']
 
 export function SettingsPage() {
   const { t } = useLang()
@@ -35,6 +38,8 @@ export function SettingsPage() {
   const [orgUnits, setOrgUnits] = useState<FactoryOrgUnit[]>([])
   const [colors, setColors] = useState<VehicleColor[]>([])
   const [reasonOptions, setReasonOptions] = useState<MpLookupOption[]>([])
+  const [equipmentKinds, setEquipmentKinds] = useState<EquipmentKind[]>([])
+  const [equipmentKindsSetup, setEquipmentKindsSetup] = useState(false)
 
   useEffect(() => {
     if (!SETTINGS_TAB_ORDER.includes(activeTab)) {
@@ -50,16 +55,24 @@ export function SettingsPage() {
     setLoading(true)
     setError('')
     try {
-      const [modelsData, orgUnitsData, colorsData, reasonsData] = await Promise.all([
+      const [modelsData, orgUnitsData, colorsData, reasonsData, kindsResult] = await Promise.all([
         getVehicleModels({ includeInactive: true }),
         getFactoryOrgUnits({ includeInactive: true }),
         getAllVehicleColors(),
-        getMpReasonOptions(false)
+        getMpReasonOptions(false),
+        getAllEquipmentKinds()
+          .then(rows => ({ rows, setup: false }))
+          .catch(err => {
+            if (isMissingEquipmentKindsTable(err)) return { rows: [] as EquipmentKind[], setup: true }
+            throw err
+          })
       ])
       setModels(modelsData)
       setOrgUnits(orgUnitsData)
       setColors(colorsData)
       setReasonOptions(reasonsData)
+      setEquipmentKinds(kindsResult.rows)
+      setEquipmentKindsSetup(kindsResult.setup)
     } catch (err) {
       setError(err instanceof Error ? err.message : t('common.error'))
     } finally {
@@ -182,6 +195,15 @@ export function SettingsPage() {
       {activeTab === 'colors' && <SettingsColorsTab colors={colors} busy={loading} runAction={runAction} />}
       {activeTab === 'helperLists' && (
         <SettingsReasonsTab reasonOptions={reasonOptions} busy={loading} runAction={runAction} />
+      )}
+      {activeTab === 'equipment' && (
+        <SettingsEquipmentTab
+          kinds={equipmentKinds}
+          orgUnits={orgUnits}
+          setupRequired={equipmentKindsSetup}
+          busy={loading}
+          runAction={runAction}
+        />
       )}
       {activeTab === 'users' && (
         <UsersPermissionsPanel

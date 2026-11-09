@@ -7,6 +7,7 @@ import { isMissionOverdue } from '../../Utils/missionDue'
 import { isRecurrenceSeriesRoot, nextAutoRecurrenceDueDate } from '../../Utils/missionRecurrence'
 import { getMissionTimeline } from '../../services/missionResponseService'
 import { formatMissionDate, formatMissionDateTime, missionRecurrenceLabel } from '../../Utils/missionDisplay'
+import { missionSourceKind, missionSourceOpenLabelKey } from '../../Utils/missionSourceLink'
 import { MissionTimeline } from './MissionTimeline'
 import type { MissionTimelineEntry, TeamMission } from '../../Types/mission'
 
@@ -87,6 +88,7 @@ export function MissionDetailModal({
     ? nextAutoRecurrenceDueDate(mission.dueDate, mission.recurrenceType)
     : null
   const shortage = missionShortageLabel(mission.sourceVin, mission.sourceModelName)
+  const sourceKind = missionSourceKind(mission)
 
   return (
     <Modal
@@ -118,14 +120,14 @@ export function MissionDetailModal({
               {t('missions.delegate.open')}
             </button>
           )}
-          {shortage && onOpenShortage && (
+          {sourceKind && onOpenShortage && (
             <button
               type="button"
               onClick={onOpenShortage}
               className="inline-flex items-center gap-2 rounded-xl border border-amber-500/40 bg-amber-500/10 px-4 py-2 text-sm font-bold text-amber-200 hover:bg-amber-500/20"
             >
               <Car className="h-4 w-4" />
-              {t('missions.detail.openShortage')}
+              {t(missionSourceOpenLabelKey(sourceKind))}
             </button>
           )}
           <button

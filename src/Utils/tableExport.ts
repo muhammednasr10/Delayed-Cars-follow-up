@@ -48,8 +48,21 @@ function columnLetter(index: number): string {
 
 function textUnits(value: string): number {
   let width = 0
-  for (const ch of value) width += ch.charCodeAt(0) > 255 ? 1.8 : 1.1
+  for (const line of value.split('\n')) {
+    let lineWidth = 0
+    for (const ch of line) lineWidth += ch.charCodeAt(0) > 255 ? 1.8 : 1.1
+    width = Math.max(width, lineWidth)
+  }
   return width
+}
+
+function rowLineCount(row: Array<string | number>): number {
+  let max = 1
+  for (const cell of row) {
+    const lines = String(cell ?? '').split('\n').length
+    if (lines > max) max = lines
+  }
+  return max
 }
 
 export function excelTableBlocks(rows: Array<Array<string | number>>): { start: number; end: number; width: number }[] {
@@ -134,7 +147,8 @@ export function excelSharedStringsXml(strings: Map<string, number>): string {
   const ordered = [...strings.entries()].sort((a, b) => a[1] - b[1]).map(([text]) => text)
   const items = ordered
     .map(text => {
-      const space = /^\s|\s$/.test(text) ? ' xml:space="preserve"' : ''
+      // Preserve leading/trailing spaces and multi-line cell values (reasons, VINs, …).
+      const space = /^\s|\s$|\n|\t/.test(text) ? ' xml:space="preserve"' : ''
       return `<si><t${space}>${xmlEscape(text)}</t></si>`
     })
     .join('')
@@ -174,7 +188,8 @@ export function excelWorksheetXml(sheet: ExcelSheet, strings = new Map<string, n
         if (text === '') return `<c r="${ref}" s="${style}"/>`
         return `<c r="${ref}" t="s" s="${style}"><v>${sharedStringIndex(strings, text)}</v></c>`
       }).join('')
-      return `<row r="${rowIndex + 1}" ht="22" customHeight="1">${cells}</row>`
+      const ht = Math.max(22, rowLineCount(row) * 18)
+      return `<row r="${rowIndex + 1}" ht="${ht}" customHeight="1">${cells}</row>`
     })
     .join('')
 

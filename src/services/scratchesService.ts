@@ -139,7 +139,19 @@ export async function createScratch(input: ScratchInput): Promise<ScratchRecord>
     result = await client.from('scratches').insert(withoutActionTaken(payload)).select(SELECT).single()
   }
   if (result.error) throw new Error(result.error.message)
-  return mapRow(result.data as Row)
+  const row = mapRow(result.data as Row)
+  const { tryCreateAutoRoutedMission } = await import('./missionAutoRouteService')
+  const { scratchMissionTitle } = await import('../Utils/missionAutoRouteTitles')
+  const { scratchDefectLabel } = await import('../Utils/scratchFilters')
+  await tryCreateAutoRoutedMission({
+    eventType: 'scratch',
+    title: scratchMissionTitle(row.vin, row.modelName),
+    description: [row.vin, row.modelName, scratchDefectLabel(row.notes), row.bodyArea].filter(Boolean).join(' · '),
+    sourceScratchId: row.id,
+    sourceVin: row.vin,
+    sourceModelName: row.modelName ?? null
+  })
+  return row
 }
 
 export async function updateScratch(id: string, input: ScratchInput): Promise<ScratchRecord> {

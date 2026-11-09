@@ -16,7 +16,8 @@ import { useFormatError } from '../hooks/useFormatError'
 import { useVinListConflict } from '../hooks/useVinListConflict'
 import { MpIssueLookupsFields } from './missingParts/MpIssueLookupsFields'
 import { ReasonItemsField } from './missingParts/ReasonItemsField'
-import { defaultDepartmentCode, defaultReasonCode } from '../Utils/mpLookupLabel'
+import { defaultAdministrationId } from '../Utils/employeeOrgPicker'
+import { defaultReasonCode } from '../Utils/mpLookupLabel'
 import { isValidVinLength } from '../Utils/vinValidation'
 import { normalizeVinKey, chassisNeedingListConflictCheck } from '../Utils/vinListConflict'
 import { earliestCreatedAt, fromDatetimeLocalValue, toDatetimeLocalValue, uniqueIssueReps } from '../Utils/missingPartPageUtils'
@@ -642,7 +643,7 @@ export function EditReportGroupModal({ group, activeListParts = [], onClose, onS
                       ids: [],
                       partItems: [''],
                       reason: defaultReasonCode(reasons) || prev[0]?.reason || '',
-                      department: defaultDepartmentCode(departments) || prev[0]?.department || '',
+                      department: defaultAdministrationId(orgUnits) || prev[0]?.department || '',
                       completingDepartment: '',
                       followUpEmployeeId: '',
                       followUpEmployeeIds: [],

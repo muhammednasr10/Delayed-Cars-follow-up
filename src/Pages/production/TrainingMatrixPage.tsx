@@ -10,6 +10,7 @@ import { getStations, getVehicleModels } from '../../services/settingsService'
 import { useAssemblyWorkforceScope } from '../../hooks/useAssemblyWorkforceScope'
 import { usePageCrud } from '../../hooks/usePageCrud'
 import { filterAssemblyWorkforce, isAssemblyWorkforceFilterMissing } from '../../Utils/assemblyWorkforce'
+import { filterWorkforceByOrgUnit } from '../../Utils/externalRepairWorkforce'
 import { OrgStructurePage } from '../shared/OrgStructurePage'
 import { WorkforceAttendanceSection } from '../../Components/WorkforceAttendanceSection'
 import { WorkforceManpowerSection } from '../../Components/WorkforceManpowerSection'
@@ -21,7 +22,13 @@ import { OperationQualificationTab } from '../../Components/training/OperationQu
 import type { Station, VehicleModel } from '../../Types/settings'
 import type { FactoryOrgUnit } from '../../Types/factoryOrg'
 
-export function TrainingMatrixPage() {
+type Props = {
+  /** عند التمرير: تقييد العمالة بوحدة تنظيمية (مثل قسم تحت الإصلاح الخارجي). */
+  workforceOrgUnitId?: string | null
+  workforceLabel?: string
+}
+
+export function TrainingMatrixPage({ workforceOrgUnitId = null, workforceLabel }: Props = {}) {
   const { t } = useLang()
   const { hasPermission } = usePermissions()
   const attendanceCrud = usePageCrud('production_training__attendance', 'employees')
@@ -31,10 +38,20 @@ export function TrainingMatrixPage() {
 
   const { employees: allEmployees } = useEmployees()
   const [orgUnits, setOrgUnits] = useState<FactoryOrgUnit[]>([])
-  const assemblyEmployees = useMemo(() => filterAssemblyWorkforce(allEmployees, orgUnits), [allEmployees, orgUnits])
-  const { scopedEmployees: employees, isScopedView, scopeLabel } = useAssemblyWorkforceScope(assemblyEmployees)
-  const assemblyFilterMissing = useMemo(() => isAssemblyWorkforceFilterMissing(orgUnits), [orgUnits])
-  const assemblyWorkforceEmpty = orgUnits.length > 0 && employees.length === 0 && allEmployees.some(e => e.isActive)
+  const scopedByArea = useMemo(() => {
+    if (workforceOrgUnitId) return filterWorkforceByOrgUnit(allEmployees, orgUnits, workforceOrgUnitId)
+    return filterAssemblyWorkforce(allEmployees, orgUnits)
+  }, [allEmployees, orgUnits, workforceOrgUnitId])
+  const assemblyScope = useAssemblyWorkforceScope(workforceOrgUnitId ? [] : scopedByArea)
+  const employees = workforceOrgUnitId ? scopedByArea : assemblyScope.scopedEmployees
+  const isScopedView = workforceOrgUnitId ? Boolean(workforceLabel) : assemblyScope.isScopedView
+  const scopeLabel = workforceOrgUnitId ? workforceLabel ?? null : assemblyScope.scopeLabel
+  const assemblyFilterMissing = useMemo(
+    () => (workforceOrgUnitId ? false : isAssemblyWorkforceFilterMissing(orgUnits)),
+    [orgUnits, workforceOrgUnitId]
+  )
+  const assemblyWorkforceEmpty =
+    orgUnits.length > 0 && employees.length === 0 && allEmployees.some(e => e.isActive)
   const { skills } = useTrainingSkills()
   const { required } = useStationRequiredSkills()
   const { records, reload: reloadRecords } = useEmployeeTrainingRecords()
@@ -82,7 +99,13 @@ export function TrainingMatrixPage() {
         <div className="rounded-xl border border-red-500/30 bg-red-500/10 p-3 text-sm text-red-200">{error}</div>
       )}
 
-      {tab === 'org' && <OrgStructurePage embedded workforceScope="assembly" />}
+      {tab === 'org' && (
+        <OrgStructurePage
+          embedded
+          workforceScope={workforceOrgUnitId ? 'all' : 'assembly'}
+          orgUnitFilterId={workforceOrgUnitId}
+        />
+      )}
       {isScopedView && tab !== 'org' && (
         <div className="rounded-xl border border-cyan-500/25 bg-cyan-500/10 p-3 text-sm text-cyan-100">
           {scopeLabel ? t('org.scopeBanner', { scope: scopeLabel }) : t('org.assemblySupervisorScopeHint')}
@@ -97,7 +120,7 @@ export function TrainingMatrixPage() {
           )}
           {assemblyWorkforceEmpty && (
             <div className="rounded-xl border border-amber-500/30 bg-amber-500/10 p-3 text-sm text-amber-100">
-              {t('attendance.assemblyFilterEmpty')}
+              {workforceOrgUnitId ? t('externalRepair.workforceEmpty') : t('attendance.assemblyFilterEmpty')}
             </div>
           )}
           <WorkforceAttendanceSection employees={employees} canManage={attendanceCrud.canManage} />

@@ -9,7 +9,8 @@ import { reportMissingPartsBatch, updateMissingPartRecord, updateMissingPartsEnt
 import { updateVehicle, updateVehicleShortageResolvedAt } from '../services/vehiclesService'
 import { getVehicleColors, getVehicleModels } from '../services/settingsService'
 import { resolveFamilyIdForVariant } from '../Components/VehicleModelFamilyPicker'
-import { defaultDepartmentCode, defaultReasonCode } from '../Utils/mpLookupLabel'
+import { defaultAdministrationId } from '../Utils/employeeOrgPicker'
+import { defaultReasonCode } from '../Utils/mpLookupLabel'
 import { isValidVinLength } from '../Utils/vinValidation'
 import { earliestCreatedAt, fromDatetimeLocalValue, toDatetimeLocalValue } from '../Utils/missingPartPageUtils'
 import { normalizeVinKey } from '../Utils/vinListConflict'
@@ -249,7 +250,10 @@ export function useEditMissingPartForm({ vehicle, activeListParts = [], onSaved,
   function addExistingStyleIssue() {
     setNewIssues(prev => [
       ...prev,
-      newIssueDraft(defaultReasonCode(reasons) || lines[0]?.reason || '', defaultDepartmentCode(departments) || lines[0]?.department || '')
+      newIssueDraft(
+        defaultReasonCode(reasons) || lines[0]?.reason || '',
+        defaultAdministrationId(orgUnits) || lines[0]?.department || ''
+      )
     ])
   }
 

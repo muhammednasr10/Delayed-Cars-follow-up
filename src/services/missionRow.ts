@@ -23,9 +23,12 @@ export type MissionDbRow = {
   source_vehicle_id?: string | null
   source_missing_part_id?: string | null
   source_scratch_id?: string | null
+  source_damaged_part_id?: string | null
+  source_internal_quality_id?: string | null
   source_quality_note_id?: string | null
   source_vin?: string | null
   source_model_name?: string | null
+  auto_route_event?: string | null
   parent_model_id?: string | null
   variant_model_id?: string | null
   vehicle_count?: number | null
@@ -106,9 +109,12 @@ export function mapMissionRow(row: MissionDbRow): TeamMission {
     sourceVehicleId: row.source_vehicle_id ?? null,
     sourceMissingPartId: row.source_missing_part_id ?? null,
     sourceScratchId: row.source_scratch_id ?? null,
+    sourceDamagedPartId: row.source_damaged_part_id ?? null,
+    sourceInternalQualityId: row.source_internal_quality_id ?? null,
     sourceQualityNoteId: row.source_quality_note_id ?? null,
     sourceVin: row.source_vin ?? null,
     sourceModelName: row.source_model_name ?? null,
+    autoRouteEvent: row.auto_route_event ?? null,
     parentModelId: row.parent_model_id ?? null,
     parentModelName: null,
     variantModelId: row.variant_model_id ?? null,
@@ -163,11 +169,15 @@ export function toMissionPayload(input: TeamMissionInput) {
     input.sourceVehicleId !== undefined ||
     input.sourceScratchId !== undefined ||
     input.sourceMissingPartId !== undefined ||
+    input.sourceDamagedPartId !== undefined ||
+    input.sourceInternalQualityId !== undefined ||
     input.sourceQualityNoteId !== undefined
   ) {
     payload.source_vehicle_id = input.sourceVehicleId || null
     payload.source_missing_part_id = input.sourceMissingPartId || null
     payload.source_scratch_id = input.sourceScratchId || null
+    payload.source_damaged_part_id = input.sourceDamagedPartId || null
+    payload.source_internal_quality_id = input.sourceInternalQualityId || null
     payload.source_quality_note_id = input.sourceQualityNoteId || null
     payload.source_vin = input.sourceVin?.trim() || null
     payload.source_model_name = input.sourceModelName?.trim() || null

@@ -11,6 +11,7 @@ export type ProductionPage =
   | 'requests'
   | 'scratches'
   | 'equipment'
+  | 'internalQuality'
   | 'feedback'
   | 'workerProfile'
   | 'settings'
@@ -64,7 +65,18 @@ export type LineBalancingTab = (typeof LINE_BALANCING_TAB_ORDER)[number]
 export type TrainingTab =
   'org' | 'attendance' | 'manpower' | 'operations' | 'stationSkills' | 'matrix' | 'qualification' | 'expiry'
 
-export const SETTINGS_TAB_ORDER = ['administrations', 'models', 'stations', 'colors', 'helperLists', 'users'] as const
+export const TRAINING_TAB_ORDER = [
+  'org',
+  'attendance',
+  'manpower',
+  'operations',
+  'stationSkills',
+  'matrix',
+  'qualification',
+  'expiry'
+] as const satisfies readonly TrainingTab[]
+
+export const SETTINGS_TAB_ORDER = ['administrations', 'models', 'stations', 'colors', 'helperLists', 'equipment', 'users'] as const
 
 export type SettingsTab = (typeof SETTINGS_TAB_ORDER)[number]
 

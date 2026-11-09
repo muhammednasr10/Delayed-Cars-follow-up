@@ -12,13 +12,16 @@ type Props = {
   emptyLabel?: string
   /** When false, empty option is only shown while nothing is selected (disabled placeholder). */
   allowEmpty?: boolean
+  /** Hide per-level labels (إدارة / قسم / …) — useful when the outer field already has a title. */
+  hideLevelLabels?: boolean
 }
 
 function selectCls() {
   return 'input-dark'
 }
 
-function Field({ label, children }: { label: string; children: ReactNode }) {
+function Field({ label, children }: { label?: string; children: ReactNode }) {
+  if (!label) return <div className="block">{children}</div>
   return (
     <label className="block space-y-1.5">
       <span className="text-sm font-bold text-slate-300">{label}</span>
@@ -33,7 +36,8 @@ export function EmployeeOrgUnitPicker({
   onChange,
   className,
   emptyLabel,
-  allowEmpty = true
+  allowEmpty = true,
+  hideLevelLabels = false
 }: Props) {
   const { t } = useLang()
   const blank = emptyLabel ?? '—'
@@ -54,12 +58,23 @@ export function EmployeeOrgUnitPicker({
     onChange(next)
   }
 
+  const singleCompact = hideLevelLabels && levels.length <= 1
+
   return (
-    <div className={`grid grid-cols-1 gap-4 sm:grid-cols-2 ${className ?? ''}`}>
+    <div
+      className={
+        singleCompact
+          ? className ?? ''
+          : `grid grid-cols-1 gap-4 sm:grid-cols-2 ${className ?? ''}`
+      }
+    >
       {levels.map(level => {
         const showEmpty = allowEmpty || !level.selectedId || level.depth > 0
         return (
-          <Field key={level.depth} label={orgLevelLabel(level.parentId, units, t)}>
+          <Field
+            key={level.depth}
+            label={hideLevelLabels ? undefined : orgLevelLabel(level.parentId, units, t)}
+          >
             <select
               className={selectCls()}
               value={level.selectedId}

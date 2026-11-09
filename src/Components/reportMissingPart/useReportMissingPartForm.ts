@@ -7,7 +7,8 @@ import { useMissingPartsUiPermissions } from '../../hooks/useMissingPartsUiPermi
 import { useLang } from '../../i18n/LanguageContext'
 import { getVehicleColors, getVehicleModels } from '../../services/settingsService'
 import { findExistingVehicleVins, getMissingPartsByVins, reportMissingPartsBatch } from '../../services/missingPartsService'
-import { defaultDepartmentCode, defaultReasonCode, isStockShortageReason } from '../../Utils/mpLookupLabel'
+import { defaultAdministrationId } from '../../Utils/employeeOrgPicker'
+import { isStockShortageReason } from '../../Utils/mpLookupLabel'
 import { isValidVinLength, normalizeChassisVin } from '../../Utils/vinValidation'
 import { duplicateVinIndices } from '../../Utils/vinListConflict'
 import type { MissingPartDetail } from '../../Types/missingPart'
@@ -50,24 +51,24 @@ export function useReportMissingPartForm(
 
   const selectedModelName = models.find(m => m.id === vehicle.modelId)?.name ?? ''
 
+  const defaultAdminId = defaultAdministrationId(orgUnits)
+
   useEffect(() => {
-    if (!open || reasons.length === 0 || departments.length === 0) return
+    if (!open || !defaultAdminId) return
     setIssues(prev =>
       prev.map(l => ({
         ...l,
-        reason: l.reason || defaultReasonCode(reasons),
-        department: l.department || defaultDepartmentCode(departments)
+        department: l.department || defaultAdminId
       }))
     )
-  }, [open, reasons, departments])
+  }, [open, defaultAdminId])
 
   useEffect(() => {
     if (!open) return
     setIssues([
       {
         ...newIssueLine(),
-        reason: defaultReasonCode(reasons),
-        department: defaultDepartmentCode(departments)
+        department: defaultAdminId
       }
     ])
     setVehicle(emptyVehicle)
@@ -85,7 +86,7 @@ export function useReportMissingPartForm(
       })
       .catch(err => setFormError(formatError(err)))
       .finally(() => setListsLoading(false))
-  }, [open, formatError, reasons, departments])
+  }, [open, formatError, defaultAdminId])
 
   function patchIssue(key: string, patch: Partial<IssueLineDraft>) {
     setIssues(prev => prev.map(l => (l.key === key ? { ...l, ...patch } : l)))
@@ -170,8 +171,7 @@ export function useReportMissingPartForm(
       ...prev,
       {
         ...newIssueLine(),
-        reason: defaultReasonCode(reasons),
-        department: defaultDepartmentCode(departments)
+        department: defaultAdminId
       }
     ])
   }
@@ -267,6 +267,9 @@ export function useReportMissingPartForm(
       }))
     )
     if (expandedParts.length === 0) missing.push(t('mp.errOneIssue'))
+    if (issues.some(line => issuePartDescriptions(line).length > 0 && !line.reason.trim())) {
+      missing.push(t('mp.errReasonClass'))
+    }
 
     const vinList = vehicle.vins.map(v => normalizeChassisVin(v).toUpperCase()).filter(Boolean)
     if (vinList.length !== vehicle.vehicleCount) missing.push(t('mp.errAllVins'))

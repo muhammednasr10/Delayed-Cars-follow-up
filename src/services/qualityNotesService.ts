@@ -116,7 +116,24 @@ export async function createQualityNote(
 ): Promise<QualityNoteRecord> {
   const { data, error } = await requireClient().from('quality_notes').insert(toPayload(input)).select(SELECT).single()
   if (error) throw new Error(error.message)
-  return mapRow(data as Row, modelNameById)
+  const row = mapRow(data as Row, modelNameById)
+  const { tryCreateAutoRoutedMission } = await import('./missionAutoRouteService')
+  const { externalQualityMissionTitle } = await import('../Utils/missionAutoRouteTitles')
+  await tryCreateAutoRoutedMission({
+    eventType: 'external_quality',
+    title: externalQualityMissionTitle(row.description),
+    description: [
+      row.description,
+      row.modelNames.length ? `الموديل: ${row.modelNames.join(', ')}` : '',
+      row.vins.length ? `الشاسيه: ${row.vins.join(', ')}` : ''
+    ]
+      .filter(Boolean)
+      .join('\n'),
+    sourceQualityNoteId: row.id,
+    sourceVin: row.vins[0] ?? null,
+    sourceModelName: row.modelNames.join(', ') || null
+  })
+  return row
 }
 
 export async function updateQualityNote(

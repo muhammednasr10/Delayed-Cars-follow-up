@@ -12,6 +12,7 @@ import {
 import { useLang } from '../../i18n/LanguageContext'
 import type { FactoryOrgUnit } from '../../Types/factoryOrg'
 import type { MissingPartDetail, MissingPartFilters, MissingPartsListTab } from '../../Types/missingPart'
+import type { MpLookupOption } from '../../Types/mpLookup'
 import { MissingPartsModelSummaryTable } from './MissingPartsModelSummaryTable'
 import { MissingPartsToolbarFilters } from './MissingPartsToolbarFilters'
 
@@ -37,6 +38,7 @@ type Props = {
   onFiltersChange: (patch: Partial<MissingPartFilters>) => void
   modelOptions: string[]
   orgUnits: FactoryOrgUnit[]
+  reasons: MpLookupOption[]
   canReport: boolean
   role: string
   onReport: () => void
@@ -67,6 +69,7 @@ export function MissingPartsToolbar({
   onFiltersChange,
   modelOptions,
   orgUnits,
+  reasons,
   canReport,
   role,
   onReport,
@@ -150,7 +153,7 @@ export function MissingPartsToolbar({
 
   function selectTopTab(key: TopTabKey) {
     if (key === 'current') {
-      if (!onCurrentGroup) onListTabChange(visibleTabs.includes('active') ? 'active' : 'byFamily')
+      if (!onCurrentGroup) onListTabChange(visibleTabs.includes('byFamily') ? 'byFamily' : 'active')
       return
     }
     if (key === 'report') {
@@ -280,6 +283,7 @@ export function MissingPartsToolbar({
         onFiltersChange={onFiltersChange}
         modelOptions={modelOptions}
         orgUnits={orgUnits}
+        reasons={reasons}
       />
     </div>
   )

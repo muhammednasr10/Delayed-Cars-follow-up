@@ -1,6 +1,6 @@
 import type { Employee } from '../../Types/employee'
 import type { TeamMission } from '../../Types/mission'
-import { missionShortageLabel } from '../../Utils/missionPeople'
+import { missionSourceKind } from '../../Utils/missionSourceLink'
 import { MissionDelegateModal } from './MissionDelegateModal'
 import { MissionDetailModal } from './MissionDetailModal'
 import { MissionRespondModal } from './MissionRespondModal'
@@ -52,9 +52,7 @@ export function MissionListModals({
         canRespond={canRespond}
         onRespond={onRespond}
         onOpenShortage={
-          mission && missionShortageLabel(mission.sourceVin) && onOpenShortage
-            ? () => onOpenShortage(mission)
-            : undefined
+          mission && missionSourceKind(mission) && onOpenShortage ? () => onOpenShortage(mission) : undefined
         }
         refreshKey={refreshKey}
       />

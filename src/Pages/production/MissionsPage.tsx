@@ -1,15 +1,16 @@
 import { useCallback, useState } from 'react'
-import { Archive, ListTodo, Trophy, UserCircle, Users } from 'lucide-react'
+import { Archive, ListTodo, Pin, Trophy, UserCircle, Users } from 'lucide-react'
 import { useLang } from '../../i18n/LanguageContext'
 import { PageTabShell } from '../../Components/layout/PageTabShell'
 import { MissionsArchiveTab } from '../../Components/missions/MissionsArchiveTab'
 import { MissionsBoardTab } from '../../Components/missions/MissionsBoardTab'
+import { MissionsFixedRoutesTab } from '../../Components/missions/MissionsFixedRoutesTab'
 import { MissionsMyTab } from '../../Components/missions/MissionsMyTab'
 import { MissionsLeaderboardTab } from '../../Components/missions/MissionsLeaderboardTab'
 import { useOpenMissionsTab } from '../../hooks/useOpenMissionsTab'
 import type { OpenMissionsTab } from '../../Utils/openMissionsTab'
 
-type MissionTab = 'my' | 'board' | 'archive' | 'leaderboard'
+type MissionTab = 'my' | 'board' | 'fixed' | 'archive' | 'leaderboard'
 
 export function MissionsPage() {
   const { t } = useLang()
@@ -32,6 +33,7 @@ export function MissionsPage() {
   const tabs: { key: MissionTab; label: string; icon: typeof Users }[] = [
     { key: 'my', label: t('missions.tabs.my'), icon: UserCircle },
     { key: 'board', label: t('missions.tabs.board'), icon: Users },
+    { key: 'fixed', label: t('missions.tabs.fixed'), icon: Pin },
     { key: 'archive', label: t('missions.tabs.archive'), icon: Archive },
     { key: 'leaderboard', label: t('missions.tabs.leaderboard'), icon: Trophy }
   ]
@@ -60,6 +62,7 @@ export function MissionsPage() {
           openedSearchKey={openedSearchKey}
         />
       )}
+      {tab === 'fixed' && <MissionsFixedRoutesTab />}
       {tab === 'archive' && (
         <MissionsArchiveTab
           onChanged={() => setLeaderboardKey(k => k + 1)}

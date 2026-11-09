@@ -24,6 +24,15 @@ export function productionAreaOrgUnitId(units: FactoryOrgUnit[], area: Productio
   return null
 }
 
+/** الأقسام/الوحدات الفرعية تحت الإصلاح الخارجي من الهيكل في الإعدادات. */
+export function externalRepairSections(units: FactoryOrgUnit[]): FactoryOrgUnit[] {
+  const parentId = productionAreaOrgUnitId(units, 'externalRepair')
+  if (!parentId) return []
+  return units
+    .filter(unit => unit.isActive && unit.parentId === parentId)
+    .sort((a, b) => a.sortOrder - b.sortOrder || a.name.localeCompare(b.name, 'ar'))
+}
+
 type WorkforceEmployee = Pick<Employee, 'id' | 'isActive' | 'factoryOrgUnitId'>
 
 /** null عندما قسم المنطقة غير موجود في الهيكل. */

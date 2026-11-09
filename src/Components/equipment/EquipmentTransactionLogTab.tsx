@@ -12,6 +12,8 @@ import {
 } from '../../services/equipmentService'
 import type { EquipmentTransactionType, EquipmentType, LineEquipmentTransaction } from '../../Types/equipment'
 import { EQUIPMENT_TRANSACTION_TYPES } from '../../Types/equipment'
+import { FALLBACK_EQUIPMENT_KINDS, type EquipmentKind } from '../../Types/equipmentKind'
+import { equipmentKindLabel } from '../../Utils/equipmentKindLabel'
 
 const cell = 'table-cell text-center align-middle whitespace-nowrap px-3 py-2.5'
 
@@ -22,7 +24,11 @@ function isSchemaMissing(message: string): boolean {
 
 type TxFilter = EquipmentTransactionType | 'all'
 
-export function EquipmentTransactionLogTab() {
+type Props = {
+  kinds?: EquipmentKind[]
+}
+
+export function EquipmentTransactionLogTab({ kinds = FALLBACK_EQUIPMENT_KINDS }: Props) {
   const { t, lang } = useLang()
   const { hasRole } = useAuth()
   const canManage = hasRole('admin', 'production')
@@ -68,6 +74,16 @@ export function EquipmentTransactionLogTab() {
     () => (typeFilter === 'all' ? items : items.filter(i => i.equipmentType === typeFilter)),
     [items, typeFilter]
   )
+
+  const typeOptions = useMemo(() => {
+    const codes = new Set(kinds.map(k => k.code))
+    for (const row of items) if (row.equipmentType) codes.add(row.equipmentType)
+    return [...codes]
+  }, [kinds, items])
+
+  function typeLabel(code: string) {
+    return equipmentKindLabel(code, kinds, lang)
+  }
 
   const stats = useMemo(
     () => ({
@@ -228,9 +244,11 @@ export function EquipmentTransactionLogTab() {
             onChange={e => setTypeFilter(e.target.value as EquipmentType | 'all')}
           >
             <option value="all">{t('common.all')}</option>
-            <option value="rivet_gun">{t('equipment.types.rivet_gun')}</option>
-            <option value="torque_wrench">{t('equipment.types.torque_wrench')}</option>
-            <option value="other">{t('equipment.types.other')}</option>
+            {typeOptions.map(code => (
+              <option key={code} value={code}>
+                {typeLabel(code)}
+              </option>
+            ))}
           </select>
         </Field>
       </div>
@@ -281,7 +299,7 @@ export function EquipmentTransactionLogTab() {
                 <tr key={row.id} className="bg-slate-900/30 hover:bg-slate-800/40">
                   <td className={`${cell} text-slate-300`}>{formatDt(row.occurredAt)}</td>
                   <td className={`${cell} font-mono font-bold text-sky-200`}>{row.equipmentCode}</td>
-                  <td className={`${cell} text-slate-300`}>{t(`equipment.types.${row.equipmentType}`)}</td>
+                  <td className={`${cell} text-slate-300`}>{typeLabel(row.equipmentType)}</td>
                   <td className={cell}>{txBadge(row.transactionType)}</td>
                   <td className={`${cell} max-w-[14rem]`}>{detailCell(row)}</td>
                   <td className={`${cell} max-w-[10rem] truncate text-slate-400`}>{row.notes || '—'}</td>

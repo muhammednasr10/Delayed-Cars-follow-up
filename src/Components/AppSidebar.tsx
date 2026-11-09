@@ -34,6 +34,7 @@ import { DEPARTMENTS, departmentAccentClass } from '../config/departments'
 import { DeveloperCredit } from './DeveloperCredit'
 import type { DepartmentId, EngineeringPage, ProductionPage } from '../Types/navigation'
 import { SETTINGS_TAB_ORDER, PRODUCTION_AREA_ORDER, BOM_TAB_ORDER, bomTabPermissionKey } from '../Types/navigation'
+import { useDepartmentNavPages } from '../hooks/useDepartmentNavPages'
 
 type PageChild = { key: string; label: string; onClick: () => void; visible?: boolean }
 
@@ -96,6 +97,8 @@ export function AppSidebar() {
     onNavigate: () => sidebarNav({ department: 'production', productionPage: 'overview' })
   }
 
+  const { externalRepairPages } = useDepartmentNavPages()
+
   const productionAreaPages: SidebarPage[] = PRODUCTION_AREA_ORDER.map(key => ({
     key,
     label: t(`departments.productionArea.${key}`),
@@ -104,8 +107,11 @@ export function AppSidebar() {
       sidebarNav({
         department: 'production',
         productionArea: key,
-        ...(key === 'assembly' || key === 'body' || key === 'paint' || nav.productionPage === 'overview'
-          ? { productionPage: 'home' }
+        ...(key === 'assembly' || key === 'body' || key === 'paint' || key === 'externalRepair' || nav.productionPage === 'overview'
+          ? {
+              productionPage: key === 'externalRepair' ? 'training' : 'home',
+              ...(key === 'externalRepair' ? { trainingTab: 'org' as const } : { externalRepairSectionId: null })
+            }
           : {})
       })
   }))
@@ -200,6 +206,13 @@ export function AppSidebar() {
       visible: navLoading || canViewPage(pagePermForProduction('equipment')),
       onNavigate: () =>
         sidebarNav({ department: 'production', productionArea: 'assembly', productionPage: 'equipment' })
+    },
+    {
+      key: 'internalQuality',
+      label: t('nav.internalQuality'),
+      visible: navLoading || canViewPage(pagePermForProduction('internalQuality')),
+      onNavigate: () =>
+        sidebarNav({ department: 'production', productionArea: 'assembly', productionPage: 'internalQuality' })
     },
     {
       key: 'feedback',
@@ -643,6 +656,32 @@ export function AppSidebar() {
                   nav.productionArea === 'paint' &&
                   nav.productionPage !== 'overview' &&
                   renderPages('production', paintPages, isPaintActive)}
+                {deptOpen &&
+                  isProduction &&
+                  nav.productionArea === 'externalRepair' &&
+                  nav.productionPage !== 'overview' &&
+                  renderPages(
+                    'production',
+                    externalRepairPages.map(page => ({
+                      key: page.key,
+                      label: page.label,
+                      visible: page.visible,
+                      icon: page.icon,
+                      onNavigate: page.onNavigate,
+                      children: page.children?.map(child => ({
+                        key: child.key,
+                        label: child.label,
+                        onClick: child.onClick,
+                        visible: child.visible
+                      }))
+                    })),
+                    key =>
+                      !nav.showProfile &&
+                      !nav.showGlobalHome &&
+                      nav.department === 'production' &&
+                      nav.productionArea === 'externalRepair' &&
+                      nav.externalRepairSectionId === key
+                  )}
                 {deptOpen && isPlanning && renderPages('planning', planningPages, isPlanningActive)}
                 {deptOpen && isEngineering && renderPages('engineering', engineeringPages, isEngineeringActive)}
                 {deptOpen && isWarehouses && renderPages('warehouses', warehousesPages, isWarehousesActive)}

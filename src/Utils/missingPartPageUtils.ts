@@ -16,6 +16,32 @@ function isEmptyDepartmentValue(value: string | null | undefined): boolean {
   return !value?.trim()
 }
 
+/**
+ * Unique vehicles that still need a value for the field (at least one line empty).
+ * Badge shows remaining work — 0 means everything is assigned.
+ */
+export function countVehiclesWithUnassignedField(
+  items: MissingPartDetail[],
+  field: (item: MissingPartDetail) => string | null | undefined
+): number {
+  const missing = new Set<string>()
+  for (const item of items) {
+    if (isEmptyDepartmentValue(field(item))) missing.add(item.vehicleId)
+  }
+  return missing.size
+}
+
+function matchesReasonFilter(rowReason: string | null | undefined, filterReasons: string[]): boolean {
+  if (filterReasons.length === 0) return true
+  const wantsUnassigned = filterReasons.includes(MP_FILTER_UNASSIGNED)
+  const codes = filterReasons.filter(code => code !== MP_FILTER_UNASSIGNED)
+  const empty = isEmptyDepartmentValue(rowReason)
+  if (wantsUnassigned && empty) return true
+  if (codes.length === 0) return false
+  if (empty) return false
+  return codes.includes(rowReason!.trim())
+}
+
 export const ACTIVE_COLS = [
   'select',
   'vin',
@@ -137,6 +163,7 @@ export function hasActiveMissingPartFilters(filters: MissingPartFilters): boolea
       filters.modelNames.length > 0 ||
       filters.departments.length > 0 ||
       filters.completingDepartments.length > 0 ||
+      (filters.reasons?.length ?? 0) > 0 ||
       filters.followUpEmployeeId ||
       filters.resolvedMonth ||
       filters.dateFrom ||
@@ -156,10 +183,12 @@ export function applyFilters(
   const dateFrom = filters.dateFrom?.trim() ?? ''
   const dateTo = filters.dateTo?.trim() ?? ''
   const dateField = options?.dateField ?? 'created'
+  const reasonFilters = filters.reasons ?? []
   const base = items
     .filter(i => models.size === 0 || models.has(i.modelName))
     .filter(i => matchesDepartmentFilter(i.department, filters.departments, orgUnits))
     .filter(i => matchesDepartmentFilter(i.completingDepartment, filters.completingDepartments, orgUnits))
+    .filter(i => matchesReasonFilter(i.reason, reasonFilters))
     .filter(i => {
       const followUp = filters.followUpEmployeeId
       if (!followUp) return true

@@ -23,8 +23,14 @@ function cellText(value: string | number | null | undefined): string {
 function exportedCellText(td: Element): string {
   const marked = td.matches('[data-export-value]') ? td : td.querySelector('[data-export-value]')
   const explicit = marked?.getAttribute('data-export-value')
-  if (explicit != null) return explicit.trim()
-  return td.textContent?.replace(/\s+/g, ' ').trim() ?? ''
+  if (explicit != null) return explicit.replace(/\r\n/g, '\n').trim()
+  // Keep intentional line breaks (stacked reasons / VINs); collapse other whitespace per line.
+  return (td.textContent ?? '')
+    .replace(/\r\n/g, '\n')
+    .split('\n')
+    .map(line => line.replace(/\s+/g, ' ').trim())
+    .filter(Boolean)
+    .join('\n')
 }
 
 export function buildExportData<T>(items: T[], columns: TableExportColumn<T>[]): TableExportData {

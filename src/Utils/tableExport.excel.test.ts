@@ -1,5 +1,11 @@
 import { describe, expect, it } from 'vitest'
-import { excelStylesXml, excelTableBlocks, excelWorksheetXml, type ExcelSheet } from './tableExport'
+import {
+  excelSharedStringsXml,
+  excelStylesXml,
+  excelTableBlocks,
+  excelWorksheetXml,
+  type ExcelSheet
+} from './tableExport'
 
 describe('excel worksheet layout', () => {
   const sheet: ExcelSheet = {
@@ -29,5 +35,21 @@ describe('excel worksheet layout', () => {
     expect(styles).toContain('horizontal="center"')
     expect(styles).toContain('style="thin"')
     expect(styles).toContain('<b/>')
+  })
+
+  it('keeps multi-line reason cells as separate lines with taller rows', () => {
+    const multi: ExcelSheet = {
+      name: 'نواقص',
+      rows: [
+        ['رقم الشاسيه', 'السبب'],
+        ['6814', 'بدون بركت ماسورة التكييف\nبدون بلية شداد سير تكييف']
+      ]
+    }
+    const strings = new Map<string, number>()
+    const xml = excelWorksheetXml(multi, strings)
+    const shared = excelSharedStringsXml(strings)
+    expect(xml).toContain('ht="36"')
+    expect(shared).toContain('xml:space="preserve"')
+    expect(shared).toContain('بدون بركت ماسورة التكييف\nبدون بلية شداد سير تكييف')
   })
 })

@@ -66,7 +66,13 @@ const MissionsPage = lazy(() => import('./Pages/production/MissionsPage').then(m
 const RequestsPage = lazy(() => import('./Pages/production/RequestsPage').then(m => ({ default: m.RequestsPage })))
 const ScratchesPage = lazy(() => import('./Pages/production/ScratchesPage').then(m => ({ default: m.ScratchesPage })))
 const EquipmentPage = lazy(() => import('./Pages/production/EquipmentPage').then(m => ({ default: m.EquipmentPage })))
+const InternalQualityPage = lazy(() =>
+  import('./Pages/production/InternalQualityPage').then(m => ({ default: m.InternalQualityPage }))
+)
 const FeedbackPage = lazy(() => import('./Pages/production/FeedbackPage').then(m => ({ default: m.FeedbackPage })))
+const ExternalRepairPage = lazy(() =>
+  import('./Pages/production/ExternalRepairPage').then(m => ({ default: m.ExternalRepairPage }))
+)
 const PlanningPage = lazy(() => import('./Pages/planning/PlanningPage').then(m => ({ default: m.PlanningPage })))
 const QualityPage = lazy(() => import('./Pages/quality/QualityPage').then(m => ({ default: m.QualityPage })))
 const HrPage = lazy(() => import('./Pages/hr/HrPage').then(m => ({ default: m.HrPage })))
@@ -339,10 +345,16 @@ function Shell() {
                   <LineShopRoutes area="paint" />
                 </LazyPage>
               )}
+              {nav.productionArea === 'externalRepair' && nav.productionPage !== 'overview' && nav.productionPage !== 'settings' && (
+                <LazyPage>
+                  <ExternalRepairPage />
+                </LazyPage>
+              )}
               {nav.productionPage !== 'overview' &&
                 nav.productionArea !== 'assembly' &&
                 nav.productionArea !== 'body' &&
                 nav.productionArea !== 'paint' &&
+                nav.productionArea !== 'externalRepair' &&
                 nav.productionPage !== 'settings' && <ProductionAreaPlaceholderPage area={nav.productionArea} />}
               {nav.productionPage !== 'overview' && nav.productionArea === 'assembly' && (
                 <>
@@ -402,6 +414,12 @@ function Shell() {
                     (navLoading || canViewPage(pagePermForProduction('equipment'))) && (
                       <LazyPage>
                         <EquipmentPage />
+                      </LazyPage>
+                    )}
+                  {nav.productionPage === 'internalQuality' &&
+                    (navLoading || canViewPage(pagePermForProduction('internalQuality'))) && (
+                      <LazyPage>
+                        <InternalQualityPage />
                       </LazyPage>
                     )}
                   {nav.productionPage === 'feedback' &&

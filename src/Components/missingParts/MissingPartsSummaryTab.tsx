@@ -51,7 +51,7 @@ export function MissingPartsSummaryTab({
 }: Props) {
   const { t, lang } = useLang()
   const [view, setView] = useState<SummaryView>('quick')
-  const [departmentLevel, setDepartmentLevel] = useState<DepartmentRollupLevel>('raw')
+  const [departmentLevel, setDepartmentLevel] = useState<DepartmentRollupLevel>('administration')
   const stats = useMemo(() => buildMissingPartSummary(items, variant), [items, variant])
   const isArchive = variant === 'archive'
   const qtyHint = t('mp.summary.dimByModelHint')
@@ -76,11 +76,11 @@ export function MissingPartsSummaryTab({
 
   const top = useMemo(
     () => ({
+      causing: departmentStats.byCausingDepartment,
+      completing: departmentStats.byCompletingDepartment,
       models: sliceTopSummaryRows(stats.byModel, TOP_N),
       reasons: sliceTopSummaryRows(stats.byReason, TOP_N),
       parts: sliceTopSummaryRows(stats.byPart, TOP_N),
-      causing: sliceTopSummaryRows(departmentStats.byCausingDepartment, TOP_N),
-      completing: sliceTopSummaryRows(departmentStats.byCompletingDepartment, TOP_N),
       reporters: sliceTopSummaryRows(stats.byReporter, TOP_N),
       stations: sliceTopSummaryRows(
         stats.byStation.filter(s => s.key !== '—'),
@@ -153,33 +153,9 @@ export function MissingPartsSummaryTab({
 
       {view === 'quick' ? (
         <>
-          {!isArchive && <MissingPartsModelReasonMatrix items={items} reasons={reasons} variant="active" />}
+          <DepartmentLevelFilter level={departmentLevel} onChange={setDepartmentLevel} />
 
           <div className="grid grid-cols-1 gap-4 xl:grid-cols-2">
-            <SummaryRankTable
-              title={t('mp.summary.topModels')}
-              rows={top.models}
-              labelHeader={t('mp.cols.model')}
-              renderLabel={row => row.label ?? row.key}
-              showPending={showPending}
-            />
-            <SummaryRankTable
-              title={t('mp.summary.topReasons')}
-              rows={top.reasons}
-              labelHeader={t('mp.cols.reasonClass')}
-              renderLabel={row => labelForCode(row.code ?? row.key, reasons)}
-              showPending={showPending}
-            />
-            <SummaryRankTable
-              title={t('mp.summary.topParts')}
-              rows={top.parts}
-              labelHeader={t('mp.cols.reason')}
-              renderLabel={row => row.label ?? row.key}
-              showPending={showPending}
-            />
-            <div className="xl:col-span-2">
-              <DepartmentLevelFilter level={departmentLevel} onChange={setDepartmentLevel} />
-            </div>
             <SummaryRankTable
               title={t('mp.summary.topCausingDepartments')}
               rows={top.causing}
@@ -192,6 +168,27 @@ export function MissingPartsSummaryTab({
               rows={top.completing}
               labelHeader={t('mp.cols.completingDepartment')}
               renderLabel={row => labelForCode(row.code ?? row.key, departments)}
+              showPending={showPending}
+            />
+            <SummaryRankTable
+              title={t('mp.summary.topReasons')}
+              rows={top.reasons}
+              labelHeader={t('mp.cols.reasonClass')}
+              renderLabel={row => labelForCode(row.code ?? row.key, reasons)}
+              showPending={showPending}
+            />
+            <SummaryRankTable
+              title={t('mp.summary.topModels')}
+              rows={top.models}
+              labelHeader={t('mp.cols.model')}
+              renderLabel={row => row.label ?? row.key}
+              showPending={showPending}
+            />
+            <SummaryRankTable
+              title={t('mp.summary.topParts')}
+              rows={top.parts}
+              labelHeader={t('mp.cols.reason')}
+              renderLabel={row => row.label ?? row.key}
               showPending={showPending}
             />
             <SummaryRankTable
@@ -211,11 +208,33 @@ export function MissingPartsSummaryTab({
               />
             )}
           </div>
+
+          {!isArchive && <MissingPartsModelReasonMatrix items={items} reasons={reasons} variant="active" />}
         </>
       ) : (
         <div className="space-y-4">
           <p className="text-xs text-slate-500">{qtyHint}</p>
-          {!isArchive && <MissingPartsModelReasonMatrix items={items} reasons={reasons} variant="active" />}
+          <DepartmentLevelFilter level={departmentLevel} onChange={setDepartmentLevel} />
+
+          <MissingPartsDimensionModelQtyMatrix
+            items={departmentScopedItems}
+            variant={variant}
+            title={t('mp.summary.byCausingDepartment')}
+            hint={qtyHint}
+            rowHeader={t('mp.cols.causingDepartment')}
+            getDimension={dimensionCausingDepartment}
+            renderDimensionLabel={code => mpLookupLabel(departments, code, lang)}
+          />
+
+          <MissingPartsDimensionModelQtyMatrix
+            items={departmentScopedItems}
+            variant={variant}
+            title={t('mp.summary.byCompletingDepartment')}
+            hint={qtyHint}
+            rowHeader={t('mp.cols.completingDepartment')}
+            getDimension={dimensionCompletingDepartment}
+            renderDimensionLabel={code => mpLookupLabel(departments, code, lang)}
+          />
 
           <MissingPartsDimensionModelQtyMatrix
             items={items}
@@ -236,27 +255,7 @@ export function MissingPartsSummaryTab({
             getDimension={dimensionPartDescription}
           />
 
-          <MissingPartsDimensionModelQtyMatrix
-            items={departmentScopedItems}
-            variant={variant}
-            title={t('mp.summary.byCausingDepartment')}
-            hint={qtyHint}
-            rowHeader={t('mp.cols.causingDepartment')}
-            getDimension={dimensionCausingDepartment}
-            renderDimensionLabel={code => mpLookupLabel(departments, code, lang)}
-          />
-
-          <DepartmentLevelFilter level={departmentLevel} onChange={setDepartmentLevel} />
-
-          <MissingPartsDimensionModelQtyMatrix
-            items={departmentScopedItems}
-            variant={variant}
-            title={t('mp.summary.byCompletingDepartment')}
-            hint={qtyHint}
-            rowHeader={t('mp.cols.completingDepartment')}
-            getDimension={dimensionCompletingDepartment}
-            renderDimensionLabel={code => mpLookupLabel(departments, code, lang)}
-          />
+          {!isArchive && <MissingPartsModelReasonMatrix items={items} reasons={reasons} variant="active" />}
 
           <MissingPartsDimensionModelQtyMatrix
             items={items}
