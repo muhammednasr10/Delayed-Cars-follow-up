@@ -710,27 +710,11 @@ export async function reportMissingPartsBatch(
   }
 
   const row = data as ReportMissingPartsBatchResult & { vehicle_ids?: string[] }
-  const vehicleIds = Array.isArray(row.vehicle_ids) ? row.vehicle_ids.filter(Boolean) : []
+  const vehicleIds = Array.isArray(row.vehicle_ids) ? [...new Set(row.vehicle_ids.filter(Boolean))] : []
   const noteBody = formatShortageReportNote(
     parts.map(p => p.part_description),
     input.notes
   )
-  if (vehicleIds.length > 0) {
-    await logVehicleActivityNotes(
-      vehicleIds.map(vehicleId => ({ vehicleId, body: noteBody })),
-      { includeWhen: false }
-    )
-  } else {
-    // Fallback: resolve vehicles by reported VINs
-    const { data: vehicleRows } = await requireClient()
-      .from('vehicles')
-      .select('id')
-      .in('vin', vins.map(v => v.toUpperCase()))
-      .eq('is_deleted', false)
-    for (const v of vehicleRows ?? []) {
-      await logVehicleActivityNote((v as { id: string }).id, noteBody, { includeWhen: false })
-    }
-  }
 
   const resolvedIds =
     vehicleIds.length > 0
@@ -745,44 +729,60 @@ export async function reportMissingPartsBatch(
           ).data ?? []
         ).map((v: { id: string }) => v.id)
 
+  // Auto-route is also created server-side in report_missing_parts_batch; this is a fallback.
   if (resolvedIds.length > 0) {
-    const { tryCreateAutoRoutedMission } = await import('./missionAutoRouteService')
-    const { missingPartVehicleMissionTitle } = await import('../Utils/missionAutoRouteTitles')
-    let vehicleMeta: { id: string; vin: string; modelName?: string | null }[] = []
-    {
-      const withModel = await requireClient()
-        .from('vehicles')
-        .select('id, vin, model:vehicle_models!vehicles_model_id_fkey(name)')
-        .in('id', resolvedIds)
-      if (!withModel.error && withModel.data) {
-        vehicleMeta = (withModel.data as {
-          id: string
-          vin: string
-          model?: { name: string } | { name: string }[] | null
-        }[]).map(v => {
-          const modelRel = v.model
-          const modelName = Array.isArray(modelRel) ? modelRel[0]?.name : modelRel?.name
-          return { id: v.id, vin: v.vin, modelName: modelName ?? null }
-        })
-      } else {
-        const plain = await requireClient().from('vehicles').select('id, vin').in('id', resolvedIds)
-        vehicleMeta = ((plain.data ?? []) as { id: string; vin: string }[]).map(v => ({
-          id: v.id,
-          vin: v.vin,
-          modelName: null
-        }))
+    try {
+      const { tryCreateAutoRoutedMission } = await import('./missionAutoRouteService')
+      const { missingPartVehicleMissionTitle } = await import('../Utils/missionAutoRouteTitles')
+      let vehicleMeta: { id: string; vin: string; modelName?: string | null }[] = []
+      {
+        const withModel = await requireClient()
+          .from('vehicles')
+          .select('id, vin, model:vehicle_models!vehicles_model_id_fkey(name)')
+          .in('id', resolvedIds)
+        if (!withModel.error && withModel.data) {
+          vehicleMeta = (withModel.data as {
+            id: string
+            vin: string
+            model?: { name: string } | { name: string }[] | null
+          }[]).map(v => {
+            const modelRel = v.model
+            const modelName = Array.isArray(modelRel) ? modelRel[0]?.name : modelRel?.name
+            return { id: v.id, vin: v.vin, modelName: modelName ?? null }
+          })
+        } else {
+          const plain = await requireClient().from('vehicles').select('id, vin').in('id', resolvedIds)
+          vehicleMeta = ((plain.data ?? []) as { id: string; vin: string }[]).map(v => ({
+            id: v.id,
+            vin: v.vin,
+            modelName: null
+          }))
+        }
       }
+      for (const v of vehicleMeta) {
+        await tryCreateAutoRoutedMission({
+          eventType: 'missing_part_vehicle',
+          title: missingPartVehicleMissionTitle(v.vin, v.modelName),
+          description: noteBody,
+          sourceVehicleId: v.id,
+          sourceVin: v.vin,
+          sourceModelName: v.modelName ?? null
+        })
+      }
+    } catch (e) {
+      console.warn('auto-routed mission after shortage report', e)
     }
-    for (const v of vehicleMeta) {
-      await tryCreateAutoRoutedMission({
-        eventType: 'missing_part_vehicle',
-        title: missingPartVehicleMissionTitle(v.vin, v.modelName),
-        description: noteBody,
-        sourceVehicleId: v.id,
-        sourceVin: v.vin,
-        sourceModelName: v.modelName ?? null
-      })
+  }
+
+  try {
+    if (resolvedIds.length > 0) {
+      await logVehicleActivityNotes(
+        resolvedIds.map(vehicleId => ({ vehicleId, body: noteBody })),
+        { includeWhen: false }
+      )
     }
+  } catch (e) {
+    console.warn('shortage activity notes', e)
   }
 
   return {

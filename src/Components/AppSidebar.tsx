@@ -97,7 +97,7 @@ export function AppSidebar() {
     onNavigate: () => sidebarNav({ department: 'production', productionPage: 'overview' })
   }
 
-  const { externalRepairPages } = useDepartmentNavPages()
+  const { externalRepairPages, externalRepairModulePages, isPageActive } = useDepartmentNavPages()
 
   const productionAreaPages: SidebarPage[] = PRODUCTION_AREA_ORDER.map(key => ({
     key,
@@ -109,8 +109,15 @@ export function AppSidebar() {
         productionArea: key,
         ...(key === 'assembly' || key === 'body' || key === 'paint' || key === 'externalRepair' || nav.productionPage === 'overview'
           ? {
-              productionPage: key === 'externalRepair' ? 'training' : 'home',
-              ...(key === 'externalRepair' ? { trainingTab: 'org' as const } : { externalRepairSectionId: null })
+              productionPage: 'home',
+              ...(key === 'externalRepair'
+                ? {
+                    externalRepairSectionId:
+                      externalRepairPages.find(page => page.key !== 'externalRepairEmpty')?.children?.[0]?.key ??
+                      externalRepairPages.find(page => page.key !== 'externalRepairEmpty')?.key ??
+                      null
+                  }
+                : { externalRepairSectionId: null })
             }
           : {})
       })
@@ -659,28 +666,47 @@ export function AppSidebar() {
                 {deptOpen &&
                   isProduction &&
                   nav.productionArea === 'externalRepair' &&
-                  nav.productionPage !== 'overview' &&
-                  renderPages(
-                    'production',
-                    externalRepairPages.map(page => ({
-                      key: page.key,
-                      label: page.label,
-                      visible: page.visible,
-                      icon: page.icon,
-                      onNavigate: page.onNavigate,
-                      children: page.children?.map(child => ({
-                        key: child.key,
-                        label: child.label,
-                        onClick: child.onClick,
-                        visible: child.visible
-                      }))
-                    })),
-                    key =>
-                      !nav.showProfile &&
-                      !nav.showGlobalHome &&
-                      nav.department === 'production' &&
-                      nav.productionArea === 'externalRepair' &&
-                      nav.externalRepairSectionId === key
+                  nav.productionPage !== 'overview' && (
+                    <>
+                      {renderPages(
+                        'production',
+                        externalRepairPages.map(page => ({
+                          key: page.key,
+                          label: page.label,
+                          visible: page.visible,
+                          icon: page.icon,
+                          onNavigate: page.onNavigate,
+                          children: page.children?.map(child => ({
+                            key: child.key,
+                            label: child.label,
+                            onClick: child.onClick,
+                            visible: child.visible
+                          }))
+                        })),
+                        key => !nav.showProfile && !nav.showGlobalHome && isPageActive('production', key)
+                      )}
+                      {renderPages(
+                        'production',
+                        externalRepairModulePages.map(page => ({
+                          key: page.key,
+                          label: page.label,
+                          visible: page.visible,
+                          icon: page.icon,
+                          onNavigate: page.onNavigate,
+                          children: page.children?.map(child => ({
+                            key: child.key,
+                            label: child.label,
+                            onClick: child.onClick,
+                            visible: child.visible
+                          }))
+                        })),
+                        key =>
+                          !nav.showProfile &&
+                          !nav.showGlobalHome &&
+                          nav.productionArea === 'externalRepair' &&
+                          nav.productionPage === key
+                      )}
+                    </>
                   )}
                 {deptOpen && isPlanning && renderPages('planning', planningPages, isPlanningActive)}
                 {deptOpen && isEngineering && renderPages('engineering', engineeringPages, isEngineeringActive)}

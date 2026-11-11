@@ -1,16 +1,42 @@
 import { useEffect, useMemo, useState } from 'react'
-import { Factory, Users } from 'lucide-react'
+import { Factory } from 'lucide-react'
 import { useLang } from '../../i18n/LanguageContext'
 import { useNavigation } from '../../Context/NavigationContext'
+import { useAuth } from '../../Context/AuthContext'
+import { useCanViewPage } from '../../hooks/useCanViewPage'
+import { usePermissions } from '../../Context/PermissionsContext'
+import { pagePermForProduction } from '../../config/pageAccess'
+import { productivityNavVisible } from '../../config/pageTabAccess'
+import { isProductivityRecorder } from '../../Utils/assemblyAreas'
 import { getFactoryOrgUnits } from '../../services/factoryOrgService'
+import { HomePage } from './HomePage'
+import { MissingPartsPage } from './MissingPartsPage'
+import { ProductivityPage } from './ProductivityPage'
 import { TrainingMatrixPage } from './TrainingMatrixPage'
-import { externalRepairSections } from '../../Utils/productionAreaCounts'
+import { DamagedPartsPage } from './DamagedPartsPage'
+import { MissionsPage } from './MissionsPage'
+import { RequestsPage } from './RequestsPage'
+import { ScratchesPage } from './ScratchesPage'
+import { EquipmentPage } from './EquipmentPage'
+import { InternalQualityPage } from './InternalQualityPage'
+import { FeedbackPage } from './FeedbackPage'
+import {
+  externalRepairDepartments,
+  externalRepairSiteForSelection,
+  externalRepairSites,
+  resolveExternalRepairWorkforceUnitId
+} from '../../Utils/productionAreaCounts'
 import type { FactoryOrgUnit } from '../../Types/factoryOrg'
 
-/** الإصلاح الخارجي: أقسام من الهيكل + تبويب العمالة بكل تبويباته. */
+/** الإصلاح الخارجي: مواقع → أقسام → نفس وحدات التجميع. */
 export function ExternalRepairPage() {
   const { t } = useLang()
-  const { externalRepairSectionId, trainingTab, navigate } = useNavigation()
+  const nav = useNavigation()
+  const { profile } = useAuth()
+  const { canViewPage, loading: pagesLoading } = useCanViewPage()
+  const { canViewTab, loading: permsLoading } = usePermissions()
+  const navLoading = pagesLoading || permsLoading
+  const recorder = isProductivityRecorder(profile?.system_role_code, profile?.system_role_name_ar)
   const [orgUnits, setOrgUnits] = useState<FactoryOrgUnit[]>([])
   const [loading, setLoading] = useState(true)
 
@@ -31,26 +57,43 @@ export function ExternalRepairPage() {
     }
   }, [])
 
-  const sections = useMemo(() => externalRepairSections(orgUnits), [orgUnits])
-  const activeSection = sections.find(s => s.id === externalRepairSectionId) ?? sections[0] ?? null
+  const sites = useMemo(() => externalRepairSites(orgUnits), [orgUnits])
+  const activeSite = externalRepairSiteForSelection(orgUnits, nav.externalRepairSectionId) ?? sites[0] ?? null
+  const departments = useMemo(
+    () => (activeSite ? externalRepairDepartments(orgUnits, activeSite.id) : []),
+    [orgUnits, activeSite]
+  )
+  const activeDepartment =
+    departments.find(dept => dept.id === nav.externalRepairSectionId) ?? departments[0] ?? null
+  const workforceUnitId =
+    activeDepartment?.id ?? resolveExternalRepairWorkforceUnitId(orgUnits, nav.externalRepairSectionId)
+
+  const { externalRepairSectionId, productionPage, navigate } = nav
 
   useEffect(() => {
     if (loading) return
-    if (sections.length === 0) {
+    if (sites.length === 0) {
       if (externalRepairSectionId != null) {
         navigate({ externalRepairSectionId: null, productionPage: 'home' })
       }
       return
     }
-    if (!externalRepairSectionId || !sections.some(s => s.id === externalRepairSectionId)) {
+    const site = externalRepairSiteForSelection(orgUnits, externalRepairSectionId) ?? sites[0]!
+    const siteDepartments = externalRepairDepartments(orgUnits, site.id)
+    const preferredDeptId =
+      (externalRepairSectionId && siteDepartments.some(dept => dept.id === externalRepairSectionId)
+        ? externalRepairSectionId
+        : null) ??
+      siteDepartments[0]?.id ??
+      site.id
+    if (preferredDeptId !== externalRepairSectionId) {
       navigate({
         productionArea: 'externalRepair',
-        productionPage: 'training',
-        externalRepairSectionId: sections[0].id,
-        trainingTab: trainingTab || 'org'
+        productionPage: productionPage === 'overview' ? 'home' : productionPage || 'home',
+        externalRepairSectionId: preferredDeptId
       })
     }
-  }, [loading, sections, externalRepairSectionId, trainingTab, navigate])
+  }, [loading, sites, orgUnits, externalRepairSectionId, productionPage, navigate])
 
   if (loading) {
     return (
@@ -58,7 +101,7 @@ export function ExternalRepairPage() {
     )
   }
 
-  if (sections.length === 0) {
+  if (sites.length === 0) {
     return (
       <section className="card-industrial flex min-h-[min(50vh,28rem)] flex-col items-center justify-center gap-4 p-8 text-center">
         <div className="rounded-3xl bg-slate-800/80 p-5 text-cyan-300">
@@ -72,23 +115,48 @@ export function ExternalRepairPage() {
     )
   }
 
-  if (!activeSection) return null
+  if (!activeSite || !workforceUnitId) return null
 
-  return (
-    <div className="space-y-4">
-      <section className="card-industrial flex items-start gap-3 p-4 sm:p-5">
-        <div className="rounded-xl bg-sky-500/15 p-3 text-sky-300">
-          <Users className="h-5 w-5" />
-        </div>
-        <div>
-          <p className="text-xs font-black uppercase tracking-wide text-slate-500">
-            {t('departments.productionArea.externalRepair')}
-          </p>
-          <h2 className="text-lg font-black text-white">{activeSection.name}</h2>
-          <p className="text-sm text-slate-400">{t('externalRepair.sectionHint')}</p>
-        </div>
-      </section>
-      <TrainingMatrixPage workforceOrgUnitId={activeSection.id} workforceLabel={activeSection.name} />
-    </div>
-  )
+  const scopeLabel =
+    activeDepartment != null ? `${activeSite.name} · ${activeDepartment.name}` : activeSite.name
+  const page = nav.productionPage
+
+  if (page === 'home' && (navLoading || canViewPage(pagePermForProduction('home')))) {
+    return <HomePage />
+  }
+  if (page === 'missing' && (navLoading || canViewPage(pagePermForProduction('missing')))) {
+    return <MissingPartsPage />
+  }
+  if (
+    page === 'vehicles' &&
+    (navLoading || productivityNavVisible(canViewPage, canViewTab, recorder))
+  ) {
+    return <ProductivityPage />
+  }
+  if (page === 'training' && (navLoading || canViewPage(pagePermForProduction('training')))) {
+    return <TrainingMatrixPage workforceOrgUnitId={workforceUnitId} workforceLabel={scopeLabel} />
+  }
+  if (page === 'damagedParts' && (navLoading || canViewPage(pagePermForProduction('damagedParts')))) {
+    return <DamagedPartsPage />
+  }
+  if (page === 'missions' && (navLoading || canViewPage(pagePermForProduction('missions')))) {
+    return <MissionsPage />
+  }
+  if (page === 'requests' && (navLoading || canViewPage(pagePermForProduction('requests')))) {
+    return <RequestsPage />
+  }
+  if (page === 'scratches' && (navLoading || canViewPage(pagePermForProduction('scratches')))) {
+    return <ScratchesPage />
+  }
+  if (page === 'equipment' && (navLoading || canViewPage(pagePermForProduction('equipment')))) {
+    return <EquipmentPage />
+  }
+  if (page === 'internalQuality' && (navLoading || canViewPage(pagePermForProduction('internalQuality')))) {
+    return <InternalQualityPage />
+  }
+  if (page === 'feedback' && (navLoading || canViewPage(pagePermForProduction('feedback')))) {
+    return <FeedbackPage />
+  }
+
+  return <TrainingMatrixPage workforceOrgUnitId={workforceUnitId} workforceLabel={scopeLabel} />
 }

@@ -31,6 +31,8 @@ export function DepartmentTopBar() {
     isNavChildActive,
     isProductionAreaActive,
     productionAreaTabs,
+    externalRepairModulePages,
+    externalRepairDepartmentSelected,
     settingsPage,
     currentDepartment,
     showProfile
@@ -44,7 +46,10 @@ export function DepartmentTopBar() {
   const isProduction = currentDepartment === 'production'
   const showAreaPages =
     isProduction &&
-    (nav.productionArea === 'assembly' || nav.productionArea === 'body' || nav.productionArea === 'paint') &&
+    (nav.productionArea === 'assembly' ||
+      nav.productionArea === 'body' ||
+      nav.productionArea === 'paint' ||
+      nav.productionArea === 'externalRepair') &&
     nav.productionPage !== 'overview'
   const hasSectionPages =
     !isGlobalHomeActive &&
@@ -58,6 +63,22 @@ export function DepartmentTopBar() {
     if (!hasSectionPages || (isProduction && !showAreaPages)) return null
     return sectionPages.find(p => p.children?.length && isPageActive(currentDepartment, p.key)) ?? null
   }, [hasSectionPages, isProduction, showAreaPages, sectionPages, currentDepartment, isPageActive])
+
+  const showExternalRepairModules =
+    isProduction &&
+    nav.productionArea === 'externalRepair' &&
+    nav.productionPage !== 'overview' &&
+    externalRepairDepartmentSelected
+
+  const externalRepairModules = useMemo(
+    () => externalRepairModulePages.filter(page => page.visible),
+    [externalRepairModulePages]
+  )
+
+  const activeExternalRepairModule = useMemo(() => {
+    if (!showExternalRepairModules) return null
+    return externalRepairModules.find(page => page.children?.length && nav.productionPage === page.key) ?? null
+  }, [showExternalRepairModules, externalRepairModules, nav.productionPage])
 
   const showSectionNav = !showProfile && !isGlobalHomeActive && (isSettingsActive || hasSectionPages)
 
@@ -168,6 +189,21 @@ export function DepartmentTopBar() {
               </div>
             )}
             {activePageWithChildren && renderChildRow(activePageWithChildren)}
+            {showExternalRepairModules && externalRepairModules.length > 0 && (
+              <div className={rowCls}>
+                {externalRepairModules.map(page => (
+                  <NavTabButton
+                    key={page.key}
+                    label={page.label}
+                    icon={page.icon}
+                    compact
+                    active={nav.productionPage === page.key}
+                    onClick={() => page.onNavigate()}
+                  />
+                ))}
+              </div>
+            )}
+            {activeExternalRepairModule && renderChildRow(activeExternalRepairModule)}
           </>
         )}
       </div>

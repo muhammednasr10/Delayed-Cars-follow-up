@@ -1232,9 +1232,10 @@ export const translations = {
       goProduction: 'الانتقال إلى قسم الإنتاج'
     },
     externalRepair: {
-      noSections: 'لا توجد أقسام تحت «الإصلاح الخارجي» في الهيكل التنظيمي. أضفها من الإعدادات ← الإدارات تحت الإنتاج / الإصلاح الخارجي.',
-      noSectionsShort: 'أضف أقساماً من الإعدادات',
-      sectionHint: 'تبويب العمالة بكل تبويباته لهذا القسم — بشكل مبدئي.',
+      noSections:
+        'لا توجد مواقع تحت «الإصلاح النهائي» في الهيكل التنظيمي. أضف غبور والقصراوى ثم ريبير نهائى / إصلاح الدهان / التسليم النهائى تحت كل موقع من الإعدادات ← الإدارات.',
+      noSectionsShort: 'أضف مواقع من الإعدادات',
+      sectionHint: 'اختر الموقع ثم القسم من الشريط العلوي — العمالة (مشرفين وفنيين) بنفس تبويبات التجميع.',
       workforceEmpty: 'لا يوجد موظفون مرتبطون بهذا القسم في الهيكل التنظيمي.'
     },
     warehouses: {
@@ -2306,12 +2307,16 @@ export const translations = {
       reportDailyNewTitle: 'سيارات خرجت بنواقص جديدة',
       reportDailyArchivedTitle: 'سيارات اكتملت وانتقلت للأرشيف',
       reportDailySheets: {
-        summary: 'ملخص السيارات والأقسام المتسببة',
-        new: 'النواقص الجديدة',
-        completed: 'نواقص تم استكمالها',
-        current: 'النواقص الحالية',
+        summary: 'ملخص',
+        new: 'نواقص جديدة',
+        completed: 'سيارات مستكملة',
+        current: 'السيارات الحالية',
         vehicleCount: 'عدد السيارات',
-        lineCount: 'عدد النواقص'
+        lineCount: 'عدد النواقص',
+        total: 'Total',
+        completedSummaryTitle: 'ملخص السيارات المستكملة بتاريخ',
+        newSummaryTitle: 'ملخص السيارات النواقص الجديدة بتاريخ',
+        currentSummaryTitle: 'ملخص السيارات الحالية بتاريخ'
       },
       reportCustomHint: 'حدد من تاريخ وإلى تاريخ لعرض النواقص في الفترة.',
       reportCustomEmpty: 'حدد تاريخ البداية أو النهاية لعرض التقرير.',
@@ -5375,9 +5380,9 @@ export const translations = {
     },
     externalRepair: {
       noSections:
-        'No sections under External repair in the org tree. Add them in Settings → Administrations under Production / External repair.',
-      noSectionsShort: 'Add sections from Settings',
-      sectionHint: 'Workforce tab with all its subtabs for this section — preliminary.',
+        'No sites under Final repair in the org tree. Add Ghabbour and El-Qasrawy, then Final repair / Paint repair / Final delivery under each site in Settings → Administrations.',
+      noSectionsShort: 'Add sites from Settings',
+      sectionHint: 'Pick the site then the section from the top bar — workforce (supervisors and technicians) like Assembly.',
       workforceEmpty: 'No employees linked to this section in the organizational structure.'
     },
     warehouses: {
@@ -6443,12 +6448,16 @@ export const translations = {
       reportDailyNewTitle: 'Vehicles with new shortages',
       reportDailyArchivedTitle: 'Vehicles completed and archived',
       reportDailySheets: {
-        summary: 'Vehicles and causing departments',
+        summary: 'Summary',
         new: 'New shortages',
-        completed: 'Completed shortages',
-        current: 'Current shortages',
+        completed: 'Completed cars',
+        current: 'Current cars',
         vehicleCount: 'Vehicles',
-        lineCount: 'Shortages'
+        lineCount: 'Shortages',
+        total: 'Total',
+        completedSummaryTitle: 'Completed cars summary as of',
+        newSummaryTitle: 'New shortage cars summary as of',
+        currentSummaryTitle: 'Current cars summary as of'
       },
       reportCustomHint: 'Pick a from and to date to show shortages in that period.',
       reportCustomEmpty: 'Pick a start or end date to show the report.',

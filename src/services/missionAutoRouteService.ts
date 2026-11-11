@@ -103,10 +103,13 @@ export async function tryCreateAutoRoutedMission(
     })
     if (error) {
       const m = error.message.toLowerCase()
-      if (m.includes('schema cache') || m.includes('does not exist') || m.includes('create_auto_routed_mission')) {
-        return null
-      }
-      console.warn('tryCreateAutoRoutedMission', error.message)
+      // Soft-miss only when the RPC is not installed yet — do not swallow other failures.
+      const missingFn =
+        error.code === 'PGRST202' ||
+        error.code === '42883' ||
+        ((m.includes('schema cache') || m.includes('could not find the function') || m.includes('does not exist')) &&
+          m.includes('create_auto_routed_mission'))
+      if (!missingFn) console.warn('tryCreateAutoRoutedMission', error.message)
       return null
     }
     return (data as string | null) ?? null

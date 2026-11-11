@@ -28,6 +28,14 @@ describe('productionAreaOrgUnitId', () => {
     expect(productionAreaOrgUnitId(units, 'externalRepair')).toBe('repair')
   })
 
+  it('prefers top-level الإصلاح النهائي over the production section', () => {
+    const withTop = [
+      ...units,
+      { id: 'final', name: 'الإصلاح النهائي', parentId: null, unitKind: 'administration' as const, sortOrder: 10, isActive: true }
+    ]
+    expect(productionAreaOrgUnitId(withTop, 'externalRepair')).toBe('final')
+  })
+
   it('returns null when the area is missing from the org tree', () => {
     expect(productionAreaOrgUnitId([units[0], units[3]], 'paint')).toBeNull()
   })

@@ -13,10 +13,46 @@ export const PRODUCTION_AREA_ORG_NAME_CANDIDATES: Record<ProductionArea, readonl
   body: ['البودي', 'البودى'],
   paint: ['الدهان'],
   assembly: ['التجميع'],
-  externalRepair: ['الإصلاح الخارجي', 'الاصلاح الخارجي']
+  externalRepair: [
+    'الإصلاح النهائي',
+    'الإصلاح النهائى',
+    'الاصلاح النهائي',
+    'الاصلاح النهائى',
+    'الإصلاح الخارجي',
+    'الإصلاح الخارجى',
+    'الاصلاح الخارجي',
+    'الاصلاح الخارجى',
+    'الإصلاح الداخلي',
+    'الإصلاح الداخلى'
+  ]
 }
 
+/** المواقع تحت الإصلاح النهائي / الخارجي. */
+export const EXTERNAL_REPAIR_SITE_NAMES = ['غبور', 'القصراوى', 'القصرواى'] as const
+
+/** الأقسام الثلاثة تحت كل موقع. */
+export const EXTERNAL_REPAIR_DEPARTMENT_NAMES = [
+  'ريبير نهائى',
+  'ريبير نهائي',
+  'إصلاح الدهان',
+  'التسليم النهائى',
+  'التسليم النهائي'
+] as const
+
 export function productionAreaOrgUnitId(units: FactoryOrgUnit[], area: ProductionArea): string | null {
+  // الإصلاح النهائي إدارة علوية في الإدارات (وليس قسماً تحت الإنتاج فقط).
+  if (area === 'externalRepair') {
+    for (const name of PRODUCTION_AREA_ORG_NAME_CANDIDATES.externalRepair) {
+      const top = units.find(
+        unit =>
+          unit.isActive &&
+          unit.parentId == null &&
+          unit.unitKind === 'administration' &&
+          unit.name === name
+      )
+      if (top) return top.id
+    }
+  }
   for (const name of PRODUCTION_AREA_ORG_NAME_CANDIDATES[area]) {
     const id = findOrgUnitIdByPath(units, ['الإنتاج', name])
     if (id) return id
@@ -24,13 +60,65 @@ export function productionAreaOrgUnitId(units: FactoryOrgUnit[], area: Productio
   return null
 }
 
-/** الأقسام/الوحدات الفرعية تحت الإصلاح الخارجي من الهيكل في الإعدادات. */
-export function externalRepairSections(units: FactoryOrgUnit[]): FactoryOrgUnit[] {
-  const parentId = productionAreaOrgUnitId(units, 'externalRepair')
-  if (!parentId) return []
+function activeChildrenOf(units: FactoryOrgUnit[], parentId: string): FactoryOrgUnit[] {
   return units
     .filter(unit => unit.isActive && unit.parentId === parentId)
     .sort((a, b) => a.sortOrder - b.sortOrder || a.name.localeCompare(b.name, 'ar'))
+}
+
+function isPreferredName(name: string, preferred: readonly string[]): boolean {
+  return preferred.some(item => item === name)
+}
+
+/** مواقع غبور / القصراوى المباشرة تحت الإصلاح النهائي. */
+export function externalRepairSites(units: FactoryOrgUnit[]): FactoryOrgUnit[] {
+  const parentId = productionAreaOrgUnitId(units, 'externalRepair')
+  if (!parentId) return []
+  const children = activeChildrenOf(units, parentId)
+  const preferred = children.filter(unit => isPreferredName(unit.name, EXTERNAL_REPAIR_SITE_NAMES))
+  return preferred.length > 0 ? preferred : children
+}
+
+/** الأقسام الثلاثة تحت موقع (ريبير نهائى / إصلاح الدهان / التسليم النهائى). */
+export function externalRepairDepartments(units: FactoryOrgUnit[], siteId: string): FactoryOrgUnit[] {
+  const children = activeChildrenOf(units, siteId)
+  const preferred = children.filter(unit => isPreferredName(unit.name, EXTERNAL_REPAIR_DEPARTMENT_NAMES))
+  return preferred.length > 0 ? preferred : children
+}
+
+/** @deprecated التبويبات العليا بقت المواقع — يُرجع مواقع الإصلاح. */
+export function externalRepairSections(units: FactoryOrgUnit[]): FactoryOrgUnit[] {
+  return externalRepairSites(units)
+}
+
+/** إن كان المعرف قسماً يُرجع الموقع الأب؛ وإلا الموقع نفسه إن وُجد. */
+export function externalRepairSiteForSelection(
+  units: FactoryOrgUnit[],
+  selectionId: string | null
+): FactoryOrgUnit | null {
+  if (!selectionId) return null
+  const selected = units.find(unit => unit.id === selectionId)
+  if (!selected) return null
+  const sites = externalRepairSites(units)
+  if (sites.some(site => site.id === selected.id)) return selected
+  if (selected.parentId) {
+    const parent = sites.find(site => site.id === selected.parentId)
+    if (parent) return parent
+  }
+  return null
+}
+
+/** إن كان المعرف موقعاً يُرجع أول قسم تحته؛ وإلا القسم نفسه. */
+export function resolveExternalRepairWorkforceUnitId(
+  units: FactoryOrgUnit[],
+  selectionId: string | null
+): string | null {
+  if (!selectionId) return null
+  const selected = units.find(unit => unit.id === selectionId)
+  if (!selected) return null
+  const departments = externalRepairDepartments(units, selected.id)
+  if (departments.length > 0) return departments[0]!.id
+  return selected.id
 }
 
 type WorkforceEmployee = Pick<Employee, 'id' | 'isActive' | 'factoryOrgUnitId'>

@@ -1,10 +1,12 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { useLang } from '../../i18n/LanguageContext'
 import type { MissingPartDetail } from '../../Types/missingPart'
 import type { MpLookupOption } from '../../Types/mpLookup'
+import type { VehicleModel } from '../../Types/settings'
+import { getVehicleModels } from '../../services/settingsService'
 import { mpLookupLabel } from '../../Utils/mpLookupLabel'
 import { cell, isOpenShortageLine, localDayKey, todayLocalDayKey } from '../../Utils/missingPartPageUtils'
-import { summarizeCausingDepartments } from '../../Utils/missingPartDailyReportExcel'
+import { buildDailyShortageExcelSheets } from '../../Utils/missingPartDailyReportExcel'
 import { formatVehicleColorLabel } from '../../Utils/vehicleColorLabel'
 import { ExportableTable } from '../ExportableTable'
 import type { ExcelSheet, TableExportColumn } from '../../Utils/tableExport'
@@ -91,16 +93,20 @@ function groupVehicles(
   )
 }
 
-function vehicleSheetRows(rows: VehicleDayRow[]): Array<Array<string | number>> {
-  return rows.map(row => [row.modelName, row.vin, row.color, row.parts, row.reasons])
-}
-
 export function MissingPartsReportTab({ mode, items, reasons, departments, loading, canExport }: Props) {
   const { t, lang } = useLang()
   const [day, setDay] = useState(todayLocalDayKey)
   const [dateFrom, setDateFrom] = useState('')
   const [dateTo, setDateTo] = useState('')
+  const [models, setModels] = useState<VehicleModel[]>([])
   const activityDay = shiftDayKey(day, -1)
+
+  useEffect(() => {
+    if (mode !== 'reportDaily') return
+    getVehicleModels()
+      .then(setModels)
+      .catch(() => setModels([]))
+  }, [mode])
 
   const rangeReady = mode !== 'reportCustom' || Boolean(dateFrom || dateTo)
 
@@ -132,54 +138,61 @@ export function MissingPartsReportTab({ mode, items, reasons, departments, loadi
     () => (mode === 'reportDaily' ? groupVehicles(items, activityDay, 'shortageResolvedAt', reasons, lang) : []),
     [mode, items, activityDay, reasons, lang]
   )
-  const currentVehicles = useMemo(
-    () => (mode === 'reportDaily' ? groupListed(items.filter(isOpenShortageLine), reasons, lang) : []),
-    [mode, items, reasons, lang]
+  const newDayLines = useMemo(
+    () => (mode === 'reportDaily' ? items.filter(item => localDayKey(item.createdAt) === activityDay) : []),
+    [mode, items, activityDay]
+  )
+  const completedDayLines = useMemo(
+    () => (mode === 'reportDaily' ? items.filter(item => localDayKey(item.shortageResolvedAt) === activityDay) : []),
+    [mode, items, activityDay]
+  )
+  const currentDayLines = useMemo(
+    () => (mode === 'reportDaily' ? items.filter(isOpenShortageLine) : []),
+    [mode, items]
   )
   const dailyExcelSheets = useMemo<ExcelSheet[]>(() => {
     if (mode !== 'reportDaily') return []
-    const detailHeader = [
-      t('mp.cols.model'),
-      t('mp.cols.vin'),
-      t('mp.cols.color'),
-      t('mp.cols.reason'),
-      t('mp.cols.reasonClass')
-    ]
-    const openLines = items.filter(isOpenShortageLine)
-    const summary = summarizeCausingDepartments(
-      openLines.map(line => ({
-        vehicleId: line.vehicleId,
-        modelName: line.modelName || '—',
-        department: mpLookupLabel(departments, line.department, lang)
-      }))
-    )
-    const vehicleCount = t('mp.reportDailySheets.vehicleCount')
-    const lineCount = t('mp.reportDailySheets.lineCount')
-    return [
-      {
-        name: t('mp.reportDailySheets.summary'),
-        rows: [
-          [t('mp.cols.causingDepartment'), vehicleCount, lineCount],
-          ...summary.byDepartment.map(row => [row.department, row.vehicles, row.lines]),
-          [],
-          [t('mp.cols.model'), t('mp.cols.causingDepartment'), vehicleCount, lineCount],
-          ...summary.byModel.map(row => [row.model, row.department, row.vehicles, row.lines])
-        ]
+    return buildDailyShortageExcelSheets({
+      dayKey: activityDay,
+      models,
+      newItems: newDayLines,
+      completedItems: completedDayLines,
+      currentItems: currentDayLines,
+      sheetNames: {
+        summary: t('mp.reportDailySheets.summary'),
+        new: t('mp.reportDailySheets.new'),
+        completed: t('mp.reportDailySheets.completed'),
+        current: t('mp.reportDailySheets.current')
       },
-      {
-        name: t('mp.reportDailySheets.new'),
-        rows: [detailHeader, ...vehicleSheetRows(newVehicles)]
+      summaryLabels: {
+        completedTitle: t('mp.reportDailySheets.completedSummaryTitle'),
+        newTitle: t('mp.reportDailySheets.newSummaryTitle'),
+        currentTitle: t('mp.reportDailySheets.currentSummaryTitle'),
+        total: t('mp.reportDailySheets.total')
       },
-      {
-        name: t('mp.reportDailySheets.completed'),
-        rows: [detailHeader, ...vehicleSheetRows(archivedVehicles)]
+      detailLabels: {
+        vin: t('mp.cols.vin'),
+        model: t('mp.cols.model'),
+        color: t('mp.cols.color'),
+        reason: t('mp.cols.reason'),
+        causingDepartment: t('mp.cols.causingDepartment'),
+        reasonClass: t('mp.cols.reasonClass')
       },
-      {
-        name: t('mp.reportDailySheets.current'),
-        rows: [detailHeader, ...vehicleSheetRows(currentVehicles)]
-      }
-    ]
-  }, [mode, items, departments, reasons, lang, t, newVehicles, archivedVehicles, currentVehicles])
+      reasonLabel: code => mpLookupLabel(reasons, code, lang),
+      departmentLabel: code => mpLookupLabel(departments, code, lang)
+    })
+  }, [
+    mode,
+    activityDay,
+    models,
+    newDayLines,
+    completedDayLines,
+    currentDayLines,
+    reasons,
+    departments,
+    lang,
+    t
+  ])
 
   const dailyExportColumns = useMemo<TableExportColumn<DailyExportLine>[]>(
     () => [
@@ -281,7 +294,9 @@ export function MissingPartsReportTab({ mode, items, reasons, departments, loadi
         <ExportableTable
           filename={`missing-parts-daily-${activityDay}`}
           title={t('mp.tabs.reportDaily')}
-          rowCount={loading ? 0 : newVehicles.length + archivedVehicles.length + currentVehicles.length}
+          rowCount={
+            loading ? 0 : newDayLines.length + completedDayLines.length + currentDayLines.length
+          }
           showExport={canExport}
           columns={dailyExportColumns}
           rows={dailyExportRows}

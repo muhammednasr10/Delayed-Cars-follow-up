@@ -39,13 +39,16 @@ import { lineShopNavItems, type LineShopArea } from '../navigation/lineShopNav'
 import {
   SETTINGS_TAB_ORDER,
   PRODUCTION_AREA_ORDER,
-  TRAINING_TAB_ORDER,
   BOM_TAB_ORDER,
   bomTabPermissionKey,
   type DepartmentId
 } from '../Types/navigation'
 import { getFactoryOrgUnits } from '../services/factoryOrgService'
-import { externalRepairSections } from '../Utils/productionAreaCounts'
+import {
+  externalRepairDepartments,
+  externalRepairSiteForSelection,
+  externalRepairSites
+} from '../Utils/productionAreaCounts'
 import type { FactoryOrgUnit } from '../Types/factoryOrg'
 import { productivityNavVisible } from '../config/pageTabAccess'
 import { buildWarehousesNavPages } from './warehouses/buildWarehousesNavPages'
@@ -136,11 +139,14 @@ export function useDepartmentNavPages() {
           productionArea: key,
           ...(key === 'assembly' || key === 'body' || key === 'paint' || key === 'externalRepair' || nav.productionPage === 'overview'
             ? {
-                productionPage: key === 'externalRepair' ? ('training' as const) : ('home' as const),
+                productionPage: 'home' as const,
                 ...(key === 'externalRepair'
                   ? {
-                      externalRepairSectionId: externalRepairSections(orgUnits)[0]?.id ?? null,
-                      trainingTab: 'org' as const
+                      externalRepairSectionId: (() => {
+                        const firstSite = externalRepairSites(orgUnits)[0]
+                        if (!firstSite) return null
+                        return externalRepairDepartments(orgUnits, firstSite.id)[0]?.id ?? firstSite.id
+                      })()
                     }
                   : { externalRepairSectionId: null })
               }
@@ -160,8 +166,8 @@ export function useDepartmentNavPages() {
   }, [canViewPage, nav.productionPage, navLoading, navTo, orgUnits, t])
 
   const externalRepairPages = useMemo<NavPageItem[]>(() => {
-    const sections = externalRepairSections(orgUnits)
-    if (sections.length === 0) {
+    const sites = externalRepairSites(orgUnits)
+    if (sites.length === 0) {
       return [
         {
           key: 'externalRepairEmpty',
@@ -178,173 +184,169 @@ export function useDepartmentNavPages() {
         }
       ]
     }
-    return sections.map(section => ({
-      key: section.id,
-      label: section.name,
-      icon: Users,
-      visible: navLoading || canViewPage(pagePermForProduction('training')),
-      onNavigate: () =>
-        navTo({
-          department: 'production',
-          productionArea: 'externalRepair',
-          productionPage: 'training',
-          externalRepairSectionId: section.id,
-          trainingTab: 'org'
-        }),
-      children: TRAINING_TAB_ORDER.map(key => ({
-        key,
-        label: t(`training.tabs.${key}`),
-        visible: tabVisible('production_training', key),
-        onClick: () =>
-          navTo({
-            department: 'production',
-            productionArea: 'externalRepair',
-            productionPage: 'training',
-            externalRepairSectionId: section.id,
-            trainingTab: key
-          })
-      })).filter(c => c.visible !== false)
-    }))
-  }, [canViewPage, navLoading, navTo, orgUnits, t, tabVisible])
-
-  const assemblyPages = useMemo<NavPageItem[]>(
-    () => [
-      {
-        key: 'home',
-        label: t('nav.home'),
-        icon: Home,
-        visible: navLoading || canViewPage(pagePermForProduction('home')),
-        onNavigate: () => navTo({ department: 'production', productionArea: 'assembly', productionPage: 'home' })
-      },
-      {
-        key: 'missing',
-        label: t('nav.missingParts'),
-        icon: AlertTriangle,
-        visible: navLoading || canViewPage(pagePermForProduction('missing')),
-        onNavigate: () => navTo({ department: 'production', productionArea: 'assembly', productionPage: 'missing' })
-      },
-      {
-        key: 'vehicles',
-        label: t('nav.productivity'),
-        icon: Activity,
-        visible: navLoading || productivityNavVisible(canViewPage, canViewTab, recorder),
-        onNavigate: () =>
-          navTo({
-            department: 'production',
-            productionArea: 'assembly',
-            productionPage: 'vehicles',
-            productivityTab: 'productivity'
-          }),
-        children: [
-          {
-            key: 'productivity',
-            label: t('productivity.tabs.productivity'),
-            visible: tabVisible('production_productivity', 'productivity'),
-            onClick: () =>
-              navTo({
-                department: 'production',
-                productionArea: 'assembly',
-                productionPage: 'vehicles',
-                productivityTab: 'productivity'
-              })
-          },
-          {
-            key: 'stops',
-            label: t('productivity.tabs.stops'),
-            visible: tabVisible('production_productivity', 'stops'),
-            onClick: () =>
-              navTo({
-                department: 'production',
-                productionArea: 'assembly',
-                productionPage: 'vehicles',
-                productivityTab: 'stops'
-              })
-          }
-        ].filter(c => c.visible !== false)
-      },
-      {
-        key: 'training',
-        label: t('nav.training'),
+    return sites.map(site => {
+      const departments = externalRepairDepartments(orgUnits, site.id)
+      const defaultTargetId = departments[0]?.id ?? site.id
+      return {
+        key: site.id,
+        label: site.name,
         icon: Users,
         visible: navLoading || canViewPage(pagePermForProduction('training')),
         onNavigate: () =>
           navTo({
             department: 'production',
-            productionArea: 'assembly',
-            productionPage: 'training',
-            trainingTab: 'org'
+            productionArea: 'externalRepair',
+            productionPage: nav.productionPage === 'overview' ? 'home' : nav.productionPage || 'home',
+            externalRepairSectionId: defaultTargetId
           }),
-        children: (
-          ['org', 'attendance', 'manpower', 'operations', 'stationSkills', 'matrix', 'qualification', 'expiry'] as const
-        )
-          .map(key => ({
-            key,
-            label: t(`training.tabs.${key}`),
-            visible: tabVisible('production_training', key),
-            onClick: () =>
-              navTo({
-                department: 'production',
-                productionArea: 'assembly',
-                productionPage: 'training',
-                trainingTab: key
-              })
-          }))
-          .filter(c => c.visible !== false)
-      },
-      {
-        key: 'damagedParts',
-        label: t('nav.damagedParts'),
-        icon: Package,
-        visible: navLoading || canViewPage(pagePermForProduction('damagedParts')),
-        onNavigate: () =>
-          navTo({ department: 'production', productionArea: 'assembly', productionPage: 'damagedParts' })
-      },
-      {
-        key: 'missions',
-        label: t('nav.missions'),
-        icon: ClipboardList,
-        visible: navLoading || canViewPage(pagePermForProduction('missions')),
-        onNavigate: () => navTo({ department: 'production', productionArea: 'assembly', productionPage: 'missions' })
-      },
-      {
-        key: 'requests',
-        label: t('nav.requests'),
-        icon: FileText,
-        visible: navLoading || canViewPage(pagePermForProduction('requests')),
-        onNavigate: () => navTo({ department: 'production', productionArea: 'assembly', productionPage: 'requests' })
-      },
-      {
-        key: 'scratches',
-        label: t('nav.scratches'),
-        icon: Target,
-        visible: navLoading || canViewPage(pagePermForProduction('scratches')),
-        onNavigate: () => navTo({ department: 'production', productionArea: 'assembly', productionPage: 'scratches' })
-      },
-      {
-        key: 'equipment',
-        label: t('nav.equipment'),
-        icon: Wrench,
-        visible: navLoading || canViewPage(pagePermForProduction('equipment')),
-        onNavigate: () => navTo({ department: 'production', productionArea: 'assembly', productionPage: 'equipment' })
-      },
-      {
-        key: 'internalQuality',
-        label: t('nav.internalQuality'),
-        icon: BadgeCheck,
-        visible: navLoading || canViewPage(pagePermForProduction('internalQuality')),
-        onNavigate: () =>
-          navTo({ department: 'production', productionArea: 'assembly', productionPage: 'internalQuality' })
-      },
-      {
-        key: 'feedback',
-        label: t('nav.feedback'),
-        icon: MessageSquare,
-        visible: navLoading || canViewPage(pagePermForProduction('feedback')),
-        onNavigate: () => navTo({ department: 'production', productionArea: 'assembly', productionPage: 'feedback' })
+        children:
+          departments.length > 0
+            ? departments.map(department => ({
+                key: department.id,
+                label: department.name,
+                visible: true,
+                onClick: () =>
+                  navTo({
+                    department: 'production',
+                    productionArea: 'externalRepair',
+                    productionPage: nav.productionPage === 'overview' ? 'home' : nav.productionPage || 'home',
+                    externalRepairSectionId: department.id
+                  })
+              }))
+            : []
       }
-    ],
-    [canViewPage, canViewTab, navLoading, navTo, recorder, t, tabVisible]
+    })
+  }, [canViewPage, nav.productionPage, navLoading, navTo, orgUnits, t])
+
+  const buildShopModulePages = useCallback(
+    (area: 'assembly' | 'externalRepair'): NavPageItem[] => {
+      const go = (patch: Parameters<typeof navTo>[0]) =>
+        navTo({
+          department: 'production',
+          productionArea: area,
+          ...(area === 'externalRepair' ? { externalRepairSectionId: nav.externalRepairSectionId } : {}),
+          ...patch
+        })
+      return [
+        {
+          key: 'home',
+          label: t('nav.home'),
+          icon: Home,
+          visible: navLoading || canViewPage(pagePermForProduction('home')),
+          onNavigate: () => go({ productionPage: 'home' })
+        },
+        {
+          key: 'missing',
+          label: t('nav.missingParts'),
+          icon: AlertTriangle,
+          visible: navLoading || canViewPage(pagePermForProduction('missing')),
+          onNavigate: () => go({ productionPage: 'missing' })
+        },
+        {
+          key: 'vehicles',
+          label: t('nav.productivity'),
+          icon: Activity,
+          visible: navLoading || productivityNavVisible(canViewPage, canViewTab, recorder),
+          onNavigate: () => go({ productionPage: 'vehicles', productivityTab: 'productivity' }),
+          children: [
+            {
+              key: 'productivity',
+              label: t('productivity.tabs.productivity'),
+              visible: tabVisible('production_productivity', 'productivity'),
+              onClick: () => go({ productionPage: 'vehicles', productivityTab: 'productivity' })
+            },
+            {
+              key: 'stops',
+              label: t('productivity.tabs.stops'),
+              visible: tabVisible('production_productivity', 'stops'),
+              onClick: () => go({ productionPage: 'vehicles', productivityTab: 'stops' })
+            }
+          ].filter(c => c.visible !== false)
+        },
+        {
+          key: 'training',
+          label: t('nav.training'),
+          icon: Users,
+          visible: navLoading || canViewPage(pagePermForProduction('training')),
+          onNavigate: () => go({ productionPage: 'training', trainingTab: 'org' }),
+          children: (
+            ['org', 'attendance', 'manpower', 'operations', 'stationSkills', 'matrix', 'qualification', 'expiry'] as const
+          )
+            .map(key => ({
+              key,
+              label: t(`training.tabs.${key}`),
+              visible: tabVisible('production_training', key),
+              onClick: () => go({ productionPage: 'training', trainingTab: key })
+            }))
+            .filter(c => c.visible !== false)
+        },
+        {
+          key: 'damagedParts',
+          label: t('nav.damagedParts'),
+          icon: Package,
+          visible: navLoading || canViewPage(pagePermForProduction('damagedParts')),
+          onNavigate: () => go({ productionPage: 'damagedParts' })
+        },
+        {
+          key: 'missions',
+          label: t('nav.missions'),
+          icon: ClipboardList,
+          visible: navLoading || canViewPage(pagePermForProduction('missions')),
+          onNavigate: () => go({ productionPage: 'missions' })
+        },
+        {
+          key: 'requests',
+          label: t('nav.requests'),
+          icon: FileText,
+          visible: navLoading || canViewPage(pagePermForProduction('requests')),
+          onNavigate: () => go({ productionPage: 'requests' })
+        },
+        {
+          key: 'scratches',
+          label: t('nav.scratches'),
+          icon: Target,
+          visible: navLoading || canViewPage(pagePermForProduction('scratches')),
+          onNavigate: () => go({ productionPage: 'scratches' })
+        },
+        {
+          key: 'equipment',
+          label: t('nav.equipment'),
+          icon: Wrench,
+          visible: navLoading || canViewPage(pagePermForProduction('equipment')),
+          onNavigate: () => go({ productionPage: 'equipment' })
+        },
+        {
+          key: 'internalQuality',
+          label: t('nav.internalQuality'),
+          icon: BadgeCheck,
+          visible: navLoading || canViewPage(pagePermForProduction('internalQuality')),
+          onNavigate: () => go({ productionPage: 'internalQuality' })
+        },
+        {
+          key: 'feedback',
+          label: t('nav.feedback'),
+          icon: MessageSquare,
+          visible: navLoading || canViewPage(pagePermForProduction('feedback')),
+          onNavigate: () => go({ productionPage: 'feedback' })
+        }
+      ]
+    },
+    [canViewPage, canViewTab, nav.externalRepairSectionId, navLoading, navTo, recorder, t, tabVisible]
   )
+
+  const assemblyPages = useMemo(() => buildShopModulePages('assembly'), [buildShopModulePages])
+  const externalRepairModulePages = useMemo(
+    () => buildShopModulePages('externalRepair'),
+    [buildShopModulePages]
+  )
+
+  const externalRepairDepartmentSelected = useMemo(() => {
+    const id = nav.externalRepairSectionId
+    if (!id || nav.productionArea !== 'externalRepair') return false
+    const site = externalRepairSiteForSelection(orgUnits, id)
+    if (!site) return false
+    return externalRepairDepartments(orgUnits, site.id).some(dept => dept.id === id)
+  }, [nav.externalRepairSectionId, nav.productionArea, orgUnits])
 
   const lineShopPages = useCallback(
     (area: LineShopArea): NavPageItem[] =>
@@ -561,7 +563,11 @@ export function useDepartmentNavPages() {
     if (nav.department !== dept) return false
     if (dept === 'production') {
       if (nav.productionArea === 'externalRepair') {
-        return nav.productionPage !== 'overview' && nav.externalRepairSectionId === pageKey
+        if (nav.productionPage === 'overview') return false
+        if (nav.productionPage === pageKey) return true
+        if (nav.externalRepairSectionId === pageKey) return true
+        const site = externalRepairSiteForSelection(orgUnits, nav.externalRepairSectionId)
+        return site?.id === pageKey
       }
       return (
         (nav.productionArea === 'assembly' || nav.productionArea === 'body' || nav.productionArea === 'paint') &&
@@ -589,8 +595,8 @@ export function useDepartmentNavPages() {
     if (dept === 'engineering' && parentKey === 'lineBalancing') return nav.lineBalancingTab === childKey
     if (dept === 'production' && parentKey === 'vehicles') return nav.productivityTab === childKey
     if (dept === 'production' && parentKey === 'training') return nav.trainingTab === childKey
-    if (dept === 'production' && nav.productionArea === 'externalRepair' && parentKey === nav.externalRepairSectionId) {
-      return nav.trainingTab === childKey
+    if (dept === 'production' && nav.productionArea === 'externalRepair') {
+      return nav.externalRepairSectionId === childKey
     }
     if (dept === 'production' && parentKey === 'settings') return nav.settingsTab === childKey
     if (dept === 'quality' && parentKey === 'notes') return nav.qualityTab === childKey
@@ -614,6 +620,8 @@ export function useDepartmentNavPages() {
     bodyPages,
     paintPages,
     externalRepairPages,
+    externalRepairModulePages,
+    externalRepairDepartmentSelected,
     engineeringPages,
     planningPages,
     warehousesPages,
